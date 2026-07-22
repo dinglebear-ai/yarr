@@ -14,43 +14,77 @@ YARR_MV_BIN=${YARR_MV_BIN:-/bin/mv}
 YARR_INSTALL_BIN=${YARR_INSTALL_BIN:-/usr/bin/install}
 YARR_SYNC_BIN=${YARR_SYNC_BIN:-/usr/bin/sync}
 YARR_TAR_BIN=${YARR_TAR_BIN:-/usr/bin/tar}
+YARR_RM_BIN=${YARR_RM_BIN:-/usr/bin/rm}
 YARR_UPDATE_TMP=''
 YARR_UPDATE_STAGED=''
+YARR_UPDATE_ROLLBACK=''
 YARR_ROLLED_BACK=false
+YARR_RESET_CLEANUP_PENDING=false
+
+[[ -r "$YARR_RC_YARR" ]] || { printf 'yarr-update: cannot read lifecycle script\n' >&2; exit 1; }
+# Source lifecycle helpers without executing their direct-command dispatcher.
+# shellcheck source=/etc/rc.d/rc.yarr
+source "$YARR_RC_YARR"
 
 yarr_update_error() {
     printf 'yarr-update: %s\n' "$*" >&2
 }
 
 yarr_update_cleanup() {
-    local status=$1
+    local status=$1 cleanup_failed=false
     trap - EXIT HUP INT TERM
     case "$YARR_UPDATE_STAGED" in
-        "${YARR_OVERLAY_DIR}"/.yarr.update.*) rm -f -- "$YARR_UPDATE_STAGED" || true ;;
+        "${YARR_OVERLAY_DIR}"/.yarr.update.*)
+            "$YARR_RM_BIN" -f -- "$YARR_UPDATE_STAGED" || cleanup_failed=true
+            ;;
     esac
-    [[ -n "$YARR_UPDATE_TMP" ]] && rm -rf -- "$YARR_UPDATE_TMP" || true
+    if [[ -n "$YARR_UPDATE_TMP" ]] && ! "$YARR_RM_BIN" -rf -- "$YARR_UPDATE_TMP"; then
+        cleanup_failed=true
+    fi
+    [[ "$cleanup_failed" == true ]] && yarr_update_error 'could not remove updater temporary data'
+    [[ "$status" == 0 && "$cleanup_failed" == true ]] && status=1
     exit "$status"
+}
+
+yarr_update_handle_signal() {
+    local status=$1
+    trap - HUP INT TERM
+    if [[ -n "$YARR_UPDATE_ROLLBACK" ]]; then
+        "$YARR_UPDATE_ROLLBACK" || yarr_update_error 'signal rollback did not fully restore prior state'
+    fi
+    yarr_update_cleanup "$status"
 }
 
 yarr_update_track_tempdir() {
     YARR_UPDATE_TMP=$1
     YARR_UPDATE_STAGED=''
     trap 'yarr_update_cleanup "$?"' EXIT
-    trap 'exit 129' HUP
-    trap 'exit 130' INT
-    trap 'exit 143' TERM
+    trap 'yarr_update_handle_signal 129' HUP
+    trap 'yarr_update_handle_signal 130' INT
+    trap 'yarr_update_handle_signal 143' TERM
 }
 
 yarr_update_clear_tempdir() {
-    [[ -n "$YARR_UPDATE_TMP" ]] && rm -rf -- "$YARR_UPDATE_TMP" || true
-    YARR_UPDATE_TMP=''
-    YARR_UPDATE_STAGED=''
+    if [[ -n "$YARR_UPDATE_STAGED" ]]; then
+        "$YARR_RM_BIN" -f -- "$YARR_UPDATE_STAGED" || {
+            yarr_update_error 'could not remove updater staged data'
+            return 1
+        }
+        YARR_UPDATE_STAGED=''
+    fi
+    if [[ -n "$YARR_UPDATE_TMP" ]]; then
+        "$YARR_RM_BIN" -rf -- "$YARR_UPDATE_TMP" || {
+            yarr_update_error 'could not remove updater temporary data'
+            return 1
+        }
+        YARR_UPDATE_TMP=''
+    fi
 }
 
 yarr_update_version_from_binary() {
     local output
     output=$("$1" --version 2>/dev/null) || return 1
-    if [[ "$output" =~ ^yarr[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+    if [[ "$output" =~ ^yarr[[:space:]]+((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
         printf '%s\n' "${BASH_REMATCH[1]}"
         return 0
     fi
@@ -59,7 +93,7 @@ yarr_update_version_from_binary() {
 }
 
 yarr_update_valid_version() {
-    [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+    [[ "$1" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
 }
 
 yarr_update_major() {
@@ -100,12 +134,13 @@ yarr_update_release_eligible() {
 }
 
 yarr_update_select_available() {
-    local releases=$1 installed=$2 channel=$3 tag draft prerelease version selected=''
+    local releases=$1 installed=$2 channel=$3 tag draft prerelease version suffix selected=''
     while IFS=$'\t' read -r tag draft prerelease; do
-        [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-.+)?$ ]] || continue
+        [[ "$tag" =~ ^v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))(-.+)?$ ]] || continue
         version=${BASH_REMATCH[1]}
+        suffix=${BASH_REMATCH[5]}
         [[ "$draft" == false ]] || continue
-        [[ "$channel" == stable && "$prerelease" == false && -z "${BASH_REMATCH[2]}" ]] || continue
+        [[ "$channel" == stable && "$prerelease" == false && -z "$suffix" ]] || continue
         yarr_update_release_eligible "$releases" "$version" "$installed" || continue
         if [[ -z "$selected" ]] || yarr_update_version_gt "$version" "$selected"; then
             selected=$version
@@ -170,7 +205,11 @@ yarr_update_emit() {
 }
 
 yarr_update_lifecycle() {
-    YARR_LOCK_HELD=1 YARR_LOCK_FD="$YARR_UPDATE_LOCK_FD" "$YARR_RC_YARR" "$1"
+    case "$1" in
+        start) yarr_start_locked ;;
+        stop) yarr_stop_locked ;;
+        *) yarr_update_error 'invalid internal lifecycle action'; return 2 ;;
+    esac
 }
 
 yarr_update_with_lock() {
@@ -189,9 +228,13 @@ yarr_update_with_lock() {
 yarr_update_restore_apply() {
     local was_running=$1 active=$2 previous=$3 active_backup=$4 previous_backup=$5 active_location=$6 previous_location=$7 new_active=$8 result=0
     if [[ "$was_running" == true ]] && ! yarr_update_lifecycle stop; then result=1; fi
-    if [[ "$new_active" == true ]] && ! rm -f -- "$active"; then result=1; fi
-    if [[ "$active_location" == previous && -e "$previous" ]]; then
-        "$YARR_MV_BIN" "$previous" "$active" || result=1
+    if [[ "$new_active" == true ]] && ! "$YARR_RM_BIN" -f -- "$active"; then result=1; fi
+    if [[ "$active_location" == previous ]]; then
+        if [[ -e "$previous" ]]; then
+            "$YARR_MV_BIN" "$previous" "$active" || result=1
+        elif [[ -e "$active_backup" ]]; then
+            "$YARR_MV_BIN" "$active_backup" "$active" || result=1
+        fi
     elif [[ "$active_location" == backup && -e "$active_backup" ]]; then
         "$YARR_MV_BIN" "$active_backup" "$active" || result=1
     fi
@@ -206,55 +249,74 @@ yarr_update_restore_apply() {
     return "$result"
 }
 
+yarr_update_rollback_apply_current() {
+    yarr_update_restore_apply "$YARR_TXN_WAS_RUNNING" "$YARR_TXN_ACTIVE" "$YARR_TXN_PREVIOUS" \
+        "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_PREVIOUS_BACKUP" "$YARR_TXN_ACTIVE_LOCATION" \
+        "$YARR_TXN_PREVIOUS_LOCATION" "$YARR_TXN_NEW_ACTIVE"
+}
+
 yarr_update_apply_locked() {
-    local candidate=$1 was_running=false had_active=false had_previous=false active previous active_backup previous_backup staged
-    local active_location=none previous_location=none new_active=false
-    active="${YARR_OVERLAY_DIR}/yarr"
-    previous="${YARR_OVERLAY_DIR}/yarr.previous"
-    active_backup="${YARR_OVERLAY_DIR}/.yarr.update.active.$$"
-    previous_backup="${YARR_OVERLAY_DIR}/.yarr.update.previous.$$"
-    staged="${YARR_OVERLAY_DIR}/.yarr.update.new.$$"
+    local candidate=$1
+    YARR_TXN_WAS_RUNNING=false
+    YARR_TXN_HAD_ACTIVE=false
+    YARR_TXN_HAD_PREVIOUS=false
+    YARR_TXN_ACTIVE="${YARR_OVERLAY_DIR}/yarr"
+    YARR_TXN_PREVIOUS="${YARR_OVERLAY_DIR}/yarr.previous"
+    YARR_TXN_ACTIVE_BACKUP="${YARR_OVERLAY_DIR}/.yarr.update.active.$$"
+    YARR_TXN_PREVIOUS_BACKUP="${YARR_OVERLAY_DIR}/.yarr.update.previous.$$"
+    YARR_TXN_STAGED="${YARR_OVERLAY_DIR}/.yarr.update.new.$$"
+    YARR_TXN_ACTIVE_LOCATION=none
+    YARR_TXN_PREVIOUS_LOCATION=none
+    YARR_TXN_NEW_ACTIVE=false
+    YARR_UPDATE_ROLLBACK=yarr_update_rollback_apply_current
     mkdir -p "$YARR_OVERLAY_DIR" || return 1
-    [[ -e "$active" ]] && { had_active=true; active_location=active; }
-    [[ -e "$previous" ]] && { had_previous=true; previous_location=previous; }
+    [[ -e "$YARR_TXN_ACTIVE" ]] && { YARR_TXN_HAD_ACTIVE=true; YARR_TXN_ACTIVE_LOCATION=active; }
+    [[ -e "$YARR_TXN_PREVIOUS" ]] && { YARR_TXN_HAD_PREVIOUS=true; YARR_TXN_PREVIOUS_LOCATION=previous; }
     if yarr_pid_is_owned; then
-        was_running=true
+        YARR_TXN_WAS_RUNNING=true
         yarr_update_lifecycle stop || return 1
     fi
-    if [[ "$had_previous" == true ]] && ! "$YARR_MV_BIN" "$previous" "$previous_backup"; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+    if [[ "$YARR_TXN_HAD_PREVIOUS" == true ]]; then
+        YARR_TXN_PREVIOUS_LOCATION=backup
+    fi
+    if [[ "$YARR_TXN_HAD_PREVIOUS" == true ]] && ! "$YARR_MV_BIN" "$YARR_TXN_PREVIOUS" "$YARR_TXN_PREVIOUS_BACKUP"; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
-    [[ "$had_previous" == true ]] && previous_location=backup
-    if [[ "$had_active" == true ]] && ! "$YARR_MV_BIN" "$active" "$active_backup"; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+    if [[ "$YARR_TXN_HAD_ACTIVE" == true ]]; then
+        YARR_TXN_ACTIVE_LOCATION=backup
+    fi
+    if [[ "$YARR_TXN_HAD_ACTIVE" == true ]] && ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE" "$YARR_TXN_ACTIVE_BACKUP"; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
-    [[ "$had_active" == true ]] && active_location=backup
-    YARR_UPDATE_STAGED=$staged
-    if ! "$YARR_INSTALL_BIN" -m 755 "$candidate" "$staged" || ! "$YARR_SYNC_BIN" -f "$staged"; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+    YARR_UPDATE_STAGED=$YARR_TXN_STAGED
+    if ! "$YARR_INSTALL_BIN" -m 755 "$candidate" "$YARR_TXN_STAGED" || ! "$YARR_SYNC_BIN" -f "$YARR_TXN_STAGED"; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
-    if [[ "$had_active" == true ]] && ! "$YARR_MV_BIN" "$active_backup" "$previous"; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+    if [[ "$YARR_TXN_HAD_ACTIVE" == true ]]; then
+        YARR_TXN_ACTIVE_LOCATION=previous
+    fi
+    if [[ "$YARR_TXN_HAD_ACTIVE" == true ]] && ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_PREVIOUS"; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
-    [[ "$had_active" == true ]] && active_location=previous
-    if ! "$YARR_MV_BIN" "$staged" "$active" || ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" true || true
+    YARR_TXN_NEW_ACTIVE=true
+    if ! "$YARR_MV_BIN" "$YARR_TXN_STAGED" "$YARR_TXN_ACTIVE" || ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
     YARR_UPDATE_STAGED=''
-    new_active=true
-    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle start; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+    if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle start; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
-    if [[ "$had_previous" == true ]] && ! rm -f -- "$previous_backup"; then
-        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+    if [[ "$YARR_TXN_HAD_PREVIOUS" == true ]] && ! "$YARR_RM_BIN" -f -- "$YARR_TXN_PREVIOUS_BACKUP"; then
+        yarr_update_rollback_apply_current || true
         return 1
     fi
+    YARR_UPDATE_ROLLBACK=''
 }
 
 yarr_update_restore_reset() {
@@ -270,36 +332,47 @@ yarr_update_restore_reset() {
     return "$result"
 }
 
+yarr_update_rollback_reset_current() {
+    yarr_update_restore_reset "$YARR_TXN_WAS_RUNNING" "$YARR_TXN_ACTIVE" "$YARR_TXN_PREVIOUS" \
+        "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_PREVIOUS_BACKUP"
+}
+
 yarr_update_reset_locked() {
-    local was_running=false active previous active_backup previous_backup
-    active="${YARR_OVERLAY_DIR}/yarr"
-    previous="${YARR_OVERLAY_DIR}/yarr.previous"
-    active_backup="${YARR_OVERLAY_DIR}/.yarr.reset-active.$$"
-    previous_backup="${YARR_OVERLAY_DIR}/.yarr.reset-previous.$$"
+    local transaction
+    transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.reset.XXXXXX") || return 1
+    yarr_update_track_tempdir "$transaction"
+    YARR_TXN_WAS_RUNNING=false
+    YARR_TXN_ACTIVE="${YARR_OVERLAY_DIR}/yarr"
+    YARR_TXN_PREVIOUS="${YARR_OVERLAY_DIR}/yarr.previous"
+    YARR_TXN_ACTIVE_BACKUP="${transaction}/active"
+    YARR_TXN_PREVIOUS_BACKUP="${transaction}/previous"
+    YARR_UPDATE_ROLLBACK=yarr_update_rollback_reset_current
     if yarr_pid_is_owned; then
-        was_running=true
+        YARR_TXN_WAS_RUNNING=true
         yarr_update_lifecycle stop || return 1
     fi
-    if [[ -e "$active" ]] && ! "$YARR_MV_BIN" "$active" "$active_backup"; then
-        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+    if [[ -e "$YARR_TXN_ACTIVE" ]] && ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE" "$YARR_TXN_ACTIVE_BACKUP"; then
+        yarr_update_rollback_reset_current || true
         return 1
     fi
-    if [[ -e "$previous" ]] && ! "$YARR_MV_BIN" "$previous" "$previous_backup"; then
-        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+    if [[ -e "$YARR_TXN_PREVIOUS" ]] && ! "$YARR_MV_BIN" "$YARR_TXN_PREVIOUS" "$YARR_TXN_PREVIOUS_BACKUP"; then
+        yarr_update_rollback_reset_current || true
         return 1
     fi
     if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
-        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+        yarr_update_rollback_reset_current || true
         return 1
     fi
-    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle start; then
-        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+    if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle start; then
+        yarr_update_rollback_reset_current || true
         return 1
     fi
-    rm -f -- "$active_backup" "$previous_backup" || {
-        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+    YARR_UPDATE_ROLLBACK=''
+    if ! yarr_update_clear_tempdir; then
+        YARR_RESET_CLEANUP_PENDING=true
+        yarr_update_emit '' false 'Yarr reset; updater backup cleanup pending'
         return 1
-    }
+    fi
 }
 
 yarr_update_check() {
@@ -358,6 +431,7 @@ yarr_update_apply() {
 
 yarr_update_reset() {
     if ! yarr_update_with_lock yarr_update_reset_locked; then
+        [[ "$YARR_RESET_CLEANUP_PENDING" == true ]] && return 1
         yarr_update_emit '' "$YARR_ROLLED_BACK" 'Reset failed; previous binary restored' || true
         return 1
     fi

@@ -68,7 +68,12 @@ printf '%s %s\\n' "\$name" "\$*" >> "\${YARR_TEST_OPERATION_LOG}"
 if [[ "\${YARR_TEST_FAIL_COMMAND:-}" == "\$name" && "\${YARR_TEST_FAIL_AT:-0}" == "\$count" ]]; then
     exit 1
 fi
-exec $real "\$@"
+$real "\$@"
+status=\$?
+if [[ "\$status" == 0 && "\${YARR_TEST_SIGNAL_COMMAND:-}" == "\$name" && "\${YARR_TEST_SIGNAL_AT:-0}" == "\$count" ]]; then
+    kill -TERM "\$PPID"
+fi
+exit "\$status"
 EOF
     chmod 755 "$test_root/bin/$name"
 }
@@ -80,16 +85,18 @@ make_fake_boundary mv /bin/mv
 make_fake_boundary install /usr/bin/install
 make_fake_boundary sync /usr/bin/sync
 make_fake_boundary tar /usr/bin/tar
+make_fake_boundary rm /usr/bin/rm
 export YARR_MV_BIN="$test_root/bin/mv"
 export YARR_INSTALL_BIN="$test_root/bin/install"
 export YARR_SYNC_BIN="$test_root/bin/sync"
 export YARR_TAR_BIN="$test_root/bin/tar"
+export YARR_RM_BIN="$test_root/bin/rm"
 
 reset_boundaries() {
     rm -rf "$YARR_TEST_FAKE_COUNTS"
     mkdir -p "$YARR_TEST_FAKE_COUNTS"
     : > "$YARR_TEST_OPERATION_LOG"
-    unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT
+    unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 }
 
 write_yarr() {
@@ -194,10 +201,28 @@ export YARR_TEST_RELEASES="$fixture"
 export YARR_TEST_ARCHIVE="$test_root/releases/yarr-x86_64.tar.gz"
 export YARR_TEST_CHECKSUM="$test_root/releases/yarr-x86_64.tar.gz.sha256"
 
+signal_rc="$test_root/bin/rc-signal-after-stop"
+cat > "$signal_rc" <<'EOF'
+#!/usr/bin/env bash
+source "$YARR_REAL_RC"
+eval "$(declare -f yarr_stop_locked | sed '1s/yarr_stop_locked/yarr_stop_locked_original/')"
+yarr_stop_locked() {
+    yarr_stop_locked_original "$@"
+    if [[ ! -e "$YARR_TEST_SIGNAL_MARKER" ]]; then
+        : > "$YARR_TEST_SIGNAL_MARKER"
+        kill -TERM "$$"
+    fi
+}
+EOF
+chmod 755 "$signal_rc"
+export YARR_REAL_RC="$rc"
+
 reset_boundaries
 "$updater" apply --version 2.0.0 --json > "$tmp_dir/equal.json"
 [[ ! -e "$YARR_OVERLAY_DIR/yarr" ]] || fail 'equal version created an overlay'
-[[ ! -s "$YARR_TEST_OPERATION_LOG" ]] || fail 'equal version performed a filesystem swap'
+if grep -Eq '^(install|mv|sync) ' "$YARR_TEST_OPERATION_LOG"; then
+    fail 'equal version performed a filesystem swap'
+fi
 
 for eligibility in draft prerelease malformed; do
     eligibility_fixture="$tmp_dir/releases-$eligibility.json"
@@ -219,6 +244,7 @@ if grep -Fq 'contract-token' <<< "$check_json"; then
 fi
 
 expect_failure 'major version update' "$updater" apply --version 3.0.0 --json
+expect_failure 'leading-zero version' "$updater" apply --version 2.01.0 --json
 
 missing_assets="$tmp_dir/releases-missing-assets.json"
 jq 'map(if .tag_name == "v2.1.0" then .assets = [.assets[0]] else . end)' "$fixture" > "$missing_assets"
@@ -258,11 +284,8 @@ expect_failure 'archive path entry' "$updater" apply --version 2.1.0 --json
 expect_eq "$overlay_before" "$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')" 'path entry overlay preservation'
 make_archive 2.1.0 regular
 
-expect_failure 'untrusted lock-held lifecycle invocation' \
-    env YARR_LOCK_HELD=1 YARR_LOCK_FD=9 "$rc" start
-
 bash -c 'exec 9>"$YARR_LOCK"; YARR_LOCK_HELD=1 YARR_LOCK_FD=9 "$1" start' _ "$rc"
-"$rc" status >/dev/null || fail 'open-but-unlocked inherited descriptor did not acquire the lock'
+"$rc" status >/dev/null || fail 'caller-controlled lock environment altered direct lifecycle start'
 "$rc" stop
 bash -c 'exec 9>"$YARR_LOCK"; flock 9; sleep 30' &
 lock_holder=$!
@@ -355,7 +378,28 @@ export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=2
 expect_failure 'reset predecessor backup move fault' "$updater" reset --json
 assert_running_overlay_restored 'reset predecessor backup move fault'
 
-unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT
+prepare_running_overlay
+reset_boundaries
+export YARR_RC_YARR="$signal_rc"
+export YARR_TEST_SIGNAL_MARKER="$tmp_dir/signal-after-stop"
+expect_failure 'signal after service stop' "$updater" apply --version 2.1.0 --json
+export YARR_RC_YARR="$rc"
+assert_running_overlay_restored 'signal after service stop'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_SIGNAL_COMMAND=mv YARR_TEST_SIGNAL_AT=1
+expect_failure 'signal after first binary move' "$updater" apply --version 2.1.0 --json
+assert_running_overlay_restored 'signal after first binary move'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=rm YARR_TEST_FAIL_AT=1
+expect_failure 'reset backup cleanup fault' "$updater" reset --json
+[[ ! -e "$YARR_OVERLAY_DIR/yarr" && ! -e "$YARR_OVERLAY_DIR/yarr.previous" ]] || fail 'reset cleanup fault rolled back the effective reset'
+"$rc" status >/dev/null || fail 'reset cleanup fault did not keep packaged service ready'
+
+unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 "$rc" stop
 
 printf 'update contract: PASS\n'

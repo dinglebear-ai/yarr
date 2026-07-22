@@ -149,36 +149,16 @@ yarr_status_locked() {
     return 3
 }
 
-yarr_inherited_lock_is_valid() {
-    local descriptor=$1 lock_path descriptor_path
-    [[ "$descriptor" =~ ^[0-9]+$ ]] || return 1
-    [[ -e "/proc/$$/fd/${descriptor}" ]] || return 1
-    lock_path=$(readlink -f "$YARR_LOCK") || return 1
-    descriptor_path=$(readlink -f "/proc/$$/fd/${descriptor}") || return 1
-    [[ "$descriptor_path" == "$lock_path" ]] || return 1
-    flock -n "$descriptor"
-}
-
-yarr_run_locked() {
-    if [[ "${YARR_LOCK_HELD:-}" == 1 ]]; then
-        yarr_inherited_lock_is_valid "${YARR_LOCK_FD:-}" || {
-            yarr_error 'refusing unverified inherited Yarr lock'
-            return 1
-        }
-        "$@"
-    else
-        yarr_with_lock "$@"
-    fi
-}
-
-case "${1:-}" in
-    start) yarr_run_locked yarr_start_locked ;;
-    stop) yarr_run_locked yarr_stop_locked ;;
-    restart) yarr_run_locked yarr_stop_locked && yarr_run_locked yarr_start_locked ;;
-    reload) yarr_run_locked yarr_stop_locked && yarr_run_locked yarr_start_locked ;;
-    status) yarr_run_locked yarr_status_locked ;;
-    *)
-        printf 'usage: %s {start|stop|restart|status|reload}\n' "$0" >&2
-        exit 2
-        ;;
-esac
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    case "${1:-}" in
+        start) yarr_with_lock yarr_start_locked ;;
+        stop) yarr_with_lock yarr_stop_locked ;;
+        restart) yarr_with_lock yarr_stop_locked && yarr_with_lock yarr_start_locked ;;
+        reload) yarr_with_lock yarr_stop_locked && yarr_with_lock yarr_start_locked ;;
+        status) yarr_with_lock yarr_status_locked ;;
+        *)
+            printf 'usage: %s {start|stop|restart|status|reload}\n' "$0" >&2
+            exit 2
+            ;;
+    esac
+fi
