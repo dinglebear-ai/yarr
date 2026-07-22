@@ -47,19 +47,19 @@ const AUTH_MODES = new Set<AuthMode>(["bearer", "google-oauth", "trusted-gateway
 const LOG_LEVELS = new Set<LogLevel>(["trace", "debug", "info", "warn", "error"]);
 
 export function parsePluginConfig(text: string): ParsedPluginConfig {
-  return { values: parseAssignments(text, "yarr.cfg", false) };
+  return { values: parseAssignments(text, "yarr.cfg") };
 }
 
 export function serializePluginConfig(config: ParsedPluginConfig): string {
-  return serializeAssignments(config.values, false);
+  return serializeAssignments(config.values);
 }
 
 export function parseYarrEnvironment(text: string): ParsedYarrEnvironment {
-  return { values: parseAssignments(text, ".env", true) };
+  return { values: parseAssignments(text, ".env") };
 }
 
 export function serializeYarrEnvironment(config: ParsedYarrEnvironment): string {
-  return serializeAssignments(config.values, true);
+  return serializeAssignments(config.values);
 }
 
 export function toPublicConfig(
@@ -164,7 +164,7 @@ export function validateConfigState(state: ParsedConfigState): void {
   }
   if (
     config.authMode === "trusted-gateway" &&
-    (hasValue(env.YARR_MCP_ALLOWED_HOSTS) || hasValue(env.YARR_MCP_ALLOWED_ORIGINS))
+    (hasYarrListItem(env.YARR_MCP_ALLOWED_HOSTS) || hasYarrListItem(env.YARR_MCP_ALLOWED_ORIGINS))
   ) {
     return;
   }
@@ -172,7 +172,7 @@ export function validateConfigState(state: ParsedConfigState): void {
   throw new Error(`non-loopback configuration requires supported ${config.authMode} authentication`);
 }
 
-function parseAssignments(text: string, fileName: string, decodeEscapedNewlines: boolean): Record<string, string> {
+function parseAssignments(text: string, fileName: string): Record<string, string> {
   const values: Record<string, string> = {};
   const normalized = text.replaceAll("\r\n", "\n");
 
@@ -188,24 +188,22 @@ function parseAssignments(text: string, fileName: string, decodeEscapedNewlines:
     if (Object.hasOwn(values, key)) {
       throw new Error(`${fileName}:${index + 1}: duplicate key ${key}`);
     }
-    const value = decodeEscapedNewlines ? rawValue.replaceAll("\\\\n", "\n") : rawValue;
-    assertSafeValue(value, `${fileName}:${index + 1}`);
-    values[key] = value;
+    assertSafeValue(rawValue, `${fileName}:${index + 1}`);
+    values[key] = rawValue;
   }
 
   return values;
 }
 
-function serializeAssignments(values: Record<string, string>, encodeEscapedNewlines: boolean): string {
+function serializeAssignments(values: Record<string, string>): string {
   const lines = Object.entries(values)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([key, rawValue]) => {
       if (!/^[A-Z][A-Z0-9_]*$/.test(key)) {
         throw new Error(`invalid configuration key ${key}`);
       }
       assertSafeValue(rawValue, key);
-      const value = encodeEscapedNewlines ? rawValue.replaceAll("\n", "\\n") : rawValue;
-      return `${key}=${value}`;
+      return `${key}=${rawValue}`;
     });
 
   return `${lines.join("\n")}\n`;
@@ -366,7 +364,14 @@ function hasValue(value: string | undefined): boolean {
   return value !== undefined && value.length > 0;
 }
 
+function hasYarrListItem(value: string | undefined): boolean {
+  return value?.split(",").some((item) => item.trim().length > 0) ?? false;
+}
+
 function assertSafeValue(value: string, context: string): void {
+  if (value.includes("\r") || value.includes("\n")) {
+    throw new Error(`${context} contains a line break`);
+  }
   if (/[\u0000-\u0008\u000b-\u001f\u007f]/.test(value)) {
     throw new Error(`${context} contains a control character`);
   }
