@@ -172,16 +172,41 @@ yarr_restart_locked() {
     yarr_stop_locked && yarr_start_locked
 }
 
+yarr_with_inherited_lock() {
+    local lock_fd=$1 action=$2 actual expected
+    [[ "$lock_fd" =~ ^[0-9]{1,3}$ ]] || return 1
+    ((10#$lock_fd >= 3 && 10#$lock_fd <= 255)) || return 1
+    [[ -e "/proc/$$/fd/${lock_fd}" ]] || return 1
+    actual=$(readlink -f "/proc/$$/fd/${lock_fd}" 2>/dev/null) || return 1
+    expected=$(readlink -f "$YARR_LOCK" 2>/dev/null) || return 1
+    [[ "$actual" == "$expected" ]] || return 1
+    flock -n "$lock_fd" || return 1
+    "$action"
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    lock_fd=''
+    if [[ "${1:-}" == --lock-fd ]]; then
+        [[ $# -eq 3 ]] || {
+            printf 'usage: %s [--lock-fd FD] {start|stop|restart|status|reload}\n' "$0" >&2
+            exit 2
+        }
+        lock_fd=$2
+        shift 2
+    fi
     case "${1:-}" in
-        start) yarr_with_lock yarr_start_locked ;;
-        stop) yarr_with_lock yarr_stop_locked ;;
-        restart) yarr_with_lock yarr_restart_locked ;;
-        reload) yarr_with_lock yarr_restart_locked ;;
-        status) yarr_with_lock yarr_status_locked ;;
+        start) action=yarr_start_locked ;;
+        stop) action=yarr_stop_locked ;;
+        restart|reload) action=yarr_restart_locked ;;
+        status) action=yarr_status_locked ;;
         *)
-            printf 'usage: %s {start|stop|restart|status|reload}\n' "$0" >&2
+            printf 'usage: %s [--lock-fd FD] {start|stop|restart|status|reload}\n' "$0" >&2
             exit 2
             ;;
     esac
+    if [[ -n "$lock_fd" ]]; then
+        yarr_with_inherited_lock "$lock_fd" "$action"
+    else
+        yarr_with_lock "$action"
+    fi
 fi

@@ -113,6 +113,30 @@ expect_failure 'installed rc sourcing accepted an environment-selected common he
 # shellcheck disable=SC1090
 source "$common"
 
+# The API owns one canonical open file description after its short acquisition
+# child exits, and lifecycle children share it as descriptor 3. rc.yarr accepts only that exact
+# inherited lock description, and direct actions must keep their old behavior.
+exec 8>"$YARR_LOCK"
+flock -n 8 || fail 'could not acquire shared descriptor fixture lock'
+"$rc" --lock-fd 8 status 8>&8 >/dev/null || [[ $? -eq 3 ]] || \
+    fail 'shared canonical lock descriptor was rejected'
+exec 8>&-
+flock -n "$YARR_LOCK" /usr/bin/true || fail 'canonical lock remained held after shared descriptor close'
+expect_failure 'malformed inherited lock descriptor' "$rc" --lock-fd nope status
+expect_failure 'closed inherited lock descriptor' "$rc" --lock-fd 8 status
+exec 8>"$test_root/alternate.lock"
+flock -n 8
+expect_failure 'alternate inherited lock path' "$rc" --lock-fd 8 status
+exec 8>&-
+bash -c 'exec 9>"$1"; flock 9; sleep 30' _ "$YARR_LOCK" &
+separate_lock_holder=$!
+sleep 0.1
+exec 8>"$YARR_LOCK"
+expect_failure 'separately owned canonical lock' "$rc" --lock-fd 8 status
+exec 8>&-
+kill "$separate_lock_holder"
+wait "$separate_lock_holder" 2>/dev/null || true
+
 yarr_load_config
 yarr_validate_config
 expect_eq "127.0.0.1" "$(yarr_effective_host)" "default host"

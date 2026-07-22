@@ -1,3 +1,12 @@
 export const YARR_CONFIG_DIR = "/boot/config/plugins/yarr";
 export const YARR_PLUGIN_CONFIG_PATH = `${YARR_CONFIG_DIR}/yarr.cfg`;
 export const YARR_ENVIRONMENT_PATH = `${YARR_CONFIG_DIR}/.env`;
+export const YARR_PLUGIN_CONFIG_NEXT_PATH = `${YARR_PLUGIN_CONFIG_PATH}.next`;
+export const YARR_ENVIRONMENT_NEXT_PATH = `${YARR_ENVIRONMENT_PATH}.next`;
+export const YARR_PLUGIN_CONFIG_GOOD_PATH = `${YARR_PLUGIN_CONFIG_PATH}.good`;
+export const YARR_ENVIRONMENT_GOOD_PATH = `${YARR_ENVIRONMENT_PATH}.good`;
+export const YARR_LOCK_PATH = "/var/lock/yarr-plugin.lock";
+export const YARR_PID_PATH = "/var/run/yarr.pid";
+export const YARR_LOG_PATH = "/var/log/yarr/yarr.log";
+export const YARR_RC_PATH = "/etc/rc.d/rc.yarr";
+export const YARR_UPDATE_PATH = "/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh";
