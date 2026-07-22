@@ -16,6 +16,7 @@ YARR_PID=${YARR_PID:-"${YARR_RUN_ROOT}/yarr.pid"}
 YARR_LOCK=${YARR_LOCK:-"${YARR_LOCK_ROOT}/yarr-plugin.lock"}
 YARR_LOG=${YARR_LOG:-"${YARR_LOG_ROOT}/yarr/yarr.log"}
 YARR_RUNTIME_ENV=${YARR_RUNTIME_ENV:-"${YARR_RUN_ROOT}/yarr.env"}
+YARR_TAILSCALE_STATE=${YARR_TAILSCALE_STATE:-"${YARR_APPDATA}/tailscale-serve.state"}
 YARR_CURL_BIN=${YARR_CURL_BIN:-/usr/bin/curl}
 YARR_TAILSCALE_BIN=${YARR_TAILSCALE_BIN:-/usr/bin/tailscale}
 
@@ -157,10 +158,13 @@ yarr_validate_config() {
         yarr_error 'PORT must be between 1 and 65535'
         return 1
     }
-    [[ "$AUTH_MODE" == bearer ]] || {
-        yarr_error 'AUTH_MODE must be bearer'
-        return 1
-    }
+    case "$AUTH_MODE" in
+        bearer|google-oauth|trusted-gateway) ;;
+        *)
+            yarr_error 'AUTH_MODE must be bearer, google-oauth, or trusted-gateway'
+            return 1
+            ;;
+    esac
     [[ "$TAILSCALE_SERVE" == yes || "$TAILSCALE_SERVE" == no ]] || {
         yarr_error 'TAILSCALE_SERVE must be yes or no'
         return 1
@@ -179,12 +183,37 @@ yarr_validate_config() {
             return 1
         }
     fi
-    if [[ "$BIND_MODE" != loopback ]]; then
-        [[ -n "${YARR_ENV_VALUES[YARR_MCP_TOKEN]:-}" ]] || {
-            yarr_error 'non-loopback binding requires a non-empty YARR_MCP_TOKEN accepted by Yarr bearer auth'
+    if [[ "$TAILSCALE_SERVE" == yes ]]; then
+        yarr_valid_tailscale_hostname "$TAILSCALE_HOSTNAME" || {
+            yarr_error 'TAILSCALE_HOSTNAME must be a DNS-label service name when Tailscale Serve is enabled'
             return 1
         }
     fi
+    [[ "$BIND_MODE" == loopback ]] && return 0
+    case "$AUTH_MODE" in
+        bearer)
+            [[ -n "${YARR_ENV_VALUES[YARR_MCP_TOKEN]:-}" ]] || {
+                yarr_error 'non-loopback bearer mode requires a non-empty YARR_MCP_TOKEN accepted by Yarr'
+                return 1
+            }
+            ;;
+        google-oauth)
+            [[ -n "${YARR_ENV_VALUES[YARR_MCP_GOOGLE_CLIENT_ID]:-}" && -n "${YARR_ENV_VALUES[YARR_MCP_GOOGLE_CLIENT_SECRET]:-}" ]] || {
+                yarr_error 'non-loopback google-oauth mode requires YARR_MCP_GOOGLE_CLIENT_ID and YARR_MCP_GOOGLE_CLIENT_SECRET'
+                return 1
+            }
+            ;;
+        trusted-gateway)
+            [[ -n "${YARR_ENV_VALUES[YARR_MCP_ALLOWED_HOSTS]:-}" || -n "${YARR_ENV_VALUES[YARR_MCP_ALLOWED_ORIGINS]:-}" ]] || {
+                yarr_error 'non-loopback trusted-gateway mode requires YARR_MCP_ALLOWED_HOSTS or YARR_MCP_ALLOWED_ORIGINS'
+                return 1
+            }
+            ;;
+    esac
+}
+
+yarr_valid_tailscale_hostname() {
+    [[ "$1" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]
 }
 
 yarr_effective_host() {
@@ -209,12 +238,26 @@ yarr_select_binary() {
 }
 
 yarr_write_runtime_env() {
-    local directory tmp key host
+    local directory tmp key host yarr_auth_mode yarr_noauth
     directory=$(dirname "$YARR_RUNTIME_ENV")
     mkdir -p "$directory" || return 1
     umask 077
     tmp="${YARR_RUNTIME_ENV}.$$"
     host=$(yarr_effective_host)
+    case "$AUTH_MODE" in
+        google-oauth)
+            yarr_auth_mode=oauth
+            yarr_noauth=false
+            ;;
+        trusted-gateway)
+            yarr_auth_mode=bearer
+            yarr_noauth=true
+            ;;
+        *)
+            yarr_auth_mode=bearer
+            yarr_noauth=false
+            ;;
+    esac
     : > "$tmp" || return 1
     for key in "${!YARR_ENV_VALUES[@]}"; do
         printf '%s=%q\n' "$key" "${YARR_ENV_VALUES[$key]}" >> "$tmp" || {
@@ -222,8 +265,8 @@ yarr_write_runtime_env() {
             return 1
         }
     done
-    printf 'YARR_MCP_HOST=%q\nYARR_MCP_PORT=%q\nYARR_HOME=%q\nRUST_LOG=%q\n' \
-        "$host" "$PORT" "$YARR_APPDATA" "$LOG_LEVEL" >> "$tmp" || {
+    printf 'YARR_MCP_HOST=%q\nYARR_MCP_PORT=%q\nYARR_MCP_AUTH_MODE=%q\nYARR_NOAUTH=%q\nYARR_HOME=%q\nRUST_LOG=%q\n' \
+        "$host" "$PORT" "$yarr_auth_mode" "$yarr_noauth" "$YARR_APPDATA" "$LOG_LEVEL" >> "$tmp" || {
         rm -f "$tmp"
         return 1
     }
@@ -237,11 +280,13 @@ yarr_write_runtime_env() {
     for key in "${!YARR_ENV_VALUES[@]}"; do
         YARR_RUNTIME_PAIRS+=("${key}=${YARR_ENV_VALUES[$key]}")
     done
-    YARR_RUNTIME_PAIRS+=("YARR_MCP_HOST=${host}" "YARR_MCP_PORT=${PORT}" "YARR_HOME=${YARR_APPDATA}" "RUST_LOG=${LOG_LEVEL}")
+    YARR_RUNTIME_PAIRS+=("YARR_MCP_HOST=${host}" "YARR_MCP_PORT=${PORT}" \
+        "YARR_MCP_AUTH_MODE=${yarr_auth_mode}" "YARR_NOAUTH=${yarr_noauth}" \
+        "YARR_HOME=${YARR_APPDATA}" "RUST_LOG=${LOG_LEVEL}")
 }
 
 yarr_pid_is_owned() {
-    local pid actual expected
+    local pid actual expected candidate
     [[ -f "$YARR_PID" ]] || return 1
     pid=$(<"$YARR_PID")
     [[ "$pid" =~ ^[1-9][0-9]*$ ]] && kill -0 "$pid" 2>/dev/null || {
@@ -249,11 +294,12 @@ yarr_pid_is_owned() {
         return 1
     }
     actual=$(readlink -f "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
-    expected=$(readlink -f "$YARR_BINARY" 2>/dev/null || true)
-    [[ -n "$actual" && "$actual" == "$expected" ]] || {
-        rm -f "$YARR_PID"
-        return 1
-    }
+    for candidate in "${YARR_APPDATA}/yarr" "${YARR_PLUGIN_ROOT}/bin/yarr"; do
+        expected=$(readlink -f "$candidate" 2>/dev/null || true)
+        [[ -n "$actual" && "$actual" == "$expected" ]] && return 0
+    done
+    rm -f "$YARR_PID"
+    return 1
 }
 
 yarr_wait_ready() {

@@ -131,6 +131,45 @@ printf 'YARR_MCP_TOKEN=contract-token\n' > "$YARR_ENV"
 yarr_load_config
 yarr_validate_config
 
+write_config
+sed -i 's/^BIND_MODE=loopback$/BIND_MODE=lan/' "$YARR_CFG"
+sed -i 's/^AUTH_MODE=bearer$/AUTH_MODE=google-oauth/' "$YARR_CFG"
+: > "$YARR_ENV"
+expect_failure "google-oauth without Yarr Google credentials" \
+    bash -c "source '$common'; yarr_load_config; yarr_validate_config"
+cat > "$YARR_ENV" <<EOF
+YARR_MCP_GOOGLE_CLIENT_ID=contract-client-id
+YARR_MCP_GOOGLE_CLIENT_SECRET=contract-client-secret
+EOF
+yarr_load_config
+yarr_validate_config
+yarr_write_runtime_env
+grep -Fqx 'YARR_MCP_AUTH_MODE=oauth' "$YARR_RUNTIME_ENV" || fail "google-oauth did not generate Yarr OAuth mode"
+grep -Fqx 'YARR_MCP_GOOGLE_CLIENT_ID=contract-client-id' "$YARR_RUNTIME_ENV" || fail "google-oauth client ID missing"
+grep -Fqx 'YARR_MCP_GOOGLE_CLIENT_SECRET=contract-client-secret' "$YARR_RUNTIME_ENV" || fail "google-oauth client secret missing"
+
+write_config
+sed -i 's/^BIND_MODE=loopback$/BIND_MODE=lan/' "$YARR_CFG"
+sed -i 's/^AUTH_MODE=bearer$/AUTH_MODE=trusted-gateway/' "$YARR_CFG"
+: > "$YARR_ENV"
+expect_failure "trusted-gateway without Yarr provenance" \
+    bash -c "source '$common'; yarr_load_config; yarr_validate_config"
+printf 'YARR_MCP_ALLOWED_HOSTS=proxy.tailnet.ts.net\n' > "$YARR_ENV"
+yarr_load_config
+yarr_validate_config
+yarr_write_runtime_env
+grep -Fqx 'YARR_MCP_AUTH_MODE=bearer' "$YARR_RUNTIME_ENV" || fail "trusted-gateway auth mode missing"
+grep -Fqx 'YARR_NOAUTH=true' "$YARR_RUNTIME_ENV" || fail "trusted-gateway did not enable Yarr gateway mode"
+
+write_config
+sed -i 's/^TAILSCALE_SERVE=no$/TAILSCALE_SERVE=yes/' "$YARR_CFG"
+expect_failure "Tailscale service without hostname" \
+    bash -c "source '$common'; yarr_load_config; yarr_validate_config"
+sed -i 's/^TAILSCALE_HOSTNAME=$/TAILSCALE_HOSTNAME=not_a_hostname/' "$YARR_CFG"
+expect_failure "invalid Tailscale service hostname" \
+    bash -c "source '$common'; yarr_load_config; yarr_validate_config"
+write_config
+
 chmod 644 "$YARR_APPDATA_ROOT/yarr/yarr"
 yarr_select_binary
 expect_eq "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_BINARY" "non-executable overlay ignored"
@@ -152,12 +191,16 @@ kill "$foreign_pid"
 wait "$foreign_pid" 2>/dev/null || true
 
 write_config
+sed -i 's/^TAILSCALE_SERVE=no$/TAILSCALE_SERVE=yes/' "$YARR_CFG"
+sed -i 's/^TAILSCALE_HOSTNAME=$/TAILSCALE_HOSTNAME=yarr-contract/' "$YARR_CFG"
 export YARR_TEST_CURL_STATUS=0
 "$rc" start
 service_pid=$(cat "$YARR_PID")
 [[ -n "$service_pid" ]] || fail "start did not record a PID"
 "$rc" start
 expect_eq "$service_pid" "$(cat "$YARR_PID")" "idempotent start"
+grep -Fqx 'serve --bg --service svc:yarr-contract --https 40070 --set-path / http://127.0.0.1:40070' "$YARR_TEST_TAILSCALE_LOG" || \
+    fail "Tailscale setup was not scoped to the configured Yarr service"
 
 yarr_load_config
 yarr_validate_config
@@ -194,7 +237,22 @@ export YARR_TEST_HOOK_STATUS=7
 expect_failure "started hook failure propagation" "$started"
 
 export YARR_RC_YARR="$rc"
+sed -i 's/^TAILSCALE_SERVE=yes$/TAILSCALE_SERVE=no/' "$YARR_CFG"
 "$rc" stop
 [[ ! -e "$YARR_PID" ]] || fail "stop did not remove PID file"
+grep -Fqx 'serve clear svc:yarr-contract' "$YARR_TEST_TAILSCALE_LOG" || \
+    fail "Tailscale cleanup did not target the recorded Yarr service"
+if grep -Fqx 'serve off' "$YARR_TEST_TAILSCALE_LOG"; then
+    fail "Tailscale cleanup removed unscoped Serve state"
+fi
+
+write_config
+"$rc" start
+service_pid=$(cat "$YARR_PID")
+sed -i 's/^PORT=40070$/PORT=invalid/' "$YARR_CFG"
+"$rc" stop
+if kill -0 "$service_pid" 2>/dev/null; then
+    fail "stop did not terminate Yarr after configuration became invalid"
+fi
 
 printf 'lifecycle contract: PASS\n'

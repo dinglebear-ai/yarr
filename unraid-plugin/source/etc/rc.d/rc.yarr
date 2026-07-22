@@ -10,10 +10,66 @@ yarr_log() {
     printf '%s yarr: %s\n' "$(date -Is)" "$*" >> "$YARR_LOG"
 }
 
+yarr_load_tailscale_state() {
+    local line key value service='' port='' path=''
+    [[ -f "$YARR_TAILSCALE_STATE" ]] || return 1
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" == *=* ]] || return 1
+        key=${line%%=*}
+        value=${line#*=}
+        case "$key" in
+            service) service=$value ;;
+            port) port=$value ;;
+            path) path=$value ;;
+            *) return 1 ;;
+        esac
+    done < "$YARR_TAILSCALE_STATE"
+    [[ "$service" =~ ^svc:[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || return 1
+    [[ "$port" =~ ^[0-9]+$ ]] && ((10#$port >= 1 && 10#$port <= 65535)) || return 1
+    [[ "$path" == / ]] || return 1
+    YARR_TAILSCALE_SERVICE=$service
+    YARR_TAILSCALE_PORT=$port
+}
+
+yarr_write_tailscale_state() {
+    local tmp
+    umask 077
+    tmp="${YARR_TAILSCALE_STATE}.$$"
+    printf 'service=%s\nport=%s\npath=/\n' "$1" "$2" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$YARR_TAILSCALE_STATE"
+}
+
 yarr_remove_tailscale_serve() {
-    [[ "${TAILSCALE_SERVE:-no}" == yes ]] || return 0
-    "$YARR_TAILSCALE_BIN" serve off >/dev/null 2>&1 || {
-        yarr_log 'failed to remove Tailscale Serve configuration'
+    [[ -f "$YARR_TAILSCALE_STATE" ]] || return 0
+    yarr_load_tailscale_state || {
+        yarr_log 'refusing to clear malformed Yarr Tailscale ownership state'
+        return 1
+    }
+    "$YARR_TAILSCALE_BIN" serve clear "$YARR_TAILSCALE_SERVICE" >/dev/null 2>&1 || {
+        yarr_log "failed to remove Yarr Tailscale service ${YARR_TAILSCALE_SERVICE}"
+        return 1
+    }
+    rm -f "$YARR_TAILSCALE_STATE"
+}
+
+yarr_configure_tailscale_serve() {
+    local service config_file
+    [[ "$TAILSCALE_SERVE" == yes ]] || return 0
+    service="svc:${TAILSCALE_HOSTNAME}"
+    config_file=$(mktemp "${YARR_APPDATA}/.tailscale-config.XXXXXX") || return 1
+    if ! "$YARR_TAILSCALE_BIN" serve get-config --service "$service" "$config_file" >/dev/null 2>&1; then
+        rm -f "$config_file"
+        yarr_log "could not inspect Tailscale service ${service}"
+        return 1
+    fi
+    if [[ -s "$config_file" ]]; then
+        rm -f "$config_file"
+        yarr_log "refusing to overwrite existing Tailscale service ${service}"
+        return 1
+    fi
+    rm -f "$config_file"
+    "$YARR_TAILSCALE_BIN" serve --bg --service "$service" --https "$PORT" --set-path / "http://127.0.0.1:${PORT}" || return 1
+    yarr_write_tailscale_state "$service" "$PORT" || {
+        "$YARR_TAILSCALE_BIN" serve clear "$service" >/dev/null 2>&1 || true
         return 1
     }
 }
@@ -66,7 +122,7 @@ yarr_start_locked() {
         return 1
     fi
     if [[ "$TAILSCALE_SERVE" == yes ]]; then
-        "$YARR_TAILSCALE_BIN" serve --https="$PORT" "http://127.0.0.1:${PORT}" || {
+        yarr_configure_tailscale_serve || {
             yarr_log 'Tailscale Serve configuration failed; stopping service'
             yarr_stop_owned_process || true
             rm -f "$YARR_RUNTIME_ENV"
@@ -77,21 +133,14 @@ yarr_start_locked() {
 }
 
 yarr_stop_locked() {
-    local loaded=false
-    if yarr_load_config && yarr_validate_config && yarr_select_binary; then
-        loaded=true
-        yarr_remove_tailscale_serve || true
-        yarr_stop_owned_process || true
-    else
-        yarr_log 'configuration invalid during stop; refusing PID-only signaling'
-        rm -f "$YARR_PID"
-    fi
+    local result=0
+    yarr_remove_tailscale_serve || result=1
+    yarr_stop_owned_process || result=1
     rm -f "$YARR_RUNTIME_ENV"
-    "$loaded" || return 0
+    return "$result"
 }
 
 yarr_status_locked() {
-    yarr_load_config && yarr_validate_config && yarr_select_binary || return 1
     if yarr_pid_is_owned; then
         printf 'yarr: RUNNING\n'
         return 0
