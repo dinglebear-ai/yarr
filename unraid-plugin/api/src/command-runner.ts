@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import type { Readable } from "node:stream";
 
 import { YARR_LOG_PATH, YARR_RC_PATH, YARR_UPDATE_PATH } from "./paths";
+import { redactSecrets } from "./secret-redactor";
 
 export interface RunOptions {
   timeoutMs?: number;
@@ -127,8 +128,8 @@ export class SafeCommandRunner implements CommandRunner {
         if (settled) return;
         clearTimeout(timer);
         const code = exitCode ?? 255;
-        const stdoutText = stdout.toString("utf8");
-        const stderrText = stderr.toString("utf8");
+        const stdoutText = redactSecrets(stdout.toString("utf8"), options.secrets ?? []);
+        const stderrText = redactSecrets(stderr.toString("utf8"), options.secrets ?? []);
         if (exitCode === null || !allowedExitCodes.includes(code)) {
           const detail = stderrText || stdoutText || (signal ? `signal ${signal}` : "no output");
           finishError(`command exited ${code}: ${detail}`);
@@ -139,19 +140,6 @@ export class SafeCommandRunner implements CommandRunner {
       });
     });
   }
-}
-
-export function redactSecrets(message: string, secrets: readonly string[]): string {
-  const unique = [...new Set(secrets.filter((secret) => secret.length > 0))].sort(
-    (left, right) => right.length - left.length,
-  );
-  return unique.reduce((redacted, secret) => redacted.replaceAll(secret, "[REDACTED]"), message);
-}
-
-export function collectSecretValues(values: Record<string, string>): string[] {
-  return Object.entries(values)
-    .filter(([key, value]) => value.length > 0 && /(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)$/.test(key))
-    .map(([, value]) => value);
 }
 
 function assertCommand(command: string, args: readonly string[], inheritedLockFd?: number): void {

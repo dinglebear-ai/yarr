@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LockLease, LockService } from "./flock.service";
+import type { RuntimeState } from "./runtime.service";
 import {
   ConfigService,
   type ConfigFileSystem,
@@ -10,11 +11,15 @@ import {
 import {
   YARR_CONFIG_DIR,
   YARR_ENVIRONMENT_GOOD_PATH,
+  YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH,
   YARR_ENVIRONMENT_NEXT_PATH,
   YARR_ENVIRONMENT_PATH,
+  YARR_ENVIRONMENT_TRANSACTION_PATH,
   YARR_PLUGIN_CONFIG_GOOD_PATH,
+  YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH,
   YARR_PLUGIN_CONFIG_NEXT_PATH,
   YARR_PLUGIN_CONFIG_PATH,
+  YARR_PLUGIN_CONFIG_TRANSACTION_PATH,
 } from "./paths";
 
 const pluginConfig = `ENABLED=yes\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
@@ -77,9 +82,51 @@ class MemoryFileSystem implements ConfigFileSystem {
     if (!file) throw new Error(`missing ${from}`);
     this.files.set(to, { text: file.text, mode });
   }
+
+  async chmod(path: string, mode: number): Promise<void> {
+    this.assertLocked();
+    this.operations.push(`chmod:${path}:${mode.toString(8)}`);
+    const file = this.files.get(path);
+    if (!file) throw new Error(`missing ${path}`);
+    file.mode = mode;
+  }
+
+  async exists(path: string): Promise<boolean> {
+    this.assertLocked();
+    return this.files.has(path);
+  }
+
+  async remove(path: string): Promise<void> {
+    this.assertLocked();
+    this.operations.push(`remove:${path}`);
+    this.files.delete(path);
+  }
 }
 
-function harness(runtimeFailures: Error[] = [], fileFailure?: string) {
+const running: RuntimeState = {
+  state: "running",
+  pid: 1234,
+  version: "2.1.0",
+  bindAddress: "127.0.0.1",
+  port: 40070,
+  ready: true,
+  healthMessage: "ready",
+  uptimeSeconds: null,
+};
+const stopped: RuntimeState = {
+  ...running,
+  state: "stopped",
+  pid: null,
+  version: null,
+  ready: false,
+  healthMessage: "stopped",
+};
+
+function harness(
+  runtimeFailures: Error[] = [],
+  fileFailure?: string,
+  states: { status?: RuntimeState; restart?: RuntimeState[]; stop?: RuntimeState[] } = {},
+) {
   let held = false;
   const lease: LockLease = {
     fd: 71,
@@ -98,13 +145,26 @@ function harness(runtimeFailures: Error[] = [], fileFailure?: string) {
     },
   };
   const files = new MemoryFileSystem(lease.assertHeld, fileFailure);
-  const calls: Array<{ lockFd: number; secrets: readonly string[] }> = [];
+  const calls: Array<{ action: "status" | "restart" | "stop"; lockFd: number; secrets: readonly string[] }> = [];
   const runtime: RuntimeController = {
+    async status(options) {
+      lease.assertHeld();
+      calls.push({ action: "status", ...options });
+      return states.status ?? running;
+    },
     async restart(options) {
       lease.assertHeld();
-      calls.push(options);
+      calls.push({ action: "restart", ...options });
       const failure = runtimeFailures.shift();
       if (failure) throw failure;
+      return states.restart?.shift() ?? running;
+    },
+    async stop(options) {
+      lease.assertHeld();
+      calls.push({ action: "stop", ...options });
+      const failure = runtimeFailures.shift();
+      if (failure) throw failure;
+      return states.stop?.shift() ?? stopped;
     },
   };
   return { service: new ConfigService(files, lock, runtime), files, calls };
@@ -122,21 +182,20 @@ describe("ConfigService", () => {
     expect(files.files.get(YARR_ENVIRONMENT_PATH)).toMatchObject({ mode: 0o600 });
     expect(files.files.get(YARR_PLUGIN_CONFIG_GOOD_PATH)?.text).toBe(pluginConfig);
     expect(files.files.get(YARR_ENVIRONMENT_GOOD_PATH)?.text).toBe(environment);
-    expect(files.operations).toEqual([
-      `read:${YARR_PLUGIN_CONFIG_PATH}`,
-      `read:${YARR_ENVIRONMENT_PATH}`,
+    expect(files.operations).toEqual(expect.arrayContaining([
+      `chmod:${YARR_PLUGIN_CONFIG_PATH}:600`,
+      `chmod:${YARR_ENVIRONMENT_PATH}:600`,
       `write:${YARR_PLUGIN_CONFIG_NEXT_PATH}:600`,
       `write:${YARR_ENVIRONMENT_NEXT_PATH}:600`,
       `fsync:${YARR_PLUGIN_CONFIG_NEXT_PATH}`,
       `fsync:${YARR_ENVIRONMENT_NEXT_PATH}`,
-      `fsync-dir:${YARR_CONFIG_DIR}`,
       `rename:${YARR_PLUGIN_CONFIG_PATH}->${YARR_PLUGIN_CONFIG_GOOD_PATH}`,
       `rename:${YARR_ENVIRONMENT_PATH}->${YARR_ENVIRONMENT_GOOD_PATH}`,
       `rename:${YARR_PLUGIN_CONFIG_NEXT_PATH}->${YARR_PLUGIN_CONFIG_PATH}`,
       `rename:${YARR_ENVIRONMENT_NEXT_PATH}->${YARR_ENVIRONMENT_PATH}`,
       `fsync-dir:${YARR_CONFIG_DIR}`,
-    ]);
-    expect(calls).toEqual([{ lockFd: 71, secrets: ["current-secret"] }]);
+    ]));
+    expect(calls.map((call) => call.action)).toEqual(["status", "restart"]);
     expect(JSON.stringify(result)).not.toContain("current-secret");
   });
 
@@ -149,6 +208,11 @@ describe("ConfigService", () => {
     expect(files.operations).toEqual([
       `read:${YARR_PLUGIN_CONFIG_PATH}`,
       `read:${YARR_ENVIRONMENT_PATH}`,
+      `chmod:${YARR_PLUGIN_CONFIG_PATH}:600`,
+      `chmod:${YARR_ENVIRONMENT_PATH}:600`,
+      `fsync:${YARR_PLUGIN_CONFIG_PATH}`,
+      `fsync:${YARR_ENVIRONMENT_PATH}`,
+      `fsync-dir:${YARR_CONFIG_DIR}`,
     ]);
     expect(calls).toHaveLength(0);
   });
@@ -166,7 +230,7 @@ describe("ConfigService", () => {
     expect(files.files.get(YARR_ENVIRONMENT_PATH)?.text).toBe(environment);
     expect(files.files.get(YARR_PLUGIN_CONFIG_GOOD_PATH)?.text).toBe(pluginConfig);
     expect(files.files.get(YARR_ENVIRONMENT_GOOD_PATH)?.text).toBe(environment);
-    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.action)).toEqual(["status", "restart", "restart"]);
     expect(files.operations).toContain(
       `copy:${YARR_PLUGIN_CONFIG_GOOD_PATH}->${YARR_PLUGIN_CONFIG_NEXT_PATH}:600`,
     );
@@ -193,6 +257,85 @@ describe("ConfigService", () => {
 
     expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
     expect(files.files.get(YARR_ENVIRONMENT_PATH)?.text).toBe(environment);
+    expect(calls.map((call) => call.action)).toEqual(["status"]);
+  });
+
+  it("rolls back when restart reports stopped and restores the prior running state", async () => {
+    const { service, files, calls } = harness([], undefined, {
+      status: running,
+      restart: [stopped, running],
+    });
+
+    const result = await service.save({ port: 40126 });
+
+    expect(result).toMatchObject({ rolledBack: true, restarted: true });
+    expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
+    expect(calls.map((call) => call.action)).toEqual(["status", "restart", "restart"]);
+  });
+
+  it("stops intentionally disabled configuration without treating stopped as readiness", async () => {
+    const { service, calls } = harness([], undefined, { status: running, stop: [stopped] });
+
+    const result = await service.save({ enabled: false });
+
+    expect(result).toMatchObject({ rolledBack: false, restarted: true });
+    expect(result.config.plugin.enabled).toBe(false);
+    expect(calls.map((call) => call.action)).toEqual(["status", "stop"]);
+  });
+
+  it("restores the prior stopped runtime state after failed enable", async () => {
+    const { service, calls } = harness([new Error("failed enable")], undefined, {
+      status: stopped,
+      stop: [stopped],
+    });
+
+    const result = await service.save({ port: 40127 });
+
+    expect(result.rolledBack).toBe(true);
+    expect(calls.map((call) => call.action)).toEqual(["status", "restart", "stop"]);
+  });
+
+  it("treats an explicitly equal default as a semantic no-op", async () => {
+    const { service, files, calls } = harness();
+    files.files.get(YARR_PLUGIN_CONFIG_PATH)!.text = pluginConfig.replace("LOG_LEVEL=info\n", "");
+
+    const result = await service.save({ logLevel: "info" });
+
+    expect(result.changed).toBe(false);
     expect(calls).toHaveLength(0);
+  });
+
+  it("repairs permissive modes without restarting", async () => {
+    const { service, files, calls } = harness();
+    files.files.get(YARR_PLUGIN_CONFIG_PATH)!.mode = 0o644;
+    files.files.get(YARR_ENVIRONMENT_PATH)!.mode = 0o666;
+
+    const result = await service.save({ bearerToken: { kind: "preserve" } });
+
+    expect(result.changed).toBe(false);
+    expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.mode).toBe(0o600);
+    expect(files.files.get(YARR_ENVIRONMENT_PATH)?.mode).toBe(0o600);
+    expect(files.operations).toContain(`fsync-dir:${YARR_CONFIG_DIR}`);
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each([
+    [`rename:${YARR_PLUGIN_CONFIG_PATH}->${YARR_PLUGIN_CONFIG_GOOD_PATH}`],
+    [`rename:${YARR_ENVIRONMENT_PATH}->${YARR_ENVIRONMENT_GOOD_PATH}`],
+  ])("retains the prior complete known-good pair when rotation fails at %s", async (failure) => {
+    const { service, files } = harness([], failure);
+    files.files.set(YARR_PLUGIN_CONFIG_GOOD_PATH, { text: "previous-plugin-good\n", mode: 0o600 });
+    files.files.set(YARR_ENVIRONMENT_GOOD_PATH, { text: "previous-env-good\n", mode: 0o600 });
+
+    await expect(service.save({ port: 40128 })).rejects.toThrow("injected failure");
+
+    expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
+    expect(files.files.get(YARR_ENVIRONMENT_PATH)?.text).toBe(environment);
+    expect(files.files.get(YARR_PLUGIN_CONFIG_GOOD_PATH)?.text).toBe("previous-plugin-good\n");
+    expect(files.files.get(YARR_ENVIRONMENT_GOOD_PATH)?.text).toBe("previous-env-good\n");
+    expect(files.files.has(YARR_PLUGIN_CONFIG_TRANSACTION_PATH)).toBe(false);
+    expect(files.files.has(YARR_ENVIRONMENT_TRANSACTION_PATH)).toBe(false);
+    expect(files.files.has(YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH)).toBe(false);
+    expect(files.files.has(YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH)).toBe(false);
   });
 });

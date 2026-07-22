@@ -87,6 +87,7 @@ write_config
 
 [[ -f "$common" ]] || fail "missing yarr-common.sh"
 [[ -x "$rc" ]] || fail "missing executable rc.yarr"
+grep -Fq 'YARR_RC_FLOCK_BIN=/usr/bin/flock' "$rc" || fail 'installed inherited-fd verification is not pinned to /usr/bin/flock'
 [[ -x "$started" && -x "$stopping" && -x "$unmounting" ]] || fail "missing executable event hooks"
 mkdir -p "$YARR_PLUGIN_ROOT/scripts"
 cp "$common" "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh"

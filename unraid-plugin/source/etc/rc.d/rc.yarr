@@ -14,9 +14,17 @@ yarr_rc_is_installed_path() {
 
 if yarr_rc_is_installed_path "$YARR_RC_PHYSICAL_PATH"; then
     YARR_COMMON_SCRIPT=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+    YARR_RC_FLOCK_BIN=/usr/bin/flock
 else
     YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
     YARR_COMMON_SCRIPT="${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+    if [[ -x /usr/bin/flock ]]; then
+        YARR_RC_FLOCK_BIN=/usr/bin/flock
+    elif [[ -x /home/linuxbrew/.linuxbrew/bin/flock ]]; then
+        YARR_RC_FLOCK_BIN=/home/linuxbrew/.linuxbrew/bin/flock
+    else
+        YARR_RC_FLOCK_BIN=/usr/bin/flock
+    fi
 fi
 # shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
 source "$YARR_COMMON_SCRIPT" || {
@@ -180,7 +188,7 @@ yarr_with_inherited_lock() {
     actual=$(readlink -f "/proc/$$/fd/${lock_fd}" 2>/dev/null) || return 1
     expected=$(readlink -f "$YARR_LOCK" 2>/dev/null) || return 1
     [[ "$actual" == "$expected" ]] || return 1
-    flock -n "$lock_fd" || return 1
+    "$YARR_RC_FLOCK_BIN" -n "$lock_fd" || return 1
     "$action"
 }
 

@@ -1,12 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as http from "node:http";
 
-import {
-  collectSecretValues,
-  redactSecrets,
-  SafeCommandRunner,
-  type CommandRunner,
-} from "./command-runner";
+import { SafeCommandRunner, type CommandRunner } from "./command-runner";
 import { parsePluginConfig, parseYarrEnvironment, toPublicConfig } from "./config-codec";
 import {
   YARR_ENVIRONMENT_PATH,
@@ -14,6 +9,7 @@ import {
   YARR_PLUGIN_CONFIG_PATH,
   YARR_RC_PATH,
 } from "./paths";
+import { collectSecretValues, redactSecrets } from "./secret-redactor";
 
 export interface RuntimeState {
   state: "running" | "stopped" | "starting" | "error";
@@ -156,11 +152,17 @@ export class RuntimeService {
         maxBytes: HTTP_MAX_BYTES,
       });
       const statusBody = parseObject(statusResponse.body);
-      const version =
+      const candidateVersion =
         statusResponse.status >= 200 &&
         statusResponse.status < 300 &&
         typeof statusBody?.version === "string"
           ? statusBody.version
+          : null;
+      const version =
+        candidateVersion !== null &&
+        isBoundedSemVer(candidateVersion) &&
+        redactSecrets(candidateVersion, secrets) === candidateVersion
+          ? candidateVersion
           : null;
       return {
         state: "running",
@@ -200,7 +202,7 @@ export class RuntimeService {
     let last: RuntimeState | undefined;
     for (let attempt = 0; attempt < this.readyAttempts; attempt += 1) {
       last = await this.status(options);
-      if (last.ready || last.state === "stopped") return last;
+      if (last.state === "running" && last.ready) return last;
       if (attempt + 1 < this.readyAttempts) await this.sleep(READY_INTERVAL_MS);
     }
     throw new Error(redactSecrets(last?.healthMessage ?? "readiness check failed", options.secrets ?? []));
@@ -280,4 +282,24 @@ function runtimeError(bindAddress: string, port: number, healthMessage: string):
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isBoundedSemVer(value: string): boolean {
+  if (value.length === 0 || value.length > 128) return false;
+  const match = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/.exec(value);
+  if (!match || match.slice(1, 4).some((part) => part.length > 10)) return false;
+  const prerelease = match[4];
+  const build = match[5];
+  if (prerelease !== undefined && !validIdentifiers(prerelease, true)) return false;
+  return build === undefined || validIdentifiers(build, false);
+}
+
+function validIdentifiers(value: string, rejectNumericLeadingZero: boolean): boolean {
+  const identifiers = value.split(".");
+  return identifiers.every((identifier) =>
+    identifier.length > 0 &&
+    identifier.length <= 32 &&
+    /^[0-9A-Za-z-]+$/.test(identifier) &&
+    (!rejectNumericLeadingZero || !/^0[0-9]+$/.test(identifier)),
+  );
 }

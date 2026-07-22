@@ -83,6 +83,25 @@ describe("SafeCommandRunner", () => {
     await expect(command).rejects.not.toThrow("runtime-secret");
     expect(child.kill).toHaveBeenCalledWith("SIGKILL");
   });
+
+  it("redacts empty, repeated, and overlapping secrets from successful output", async () => {
+    const child = new FakeCommandProcess();
+    const runner = new SafeCommandRunner(() => {
+      queueMicrotask(() => {
+        child.stdout.write("token-123 token token-123");
+        child.stderr.write("token-123");
+        child.emit("close", 0, null);
+      });
+      return child;
+    });
+
+    const result = await runner.run("/etc/rc.d/rc.yarr", ["restart"], {
+      secrets: ["", "token", "token-123", "token"],
+    });
+
+    expect(result.stdout).toBe("[REDACTED] [REDACTED] [REDACTED]");
+    expect(result.stderr).toBe("[REDACTED]");
+  });
 });
 
 describe("RuntimeService", () => {
@@ -162,5 +181,41 @@ describe("RuntimeService", () => {
 
     expect(state.healthMessage).toContain("[REDACTED]");
     expect(state.healthMessage).not.toContain("runtime-secret");
+  });
+
+  it("returns null for compromised status versions and never reflects server text", async () => {
+    const { runtime, http } = runtimeHarness([
+      { exitCode: 0, stdout: "yarr: RUNNING\n", stderr: "" },
+    ]);
+    vi.mocked(http.get)
+      .mockResolvedValueOnce({
+        status: 200,
+        body: '{"status":"ready","configured_services":1,"message":"runtime-secret"}',
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        body: '{"status":"runtime-secret","server":"runtime-secret","version":"runtime-secret\\n2.1.0"}',
+      });
+
+    const state = await runtime.status();
+
+    expect(state.version).toBeNull();
+    expect(state.healthMessage).toBe("ready");
+    expect(JSON.stringify(state)).not.toContain("runtime-secret");
+  });
+
+  it("does not accept stopped as readiness success", async () => {
+    const { runner, http, data } = runtimeHarness([
+      { exitCode: 3, stdout: "yarr: STOPPED\n", stderr: "" },
+    ]);
+    const runtime = new RuntimeService(
+      runner,
+      { readFile: async (path) => data.get(path)! },
+      http,
+      async () => undefined,
+      1,
+    );
+
+    await expect(runtime.waitUntilReady()).rejects.toThrow("stopped");
   });
 });
