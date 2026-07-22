@@ -66,6 +66,36 @@ env \
     bash -c 'source "$1"; [[ "$YARR_PLUGIN_ROOT" == /usr/local/emhttp/plugins/yarr && "$YARR_BOOT_ROOT" == /boot && "$YARR_APPDATA_ROOT" == /mnt/user/appdata && "$YARR_LOCK" == /var/lock/yarr-plugin.lock ]]' _ "$installed_common" || \
     fail 'installed common script accepted caller-controlled roots'
 
+installed_updater="$test_root/installed/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh"
+bootstrap_attacker_root="$test_root/bootstrap-attacker/plugin"
+bootstrap_attacker_rc="$test_root/bootstrap-attacker/rc.yarr"
+bootstrap_marker="$test_root/bootstrap-marker"
+mkdir -p "$(dirname "$installed_updater")" "$bootstrap_attacker_root/scripts" "$(dirname "$bootstrap_attacker_rc")"
+cp "$updater" "$installed_updater"
+cat > "$bootstrap_attacker_root/scripts/yarr-common.sh" <<EOF
+#!/usr/bin/env bash
+printf 'common\n' >> "$bootstrap_marker"
+EOF
+cat > "$bootstrap_attacker_rc" <<EOF
+#!/usr/bin/env bash
+printf 'rc\n' >> "$bootstrap_marker"
+EOF
+chmod 755 "$installed_updater" "$bootstrap_attacker_root/scripts/yarr-common.sh" "$bootstrap_attacker_rc"
+
+expect_failure 'installed updater accepted environment-selected bootstrap helpers' \
+    env YARR_PLUGIN_ROOT="$bootstrap_attacker_root" YARR_RC_YARR="$bootstrap_attacker_rc" "$installed_updater" check --json
+[[ ! -e "$bootstrap_marker" ]] || fail 'installed updater sourced attacker bootstrap helper'
+
+env YARR_PLUGIN_ROOT="$YARR_PLUGIN_ROOT" YARR_RC_YARR="$rc" bash -c '
+    source "$1"
+    YARR_PLUGIN_ROOT="$3/bootstrap-attacker/plugin"
+    YARR_RC_YARR="$3/bootstrap-attacker/rc.yarr"
+    mapfile -t bootstrap_paths < <(yarr_update_bootstrap_paths "$2")
+    [[ "${bootstrap_paths[0]}" == /usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh ]]
+    [[ "${bootstrap_paths[1]}" == /etc/rc.d/rc.yarr ]]
+' _ "$updater" "$installed_updater" "$test_root" || \
+    fail 'installed updater bootstrap selector accepted caller-controlled helper paths'
+
 make_fake_boundary() {
     local name=$1 real=$2
     cat > "$test_root/bin/$name" <<EOF

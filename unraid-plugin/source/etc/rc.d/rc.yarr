@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 set -u
 
-YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
+YARR_RC_PHYSICAL_PATH=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")
+
+yarr_rc_is_installed_path() {
+    case "$1" in
+        /etc/rc.d/rc.yarr) return 0 ;;
+        */source/etc/rc.d/rc.yarr) return 1 ;;
+        */etc/rc.d/rc.yarr) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+if yarr_rc_is_installed_path "$YARR_RC_PHYSICAL_PATH"; then
+    YARR_COMMON_SCRIPT=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+else
+    YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
+    YARR_COMMON_SCRIPT="${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+fi
 # shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
-source "${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+source "$YARR_COMMON_SCRIPT" || {
+    printf 'rc.yarr: cannot read common script\n' >&2
+    exit 1
+}
 
 yarr_log() {
     mkdir -p "$(dirname "$YARR_LOG")"

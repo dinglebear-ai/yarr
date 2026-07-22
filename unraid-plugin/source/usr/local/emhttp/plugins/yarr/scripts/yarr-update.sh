@@ -1,11 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
-# shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
-source "${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+YARR_UPDATE_PHYSICAL_PATH=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")
 
-YARR_RC_YARR=${YARR_RC_YARR:-/etc/rc.d/rc.yarr}
+yarr_update_is_installed_path() {
+    case "$1" in
+        /usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh) return 0 ;;
+        */source/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh) return 1 ;;
+        */usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+yarr_update_bootstrap_paths() {
+    local physical_path=$1 plugin_root
+    if yarr_update_is_installed_path "$physical_path"; then
+        printf '%s\n' /usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh /etc/rc.d/rc.yarr
+        return 0
+    fi
+    plugin_root=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
+    printf '%s\n' "${plugin_root}/scripts/yarr-common.sh" "${YARR_RC_YARR:-/etc/rc.d/rc.yarr}"
+}
+
+mapfile -t yarr_update_bootstrap < <(yarr_update_bootstrap_paths "$YARR_UPDATE_PHYSICAL_PATH")
+YARR_COMMON_SCRIPT=${yarr_update_bootstrap[0]}
+YARR_RC_YARR=${yarr_update_bootstrap[1]}
+# shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+source "$YARR_COMMON_SCRIPT" || {
+    printf 'yarr-update: cannot read common script\n' >&2
+    exit 1
+}
+
 YARR_UPDATE_API_URL=${YARR_UPDATE_API_URL:-https://api.github.com/repos/jmagar/yarr/releases}
 YARR_UPDATE_DOWNLOAD_ROOT=${YARR_UPDATE_DOWNLOAD_ROOT:-https://github.com/jmagar/yarr/releases/download}
 YARR_UPDATE_ASSET=yarr-x86_64.tar.gz
@@ -25,7 +50,7 @@ YARR_APPLY_CLEANUP_PENDING=false
 [[ -r "$YARR_RC_YARR" ]] || { printf 'yarr-update: cannot read lifecycle script\n' >&2; exit 1; }
 # Source lifecycle helpers without executing their direct-command dispatcher.
 # shellcheck source=/etc/rc.d/rc.yarr
-source "$YARR_RC_YARR"
+source "$YARR_RC_YARR" || { printf 'yarr-update: cannot read lifecycle script\n' >&2; exit 1; }
 
 yarr_update_error() {
     printf 'yarr-update: %s\n' "$*" >&2
@@ -446,10 +471,12 @@ yarr_update_reset() {
     yarr_update_emit '' false 'Yarr reset to packaged binary'
 }
 
-command=${1:-}; shift || true
-case "$command" in
-    check) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh check --json'; exit 2; }; yarr_update_check ;;
-    apply) [[ "${1:-}" == --version && -n "${2:-}" && "${3:-}" == --json && $# == 3 ]] || { yarr_update_error 'usage: yarr-update.sh apply --version MAJOR.MINOR.PATCH --json'; exit 2; }; yarr_update_apply "$2" ;;
-    reset) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh reset --json'; exit 2; }; yarr_update_reset ;;
-    *) yarr_update_error 'usage: yarr-update.sh {check --json|apply --version MAJOR.MINOR.PATCH --json|reset --json}'; exit 2 ;;
-esac
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    command=${1:-}; shift || true
+    case "$command" in
+        check) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh check --json'; exit 2; }; yarr_update_check ;;
+        apply) [[ "${1:-}" == --version && -n "${2:-}" && "${3:-}" == --json && $# == 3 ]] || { yarr_update_error 'usage: yarr-update.sh apply --version MAJOR.MINOR.PATCH --json'; exit 2; }; yarr_update_apply "$2" ;;
+        reset) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh reset --json'; exit 2; }; yarr_update_reset ;;
+        *) yarr_update_error 'usage: yarr-update.sh {check --json|apply --version MAJOR.MINOR.PATCH --json|reset --json}'; exit 2 ;;
+    esac
+fi

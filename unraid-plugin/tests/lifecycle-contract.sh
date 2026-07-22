@@ -91,6 +91,25 @@ write_config
 mkdir -p "$YARR_PLUGIN_ROOT/scripts"
 cp "$common" "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh"
 
+installed_rc="$test_root/installed/etc/rc.d/rc.yarr"
+bootstrap_attacker_root="$test_root/bootstrap-attacker/plugin"
+bootstrap_marker="$test_root/bootstrap-marker"
+mkdir -p "$(dirname "$installed_rc")" "$bootstrap_attacker_root/scripts"
+cp "$rc" "$installed_rc"
+cat > "$bootstrap_attacker_root/scripts/yarr-common.sh" <<EOF
+#!/usr/bin/env bash
+printf 'common\n' >> "$bootstrap_marker"
+EOF
+chmod 755 "$installed_rc" "$bootstrap_attacker_root/scripts/yarr-common.sh"
+
+expect_failure 'installed rc execution accepted an environment-selected common helper' \
+    env YARR_PLUGIN_ROOT="$bootstrap_attacker_root" "$installed_rc" status
+[[ ! -e "$bootstrap_marker" ]] || fail 'installed rc execution sourced attacker common helper'
+
+expect_failure 'installed rc sourcing accepted an environment-selected common helper' \
+    env YARR_PLUGIN_ROOT="$bootstrap_attacker_root" bash -c 'source "$1"' _ "$installed_rc"
+[[ ! -e "$bootstrap_marker" ]] || fail 'installed rc sourcing sourced attacker common helper'
+
 # shellcheck disable=SC1090
 source "$common"
 
