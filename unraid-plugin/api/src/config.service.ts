@@ -135,12 +135,6 @@ export class ConfigService {
       const nextEnvironment = serializeYarrEnvironment(prospective.env);
       const currentView = toPublicConfig(current.plugin, current.env);
       const nextView = toPublicConfig(prospective.plugin, prospective.env);
-      await this.repairModes(lease);
-
-      if (effectiveFingerprint(current) === effectiveFingerprint(prospective)) {
-        return { config: currentView, changed: false, restarted: false, rolledBack: false };
-      }
-
       const secrets = [...new Set([
         ...collectSecretValues(current.env.values),
         ...collectSecretValues(prospective.env.values),
@@ -148,6 +142,13 @@ export class ConfigService {
       const currentSecrets = collectSecretValues(current.env.values);
       const priorRuntime = await this.runtime.status({ lockFd: lease.fd, secrets: currentSecrets });
       lease.assertHeld();
+      assertStablePriorRuntime(priorRuntime);
+      await this.repairModes(lease);
+
+      if (effectiveFingerprint(current) === effectiveFingerprint(prospective)) {
+        return { config: currentView, changed: false, restarted: false, rolledBack: false };
+      }
+
       let installed = false;
       let backup: RotationBackup | undefined;
       try {
@@ -366,6 +367,12 @@ function assertDesiredRuntime(state: RuntimeState, enabled: boolean): void {
   if (!enabled && state.state !== "stopped") {
     throw new Error("disabled runtime did not stop");
   }
+}
+
+function assertStablePriorRuntime(state: RuntimeState): void {
+  if (state.state === "stopped") return;
+  if (state.state === "running" && state.ready) return;
+  throw new Error("prior runtime state is not stable and exactly restorable");
 }
 
 function assertRestoredRuntime(restored: RuntimeState, prior: RuntimeState): void {

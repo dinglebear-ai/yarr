@@ -16,6 +16,7 @@ import { YARR_ENVIRONMENT_PATH, YARR_PID_PATH, YARR_PLUGIN_CONFIG_PATH } from ".
 const pluginConfig = `ENABLED=yes\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
 
 class FakeCommandProcess extends EventEmitter implements CommandProcess {
+  readonly pid = 4321;
   readonly stdout = new PassThrough();
   readonly stderr = new PassThrough();
   readonly kill = vi.fn(() => true);
@@ -72,14 +73,15 @@ describe("SafeCommandRunner", () => {
 
   it("caps output, kills the child, and redacts secrets from command errors", async () => {
     const child = new FakeCommandProcess();
-    const runner = new SafeCommandRunner(() => child);
+    const runner = new SafeCommandRunner(() => child, vi.fn());
     const command = runner.run("/etc/rc.d/rc.yarr", ["restart"], {
       maxOutputBytes: 16,
       secrets: ["runtime-secret"],
     });
     child.stderr.write("runtime-secret-output-that-overflows");
+    child.emit("close", null, "SIGKILL");
 
-    await expect(command).rejects.toThrow("[REDACTED]");
+    await expect(command).rejects.toThrow("command output exceeded");
     await expect(command).rejects.not.toThrow("runtime-secret");
     expect(child.kill).toHaveBeenCalledWith("SIGKILL");
   });
@@ -99,8 +101,62 @@ describe("SafeCommandRunner", () => {
       secrets: ["", "token", "token-123", "token"],
     });
 
-    expect(result.stdout).toBe("[REDACTED] [REDACTED] [REDACTED]");
-    expect(result.stderr).toBe("[REDACTED]");
+    expect(result.stdout).toBe("  ");
+    expect(result.stderr).toBe("");
+  });
+
+  it("uses collision-free empty replacement for marker text, overlap, and one-character secrets", async () => {
+    const child = new FakeCommandProcess();
+    const runner = new SafeCommandRunner(() => {
+      queueMicrotask(() => {
+        child.stdout.write("[REDACTED] abc ab a [REDACTED]");
+        child.emit("close", 0, null);
+      });
+      return child;
+    });
+
+    const result = await runner.run("/etc/rc.d/rc.yarr", ["restart"], {
+      secrets: ["", "[REDACTED]", "abc", "ab", "a"],
+    });
+
+    expect(result.stdout).toBe("    ");
+    expect(result.stdout).not.toContain("[REDACTED]");
+  });
+
+  it("waits for process-group closure after overflow before rejecting", async () => {
+    const child = new FakeCommandProcess();
+    let descendantAlive = true;
+    const killGroup = vi.fn(() => {
+      descendantAlive = false;
+    });
+    const runner = new SafeCommandRunner(() => child, killGroup);
+    let rejected = false;
+    const command = runner.run("/etc/rc.d/rc.yarr", ["restart"], { maxOutputBytes: 8 });
+    void command.catch(() => {
+      rejected = true;
+    });
+
+    child.stdout.write("output-that-overflows");
+    await Promise.resolve();
+    expect(descendantAlive).toBe(false);
+    expect(rejected).toBe(false);
+    child.emit("close", null, "SIGKILL");
+
+    await expect(command).rejects.toThrow("command output exceeded");
+    expect(child.stdout.listenerCount("data")).toBe(0);
+  });
+
+  it("returns a distinct fatal error when killed process group never closes", async () => {
+    vi.useFakeTimers();
+    const child = new FakeCommandProcess();
+    const runner = new SafeCommandRunner(() => child, vi.fn());
+    const command = runner.run("/etc/rc.d/rc.yarr", ["restart"], { timeoutMs: 10 });
+    const rejection = expect(command).rejects.toThrow("fatal command termination failure");
+
+    await vi.advanceTimersByTimeAsync(2_100);
+
+    await rejection;
+    vi.useRealTimers();
   });
 });
 
@@ -179,7 +235,7 @@ describe("RuntimeService", () => {
 
     const state = await replacement.status();
 
-    expect(state.healthMessage).toContain("[REDACTED]");
+    expect(state.healthMessage).toBe("failed with ");
     expect(state.healthMessage).not.toContain("runtime-secret");
   });
 

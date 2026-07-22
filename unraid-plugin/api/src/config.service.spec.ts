@@ -214,7 +214,7 @@ describe("ConfigService", () => {
       `fsync:${YARR_ENVIRONMENT_PATH}`,
       `fsync-dir:${YARR_CONFIG_DIR}`,
     ]);
-    expect(calls).toHaveLength(0);
+    expect(calls.map((call) => call.action)).toEqual(["status"]);
   });
 
   it("restores both known-good files and restarts when readiness fails", async () => {
@@ -223,7 +223,6 @@ describe("ConfigService", () => {
     const result: SaveConfigResult = await service.save({ port: 40124 });
 
     expect(result).toMatchObject({ changed: true, restarted: true, rolledBack: true });
-    expect(result.error).toContain("[REDACTED]");
     expect(result.error).not.toContain("current-secret");
     expect(result.config.plugin.port).toBe(40070);
     expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
@@ -245,7 +244,7 @@ describe("ConfigService", () => {
 
     const failure = service.save({ bearerToken: { kind: "set", value: "new-secret" } });
 
-    await expect(failure).rejects.toThrow("[REDACTED]");
+    await expect(failure).rejects.toThrow("configuration rollback failed");
     await expect(failure).rejects.not.toThrow(/new-secret|current-secret/);
   });
 
@@ -302,7 +301,7 @@ describe("ConfigService", () => {
     const result = await service.save({ logLevel: "info" });
 
     expect(result.changed).toBe(false);
-    expect(calls).toHaveLength(0);
+    expect(calls.map((call) => call.action)).toEqual(["status"]);
   });
 
   it("repairs permissive modes without restarting", async () => {
@@ -316,7 +315,7 @@ describe("ConfigService", () => {
     expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.mode).toBe(0o600);
     expect(files.files.get(YARR_ENVIRONMENT_PATH)?.mode).toBe(0o600);
     expect(files.operations).toContain(`fsync-dir:${YARR_CONFIG_DIR}`);
-    expect(calls).toHaveLength(0);
+    expect(calls.map((call) => call.action)).toEqual(["status"]);
   });
 
   it.each([
@@ -337,5 +336,21 @@ describe("ConfigService", () => {
     expect(files.files.has(YARR_ENVIRONMENT_TRANSACTION_PATH)).toBe(false);
     expect(files.files.has(YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH)).toBe(false);
     expect(files.files.has(YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH)).toBe(false);
+  });
+
+  it.each([
+    [{ ...running, state: "starting", ready: false, healthMessage: "starting" } as RuntimeState],
+    [{ ...running, state: "error", ready: false, healthMessage: "error" } as RuntimeState],
+    [{ ...running, ready: false, healthMessage: "not ready" } as RuntimeState],
+  ])("rejects non-restorable prior state before any mutation", async (priorState) => {
+    const { service, files, calls } = harness([], undefined, { status: priorState });
+
+    await expect(service.save({ port: 40129 })).rejects.toThrow("prior runtime state is not stable");
+
+    expect(files.operations).toEqual([
+      `read:${YARR_PLUGIN_CONFIG_PATH}`,
+      `read:${YARR_ENVIRONMENT_PATH}`,
+    ]);
+    expect(calls.map((call) => call.action)).toEqual(["status"]);
   });
 });

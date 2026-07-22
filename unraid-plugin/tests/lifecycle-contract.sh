@@ -138,6 +138,17 @@ exec 8>&-
 kill "$separate_lock_holder"
 wait "$separate_lock_holder" 2>/dev/null || true
 
+# The inherited API lock descriptor must remain in rc.yarr while the action is
+# active, but must not leak into the long-lived daemon launched by start.
+exec 8>"$YARR_LOCK"
+flock -n 8 || fail 'could not acquire inherited daemon leak fixture lock'
+"$rc" --lock-fd 8 start 8>&8
+inherited_start_pid=$(cat "$YARR_PID")
+kill -0 "$inherited_start_pid" 2>/dev/null || fail 'inherited-fd start did not leave Yarr running'
+exec 8>&-
+flock -n "$YARR_LOCK" /usr/bin/true || fail 'launched Yarr daemon retained inherited API lock descriptor'
+"$rc" stop
+
 yarr_load_config
 yarr_validate_config
 expect_eq "127.0.0.1" "$(yarr_effective_host)" "default host"

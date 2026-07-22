@@ -23,6 +23,7 @@ export interface CommandRunner {
 }
 
 export interface CommandProcess {
+  readonly pid?: number;
   readonly stdout: Readable;
   readonly stderr: Readable;
   kill(signal: NodeJS.Signals): boolean;
@@ -35,6 +36,7 @@ export interface CommandProcess {
 
 export interface CommandSpawnOptions {
   shell: false;
+  detached: true;
   stdio: ["ignore", "pipe", "pipe"] | ["ignore", "pipe", "pipe", number];
   env: NodeJS.ProcessEnv;
 }
@@ -45,16 +47,24 @@ export type CommandSpawn = (
   options: CommandSpawnOptions,
 ) => CommandProcess;
 
+export type CommandGroupKiller = (pid: number, signal: NodeJS.Signals) => void;
+
+export class FatalCommandError extends Error {}
+
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_OUTPUT_BYTES = 256 * 1024;
 const MAX_TIMEOUT_MS = 120_000;
 const MAX_CAPTURE_BYTES = 1024 * 1024;
 const LOCK_CHILD_FD = 3;
+const KILL_COMPLETION_TIMEOUT_MS = 2_000;
 
 export class SafeCommandRunner implements CommandRunner {
   constructor(
     private readonly spawnCommand: CommandSpawn = (command, args, options) =>
       spawn(command, [...args], options) as unknown as CommandProcess,
+    private readonly killProcessGroup: CommandGroupKiller = (pid, signal) => {
+      process.kill(-pid, signal);
+    },
   ) {}
 
   async run(
@@ -86,24 +96,55 @@ export class SafeCommandRunner implements CommandRunner {
         : ["ignore", "pipe", "pipe", options.inheritedLockFd];
     const child = this.spawnCommand(command, args, {
       shell: false,
+      detached: true,
       stdio,
       env: { PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" },
     });
 
     return new Promise<CommandResult>((resolve, reject) => {
       let settled = false;
+      let terminating: Error | null = null;
       let stdout = Buffer.alloc(0);
       let stderr = Buffer.alloc(0);
+      let killGuard: NodeJS.Timeout | undefined;
 
-      const finishError = (message: string, kill = false): void => {
+      const cleanup = (): void => {
+        clearTimeout(timer);
+        if (killGuard !== undefined) clearTimeout(killGuard);
+        child.stdout.off("data", onStdout);
+        child.stderr.off("data", onStderr);
+      };
+
+      const finishError = (message: string): void => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
-        if (kill) child.kill("SIGKILL");
+        cleanup();
         reject(new Error(redactSecrets(message, options.secrets ?? [])));
       };
+      const beginTermination = (message: string): void => {
+        if (settled || terminating !== null) return;
+        terminating = new Error(redactSecrets(message, options.secrets ?? []));
+        clearTimeout(timer);
+        try {
+          if (child.pid === undefined || !Number.isInteger(child.pid) || child.pid <= 0) {
+            throw new Error("child PID is unavailable");
+          }
+          this.killProcessGroup(child.pid, "SIGKILL");
+        } catch (error) {
+          terminating = new FatalCommandError(
+            `fatal command termination failure: could not kill process group: ${errorMessage(error)}`,
+          );
+        }
+        child.kill("SIGKILL");
+        killGuard = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new FatalCommandError("fatal command termination failure: process group did not close"));
+        }, KILL_COMPLETION_TIMEOUT_MS);
+      };
       const capture = (stream: "stdout" | "stderr", chunk: Buffer | string): void => {
-        if (settled) return;
+        if (settled || terminating !== null) return;
         const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         const current = stream === "stdout" ? stdout : stderr;
         const remaining = Math.max(0, maxOutputBytes - current.length);
@@ -111,22 +152,28 @@ export class SafeCommandRunner implements CommandRunner {
         if (stream === "stdout") stdout = next;
         else stderr = next;
         if (bytes.length > remaining) {
-          finishError(
-            `command output exceeded ${maxOutputBytes} bytes: ${next.toString("utf8")}`,
-            true,
-          );
+          beginTermination(`command output exceeded ${maxOutputBytes} bytes: ${next.toString("utf8")}`);
         }
       };
 
+      const onStdout = (chunk: Buffer | string): void => capture("stdout", chunk);
+      const onStderr = (chunk: Buffer | string): void => capture("stderr", chunk);
+
       const timer = setTimeout(() => {
-        finishError(`command timed out after ${timeoutMs}ms`, true);
+        beginTermination(`command timed out after ${timeoutMs}ms`);
       }, timeoutMs);
-      child.stdout.on("data", (chunk: Buffer | string) => capture("stdout", chunk));
-      child.stderr.on("data", (chunk: Buffer | string) => capture("stderr", chunk));
+      child.stdout.on("data", onStdout);
+      child.stderr.on("data", onStderr);
       child.once("error", (error) => finishError(`command failed to start: ${error.message}`));
       child.once("close", (exitCode, signal) => {
         if (settled) return;
-        clearTimeout(timer);
+        if (terminating !== null) {
+          settled = true;
+          cleanup();
+          reject(terminating);
+          return;
+        }
+        cleanup();
         const code = exitCode ?? 255;
         const stdoutText = redactSecrets(stdout.toString("utf8"), options.secrets ?? []);
         const stderrText = redactSecrets(stderr.toString("utf8"), options.secrets ?? []);
@@ -140,6 +187,10 @@ export class SafeCommandRunner implements CommandRunner {
       });
     });
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function assertCommand(command: string, args: readonly string[], inheritedLockFd?: number): void {

@@ -1,29 +1,59 @@
 import { readFile } from "node:fs/promises";
 
 import { parseYarrEnvironment } from "./config-codec";
-import { YARR_ENVIRONMENT_PATH } from "./paths";
+import { YARR_ENVIRONMENT_GOOD_PATH, YARR_ENVIRONMENT_PATH } from "./paths";
+
+export interface SecretFileSystem {
+  readFile(path: string): Promise<string>;
+}
 
 export interface SecretProvider {
   currentSecrets(): Promise<readonly string[]>;
 }
 
 export interface SecretRedactor {
-  redactMany(values: readonly string[]): Promise<string[]>;
+  snapshot(): Promise<RedactionSnapshot>;
+}
+
+export interface RedactionSnapshot {
+  redactMany(values: readonly string[]): string[];
 }
 
 export class StoredSecretProvider implements SecretProvider {
+  constructor(
+    private readonly files: SecretFileSystem = {
+      readFile: async (path) => readFile(path, "utf8"),
+    },
+  ) {}
+
   async currentSecrets(): Promise<readonly string[]> {
-    const environment = parseYarrEnvironment(await readFile(YARR_ENVIRONMENT_PATH, "utf8"));
-    return collectSecretValues(environment.values);
+    const current = parseYarrEnvironment(await this.files.readFile(YARR_ENVIRONMENT_PATH));
+    const knownGoodText = await this.readKnownGood();
+    const knownGood = knownGoodText === null ? null : parseYarrEnvironment(knownGoodText);
+    return [...new Set([
+      ...collectSecretValues(current.values),
+      ...(knownGood === null ? [] : collectSecretValues(knownGood.values)),
+    ])];
+  }
+
+  private async readKnownGood(): Promise<string | null> {
+    try {
+      return await this.files.readFile(YARR_ENVIRONMENT_GOOD_PATH);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
   }
 }
 
 export class StoredSecretRedactor implements SecretRedactor {
   constructor(private readonly provider: SecretProvider = new StoredSecretProvider()) {}
 
-  async redactMany(values: readonly string[]): Promise<string[]> {
+  async snapshot(): Promise<RedactionSnapshot> {
     const secrets = await this.provider.currentSecrets();
-    return values.map((value) => redactSecrets(value, secrets));
+    return {
+      redactMany: (values) => values.map((value) => redactSecrets(value, secrets)),
+    };
   }
 }
 
@@ -31,7 +61,7 @@ export function redactSecrets(message: string, secrets: readonly string[]): stri
   const unique = [...new Set(secrets.filter((secret) => secret.length > 0))].sort(
     (left, right) => right.length - left.length || left.localeCompare(right),
   );
-  return unique.reduce((redacted, secret) => redacted.replaceAll(secret, "[REDACTED]"), message);
+  return unique.reduce((redacted, secret) => redacted.replaceAll(secret, ""), message);
 }
 
 export function collectSecretValues(values: Record<string, string>): string[] {

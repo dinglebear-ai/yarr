@@ -1,6 +1,7 @@
 import { open } from "node:fs/promises";
 
 import { YARR_LOG_PATH } from "./paths";
+import { FlockService, type LockService } from "./flock.service";
 import { StoredSecretRedactor, type SecretRedactor } from "./secret-redactor";
 
 export const MAX_LOG_LINES = 500;
@@ -45,18 +46,24 @@ export class LogService {
   constructor(
     private readonly reader: BoundedLogReader = new NodeBoundedLogReader(),
     private readonly redactor: SecretRedactor = new StoredSecretRedactor(),
+    private readonly lock: LockService = new FlockService(),
   ) {}
 
   async read(): Promise<LogReadResult> {
-    const result = await this.reader.readTail(YARR_LOG_PATH, MAX_LOG_BYTES);
-    const allLines = result.text.replaceAll("\r\n", "\n").split("\n");
-    if (allLines.at(-1) === "") allLines.pop();
-    const linesTruncated = allLines.length > MAX_LOG_LINES;
-    const sanitized = allLines.slice(-MAX_LOG_LINES).map(sanitizeLogLine);
-    return {
-      lines: await this.redactor.redactMany(sanitized),
-      truncated: result.bytesTruncated || linesTruncated,
-    };
+    return this.lock.withLock(async (lease) => {
+      const snapshot = await this.redactor.snapshot();
+      lease.assertHeld();
+      const result = await this.reader.readTail(YARR_LOG_PATH, MAX_LOG_BYTES);
+      lease.assertHeld();
+      const allLines = result.text.replaceAll("\r\n", "\n").split("\n");
+      if (allLines.at(-1) === "") allLines.pop();
+      const linesTruncated = allLines.length > MAX_LOG_LINES;
+      const sanitized = allLines.slice(-MAX_LOG_LINES).map(sanitizeLogLine);
+      return {
+        lines: snapshot.redactMany(sanitized),
+        truncated: result.bytesTruncated || linesTruncated,
+      };
+    });
   }
 }
 

@@ -81,6 +81,65 @@ unraid-plugin/tests/run.sh
   Task 1 aggregate contract: PASS
 ```
 
+## Final Hardening Pass
+
+This hardening pass was implemented as a new commit after `5b0eb13`; neither prior Task 5 commit was amended.
+
+### Stable, exactly restorable pre-state
+
+- Every save samples runtime state under the retained canonical flock before chmod, file writes, renames, or lifecycle actions.
+- Only `running` plus `ready=true`, or `stopped`, is accepted as a stable prior state.
+- Starting, error, running-but-not-ready, and other indeterminate states fail closed before mutation.
+- Three regressions assert that indeterminate states perform only fixed config reads and runtime status, with no chmod, write, rename, restart, or stop.
+
+### Rotation-safe historical log redaction
+
+- `StoredSecretProvider` reads exactly the current `.env` and current `.env.good` generation; it does not glob or scan transaction, backup, or arbitrary paths.
+- Missing `.env.good` is treated as no historical generation; all other read or parse failures fail closed.
+- `LogService` acquires the canonical `FlockService` before taking the two-generation secret snapshot.
+- The same flock remains held through the bounded fixed-path log read, ANSI/control sanitation, and final redaction.
+- Tests cover current secrets, prior known-good secrets after rotation, exact fixed paths, and a concurrent rotation blocked until log redaction completes.
+
+### Collision-free redaction
+
+- Secret replacement is now the empty string, so the replacement cannot contain any configured nonempty secret.
+- Empty values are ignored, duplicates collapse, and values sort longest-first with a deterministic lexical tie-break.
+- All occurrences are removed from successful command output, failed command errors, runtime fields, and log lines.
+- Regressions cover overlapping values, repeated values, one-character values, and a configured secret equal to the former marker text.
+
+### Confirmed process-group termination
+
+- Fixed commands spawn as detached process-group leaders with `shell=false`.
+- Timeout and output overflow send `SIGKILL` to the entire process group and the direct child.
+- The runner waits for the child close event before rejecting and allowing transaction rollback.
+- A bounded two-second kill-completion guard returns `FatalCommandError` with a distinct fatal termination message if closure cannot be confirmed.
+- Data listeners are removed at completion so output cannot be consumed after confirmed closure.
+- Tests model both child and descendant termination, prove rejection waits for close, and prove missing close becomes a fatal command error.
+
+### Inherited descriptor containment
+
+- `rc.yarr` retains the validated inherited descriptor for the complete lifecycle action.
+- The daemon-launch subshell closes that descriptor immediately before `exec setsid env ... yarr serve mcp`.
+- Direct lifecycle actions remain unchanged because the dynamic descriptor variable is present only in the validated inherited-fd call path.
+- The lifecycle regression starts the fake long-lived Yarr process through inherited fd 8, closes the API-parent descriptor, proves a separate contender acquires the canonical lock while Yarr remains alive, then stops the process.
+
+### Final hardening validation
+
+```text
+npm test -- --run src/config.service.spec.ts src/runtime.service.spec.ts src/log.service.spec.ts src/flock.service.spec.ts
+  4 files passed, 36 tests passed
+npx tsc --noEmit
+  PASS
+bash -n rc.yarr lifecycle-contract.sh yarr-update.sh update-contract.sh
+  PASS
+unraid-plugin/tests/lifecycle-contract.sh
+  PASS
+unraid-plugin/tests/update-contract.sh
+  PASS
+unraid-plugin/tests/run.sh
+  Task 1 aggregate contract: PASS
+```
+
 ## Files
 
 - `unraid-plugin/api/src/command-runner.ts`
