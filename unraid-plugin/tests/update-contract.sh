@@ -53,6 +53,19 @@ mkdir -p "$YARR_PLUGIN_ROOT/bin" "$YARR_PLUGIN_ROOT/scripts" \
     "$test_root/releases"
 cp "$common" "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh"
 
+installed_common="$test_root/installed/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh"
+mkdir -p "$(dirname "$installed_common")"
+cp "$common" "$installed_common"
+env \
+    YARR_PLUGIN_ROOT="$test_root/attacker/plugin" \
+    YARR_BOOT_ROOT="$test_root/attacker/boot" \
+    YARR_APPDATA_ROOT="$test_root/attacker/appdata" \
+    YARR_RUN_ROOT="$test_root/attacker/run" \
+    YARR_LOCK_ROOT="$test_root/attacker/lock" \
+    YARR_LOCK="$test_root/attacker/lock/alternate.lock" \
+    bash -c 'source "$1"; [[ "$YARR_PLUGIN_ROOT" == /usr/local/emhttp/plugins/yarr && "$YARR_BOOT_ROOT" == /boot && "$YARR_APPDATA_ROOT" == /mnt/user/appdata && "$YARR_LOCK" == /var/lock/yarr-plugin.lock ]]' _ "$installed_common" || \
+    fail 'installed common script accepted caller-controlled roots'
+
 make_fake_boundary() {
     local name=$1 real=$2
     cat > "$test_root/bin/$name" <<EOF
@@ -348,6 +361,12 @@ assert_running_overlay_restored() {
     "$rc" status >/dev/null || fail "$1 did not restore service readiness"
 }
 
+assert_candidate_committed() {
+    expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" "$1 active candidate preservation"
+    expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" "$1 predecessor preservation"
+    "$rc" status >/dev/null || fail "$1 did not retain candidate readiness"
+}
+
 prepare_running_overlay
 reset_boundaries
 export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=3
@@ -398,6 +417,12 @@ export YARR_TEST_FAIL_COMMAND=rm YARR_TEST_FAIL_AT=1
 expect_failure 'reset backup cleanup fault' "$updater" reset --json
 [[ ! -e "$YARR_OVERLAY_DIR/yarr" && ! -e "$YARR_OVERLAY_DIR/yarr.previous" ]] || fail 'reset cleanup fault rolled back the effective reset'
 "$rc" status >/dev/null || fail 'reset cleanup fault did not keep packaged service ready'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_SIGNAL_COMMAND=rm YARR_TEST_SIGNAL_AT=1
+expect_failure 'signal during apply post-commit cleanup' "$updater" apply --version 2.1.0 --json
+assert_candidate_committed 'signal during apply post-commit cleanup'
 
 unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 "$rc" stop

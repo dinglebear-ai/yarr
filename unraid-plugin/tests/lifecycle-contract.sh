@@ -256,4 +256,29 @@ if kill -0 "$service_pid" 2>/dev/null; then
     fail "stop did not terminate Yarr after configuration became invalid"
 fi
 
+# A compound restart keeps the canonical lock held across stop and start. The
+# contender runs at the stop boundary and must fail before start is invoked.
+write_config
+"$rc" start
+# shellcheck disable=SC1090
+source "$rc"
+eval "$(declare -f yarr_stop_locked | sed '1s/yarr_stop_locked/yarr_stop_locked_real/')"
+eval "$(declare -f yarr_start_locked | sed '1s/yarr_start_locked/yarr_start_locked_real/')"
+yarr_stop_locked() {
+    yarr_stop_locked_real
+    printf 'stop\n' >> "$test_root/restart-lock-trace"
+    if flock -n "$YARR_LOCK" -c true; then
+        fail 'restart released the lock between stop and start'
+    fi
+    printf 'contender-blocked\n' >> "$test_root/restart-lock-trace"
+}
+yarr_start_locked() {
+    printf 'start\n' >> "$test_root/restart-lock-trace"
+    yarr_start_locked_real
+}
+yarr_with_lock yarr_restart_locked
+expect_eq $'stop\ncontender-blocked\nstart' "$(cat "$test_root/restart-lock-trace")" "restart lock trace"
+"$rc" restart
+"$rc" reload
+
 printf 'lifecycle contract: PASS\n'

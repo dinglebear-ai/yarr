@@ -149,12 +149,16 @@ yarr_status_locked() {
     return 3
 }
 
+yarr_restart_locked() {
+    yarr_stop_locked && yarr_start_locked
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     case "${1:-}" in
         start) yarr_with_lock yarr_start_locked ;;
         stop) yarr_with_lock yarr_stop_locked ;;
-        restart) yarr_with_lock yarr_stop_locked && yarr_with_lock yarr_start_locked ;;
-        reload) yarr_with_lock yarr_stop_locked && yarr_with_lock yarr_start_locked ;;
+        restart) yarr_with_lock yarr_restart_locked ;;
+        reload) yarr_with_lock yarr_restart_locked ;;
         status) yarr_with_lock yarr_status_locked ;;
         *)
             printf 'usage: %s {start|stop|restart|status|reload}\n' "$0" >&2

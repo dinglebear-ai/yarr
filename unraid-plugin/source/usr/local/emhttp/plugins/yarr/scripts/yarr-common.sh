@@ -1,23 +1,49 @@
 #!/usr/bin/env bash
 # Shared, non-executing configuration and process helpers for the Yarr plugin.
 
-YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
-YARR_BOOT_ROOT=${YARR_BOOT_ROOT:-/boot}
-YARR_APPDATA_ROOT=${YARR_APPDATA_ROOT:-/mnt/user/appdata}
-YARR_RUN_ROOT=${YARR_RUN_ROOT:-/var/run}
-YARR_LOCK_ROOT=${YARR_LOCK_ROOT:-/var/lock}
-YARR_LOG_ROOT=${YARR_LOG_ROOT:-/var/log}
-YARR_PROC_ROOT=${YARR_PROC_ROOT:-/proc}
+YARR_COMMON_PATH=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")
+case "$YARR_COMMON_PATH" in
+    /usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh|*/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh)
+        [[ "$YARR_COMMON_PATH" == */unraid-plugin/source/* ]] && YARR_COMMON_INSTALLED=false || YARR_COMMON_INSTALLED=true
+        ;;
+    *) YARR_COMMON_INSTALLED=false ;;
+esac
 
-YARR_CFG=${YARR_CFG:-"${YARR_BOOT_ROOT}/config/plugins/yarr/yarr.cfg"}
-YARR_ENV=${YARR_ENV:-"${YARR_BOOT_ROOT}/config/plugins/yarr/.env"}
-YARR_APPDATA=${YARR_APPDATA:-"${YARR_APPDATA_ROOT}/yarr"}
-YARR_OVERLAY_DIR=${YARR_OVERLAY_DIR:-"${YARR_APPDATA}/bin"}
-YARR_PID=${YARR_PID:-"${YARR_RUN_ROOT}/yarr.pid"}
-YARR_LOCK=${YARR_LOCK:-"${YARR_LOCK_ROOT}/yarr-plugin.lock"}
-YARR_LOG=${YARR_LOG:-"${YARR_LOG_ROOT}/yarr/yarr.log"}
-YARR_RUNTIME_ENV=${YARR_RUNTIME_ENV:-"${YARR_RUN_ROOT}/yarr.env"}
-YARR_TAILSCALE_STATE=${YARR_TAILSCALE_STATE:-"${YARR_APPDATA}/tailscale-serve.state"}
+if [[ "$YARR_COMMON_INSTALLED" == true ]]; then
+    YARR_PLUGIN_ROOT=/usr/local/emhttp/plugins/yarr
+    YARR_BOOT_ROOT=/boot
+    YARR_APPDATA_ROOT=/mnt/user/appdata
+    YARR_RUN_ROOT=/var/run
+    YARR_LOCK_ROOT=/var/lock
+    YARR_LOG_ROOT=/var/log
+    YARR_PROC_ROOT=/proc
+    YARR_CFG=/boot/config/plugins/yarr/yarr.cfg
+    YARR_ENV=/boot/config/plugins/yarr/.env
+    YARR_APPDATA=/mnt/user/appdata/yarr
+    YARR_OVERLAY_DIR=/mnt/user/appdata/yarr/bin
+    YARR_PID=/var/run/yarr.pid
+    YARR_LOCK=/var/lock/yarr-plugin.lock
+    YARR_LOG=/var/log/yarr/yarr.log
+    YARR_RUNTIME_ENV=/var/run/yarr.env
+    YARR_TAILSCALE_STATE=/mnt/user/appdata/yarr/tailscale-serve.state
+else
+    YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
+    YARR_BOOT_ROOT=${YARR_BOOT_ROOT:-/boot}
+    YARR_APPDATA_ROOT=${YARR_APPDATA_ROOT:-/mnt/user/appdata}
+    YARR_RUN_ROOT=${YARR_RUN_ROOT:-/var/run}
+    YARR_LOCK_ROOT=${YARR_LOCK_ROOT:-/var/lock}
+    YARR_LOG_ROOT=${YARR_LOG_ROOT:-/var/log}
+    YARR_PROC_ROOT=${YARR_PROC_ROOT:-/proc}
+    YARR_CFG=${YARR_CFG:-"${YARR_BOOT_ROOT}/config/plugins/yarr/yarr.cfg"}
+    YARR_ENV=${YARR_ENV:-"${YARR_BOOT_ROOT}/config/plugins/yarr/.env"}
+    YARR_APPDATA=${YARR_APPDATA:-"${YARR_APPDATA_ROOT}/yarr"}
+    YARR_OVERLAY_DIR=${YARR_OVERLAY_DIR:-"${YARR_APPDATA}/bin"}
+    YARR_PID=${YARR_PID:-"${YARR_RUN_ROOT}/yarr.pid"}
+    YARR_LOCK="${YARR_LOCK_ROOT}/yarr-plugin.lock"
+    YARR_LOG=${YARR_LOG:-"${YARR_LOG_ROOT}/yarr/yarr.log"}
+    YARR_RUNTIME_ENV=${YARR_RUNTIME_ENV:-"${YARR_RUN_ROOT}/yarr.env"}
+    YARR_TAILSCALE_STATE=${YARR_TAILSCALE_STATE:-"${YARR_APPDATA}/tailscale-serve.state"}
+fi
 YARR_CURL_BIN=${YARR_CURL_BIN:-/usr/bin/curl}
 YARR_TAILSCALE_BIN=${YARR_TAILSCALE_BIN:-/usr/bin/tailscale}
 

@@ -20,6 +20,7 @@ YARR_UPDATE_STAGED=''
 YARR_UPDATE_ROLLBACK=''
 YARR_ROLLED_BACK=false
 YARR_RESET_CLEANUP_PENDING=false
+YARR_APPLY_CLEANUP_PENDING=false
 
 [[ -r "$YARR_RC_YARR" ]] || { printf 'yarr-update: cannot read lifecycle script\n' >&2; exit 1; }
 # Source lifecycle helpers without executing their direct-command dispatcher.
@@ -312,11 +313,14 @@ yarr_update_apply_locked() {
         yarr_update_rollback_apply_current || true
         return 1
     fi
+    # The new active and its predecessor are now durable and ready. Obsolete
+    # backup removal is post-commit cleanup, never a rollback trigger.
+    YARR_UPDATE_ROLLBACK=''
     if [[ "$YARR_TXN_HAD_PREVIOUS" == true ]] && ! "$YARR_RM_BIN" -f -- "$YARR_TXN_PREVIOUS_BACKUP"; then
-        yarr_update_rollback_apply_current || true
+        YARR_APPLY_CLEANUP_PENDING=true
+        yarr_update_error 'updated binary is ready; obsolete backup cleanup is pending'
         return 1
     fi
-    YARR_UPDATE_ROLLBACK=''
 }
 
 yarr_update_restore_reset() {
@@ -422,6 +426,10 @@ yarr_update_apply() {
         return 1
     fi
     if ! yarr_update_with_lock yarr_update_apply_locked "$candidate"; then
+        if [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
+            yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending'
+            return 1
+        fi
         yarr_update_emit "$version" "$YARR_ROLLED_BACK" 'Update failed; previous binary restored' || true
         return 1
     fi
