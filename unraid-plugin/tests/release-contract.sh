@@ -43,8 +43,15 @@ previous=''
 declare -A seen=()
 for path in "${paths[@]}"; do
     [[ -n "$path" ]] || fail "package inventory contains an empty line"
+    [[ "$path" != /* && "$path" != */ && "$path" != *//* ]] || fail "inventory path is not canonical: $path"
+    IFS='/' read -r -a components <<< "$path"
+    canonical=''
+    for component in "${components[@]}"; do
+        [[ -n "$component" && "$component" != . && "$component" != .. ]] || fail "inventory path is not canonical: $path"
+        canonical+="${canonical:+/}$component"
+    done
+    [[ "$canonical" == "$path" ]] || fail "inventory path is not canonical: $path"
     [[ "$path" == unraid-plugin/* ]] || fail "inventory path is outside package root: $path"
-    [[ "$path" != */../* && "$path" != ../* && "$path" != */./* ]] || fail "inventory path is not normalized: $path"
     [[ -z "${seen[$path]+yes}" ]] || fail "duplicate inventory path: $path"
     seen[$path]=1
     [[ "$path" == unraid-plugin/yarr.plg || "$path" == unraid-plugin/release-manifest.json || "$path" == unraid-plugin/source/* || "$path" == unraid-plugin/api/* || "$path" == unraid-plugin/web/* ]] || fail "unrecognized runtime prefix: $path"
@@ -78,6 +85,12 @@ jq -e '
     (.settingsElement | type == "string") and
     (.dashboardElement | type == "string")
 ' "$manifest" >/dev/null || fail "manifest schema or value contract failed"
+
+plugin_version=$(jq -r '.pluginVersion' "$manifest")
+package_build=$(jq -r '.packageBuild' "$manifest")
+expected_package_file="yarr-${plugin_version}-x86_64-${package_build}.txz"
+actual_package_file=$(jq -r '.packageFile' "$manifest")
+[[ "$actual_package_file" == "$expected_package_file" ]] || fail "package filename does not match manifest identity: expected $expected_package_file, got $actual_package_file"
 
 if "$reject_zero_sha" && jq -e '.packageSha256 == ("0" * 64)' "$manifest" >/dev/null; then
     fail "zero package checksum is not allowed for a packaged release"
