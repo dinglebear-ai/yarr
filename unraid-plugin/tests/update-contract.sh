@@ -37,7 +37,9 @@ export YARR_RUN_ROOT="$test_root/run"
 export YARR_LOCK_ROOT="$test_root/lock"
 export YARR_LOG_ROOT="$test_root/log"
 export YARR_APPDATA="$YARR_APPDATA_ROOT/yarr"
+export YARR_OVERLAY_DIR="$YARR_APPDATA/bin"
 export YARR_PID="$YARR_RUN_ROOT/yarr.pid"
+export YARR_LOCK="$YARR_LOCK_ROOT/yarr-plugin.lock"
 export YARR_CURL_BIN="$test_root/bin/curl"
 export YARR_RC_YARR="$rc"
 export YARR_UPDATE_API_URL='https://fixture.invalid/api/releases'
@@ -46,10 +48,49 @@ export YARR_READY_ATTEMPTS=1
 export YARR_READY_INTERVAL=0
 
 mkdir -p "$YARR_PLUGIN_ROOT/bin" "$YARR_PLUGIN_ROOT/scripts" \
-    "$YARR_BOOT_ROOT/config/plugins/yarr" "$YARR_APPDATA_ROOT/yarr" \
+    "$YARR_BOOT_ROOT/config/plugins/yarr" "$YARR_OVERLAY_DIR" \
     "$YARR_RUN_ROOT" "$YARR_LOCK_ROOT" "$YARR_LOG_ROOT" "$test_root/bin" \
     "$test_root/releases"
 cp "$common" "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh"
+
+make_fake_boundary() {
+    local name=$1 real=$2
+    cat > "$test_root/bin/$name" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+name=$name
+count_file="\${YARR_TEST_FAKE_COUNTS}/\${name}"
+count=0
+[[ -f "\$count_file" ]] && count=\$(<"\$count_file")
+count=\$((count + 1))
+printf '%s\\n' "\$count" > "\$count_file"
+printf '%s %s\\n' "\$name" "\$*" >> "\${YARR_TEST_OPERATION_LOG}"
+if [[ "\${YARR_TEST_FAIL_COMMAND:-}" == "\$name" && "\${YARR_TEST_FAIL_AT:-0}" == "\$count" ]]; then
+    exit 1
+fi
+exec $real "\$@"
+EOF
+    chmod 755 "$test_root/bin/$name"
+}
+
+export YARR_TEST_FAKE_COUNTS="$test_root/fake-counts"
+export YARR_TEST_OPERATION_LOG="$test_root/operations.log"
+mkdir -p "$YARR_TEST_FAKE_COUNTS"
+make_fake_boundary mv /bin/mv
+make_fake_boundary install /usr/bin/install
+make_fake_boundary sync /usr/bin/sync
+make_fake_boundary tar /usr/bin/tar
+export YARR_MV_BIN="$test_root/bin/mv"
+export YARR_INSTALL_BIN="$test_root/bin/install"
+export YARR_SYNC_BIN="$test_root/bin/sync"
+export YARR_TAR_BIN="$test_root/bin/tar"
+
+reset_boundaries() {
+    rm -rf "$YARR_TEST_FAKE_COUNTS"
+    mkdir -p "$YARR_TEST_FAKE_COUNTS"
+    : > "$YARR_TEST_OPERATION_LOG"
+    unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT
+}
 
 write_yarr() {
     local path=$1 version=$2
@@ -153,6 +194,23 @@ export YARR_TEST_RELEASES="$fixture"
 export YARR_TEST_ARCHIVE="$test_root/releases/yarr-x86_64.tar.gz"
 export YARR_TEST_CHECKSUM="$test_root/releases/yarr-x86_64.tar.gz.sha256"
 
+reset_boundaries
+"$updater" apply --version 2.0.0 --json > "$tmp_dir/equal.json"
+[[ ! -e "$YARR_OVERLAY_DIR/yarr" ]] || fail 'equal version created an overlay'
+[[ ! -s "$YARR_TEST_OPERATION_LOG" ]] || fail 'equal version performed a filesystem swap'
+
+for eligibility in draft prerelease malformed; do
+    eligibility_fixture="$tmp_dir/releases-$eligibility.json"
+    case "$eligibility" in
+        draft) jq 'map(if .tag_name == "v2.1.0" then .draft = true else . end)' "$fixture" > "$eligibility_fixture" ;;
+        prerelease) jq 'map(if .tag_name == "v2.1.0" then .prerelease = true else . end)' "$fixture" > "$eligibility_fixture" ;;
+        malformed) jq 'map(if .tag_name == "v2.1.0" then .tag_name = "v2.1" else . end)' "$fixture" > "$eligibility_fixture" ;;
+    esac
+    export YARR_TEST_RELEASES="$eligibility_fixture"
+    expect_failure "$eligibility release" "$updater" apply --version 2.1.0 --json
+done
+export YARR_TEST_RELEASES="$fixture"
+
 check_json=$("$updater" check --json)
 expect_eq '2.1.0' "$(jq -r '.availableVersion' <<< "$check_json")" 'stable update selection'
 expect_eq 'true' "$(jq -r '.updateAvailable' <<< "$check_json")" 'update availability'
@@ -168,12 +226,15 @@ export YARR_TEST_RELEASES="$missing_assets"
 expect_failure 'release missing checksum asset' "$updater" apply --version 2.1.0 --json
 export YARR_TEST_RELEASES="$fixture"
 
-cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_APPDATA/yarr"
-overlay_before=$(sha256sum "$YARR_APPDATA/yarr" | awk '{print $1}')
+cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_OVERLAY_DIR/yarr"
+overlay_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
 printf '000000000000000000000000000000000000000000000000000000000000 yarr-x86_64.tar.gz\n' > "$tmp_dir/bad.sha256"
 export YARR_TEST_CHECKSUM="$tmp_dir/bad.sha256"
 expect_failure 'checksum mismatch' "$updater" apply --version 2.1.0 --json
-expect_eq "$overlay_before" "$(sha256sum "$YARR_APPDATA/yarr" | awk '{print $1}')" 'checksum failure overlay preservation'
+expect_eq "$overlay_before" "$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')" 'checksum failure overlay preservation'
+if grep -Fq 'tar ' "$YARR_TEST_OPERATION_LOG"; then
+    fail 'checksum mismatch invoked tar'
+fi
 export YARR_TEST_CHECKSUM="$test_root/releases/yarr-x86_64.tar.gz.sha256"
 
 printf 'not-a-checksum\n' > "$tmp_dir/malformed.sha256"
@@ -188,40 +249,58 @@ export YARR_TEST_CHECKSUM="$test_root/releases/yarr-x86_64.tar.gz.sha256"
 
 make_archive 2.1.0 extra
 expect_failure 'archive extra entry' "$updater" apply --version 2.1.0 --json
-expect_eq "$overlay_before" "$(sha256sum "$YARR_APPDATA/yarr" | awk '{print $1}')" 'extra entry overlay preservation'
+expect_eq "$overlay_before" "$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')" 'extra entry overlay preservation'
 make_archive 2.1.0 symlink
 expect_failure 'archive symlink payload' "$updater" apply --version 2.1.0 --json
-expect_eq "$overlay_before" "$(sha256sum "$YARR_APPDATA/yarr" | awk '{print $1}')" 'symlink overlay preservation'
+expect_eq "$overlay_before" "$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')" 'symlink overlay preservation'
 make_archive 2.1.0 path
 expect_failure 'archive path entry' "$updater" apply --version 2.1.0 --json
-expect_eq "$overlay_before" "$(sha256sum "$YARR_APPDATA/yarr" | awk '{print $1}')" 'path entry overlay preservation'
+expect_eq "$overlay_before" "$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')" 'path entry overlay preservation'
 make_archive 2.1.0 regular
 
 expect_failure 'untrusted lock-held lifecycle invocation' \
     env YARR_LOCK_HELD=1 YARR_LOCK_FD=9 "$rc" start
 
+bash -c 'exec 9>"$YARR_LOCK"; YARR_LOCK_HELD=1 YARR_LOCK_FD=9 "$1" start' _ "$rc"
+"$rc" status >/dev/null || fail 'open-but-unlocked inherited descriptor did not acquire the lock'
+"$rc" stop
+bash -c 'exec 9>"$YARR_LOCK"; flock 9; sleep 30' &
+lock_holder=$!
+sleep 0.1
+expect_failure 'separately held inherited lock' \
+    bash -c 'exec 8>"$YARR_LOCK"; YARR_LOCK_HELD=1 YARR_LOCK_FD=8 "$1" start' _ "$rc"
+kill "$lock_holder"
+wait "$lock_holder" 2>/dev/null || true
+
 "$rc" start
 [[ -f "$YARR_PID" ]] || fail 'pre-update service did not start'
+reset_boundaries
 "$updater" apply --version 2.1.0 --json > "$tmp_dir/apply.json"
-expect_eq '2.1.0' "$("$YARR_APPDATA/yarr" --version | awk '{print $2}')" 'installed overlay version'
-expect_eq '2.0.0' "$("$YARR_APPDATA/yarr.previous" --version | awk '{print $2}')" 'predecessor overlay version'
+expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'installed overlay version'
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" 'predecessor overlay version'
+install_line=$(grep -n '^install ' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
+data_sync_line=$(grep -n '^sync -f .*\.yarr\.update\.new\.' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
+directory_sync_line=$(grep -n "^sync -f $YARR_OVERLAY_DIR$" "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
+[[ -n "$install_line" && -n "$data_sync_line" && -n "$directory_sync_line" ]] || fail 'durability commands were not issued'
+((install_line < data_sync_line && data_sync_line < directory_sync_line)) || fail 'durability command ordering is unsafe'
 if ! "$rc" status > "$tmp_dir/updated-status.out" 2>&1; then
     cat "$tmp_dir/updated-status.out" >&2
     fail 'updated service is not ready'
 fi
+expect_failure 'downgrade update' "$updater" apply --version 2.0.0 --json
 
-cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_APPDATA/.yarr.test"
-mv -f "$YARR_APPDATA/.yarr.test" "$YARR_APPDATA/yarr"
-rm -f "$YARR_APPDATA/yarr.previous"
+cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_OVERLAY_DIR/.yarr.test"
+mv -f "$YARR_OVERLAY_DIR/.yarr.test" "$YARR_OVERLAY_DIR/yarr"
+rm -f "$YARR_OVERLAY_DIR/yarr.previous"
 "$rc" restart
 export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-readiness-once"
 expect_failure 'readiness failure update' "$updater" apply --version 2.1.0 --json
 unset YARR_TEST_READY_FAIL_ONCE
-expect_eq '2.0.0' "$("$YARR_APPDATA/yarr" --version | awk '{print $2}')" 'rollback overlay restoration'
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'rollback overlay restoration'
 "$rc" status >/dev/null || fail 'rollback service is not ready'
 
 "$updater" reset --json > "$tmp_dir/reset.json"
-[[ ! -e "$YARR_APPDATA/yarr" && ! -e "$YARR_APPDATA/yarr.previous" ]] || fail 'reset retained an overlay'
+[[ ! -e "$YARR_OVERLAY_DIR/yarr" && ! -e "$YARR_OVERLAY_DIR/yarr.previous" ]] || fail 'reset retained an overlay'
 expect_eq '2.0.0' "$("$YARR_PLUGIN_ROOT/bin/yarr" --version | awk '{print $2}')" 'packaged binary after reset'
 "$rc" status >/dev/null || fail 'reset did not restart the packaged binary'
 
@@ -230,5 +309,53 @@ expect_eq '2.0.0' "$("$YARR_PLUGIN_ROOT/bin/yarr" --version | awk '{print $2}')"
 [[ ! -e "$YARR_PID" ]] || fail 'stopped service was started by apply'
 "$updater" reset --json > "$tmp_dir/stopped-reset.json"
 [[ ! -e "$YARR_PID" ]] || fail 'stopped service was started by reset'
+
+prepare_running_overlay() {
+    "$rc" stop || true
+    cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_OVERLAY_DIR/.yarr.test"
+    mv -f "$YARR_OVERLAY_DIR/.yarr.test" "$YARR_OVERLAY_DIR/yarr"
+    write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 1.9.0
+    "$rc" start
+    "$rc" status >/dev/null || fail 'fault injection setup did not start'
+}
+
+assert_running_overlay_restored() {
+    expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" "$1 active binary restoration"
+    expect_eq '1.9.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" "$1 predecessor restoration"
+    "$rc" status >/dev/null || fail "$1 did not restore service readiness"
+}
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=3
+expect_failure 'predecessor rotation fault' "$updater" apply --version 2.1.0 --json
+assert_running_overlay_restored 'predecessor rotation fault'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=install YARR_TEST_FAIL_AT=1
+expect_failure 'candidate install fault' "$updater" apply --version 2.1.0 --json
+assert_running_overlay_restored 'candidate install fault'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=sync YARR_TEST_FAIL_AT=2
+expect_failure 'durable sync fault' "$updater" apply --version 2.1.0 --json
+assert_running_overlay_restored 'durable sync fault'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=1
+expect_failure 'reset active backup move fault' "$updater" reset --json
+assert_running_overlay_restored 'reset active backup move fault'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=2
+expect_failure 'reset predecessor backup move fault' "$updater" reset --json
+assert_running_overlay_restored 'reset predecessor backup move fault'
+
+unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT
+"$rc" stop
 
 printf 'update contract: PASS\n'

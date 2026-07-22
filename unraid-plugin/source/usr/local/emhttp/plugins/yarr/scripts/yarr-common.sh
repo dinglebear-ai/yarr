@@ -12,6 +12,7 @@ YARR_PROC_ROOT=${YARR_PROC_ROOT:-/proc}
 YARR_CFG=${YARR_CFG:-"${YARR_BOOT_ROOT}/config/plugins/yarr/yarr.cfg"}
 YARR_ENV=${YARR_ENV:-"${YARR_BOOT_ROOT}/config/plugins/yarr/.env"}
 YARR_APPDATA=${YARR_APPDATA:-"${YARR_APPDATA_ROOT}/yarr"}
+YARR_OVERLAY_DIR=${YARR_OVERLAY_DIR:-"${YARR_APPDATA}/bin"}
 YARR_PID=${YARR_PID:-"${YARR_RUN_ROOT}/yarr.pid"}
 YARR_LOCK=${YARR_LOCK:-"${YARR_LOCK_ROOT}/yarr-plugin.lock"}
 YARR_LOG=${YARR_LOG:-"${YARR_LOG_ROOT}/yarr/yarr.log"}
@@ -225,7 +226,7 @@ yarr_effective_host() {
 }
 
 yarr_select_binary() {
-    local overlay="${YARR_APPDATA}/yarr"
+    local overlay="${YARR_OVERLAY_DIR}/yarr"
     local packaged="${YARR_PLUGIN_ROOT}/bin/yarr"
     if [[ -x "$overlay" ]]; then
         YARR_BINARY=$overlay
@@ -294,7 +295,7 @@ yarr_pid_is_owned() {
         return 1
     }
     actual=$(readlink -f "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
-    for candidate in "${YARR_APPDATA}/yarr" "${YARR_PLUGIN_ROOT}/bin/yarr"; do
+    for candidate in "${YARR_OVERLAY_DIR}/yarr" "${YARR_PLUGIN_ROOT}/bin/yarr"; do
         expected=$(readlink -f "$candidate" 2>/dev/null || true)
         [[ -n "$actual" && "$actual" == "$expected" ]] && return 0
     done

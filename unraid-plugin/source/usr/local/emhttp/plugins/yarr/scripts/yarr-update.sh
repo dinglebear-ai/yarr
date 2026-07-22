@@ -10,10 +10,41 @@ YARR_UPDATE_API_URL=${YARR_UPDATE_API_URL:-https://api.github.com/repos/jmagar/y
 YARR_UPDATE_DOWNLOAD_ROOT=${YARR_UPDATE_DOWNLOAD_ROOT:-https://github.com/jmagar/yarr/releases/download}
 YARR_UPDATE_ASSET=yarr-x86_64.tar.gz
 YARR_UPDATE_CHECKSUM_ASSET=${YARR_UPDATE_ASSET}.sha256
+YARR_MV_BIN=${YARR_MV_BIN:-/bin/mv}
+YARR_INSTALL_BIN=${YARR_INSTALL_BIN:-/usr/bin/install}
+YARR_SYNC_BIN=${YARR_SYNC_BIN:-/usr/bin/sync}
+YARR_TAR_BIN=${YARR_TAR_BIN:-/usr/bin/tar}
+YARR_UPDATE_TMP=''
+YARR_UPDATE_STAGED=''
 YARR_ROLLED_BACK=false
 
 yarr_update_error() {
     printf 'yarr-update: %s\n' "$*" >&2
+}
+
+yarr_update_cleanup() {
+    local status=$1
+    trap - EXIT HUP INT TERM
+    case "$YARR_UPDATE_STAGED" in
+        "${YARR_OVERLAY_DIR}"/.yarr.update.*) rm -f -- "$YARR_UPDATE_STAGED" || true ;;
+    esac
+    [[ -n "$YARR_UPDATE_TMP" ]] && rm -rf -- "$YARR_UPDATE_TMP" || true
+    exit "$status"
+}
+
+yarr_update_track_tempdir() {
+    YARR_UPDATE_TMP=$1
+    YARR_UPDATE_STAGED=''
+    trap 'yarr_update_cleanup "$?"' EXIT
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+}
+
+yarr_update_clear_tempdir() {
+    [[ -n "$YARR_UPDATE_TMP" ]] && rm -rf -- "$YARR_UPDATE_TMP" || true
+    YARR_UPDATE_TMP=''
+    YARR_UPDATE_STAGED=''
 }
 
 yarr_update_version_from_binary() {
@@ -52,35 +83,36 @@ yarr_update_fetch_releases() {
     jq -e 'type == "array"' "$destination" >/dev/null
 }
 
+yarr_update_release_eligible() {
+    local releases=$1 version=$2 installed=$3 tag="v${version}"
+    yarr_update_valid_version "$version" || return 1
+    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$installed")" ]] || return 1
+    yarr_update_version_gt "$installed" "$version" && return 1
+    jq -e --arg tag "$tag" --arg archive "$YARR_UPDATE_ASSET" --arg checksum "$YARR_UPDATE_CHECKSUM_ASSET" '
+        [.[] | select(.tag_name == $tag)] as $matches |
+        ($matches | length == 1) and
+        ($matches[0].draft == false) and
+        ($matches[0].prerelease == false) and
+        ($matches[0].assets | type == "array") and
+        ([ $matches[0].assets[] | select(.name == $archive) ] | length == 1) and
+        ([ $matches[0].assets[] | select(.name == $checksum) ] | length == 1)
+    ' "$releases" >/dev/null
+}
+
 yarr_update_select_available() {
-    local releases=$1 installed=$2 channel=$3 installed_major tag prerelease version selected=''
-    installed_major=$(yarr_update_major "$installed")
-    while IFS=$'\t' read -r tag prerelease; do
+    local releases=$1 installed=$2 channel=$3 tag draft prerelease version selected=''
+    while IFS=$'\t' read -r tag draft prerelease; do
         [[ "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-.+)?$ ]] || continue
         version=${BASH_REMATCH[1]}
-        [[ "$(yarr_update_major "$version")" == "$installed_major" ]] || continue
-        if [[ "$channel" == stable && "$prerelease" != false ]]; then
-            continue
-        fi
-        if [[ -n "${BASH_REMATCH[2]}" && "$channel" == stable ]]; then
-            continue
-        fi
+        [[ "$draft" == false ]] || continue
+        [[ "$channel" == stable && "$prerelease" == false && -z "${BASH_REMATCH[2]}" ]] || continue
+        yarr_update_release_eligible "$releases" "$version" "$installed" || continue
         if [[ -z "$selected" ]] || yarr_update_version_gt "$version" "$selected"; then
             selected=$version
         fi
-    done < <(jq -r '.[] | [(.tag_name // ""), (.prerelease // false)] | @tsv' "$releases")
+    done < <(jq -r '.[] | [(.tag_name // ""), (.draft // false), (.prerelease // false)] | @tsv' "$releases")
     [[ -n "$selected" ]] || return 1
     printf '%s\n' "$selected"
-}
-
-yarr_update_release_assets() {
-    local releases=$1 version=$2 tag="v${version}" archive_count checksum_count
-    [[ "$(jq --arg tag "$tag" '[.[] | select(.tag_name == $tag)] | length' "$releases")" == 1 ]] || return 1
-    archive_count=$(jq --arg tag "$tag" --arg asset "$YARR_UPDATE_ASSET" \
-        '[.[] | select(.tag_name == $tag) | .assets[]? | select(.name == $asset)] | length' "$releases")
-    checksum_count=$(jq --arg tag "$tag" --arg asset "$YARR_UPDATE_CHECKSUM_ASSET" \
-        '[.[] | select(.tag_name == $tag) | .assets[]? | select(.name == $asset)] | length' "$releases")
-    [[ "$archive_count" == 1 && "$checksum_count" == 1 ]]
 }
 
 yarr_update_download_url() {
@@ -89,7 +121,7 @@ yarr_update_download_url() {
 }
 
 yarr_update_parse_checksum() {
-    local checksum_file=$1 line digest filename extra
+    local checksum_file=$1 line digest filename
     mapfile -t checksum_lines < "$checksum_file"
     [[ ${#checksum_lines[@]} == 1 ]] || return 1
     line=${checksum_lines[0]}
@@ -100,19 +132,23 @@ yarr_update_parse_checksum() {
     printf '%s\n' "$digest"
 }
 
+yarr_update_verify_checksum() {
+    local archive=$1 checksum=$2 expected actual
+    expected=$(yarr_update_parse_checksum "$checksum") || return 1
+    actual=$(sha256sum "$archive" | awk '{print tolower($1)}')
+    [[ "$actual" == "$expected" ]]
+}
+
 yarr_update_validate_archive() {
-    local archive=$1 extract_dir=$2 payload entry_type actual_digest expected_digest
-    mapfile -t archive_entries < <(tar -tzf "$archive")
+    local archive=$1 extract_dir=$2 payload entry_type
+    mapfile -t archive_entries < <("$YARR_TAR_BIN" -tzf "$archive")
     [[ ${#archive_entries[@]} == 1 && "${archive_entries[0]}" == yarr ]] || return 1
-    entry_type=$(tar -tvzf "$archive" | awk 'NR == 1 { print substr($1, 1, 1) }')
+    entry_type=$("$YARR_TAR_BIN" -tvzf "$archive" | awk 'NR == 1 { print substr($1, 1, 1) }')
     [[ "$entry_type" == '-' ]] || return 1
     mkdir -p "$extract_dir" || return 1
-    tar -xzf "$archive" -C "$extract_dir" --no-same-owner --no-same-permissions || return 1
+    "$YARR_TAR_BIN" -xzf "$archive" -C "$extract_dir" --no-same-owner --no-same-permissions || return 1
     payload="$extract_dir/yarr"
-    [[ -f "$payload" && ! -L "$payload" && -x "$payload" ]] || return 1
-    expected_digest=$(yarr_update_parse_checksum "${archive}.sha256") || return 1
-    actual_digest=$(sha256sum "$archive" | awk '{print tolower($1)}')
-    [[ "$actual_digest" == "$expected_digest" ]] || return 1
+    [[ -f "$payload" && ! -L "$payload" && -x "$payload" ]]
 }
 
 yarr_update_emit() {
@@ -120,23 +156,15 @@ yarr_update_emit() {
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
     packaged=$(yarr_update_version_from_binary "${YARR_PLUGIN_ROOT}/bin/yarr") || return 1
-    if [[ "$YARR_BINARY" == "${YARR_APPDATA}/yarr" ]]; then
-        using_overlay=true
-    else
-        using_overlay=false
-    fi
+    [[ "$YARR_BINARY" == "${YARR_OVERLAY_DIR}/yarr" ]] && using_overlay=true || using_overlay=false
     if [[ -n "$available" ]] && yarr_update_version_gt "$available" "$installed"; then
         update_available=true
     else
         update_available=false
     fi
-    jq -cn \
-        --arg installedVersion "$installed" \
-        --arg packagedVersion "$packaged" \
-        --arg availableVersion "$available" \
-        --arg message "$message" \
-        --argjson updateAvailable "$update_available" \
-        --argjson usingOverlay "$using_overlay" \
+    jq -cn --arg installedVersion "$installed" --arg packagedVersion "$packaged" \
+        --arg availableVersion "$available" --arg message "$message" \
+        --argjson updateAvailable "$update_available" --argjson usingOverlay "$using_overlay" \
         --argjson rolledBack "$rolled_back" \
         '{installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rolledBack: $rolledBack, message: $message}'
 }
@@ -149,11 +177,7 @@ yarr_update_with_lock() {
     local status
     mkdir -p "$(dirname "$YARR_LOCK")" || return 1
     exec 9>"$YARR_LOCK"
-    flock -n 9 || {
-        exec 9>&-
-        yarr_update_error 'another Yarr lifecycle operation is in progress'
-        return 1
-    }
+    flock -n 9 || { exec 9>&-; yarr_update_error 'another Yarr lifecycle operation is in progress'; return 1; }
     YARR_UPDATE_LOCK_FD=9
     "$@"
     status=$?
@@ -162,56 +186,120 @@ yarr_update_with_lock() {
     return "$status"
 }
 
+yarr_update_restore_apply() {
+    local was_running=$1 active=$2 previous=$3 active_backup=$4 previous_backup=$5 active_location=$6 previous_location=$7 new_active=$8 result=0
+    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle stop; then result=1; fi
+    if [[ "$new_active" == true ]] && ! rm -f -- "$active"; then result=1; fi
+    if [[ "$active_location" == previous && -e "$previous" ]]; then
+        "$YARR_MV_BIN" "$previous" "$active" || result=1
+    elif [[ "$active_location" == backup && -e "$active_backup" ]]; then
+        "$YARR_MV_BIN" "$active_backup" "$active" || result=1
+    fi
+    if [[ "$previous_location" == backup && -e "$previous_backup" ]]; then
+        "$YARR_MV_BIN" "$previous_backup" "$previous" || result=1
+    fi
+    "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" || result=1
+    if [[ "$was_running" == true ]]; then
+        yarr_update_lifecycle start || result=1
+    fi
+    YARR_ROLLED_BACK=true
+    return "$result"
+}
+
 yarr_update_apply_locked() {
-    local candidate=$1 was_running=false had_overlay=false overlay previous staged
-    overlay="${YARR_APPDATA}/yarr"
-    previous="${YARR_APPDATA}/yarr.previous"
-    staged="${YARR_APPDATA}/.yarr.new.$$"
+    local candidate=$1 was_running=false had_active=false had_previous=false active previous active_backup previous_backup staged
+    local active_location=none previous_location=none new_active=false
+    active="${YARR_OVERLAY_DIR}/yarr"
+    previous="${YARR_OVERLAY_DIR}/yarr.previous"
+    active_backup="${YARR_OVERLAY_DIR}/.yarr.update.active.$$"
+    previous_backup="${YARR_OVERLAY_DIR}/.yarr.update.previous.$$"
+    staged="${YARR_OVERLAY_DIR}/.yarr.update.new.$$"
+    mkdir -p "$YARR_OVERLAY_DIR" || return 1
+    [[ -e "$active" ]] && { had_active=true; active_location=active; }
+    [[ -e "$previous" ]] && { had_previous=true; previous_location=previous; }
     if yarr_pid_is_owned; then
         was_running=true
         yarr_update_lifecycle stop || return 1
     fi
-    if [[ -e "$overlay" ]]; then
-        had_overlay=true
-        rm -f "$previous"
-        mv "$overlay" "$previous" || return 1
-    fi
-    if ! install -m 755 "$candidate" "$staged" || ! mv -f "$staged" "$overlay"; then
-        rm -f "$staged" "$overlay"
-        [[ "$had_overlay" == true ]] && mv "$previous" "$overlay"
-        [[ "$was_running" == true ]] && yarr_update_lifecycle start || true
+    if [[ "$had_previous" == true ]] && ! "$YARR_MV_BIN" "$previous" "$previous_backup"; then
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
         return 1
     fi
+    [[ "$had_previous" == true ]] && previous_location=backup
+    if [[ "$had_active" == true ]] && ! "$YARR_MV_BIN" "$active" "$active_backup"; then
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+        return 1
+    fi
+    [[ "$had_active" == true ]] && active_location=backup
+    YARR_UPDATE_STAGED=$staged
+    if ! "$YARR_INSTALL_BIN" -m 755 "$candidate" "$staged" || ! "$YARR_SYNC_BIN" -f "$staged"; then
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+        return 1
+    fi
+    if [[ "$had_active" == true ]] && ! "$YARR_MV_BIN" "$active_backup" "$previous"; then
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+        return 1
+    fi
+    [[ "$had_active" == true ]] && active_location=previous
+    if ! "$YARR_MV_BIN" "$staged" "$active" || ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" true || true
+        return 1
+    fi
+    YARR_UPDATE_STAGED=''
+    new_active=true
     if [[ "$was_running" == true ]] && ! yarr_update_lifecycle start; then
-        rm -f "$overlay"
-        [[ "$had_overlay" == true ]] && mv "$previous" "$overlay"
-        YARR_ROLLED_BACK=true
-        yarr_update_lifecycle start || true
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
+        return 1
+    fi
+    if [[ "$had_previous" == true ]] && ! rm -f -- "$previous_backup"; then
+        yarr_update_restore_apply "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" "$active_location" "$previous_location" "$new_active" || true
         return 1
     fi
 }
 
+yarr_update_restore_reset() {
+    local was_running=$1 active=$2 previous=$3 active_backup=$4 previous_backup=$5 result=0
+    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle stop; then result=1; fi
+    if [[ -e "$active_backup" ]] && ! "$YARR_MV_BIN" "$active_backup" "$active"; then result=1; fi
+    if [[ -e "$previous_backup" ]] && ! "$YARR_MV_BIN" "$previous_backup" "$previous"; then result=1; fi
+    "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" || result=1
+    if [[ "$was_running" == true ]]; then
+        yarr_update_lifecycle start || result=1
+    fi
+    YARR_ROLLED_BACK=true
+    return "$result"
+}
+
 yarr_update_reset_locked() {
-    local was_running=false overlay previous backup_overlay backup_previous
-    overlay="${YARR_APPDATA}/yarr"
-    previous="${YARR_APPDATA}/yarr.previous"
-    backup_overlay="${YARR_APPDATA}/.yarr.reset-overlay.$$"
-    backup_previous="${YARR_APPDATA}/.yarr.reset-previous.$$"
+    local was_running=false active previous active_backup previous_backup
+    active="${YARR_OVERLAY_DIR}/yarr"
+    previous="${YARR_OVERLAY_DIR}/yarr.previous"
+    active_backup="${YARR_OVERLAY_DIR}/.yarr.reset-active.$$"
+    previous_backup="${YARR_OVERLAY_DIR}/.yarr.reset-previous.$$"
     if yarr_pid_is_owned; then
         was_running=true
         yarr_update_lifecycle stop || return 1
     fi
-    [[ -e "$overlay" ]] && mv "$overlay" "$backup_overlay"
-    [[ -e "$previous" ]] && mv "$previous" "$backup_previous"
-    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle start; then
-        rm -f "$overlay" "$previous"
-        [[ -e "$backup_overlay" ]] && mv "$backup_overlay" "$overlay"
-        [[ -e "$backup_previous" ]] && mv "$backup_previous" "$previous"
-        YARR_ROLLED_BACK=true
-        yarr_update_lifecycle start || true
+    if [[ -e "$active" ]] && ! "$YARR_MV_BIN" "$active" "$active_backup"; then
+        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
         return 1
     fi
-    rm -f "$backup_overlay" "$backup_previous"
+    if [[ -e "$previous" ]] && ! "$YARR_MV_BIN" "$previous" "$previous_backup"; then
+        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+        return 1
+    fi
+    if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
+        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+        return 1
+    fi
+    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle start; then
+        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+        return 1
+    fi
+    rm -f -- "$active_backup" "$previous_backup" || {
+        yarr_update_restore_reset "$was_running" "$active" "$previous" "$active_backup" "$previous_backup" || true
+        return 1
+    }
 }
 
 yarr_update_check() {
@@ -221,20 +309,14 @@ yarr_update_check() {
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
     mkdir -p "$YARR_APPDATA" || return 1
     work=$(mktemp -d "${YARR_APPDATA}/.update.XXXXXX") || return 1
+    yarr_update_track_tempdir "$work"
     releases="$work/releases.json"
-    if ! yarr_update_fetch_releases "$releases"; then
-        rm -rf "$work"
-        return 1
-    fi
+    yarr_update_fetch_releases "$releases" || return 1
     available=$(yarr_update_select_available "$releases" "$installed" "$UPDATE_CHANNEL" || true)
-    rm -rf "$work"
-    if [[ -z "$available" ]]; then
-        yarr_update_emit '' false 'No compatible release is available'
-    elif yarr_update_version_gt "$available" "$installed"; then
-        yarr_update_emit "$available" false "Update available: ${available}"
-    else
-        yarr_update_emit "$available" false 'Yarr is current'
-    fi
+    yarr_update_clear_tempdir
+    if [[ -z "$available" ]]; then yarr_update_emit '' false 'No compatible release is available'
+    elif yarr_update_version_gt "$available" "$installed"; then yarr_update_emit "$available" false "Update available: ${available}"
+    else yarr_update_emit "$available" false 'Yarr is current'; fi
 }
 
 yarr_update_apply() {
@@ -242,39 +324,35 @@ yarr_update_apply() {
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
-    yarr_update_valid_version "$version" || {
-        yarr_update_error 'version must match MAJOR.MINOR.PATCH'
-        return 1
-    }
-    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$installed")" ]] || {
-        yarr_update_error 'major-version updates are not supported'
-        return 1
-    }
-    mkdir -p "$YARR_APPDATA" || return 1
+    yarr_update_valid_version "$version" || { yarr_update_error 'version must match MAJOR.MINOR.PATCH'; return 1; }
+    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$installed")" ]] || { yarr_update_error 'major-version updates are not supported'; return 1; }
+    yarr_update_version_gt "$installed" "$version" && { yarr_update_error 'downgrades are not supported'; return 1; }
+    mkdir -p "$YARR_APPDATA" "$YARR_OVERLAY_DIR" || return 1
     work=$(mktemp -d "${YARR_APPDATA}/.update.XXXXXX") || return 1
-    releases="$work/releases.json"
-    archive="$work/$YARR_UPDATE_ASSET"
-    checksum="${archive}.sha256"
-    extract="$work/extract"
-    candidate="$extract/yarr"
-    if ! yarr_update_fetch_releases "$releases" || ! yarr_update_release_assets "$releases" "$version" || \
-        ! "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$archive" "$(yarr_update_download_url "$version" "$YARR_UPDATE_ASSET")" || \
-        ! "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$checksum" "$(yarr_update_download_url "$version" "$YARR_UPDATE_CHECKSUM_ASSET")"; then
-        rm -rf "$work"
-        yarr_update_error 'release metadata or required assets are invalid'
+    yarr_update_track_tempdir "$work"
+    releases="$work/releases.json"; archive="$work/$YARR_UPDATE_ASSET"; checksum="${archive}.sha256"; extract="$work/extract"; candidate="$extract/yarr"
+    if ! yarr_update_fetch_releases "$releases" || ! yarr_update_release_eligible "$releases" "$version" "$installed"; then
+        yarr_update_error 'requested release is not an eligible stable release'
         return 1
     fi
-    if ! yarr_update_validate_archive "$archive" "$extract" || [[ "$(yarr_update_version_from_binary "$candidate")" != "$version" ]]; then
-        rm -rf "$work"
+    if [[ "$version" == "$installed" ]]; then
+        yarr_update_clear_tempdir
+        yarr_update_emit "$version" false 'Yarr is current'
+        return 0
+    fi
+    if ! "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$archive" "$(yarr_update_download_url "$version" "$YARR_UPDATE_ASSET")" || \
+        ! "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$checksum" "$(yarr_update_download_url "$version" "$YARR_UPDATE_CHECKSUM_ASSET")" || \
+        ! yarr_update_verify_checksum "$archive" "$checksum" || \
+        ! yarr_update_validate_archive "$archive" "$extract" || \
+        [[ "$(yarr_update_version_from_binary "$candidate")" != "$version" ]]; then
         yarr_update_error 'downloaded release failed verification'
         return 1
     fi
     if ! yarr_update_with_lock yarr_update_apply_locked "$candidate"; then
-        rm -rf "$work"
         yarr_update_emit "$version" "$YARR_ROLLED_BACK" 'Update failed; previous binary restored' || true
         return 1
     fi
-    rm -rf "$work"
+    yarr_update_clear_tempdir
     yarr_update_emit "$version" false "Yarr updated to ${version}"
 }
 
@@ -286,26 +364,10 @@ yarr_update_reset() {
     yarr_update_emit '' false 'Yarr reset to packaged binary'
 }
 
-command=${1:-}
-shift || true
+command=${1:-}; shift || true
 case "$command" in
-    check)
-        [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh check --json'; exit 2; }
-        yarr_update_check
-        ;;
-    apply)
-        [[ "${1:-}" == --version && -n "${2:-}" && "${3:-}" == --json && $# == 3 ]] || {
-            yarr_update_error 'usage: yarr-update.sh apply --version MAJOR.MINOR.PATCH --json'
-            exit 2
-        }
-        yarr_update_apply "$2"
-        ;;
-    reset)
-        [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh reset --json'; exit 2; }
-        yarr_update_reset
-        ;;
-    *)
-        yarr_update_error 'usage: yarr-update.sh {check --json|apply --version MAJOR.MINOR.PATCH --json|reset --json}'
-        exit 2
-        ;;
+    check) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh check --json'; exit 2; }; yarr_update_check ;;
+    apply) [[ "${1:-}" == --version && -n "${2:-}" && "${3:-}" == --json && $# == 3 ]] || { yarr_update_error 'usage: yarr-update.sh apply --version MAJOR.MINOR.PATCH --json'; exit 2; }; yarr_update_apply "$2" ;;
+    reset) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh reset --json'; exit 2; }; yarr_update_reset ;;
+    *) yarr_update_error 'usage: yarr-update.sh {check --json|apply --version MAJOR.MINOR.PATCH --json|reset --json}'; exit 2 ;;
 esac

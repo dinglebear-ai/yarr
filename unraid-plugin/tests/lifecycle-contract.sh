@@ -35,12 +35,13 @@ export YARR_APPDATA_ROOT="$test_root/appdata"
 export YARR_RUN_ROOT="$test_root/run"
 export YARR_LOCK_ROOT="$test_root/lock"
 export YARR_LOG_ROOT="$test_root/log"
+export YARR_OVERLAY_DIR="$YARR_APPDATA_ROOT/yarr/bin"
 export YARR_CURL_BIN="$test_root/bin/curl"
 export YARR_TAILSCALE_BIN="$test_root/bin/tailscale"
 export YARR_RC_YARR="$rc"
 
 mkdir -p "$YARR_PLUGIN_ROOT/bin" "$YARR_BOOT_ROOT/config/plugins/yarr" \
-    "$YARR_APPDATA_ROOT/yarr" "$YARR_RUN_ROOT" "$YARR_LOCK_ROOT" "$YARR_LOG_ROOT" \
+    "$YARR_OVERLAY_DIR" "$YARR_RUN_ROOT" "$YARR_LOCK_ROOT" "$YARR_LOG_ROOT" \
     "$test_root/bin"
 
 cat > "$YARR_CURL_BIN" <<'EOF'
@@ -62,8 +63,8 @@ cat > "$test_root/yarr.c" <<'EOF'
 int main(void) { sleep(30); return 0; }
 EOF
 cc -O2 -o "$YARR_PLUGIN_ROOT/bin/yarr" "$test_root/yarr.c"
-cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_APPDATA_ROOT/yarr/yarr"
-chmod 644 "$YARR_APPDATA_ROOT/yarr/yarr"
+cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_OVERLAY_DIR/yarr"
+chmod 644 "$YARR_OVERLAY_DIR/yarr"
 
 write_config() {
     cat > "$YARR_BOOT_ROOT/config/plugins/yarr/yarr.cfg" <<EOF
@@ -170,12 +171,12 @@ expect_failure "invalid Tailscale service hostname" \
     bash -c "source '$common'; yarr_load_config; yarr_validate_config"
 write_config
 
-chmod 644 "$YARR_APPDATA_ROOT/yarr/yarr"
+chmod 644 "$YARR_OVERLAY_DIR/yarr"
 yarr_select_binary
 expect_eq "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_BINARY" "non-executable overlay ignored"
-chmod 755 "$YARR_APPDATA_ROOT/yarr/yarr"
+chmod 755 "$YARR_OVERLAY_DIR/yarr"
 yarr_select_binary
-expect_eq "$YARR_APPDATA_ROOT/yarr/yarr" "$YARR_BINARY" "executable overlay selected"
+expect_eq "$YARR_OVERLAY_DIR/yarr" "$YARR_BINARY" "executable overlay selected"
 
 printf '999999\n' > "$YARR_PID"
 expect_failure "stale pid ownership" yarr_pid_is_owned

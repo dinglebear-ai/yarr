@@ -155,7 +155,8 @@ yarr_inherited_lock_is_valid() {
     [[ -e "/proc/$$/fd/${descriptor}" ]] || return 1
     lock_path=$(readlink -f "$YARR_LOCK") || return 1
     descriptor_path=$(readlink -f "/proc/$$/fd/${descriptor}") || return 1
-    [[ "$descriptor_path" == "$lock_path" ]]
+    [[ "$descriptor_path" == "$lock_path" ]] || return 1
+    flock -n "$descriptor"
 }
 
 yarr_run_locked() {
