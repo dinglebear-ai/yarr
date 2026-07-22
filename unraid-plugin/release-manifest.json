@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "pluginVersion": "2.1.0",
+  "packageBuild": 1,
+  "packageFile": "yarr-2.1.0-x86_64-1.txz",
+  "packageSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "packageUrl": "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz",
+  "binaryRepository": "dinglebear-ai/yarr",
+  "binaryAsset": "yarr-x86_64.tar.gz",
+  "apiPackage": "unraid-api-plugin-yarr",
+  "apiVersion": "2.1.0",
+  "settingsElement": "yarr-settings-app",
+  "dashboardElement": "yarr-dashboard"
+}

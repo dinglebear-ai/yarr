@@ -1,0 +1,13 @@
+unraid-plugin/api/package.json
+unraid-plugin/release-manifest.json
+unraid-plugin/source/etc/rc.d/rc.yarr
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/started
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/stopping_svcs
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/unmounting_disks
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/yarr.page
+unraid-plugin/web/package.json
+unraid-plugin/yarr.plg

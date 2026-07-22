@@ -453,6 +453,10 @@ install-release: build-release
 validate-plugin:
     bash scripts/validate-plugin-layout.sh
 
+# Validate the independent Unraid plugin filesystem and release contracts.
+unraid-test:
+    bash unraid-plugin/tests/run.sh
+
 # Validate all plugin skills have required SKILL.md fields
 validate-skills: validate-plugin
 
