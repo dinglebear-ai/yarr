@@ -8,6 +8,7 @@ import {
   serializeYarrEnvironment,
   toPublicConfig,
 } from "./config-codec";
+import { FatalCommandError } from "./command-runner";
 import type { ParsedConfigState, SaveYarrConfigInput, YarrConfigView } from "./config.types";
 import { LockLostError, type LockLease, type LockService } from "./flock.service";
 import {
@@ -27,6 +28,9 @@ import {
 } from "./paths";
 import type { RuntimeState } from "./runtime.service";
 import { collectSecretValues, redactSecrets } from "./secret-redactor";
+
+const FATAL_MANUAL_INTERVENTION =
+  "Yarr lifecycle state is indeterminate because the command process group did not close; configuration was not rolled back; manual intervention required";
 
 export interface ConfigFileSystem {
   readFile(path: string): Promise<string>;
@@ -162,6 +166,9 @@ export class ConfigService {
         await this.cleanupTransactionBackups(backup!);
         return { config: nextView, changed: true, restarted: true, rolledBack: false };
       } catch (error) {
+        if (error instanceof FatalCommandError) {
+          throw new FatalCommandError(redactSecrets(FATAL_MANUAL_INTERVENTION, secrets));
+        }
         if (!installed) throw redactedError(error, secrets);
         const original = errorMessage(error);
         try {
@@ -390,5 +397,6 @@ function errorMessage(error: unknown): string {
 }
 
 function redactedError(error: unknown, secrets: readonly string[]): Error {
-  return new Error(redactSecrets(errorMessage(error), secrets));
+  const message = redactSecrets(errorMessage(error), secrets);
+  return error instanceof FatalCommandError ? new FatalCommandError(message) : new Error(message);
 }

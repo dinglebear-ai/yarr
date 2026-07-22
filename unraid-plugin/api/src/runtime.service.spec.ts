@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   SafeCommandRunner,
+  FatalCommandError,
   type CommandProcess,
   type CommandResult,
   type CommandRunner,
@@ -12,6 +13,7 @@ import {
 } from "./command-runner";
 import { RuntimeService, type HttpClient, type RuntimeFileSystem } from "./runtime.service";
 import { YARR_ENVIRONMENT_PATH, YARR_PID_PATH, YARR_PLUGIN_CONFIG_PATH } from "./paths";
+import { redactSecrets } from "./secret-redactor";
 
 const pluginConfig = `ENABLED=yes\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
 
@@ -123,6 +125,19 @@ describe("SafeCommandRunner", () => {
     expect(result.stdout).not.toContain("[REDACTED]");
   });
 
+  it.each([
+    ["axb", ["ab", "x"]],
+    ["axybc", ["abc", "x", "y"]],
+    ["cabxd", ["cd", "ab", "x"]],
+  ])("redacts to a fixed point without synthesizing secrets: %s", (input, secrets) => {
+    const result = redactSecrets(input, secrets);
+
+    expect(result).toBe("");
+    for (const secret of secrets.filter(Boolean)) {
+      expect(result).not.toContain(secret);
+    }
+  });
+
   it("waits for process-group closure after overflow before rejecting", async () => {
     const child = new FakeCommandProcess();
     let descendantAlive = true;
@@ -157,6 +172,32 @@ describe("SafeCommandRunner", () => {
 
     await rejection;
     vi.useRealTimers();
+  });
+
+  it("preserves fatal no-close identity through runtime lifecycle control", async () => {
+    const runner: CommandRunner = {
+      run: async () => {
+        throw new FatalCommandError("fatal command termination failure: runtime-secret");
+      },
+    };
+    const files: RuntimeFileSystem = {
+      readFile: async (path) =>
+        path === YARR_ENVIRONMENT_PATH
+          ? "YARR_MCP_TOKEN=runtime-secret\n"
+          : pluginConfig,
+    };
+    const runtime = new RuntimeService(runner, files, {
+      get: async () => ({ status: 500, body: "" }),
+    });
+
+    const failure = runtime.restart();
+
+    await expect(failure).rejects.toBeInstanceOf(FatalCommandError);
+    await expect(failure).rejects.toThrow("fatal command termination failure: ");
+
+    const statusFailure = runtime.status();
+    await expect(statusFailure).rejects.toBeInstanceOf(FatalCommandError);
+    await expect(statusFailure).rejects.toThrow("fatal command termination failure: ");
   });
 });
 

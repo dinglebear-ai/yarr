@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as http from "node:http";
 
-import { SafeCommandRunner, type CommandRunner } from "./command-runner";
+import { FatalCommandError, SafeCommandRunner, type CommandRunner } from "./command-runner";
 import { parsePluginConfig, parseYarrEnvironment, toPublicConfig } from "./config-codec";
 import {
   YARR_ENVIRONMENT_PATH,
@@ -99,6 +99,9 @@ export class RuntimeService {
       port = view.plugin.port;
       secrets = [...secrets, ...collectSecretValues(environment.values)];
     } catch (error) {
+      if (error instanceof FatalCommandError) {
+        throw new FatalCommandError(redactSecrets(errorMessage(error), secrets));
+      }
       return runtimeError(bindAddress, port, redactSecrets(errorMessage(error), secrets));
     }
 
@@ -175,6 +178,9 @@ export class RuntimeService {
         uptimeSeconds: null,
       };
     } catch (error) {
+      if (error instanceof FatalCommandError) {
+        throw new FatalCommandError(redactSecrets(errorMessage(error), secrets));
+      }
       return runtimeError(bindAddress, port, redactSecrets(errorMessage(error), secrets));
     }
   }
@@ -222,7 +228,9 @@ export class RuntimeService {
         timeoutMs: 60_000,
       });
     } catch (error) {
-      throw new Error(redactSecrets(errorMessage(error), secrets));
+      const message = redactSecrets(errorMessage(error), secrets);
+      if (error instanceof FatalCommandError) throw new FatalCommandError(message);
+      throw new Error(message);
     }
   }
 

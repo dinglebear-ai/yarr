@@ -228,3 +228,40 @@ unraid-plugin/tests/update-contract.sh
 unraid-plugin/tests/run.sh
   Task 1 aggregate contract: PASS
 ```
+
+## Final Fixed-Point Redaction and Fatal No-Close Hardening (2026-07-22)
+
+### Fixed-point secret redaction
+
+- `redactSecrets` continues longest-first empty replacement until a complete pass makes no change.
+- Empty values remain filtered and duplicate values remain deduplicated before deterministic length/lexical ordering.
+- Every mutating pass must strictly reduce output length. A reduction budget initialized from the already bounded input length guarantees termination and bounds the number of passes.
+- Regression coverage includes the exact synthesis case `secrets = ["ab", "x"]`, `input = "axb"`, plus chained overlaps `axybc` and `cabxd`. Every case asserts the final output is empty and contains none of its nonempty secrets.
+
+### Fatal command identity and rollback boundary
+
+- `RuntimeService` preserves `FatalCommandError` through lifecycle actions and status probing after redacting its message.
+- `ConfigService` detects `FatalCommandError` before any rollback file operation, transaction cleanup, or rollback lifecycle action.
+- An indeterminate no-close event now throws a fixed, redacted manual-intervention error. It does not return `rolledBack=true` and leaves the retained complete known-good generation available.
+- Confirmed-close ordinary command failures remain eligible for the existing two-file and prior-runtime rollback path.
+- Regression coverage proves fatal handling performs only the original `status` and `restart` calls, performs no good-to-next restore copy or transaction removal, and retains both known-good files. A companion normal failure proves rollback still restores both current files and invokes the prior runtime transition.
+
+### Inherited descriptor exclusion
+
+- The `FlockService` regression gives a descendant a copy of the acquired open file description, throws a fatal callback error, and proves the service closes its own descriptor exactly once.
+- A separate contender remains excluded after that close while the descendant copy is open, then acquires successfully only after the descendant closes.
+
+### RED/GREEN evidence
+
+- RED: focused specs reported 5 failures: three synthesized-secret fixed-point cases, lost fatal identity in `RuntimeService`, and false rollback in `ConfigService`.
+- GREEN: `config.service.spec.ts`, `runtime.service.spec.ts`, `log.service.spec.ts`, and `flock.service.spec.ts` pass together: 4 files, 43 tests.
+- Self-review found and closed an additional fatal identity leak in `RuntimeService.status()`; the regression now exercises both lifecycle action and status paths.
+
+### Final gates
+
+- Affected shell `bash -n`: PASS.
+- `unraid-plugin/tests/lifecycle-contract.sh`: PASS.
+- `unraid-plugin/tests/update-contract.sh`: PASS, exit 0.
+- Focused Task 5 API specs: PASS, 43/43.
+- `npx tsc --noEmit`: PASS, exit 0.
+- `unraid-plugin/tests/run.sh`: PASS, exit 0 (`release contract`, `lifecycle contract`, `update contract`, and Task 1 aggregate contract).

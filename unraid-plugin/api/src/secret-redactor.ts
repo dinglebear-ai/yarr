@@ -61,7 +61,23 @@ export function redactSecrets(message: string, secrets: readonly string[]): stri
   const unique = [...new Set(secrets.filter((secret) => secret.length > 0))].sort(
     (left, right) => right.length - left.length || left.localeCompare(right),
   );
-  return unique.reduce((redacted, secret) => redacted.replaceAll(secret, ""), message);
+  let redacted = message;
+  let remainingReductionBudget = message.length;
+
+  while (true) {
+    const next = unique.reduce(
+      (candidate, secret) => candidate.replaceAll(secret, ""),
+      redacted,
+    );
+    if (next === redacted) return redacted;
+
+    const reduction = redacted.length - next.length;
+    if (reduction <= 0 || reduction > remainingReductionBudget) {
+      throw new Error("secret redaction failed to make bounded progress");
+    }
+    remainingReductionBudget -= reduction;
+    redacted = next;
+  }
 }
 
 export function collectSecretValues(values: Record<string, string>): string[] {

@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { EventEmitter } from "node:events";
+import { spawn, spawnSync } from "node:child_process";
+import { EventEmitter, once } from "node:events";
 import { existsSync } from "node:fs";
 import { mkdtemp, open, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -9,6 +9,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 
 import { FlockService, type LockProcess } from "./flock.service";
+import { FatalCommandError } from "./command-runner";
 
 const TEST_FLOCK_PATH = existsSync("/usr/bin/flock")
   ? "/usr/bin/flock"
@@ -140,5 +141,38 @@ describe("FlockService", () => {
     expect(callback).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalledOnce();
     vi.useRealTimers();
+  });
+
+  it("closes its descriptor once while a descendant copy retains kernel exclusion", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "yarr-flock-descendant-"));
+    const lockPath = join(directory, "yarr-plugin.lock");
+    const handle = await open(lockPath, "a+", 0o600);
+    const close = vi.fn(async () => handle.close());
+    const service = new FlockService({
+      openLock: async () => ({ fd: handle.fd, chmod: (mode) => handle.chmod(mode), close }),
+      flockPath: TEST_FLOCK_PATH,
+    });
+    let descendant: ReturnType<typeof spawn> | undefined;
+
+    try {
+      const transaction = service.withLock(async (lease) => {
+        descendant = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], {
+          stdio: ["ignore", "ignore", "ignore", lease.fd],
+        });
+        await once(descendant, "spawn");
+        throw new FatalCommandError("fatal no-close");
+      });
+      await expect(transaction).rejects.toBeInstanceOf(FatalCommandError);
+      expect(close).toHaveBeenCalledOnce();
+      expect(spawnSync(TEST_FLOCK_PATH, ["--nonblock", lockPath, "/usr/bin/true"]).status).toBe(1);
+
+      const descendantClosed = once(descendant!, "close");
+      descendant!.kill("SIGKILL");
+      await descendantClosed;
+      expect(spawnSync(TEST_FLOCK_PATH, ["--nonblock", lockPath, "/usr/bin/true"]).status).toBe(0);
+    } finally {
+      descendant?.kill("SIGKILL");
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

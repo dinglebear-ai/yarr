@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LockLease, LockService } from "./flock.service";
 import type { RuntimeState } from "./runtime.service";
+import { FatalCommandError } from "./command-runner";
 import {
   ConfigService,
   type ConfigFileSystem,
@@ -352,5 +353,34 @@ describe("ConfigService", () => {
       `read:${YARR_ENVIRONMENT_PATH}`,
     ]);
     expect(calls.map((call) => call.action)).toEqual(["status"]);
+  });
+
+  it("does not mutate or invoke rollback after fatal unconfirmed process-group closure", async () => {
+    const fatal = new FatalCommandError("fatal command termination failure: current-secret");
+    const { service, files, calls } = harness([fatal]);
+
+    const failure = service.save({ port: 40130 });
+
+    await expect(failure).rejects.toBeInstanceOf(FatalCommandError);
+    await expect(failure).rejects.toThrow("manual intervention required");
+    await expect(failure).rejects.not.toThrow("current-secret");
+    expect(calls.map((call) => call.action)).toEqual(["status", "restart"]);
+    expect(files.operations).not.toContain(
+      `copy:${YARR_PLUGIN_CONFIG_GOOD_PATH}->${YARR_PLUGIN_CONFIG_NEXT_PATH}:600`,
+    );
+    expect(files.operations.some((operation) => operation.startsWith("remove:"))).toBe(false);
+    expect(files.files.get(YARR_PLUGIN_CONFIG_GOOD_PATH)?.text).toBe(pluginConfig);
+    expect(files.files.get(YARR_ENVIRONMENT_GOOD_PATH)?.text).toBe(environment);
+  });
+
+  it("still rolls back after an ordinary confirmed-close lifecycle failure", async () => {
+    const { service, files, calls } = harness([new Error("confirmed close failure")]);
+
+    const result = await service.save({ port: 40131 });
+
+    expect(result.rolledBack).toBe(true);
+    expect(calls.map((call) => call.action)).toEqual(["status", "restart", "restart"]);
+    expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
+    expect(files.files.get(YARR_ENVIRONMENT_PATH)?.text).toBe(environment);
   });
 });
