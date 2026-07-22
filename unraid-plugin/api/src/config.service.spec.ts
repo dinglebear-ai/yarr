@@ -355,7 +355,7 @@ describe("ConfigService", () => {
     expect(calls.map((call) => call.action)).toEqual(["status"]);
   });
 
-  it("does not mutate or invoke rollback after fatal unconfirmed process-group closure", async () => {
+  it("does not roll back after the fatal guard-timeout termination result", async () => {
     const fatal = new FatalCommandError("fatal command termination failure: current-secret");
     const { service, files, calls } = harness([fatal]);
 
@@ -373,8 +373,8 @@ describe("ConfigService", () => {
     expect(files.files.get(YARR_ENVIRONMENT_GOOD_PATH)?.text).toBe(environment);
   });
 
-  it("still rolls back after an ordinary confirmed-close lifecycle failure", async () => {
-    const { service, files, calls } = harness([new Error("confirmed close failure")]);
+  it("rolls back after the ordinary confirmed-close termination result", async () => {
+    const { service, files, calls } = harness([new Error("confirmed-close termination failure")]);
 
     const result = await service.save({ port: 40131 });
 

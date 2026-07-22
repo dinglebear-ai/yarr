@@ -265,3 +265,33 @@ unraid-plugin/tests/run.sh
 - Focused Task 5 API specs: PASS, 43/43.
 - `npx tsc --noEmit`: PASS, exit 0.
 - `unraid-plugin/tests/run.sh`: PASS, exit 0 (`release contract`, `lifecycle contract`, `update contract`, and Task 1 aggregate contract).
+
+## Final Command Termination-State Hardening (2026-07-22)
+
+### Explicit child lifecycle states
+
+- `SafeCommandRunner` now tracks `starting`, `running`, `terminating`, and `settled` explicitly instead of coupling a settlement boolean to a nullable termination error.
+- A child `error` before termination remains an ordinary, immediately rejected command-start failure. The regression uses a child without a PID and proves no process-group kill is attempted.
+- Once timeout/output-overflow termination begins, child `error` events no longer call the ordinary finish path, clear the close guard, or settle the command.
+- A close within the guard settles exactly once with the stored, redacted confirmed-close termination error (`Error`), preserving ConfigService rollback eligibility.
+- Guard expiry settles exactly once with `FatalCommandError` and the fixed indeterminate process-group message, preserving ConfigService's no-rollback/manual-intervention path.
+- The child error listener remains present through settlement so late errors are consumed and ignored; late close handling checks the `settled` state.
+
+### Config rollback typing
+
+- ConfigService regressions explicitly identify the two command-runner outcomes: ordinary confirmed-close termination failures restore the two-file pair and prior runtime state, while fatal guard-timeout results perform no file or lifecycle rollback and do not claim rollback.
+
+### RED/GREEN evidence
+
+- RED: the two termination-time child-error regressions failed as expected. The close case was incorrectly replaced by `command failed to start`, and the guard case settled before 1,999 ms.
+- GREEN: all four focused Task 5 spec files pass together, 46/46 tests.
+- `npx tsc --noEmit`: PASS, exit 0.
+
+### Final gates
+
+- Affected shell `bash -n`: PASS, exit 0.
+- `unraid-plugin/tests/lifecycle-contract.sh`: PASS, exit 0.
+- `unraid-plugin/tests/update-contract.sh`: PASS, exit 0.
+- Focused Task 5 API specs: PASS, 46/46.
+- `npx tsc --noEmit`: PASS, exit 0.
+- `unraid-plugin/tests/run.sh`: PASS, exit 0 (`release contract`, `lifecycle contract`, `update contract`, and Task 1 aggregate contract).

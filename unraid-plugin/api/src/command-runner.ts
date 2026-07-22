@@ -27,7 +27,7 @@ export interface CommandProcess {
   readonly stdout: Readable;
   readonly stderr: Readable;
   kill(signal: NodeJS.Signals): boolean;
-  once(event: "error", listener: (error: Error) => void): this;
+  on(event: "error", listener: (error: Error) => void): this;
   once(
     event: "close",
     listener: (exitCode: number | null, signal: NodeJS.Signals | null) => void,
@@ -57,6 +57,7 @@ const MAX_TIMEOUT_MS = 120_000;
 const MAX_CAPTURE_BYTES = 1024 * 1024;
 const LOCK_CHILD_FD = 3;
 const KILL_COMPLETION_TIMEOUT_MS = 2_000;
+type CommandLifecycleState = "starting" | "running" | "terminating" | "settled";
 
 export class SafeCommandRunner implements CommandRunner {
   constructor(
@@ -102,8 +103,11 @@ export class SafeCommandRunner implements CommandRunner {
     });
 
     return new Promise<CommandResult>((resolve, reject) => {
-      let settled = false;
-      let terminating: Error | null = null;
+      let state: CommandLifecycleState =
+        child.pid !== undefined && Number.isInteger(child.pid) && child.pid > 0
+          ? "running"
+          : "starting";
+      let terminationError: Error | null = null;
       let stdout = Buffer.alloc(0);
       let stderr = Buffer.alloc(0);
       let killGuard: NodeJS.Timeout | undefined;
@@ -116,14 +120,15 @@ export class SafeCommandRunner implements CommandRunner {
       };
 
       const finishError = (message: string): void => {
-        if (settled) return;
-        settled = true;
+        if (state === "settled") return;
+        state = "settled";
         cleanup();
         reject(new Error(redactSecrets(message, options.secrets ?? [])));
       };
       const beginTermination = (message: string): void => {
-        if (settled || terminating !== null) return;
-        terminating = new Error(redactSecrets(message, options.secrets ?? []));
+        if (state === "settled" || state === "terminating") return;
+        state = "terminating";
+        terminationError = new Error(redactSecrets(message, options.secrets ?? []));
         clearTimeout(timer);
         try {
           if (child.pid === undefined || !Number.isInteger(child.pid) || child.pid <= 0) {
@@ -131,20 +136,20 @@ export class SafeCommandRunner implements CommandRunner {
           }
           this.killProcessGroup(child.pid, "SIGKILL");
         } catch (error) {
-          terminating = new FatalCommandError(
+          terminationError = new FatalCommandError(
             `fatal command termination failure: could not kill process group: ${errorMessage(error)}`,
           );
         }
         child.kill("SIGKILL");
         killGuard = setTimeout(() => {
-          if (settled) return;
-          settled = true;
+          if (state !== "terminating") return;
+          state = "settled";
           cleanup();
           reject(new FatalCommandError("fatal command termination failure: process group did not close"));
         }, KILL_COMPLETION_TIMEOUT_MS);
       };
       const capture = (stream: "stdout" | "stderr", chunk: Buffer | string): void => {
-        if (settled || terminating !== null) return;
+        if (state === "settled" || state === "terminating") return;
         const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         const current = stream === "stdout" ? stdout : stderr;
         const remaining = Math.max(0, maxOutputBytes - current.length);
@@ -164,13 +169,16 @@ export class SafeCommandRunner implements CommandRunner {
       }, timeoutMs);
       child.stdout.on("data", onStdout);
       child.stderr.on("data", onStderr);
-      child.once("error", (error) => finishError(`command failed to start: ${error.message}`));
+      child.on("error", (error) => {
+        if (state === "settled" || state === "terminating") return;
+        finishError(`command failed to start: ${error.message}`);
+      });
       child.once("close", (exitCode, signal) => {
-        if (settled) return;
-        if (terminating !== null) {
-          settled = true;
+        if (state === "settled") return;
+        if (state === "terminating") {
+          state = "settled";
           cleanup();
-          reject(terminating);
+          reject(terminationError ?? new Error("command termination failed"));
           return;
         }
         cleanup();
@@ -182,7 +190,7 @@ export class SafeCommandRunner implements CommandRunner {
           finishError(`command exited ${code}: ${detail}`);
           return;
         }
-        settled = true;
+        state = "settled";
         resolve({ exitCode: code, stdout: stdoutText, stderr: stderrText });
       });
     });

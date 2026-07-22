@@ -18,10 +18,13 @@ import { redactSecrets } from "./secret-redactor";
 const pluginConfig = `ENABLED=yes\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
 
 class FakeCommandProcess extends EventEmitter implements CommandProcess {
-  readonly pid = 4321;
   readonly stdout = new PassThrough();
   readonly stderr = new PassThrough();
   readonly kill = vi.fn(() => true);
+
+  constructor(readonly pid: number | undefined = 4321) {
+    super();
+  }
 }
 
 class QueueRunner implements CommandRunner {
@@ -59,6 +62,16 @@ function runtimeHarness(results: CommandResult[]) {
     }),
   };
   return { runtime: new RuntimeService(runner, files, http), runner, http, data };
+}
+
+async function rejectionOf(promise: Promise<unknown>): Promise<Error> {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof Error) return error;
+    throw error;
+  }
+  throw new Error("expected promise to reject");
 }
 
 describe("SafeCommandRunner", () => {
@@ -159,6 +172,76 @@ describe("SafeCommandRunner", () => {
 
     await expect(command).rejects.toThrow("command output exceeded");
     expect(child.stdout.listenerCount("data")).toBe(0);
+  });
+
+  it("rejects a spawn error before a process group exists as an ordinary command error", async () => {
+    const child = new FakeCommandProcess(undefined);
+    const killGroup = vi.fn();
+    const runner = new SafeCommandRunner(() => child, killGroup);
+    const command = runner.run("/etc/rc.d/rc.yarr", ["restart"]);
+
+    child.emit("error", new Error("spawn failed"));
+
+    const error = await rejectionOf(command);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(FatalCommandError);
+    expect(error.message).toContain("command failed to start: spawn failed");
+    expect(killGroup).not.toHaveBeenCalled();
+  });
+
+  it("ignores a child error during termination and settles normally after confirmed close", async () => {
+    const child = new FakeCommandProcess();
+    const runner = new SafeCommandRunner(() => child, vi.fn());
+    let settled = false;
+    const command = runner.run("/etc/rc.d/rc.yarr", ["restart"], {
+      maxOutputBytes: 8,
+      secrets: ["termination-secret"],
+    });
+    const observed = rejectionOf(command).finally(() => {
+      settled = true;
+    });
+
+    child.stdout.write("output-that-overflows");
+    child.emit("error", new Error("termination-secret kill race"));
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    child.emit("close", null, "SIGKILL");
+    const error = await observed;
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(FatalCommandError);
+    expect(error.message).toContain("command output exceeded");
+    expect(error.message).not.toContain("termination-secret");
+  });
+
+  it("ignores a child error during termination and settles fatally when the guard expires", async () => {
+    vi.useFakeTimers();
+    try {
+      const child = new FakeCommandProcess();
+      const runner = new SafeCommandRunner(() => child, vi.fn());
+      let settled = false;
+      const command = runner.run("/etc/rc.d/rc.yarr", ["restart"], {
+        maxOutputBytes: 8,
+      });
+      const observed = rejectionOf(command).finally(() => {
+        settled = true;
+      });
+
+      child.stdout.write("output-that-overflows");
+      child.emit("error", new Error("kill race"));
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(2);
+      const error = await observed;
+      expect(error).toBeInstanceOf(FatalCommandError);
+      expect(error.message).toContain("process group did not close");
+
+      child.emit("close", null, "SIGKILL");
+      expect(settled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns a distinct fatal error when killed process group never closes", async () => {
