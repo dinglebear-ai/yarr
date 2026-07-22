@@ -34,13 +34,14 @@
 - Create: `unraid-plugin/release-manifest.json`
 - Create: `unraid-plugin/tests/fixtures/release-manifest.valid.json`
 - Create: `unraid-plugin/tests/fixtures/release-manifest.invalid.json`
+- Create: `unraid-plugin/tests/fixtures/required-package-paths.txt`
 - Create: `unraid-plugin/tests/release-contract.sh`
 - Create: `unraid-plugin/tests/run.sh`
 - Modify: `Justfile`
 
 **Step 1: Write the failing release-contract test**
 
-Make `release-contract.sh` assert this complete implementation inventory:
+Put this complete implementation inventory in `required-package-paths.txt` and make `release-contract.sh` validate that every entry is absolute within the package root, unique, sorted, and represented by a recognized runtime prefix:
 
 ```text
 unraid-plugin/yarr.plg
@@ -58,7 +59,7 @@ unraid-plugin/api/package.json
 unraid-plugin/web/package.json
 ```
 
-The test must also parse `release-manifest.json`, reject unknown keys, require SHA-256 values to match `^[0-9a-f]{64}$`, and require the manifest package filename to match `yarr-<version>-x86_64-<build>.txz`.
+The test must also parse `release-manifest.json`, reject unknown keys, require SHA-256 values to match `^[0-9a-f]{64}$`, and require the manifest package filename to match `yarr-<version>-x86_64-<build>.txz`. Task 10 will compare the declared inventory to the staged archive; Task 1 must not require future source files to exist.
 
 **Step 2: Run the test and confirm the expected failure**
 
@@ -68,7 +69,7 @@ Run:
 bash unraid-plugin/tests/release-contract.sh
 ```
 
-Expected: non-zero exit identifying the first absent required artifact.
+Expected: non-zero exit because the manifest and declared inventory fixtures are absent.
 
 **Step 3: Add the manifest and test runner**
 
@@ -103,7 +104,7 @@ Run:
 bash unraid-plugin/tests/release-contract.sh
 ```
 
-Expected: it advances past manifest validation and fails only on artifacts deliberately scheduled for later tasks.
+Expected: manifest, inventory declaration, and runner contracts pass without depending on artifacts scheduled for later tasks.
 
 **Step 5: Commit and push**
 
@@ -201,7 +202,7 @@ create /mnt/user/appdata/yarr and /var/log/yarr
 write a root-only runtime environment
 launch with YARR_HOME=/mnt/user/appdata/yarr
 record the PID atomically
-wait for http://<effective-host>:<port>/ready
+wait for /ready through 127.0.0.1 when bound to loopback or wildcard, and through the configured address for custom binding
 remove the PID and terminate the process when readiness fails
 configure Tailscale Serve only after local readiness succeeds
 ```
