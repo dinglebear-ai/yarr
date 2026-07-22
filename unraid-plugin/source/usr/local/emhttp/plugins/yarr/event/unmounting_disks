@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -u
+
+YARR_RC_YARR=${YARR_RC_YARR:-/etc/rc.d/rc.yarr}
+[[ -x "$YARR_RC_YARR" ]] || exit 0
+exec "$YARR_RC_YARR" stop

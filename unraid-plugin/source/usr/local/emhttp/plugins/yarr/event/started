@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -u
+
+YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
+YARR_RC_YARR=${YARR_RC_YARR:-/etc/rc.d/rc.yarr}
+# shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+source "${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+
+[[ -f "$YARR_CFG" && -f "$YARR_ENV" ]] || exit 0
+yarr_load_config || exit 1
+[[ "$ENABLED" == yes ]] || exit 0
+exec "$YARR_RC_YARR" start

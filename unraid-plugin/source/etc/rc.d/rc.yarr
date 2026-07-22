@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -u
+
+YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
+# shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+source "${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+
+yarr_log() {
+    mkdir -p "$(dirname "$YARR_LOG")"
+    printf '%s yarr: %s\n' "$(date -Is)" "$*" >> "$YARR_LOG"
+}
+
+yarr_remove_tailscale_serve() {
+    [[ "${TAILSCALE_SERVE:-no}" == yes ]] || return 0
+    "$YARR_TAILSCALE_BIN" serve off >/dev/null 2>&1 || {
+        yarr_log 'failed to remove Tailscale Serve configuration'
+        return 1
+    }
+}
+
+yarr_stop_owned_process() {
+    local pid attempt
+    yarr_pid_is_owned || return 0
+    pid=$(<"$YARR_PID")
+    kill -TERM "$pid" 2>/dev/null || true
+    for ((attempt = 0; attempt < 20; attempt++)); do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 1
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        yarr_pid_is_owned || return 1
+        pid=$(<"$YARR_PID")
+        kill -KILL "$pid" 2>/dev/null || true
+    fi
+    rm -f "$YARR_PID"
+}
+
+yarr_start_locked() {
+    yarr_load_config && yarr_validate_config && yarr_select_binary || return 1
+    if yarr_pid_is_owned; then
+        yarr_log 'already running'
+        return 0
+    fi
+    [[ "$ENABLED" == yes ]] || {
+        yarr_log 'disabled; not starting'
+        return 0
+    }
+
+    mkdir -p "$YARR_APPDATA" "$(dirname "$YARR_LOG")" "$(dirname "$YARR_PID")" || return 1
+    yarr_write_runtime_env || return 1
+    yarr_log "starting ${YARR_BINARY}"
+    setsid env -i "PATH=${PATH}" "${YARR_RUNTIME_PAIRS[@]}" \
+        "$YARR_BINARY" serve mcp 9>&- >> "$YARR_LOG" 2>&1 &
+    local pid=$!
+    umask 077
+    printf '%s\n' "$pid" > "${YARR_PID}.$$" && mv -f "${YARR_PID}.$$" "$YARR_PID" || {
+        kill -TERM "$pid" 2>/dev/null || true
+        rm -f "${YARR_PID}.$$"
+        return 1
+    }
+
+    if ! yarr_wait_ready "$(yarr_effective_host)"; then
+        yarr_log 'readiness failed; stopping partial startup'
+        yarr_stop_owned_process || true
+        rm -f "$YARR_PID" "$YARR_RUNTIME_ENV"
+        return 1
+    fi
+    if [[ "$TAILSCALE_SERVE" == yes ]]; then
+        "$YARR_TAILSCALE_BIN" serve --https="$PORT" "http://127.0.0.1:${PORT}" || {
+            yarr_log 'Tailscale Serve configuration failed; stopping service'
+            yarr_stop_owned_process || true
+            rm -f "$YARR_RUNTIME_ENV"
+            return 1
+        }
+    fi
+    yarr_log 'ready'
+}
+
+yarr_stop_locked() {
+    local loaded=false
+    if yarr_load_config && yarr_validate_config && yarr_select_binary; then
+        loaded=true
+        yarr_remove_tailscale_serve || true
+        yarr_stop_owned_process || true
+    else
+        yarr_log 'configuration invalid during stop; refusing PID-only signaling'
+        rm -f "$YARR_PID"
+    fi
+    rm -f "$YARR_RUNTIME_ENV"
+    "$loaded" || return 0
+}
+
+yarr_status_locked() {
+    yarr_load_config && yarr_validate_config && yarr_select_binary || return 1
+    if yarr_pid_is_owned; then
+        printf 'yarr: RUNNING\n'
+        return 0
+    fi
+    printf 'yarr: STOPPED\n'
+    return 3
+}
+
+case "${1:-}" in
+    start) yarr_with_lock yarr_start_locked ;;
+    stop) yarr_with_lock yarr_stop_locked ;;
+    restart) yarr_with_lock yarr_stop_locked && yarr_with_lock yarr_start_locked ;;
+    reload) yarr_with_lock yarr_stop_locked && yarr_with_lock yarr_start_locked ;;
+    status) yarr_with_lock yarr_status_locked ;;
+    *)
+        printf 'usage: %s {start|stop|restart|status|reload}\n' "$0" >&2
+        exit 2
+        ;;
+esac
