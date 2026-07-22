@@ -1,0 +1,5 @@
+{
+  "name": "@unraid/shared",
+  "version": "4.25.3",
+  "types": "index.d.ts"
+}

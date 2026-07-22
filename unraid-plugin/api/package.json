@@ -1,0 +1,34 @@
+{
+  "name": "unraid-api-plugin-yarr",
+  "version": "2.1.0",
+  "description": "Yarr external plugin for the Unraid API.",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "unraid": {
+    "apiVersion": "1",
+    "adapter": "nestjs"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "11.1.26",
+    "@nestjs/config": "4.0.2",
+    "@nestjs/core": "11.1.26",
+    "@nestjs/graphql": "13.4.2",
+    "@unraid/shared": "4.25.3",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
+    "graphql": "16.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "@unraid/shared": "file:.ci-stubs/unraid-shared",
+    "typescript": "5.9.2",
+    "vitest": "3.2.6"
+  }
+}
