@@ -68,6 +68,31 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
 
+### 2026-07-23 - Same-operation updater state validation
+
+- Strengthened the closed 26-row updater matrix with strict core Yarr release
+  parsing and integer comparison aligned to the shell arithmetic domain.
+- Added shared same-major, derived update flag, packaged-selection, overlay,
+  rollback, cleanup, and nullability invariants plus explicit predicates for
+  current, update-available, committed apply, completed reset, and all
+  rollback states.
+- Preserved the valid manual rollback model: active and previous slots remain
+  in the packaged major, but either-direction swaps do not invent a version
+  ordering guarantee.
+- Added source/built/candidate-staged/package-staged property contracts. Each
+  module accepts all 26 legitimate rows and rejects 748 impossible mutations.
+- Gates: focused API 62/62; full API 209/209 plus typecheck/build/audit 0; full
+  web 58/58 plus typecheck/both builds/browser smoke/audit 0; aggregate,
+  verifier, workflow, ShellCheck, actionlint, secret, archive, and diff checks
+  pass.
+- Umask 022/077 packages are byte-identical: SHA-256
+  `abd1e4d28418309fb3c056bb03637c34292969603ccc092c2c6754e1d7d72406`,
+  MD5 `6602d3e9bde7786723b659296b597ae3`, size `6,225,000` bytes,
+  `57` entries, `42` declared files, `14` root-owned mode-`0755`
+  directories, and no `./` member.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.
+
 ### 2026-07-23 - Exit-zero updater protocol remediation
 
 - Added mandatory `operation` and namespaced `outcome` fields to every

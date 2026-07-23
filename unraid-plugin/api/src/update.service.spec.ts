@@ -14,6 +14,7 @@ import {
   UpdateOperation,
   UpdateOutcome,
   UpdateService,
+  validateUpdateProtocolResponse,
   type UpdateStatus,
 } from "./update.service";
 
@@ -65,8 +66,8 @@ const VALID_CASES: readonly ValidCase[] = [
   { name: "reset restored", operation: UpdateOperation.RESET, exitCode: 1, value: response(UpdateOperation.RESET, UpdateOutcome.RESET_RESTORED, { usingOverlay: true, rollbackAvailable: true, rolledBack: true, message: "Reset failed; previous binary restored" }) },
   { name: "reset restored with cleanup pending", operation: UpdateOperation.RESET, exitCode: 1, value: response(UpdateOperation.RESET, UpdateOutcome.RESET_RESTORED, { usingOverlay: true, rollbackAvailable: true, rolledBack: true, cleanupPending: true, recoveryIdentifier: ".yarr.reset.recovery.R3s4T5o6", message: "Reset failed; previous binary restored" }) },
   { name: "reset restoration incomplete", operation: UpdateOperation.RESET, exitCode: 1, value: response(UpdateOperation.RESET, UpdateOutcome.RESET_RESTORATION_INCOMPLETE, { message: "Reset failed; restoration incomplete; recovery snapshots retained" }) },
-  { name: "rollback completed", operation: UpdateOperation.ROLLBACK, exitCode: 0, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_COMPLETED, { installedVersion: "1.9.0", usingOverlay: true, rollbackAvailable: true, message: "Yarr rolled back to previous binary" }) },
-  { name: "rollback completed with cleanup pending", operation: UpdateOperation.ROLLBACK, exitCode: 1, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_COMPLETED, { installedVersion: "1.9.0", usingOverlay: true, rollbackAvailable: true, cleanupPending: true, recoveryIdentifier: ".yarr.rollback.recovery.C1e2A3n4", message: "Yarr rolled back; recovery snapshot cleanup pending" }) },
+  { name: "rollback completed", operation: UpdateOperation.ROLLBACK, exitCode: 0, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_COMPLETED, { installedVersion: "2.0.1", usingOverlay: true, rollbackAvailable: true, message: "Yarr rolled back to previous binary" }) },
+  { name: "rollback completed with cleanup pending", operation: UpdateOperation.ROLLBACK, exitCode: 1, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_COMPLETED, { installedVersion: "2.0.1", usingOverlay: true, rollbackAvailable: true, cleanupPending: true, recoveryIdentifier: ".yarr.rollback.recovery.C1e2A3n4", message: "Yarr rolled back; recovery snapshot cleanup pending" }) },
   { name: "rollback unavailable", operation: UpdateOperation.ROLLBACK, exitCode: 1, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_UNAVAILABLE, { message: "Manual rollback is unavailable; no previous binary exists" }) },
   { name: "rollback failed before activation", operation: UpdateOperation.ROLLBACK, exitCode: 1, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION, { usingOverlay: true, rollbackAvailable: true, message: "Rollback failed before activation" }) },
   { name: "rollback failed before activation with cleanup pending", operation: UpdateOperation.ROLLBACK, exitCode: 1, value: response(UpdateOperation.ROLLBACK, UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION, { usingOverlay: true, rollbackAvailable: true, cleanupPending: true, recoveryIdentifier: ".yarr.rollback.recovery.P1r2E3p4", message: "Rollback failed before activation" }) },
@@ -127,6 +128,120 @@ function invoke(service: UpdateService, operation: UpdateOperation): Promise<Upd
   return service.rollback();
 }
 
+const OVERLAY_TRUE_OUTCOMES = new Set<UpdateOutcome>([
+  UpdateOutcome.APPLY_UPDATED,
+  UpdateOutcome.ROLLBACK_COMPLETED,
+  UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION,
+  UpdateOutcome.ROLLBACK_RESTORED,
+]);
+const OVERLAY_FALSE_OUTCOMES = new Set<UpdateOutcome>([
+  UpdateOutcome.RESET_COMPLETED,
+]);
+const ROLLBACK_TRUE_OUTCOMES = new Set<UpdateOutcome>([
+  UpdateOutcome.ROLLBACK_COMPLETED,
+  UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION,
+  UpdateOutcome.ROLLBACK_RESTORED,
+]);
+const ROLLBACK_FALSE_OUTCOMES = new Set<UpdateOutcome>([
+  UpdateOutcome.RESET_COMPLETED,
+  UpdateOutcome.ROLLBACK_UNAVAILABLE,
+]);
+const CURRENT_OUTCOMES = new Set<UpdateOutcome>([
+  UpdateOutcome.CHECK_CURRENT,
+  UpdateOutcome.APPLY_CURRENT,
+]);
+const UPDATE_AHEAD_OUTCOMES = new Set<UpdateOutcome>([
+  UpdateOutcome.CHECK_UPDATE_AVAILABLE,
+  UpdateOutcome.APPLY_FAILED_BEFORE_ACTIVATION,
+  UpdateOutcome.APPLY_RESTORED,
+]);
+
+type TupleMutation = {
+  name: string;
+  value: UpdateStatus;
+};
+
+function impossibleTupleMutations(candidate: ValidCase): readonly TupleMutation[] {
+  const value = candidate.value;
+  const mutate = (
+    name: string,
+    overrides: Partial<Record<keyof UpdateStatus, unknown>>,
+  ): TupleMutation => ({
+    name,
+    value: { ...value, ...overrides } as UpdateStatus,
+  });
+  const sibling = VALID_CASES.find((other) =>
+    other.operation === candidate.operation &&
+    other.value.outcome !== value.outcome
+  );
+  const mutations: TupleMutation[] = [
+    mutate("installed version leading zero", { installedVersion: "02.0.0" }),
+    mutate("installed version prerelease", { installedVersion: "2.0.0-rc.1" }),
+    mutate("installed version component overflow", { installedVersion: "9223372036854775808.0.0" }),
+    mutate("packaged version build metadata", { packagedVersion: "2.0.0+build" }),
+    mutate("installed and packaged major mismatch", { packagedVersion: "3.0.0" }),
+    mutate("available version grammar", { availableVersion: "2.1.0-rc.1" }),
+    mutate("available version major mismatch", { availableVersion: "3.0.0" }),
+    mutate("derived update flag", { updateAvailable: !value.updateAvailable }),
+    mutate("rolled-back flag", { rolledBack: !value.rolledBack }),
+    mutate("cleanup flag without matching identifier transition", { cleanupPending: !value.cleanupPending }),
+    mutate("recovery identifier traversal", { recoveryIdentifier: "../.yarr.update.recovery.Ab12Cd34" }),
+    mutate("message class", { message: `${value.message}!` }),
+  ];
+
+  if (sibling) {
+    mutations.push(mutate("same-operation outcome", { outcome: sibling.value.outcome }));
+  }
+  if (value.availableVersion === "") {
+    mutations.push(mutate("unexpected available version", { availableVersion: "2.0.1" }));
+  } else {
+    mutations.push(mutate("missing available version", { availableVersion: "" }));
+  }
+  if (!value.usingOverlay) {
+    mutations.push(mutate("packaged selection mismatch", { installedVersion: "2.0.1" }));
+  }
+  if (value.rollbackAvailable) {
+    mutations.push(mutate("rollback without active overlay", { usingOverlay: false }));
+  } else if (!value.usingOverlay) {
+    mutations.push(mutate("rollback advertised without overlay", { rollbackAvailable: true }));
+  }
+  if (OVERLAY_TRUE_OUTCOMES.has(value.outcome) || OVERLAY_FALSE_OUTCOMES.has(value.outcome)) {
+    mutations.push(mutate("outcome overlay invariant", { usingOverlay: !value.usingOverlay }));
+  }
+  if (ROLLBACK_TRUE_OUTCOMES.has(value.outcome) || ROLLBACK_FALSE_OUTCOMES.has(value.outcome)) {
+    mutations.push(mutate("outcome rollback invariant", { rollbackAvailable: !value.rollbackAvailable }));
+  }
+  if (CURRENT_OUTCOMES.has(value.outcome)) {
+    mutations.push(mutate("current version inequality", { availableVersion: "2.0.1" }));
+  }
+  if (UPDATE_AHEAD_OUTCOMES.has(value.outcome)) {
+    mutations.push(mutate("required update equality", {
+      availableVersion: value.installedVersion,
+      updateAvailable: true,
+    }));
+    mutations.push(mutate("required update downgrade", {
+      availableVersion: "2.0.0",
+      installedVersion: "2.0.1",
+      updateAvailable: true,
+      usingOverlay: true,
+    }));
+  }
+  if (value.outcome === UpdateOutcome.APPLY_UPDATED) {
+    mutations.push(mutate("committed version mismatch", { installedVersion: "2.0.9" }));
+  }
+  if (value.outcome === UpdateOutcome.RESET_COMPLETED) {
+    mutations.push(mutate("reset did not select package", {
+      installedVersion: "2.0.1",
+      usingOverlay: true,
+    }));
+  }
+
+  for (const key of Object.keys(value) as (keyof UpdateStatus)[]) {
+    mutations.push(mutate(`${key} nullability`, { [key]: null }));
+  }
+  return mutations;
+}
+
 describe("UpdateService", () => {
   it("uses only allowlisted updater JSON commands and validates typed operation results", async () => {
     const { service, run } = harness();
@@ -148,11 +263,11 @@ describe("UpdateService", () => {
   });
 
   it.each([
-    "2.01.0", "02.1.0", "2.1", "2.1.0-01", "2.1.0+", "2.1.0\n--json",
-    `${"1".repeat(11)}.0.0`,
-  ])("rejects invalid or unbounded SemVer input: %s", async (version) => {
+    "2.01.0", "02.1.0", "2.1", "2.1.0-01", "2.1.0-rc.1", "2.1.0+build",
+    "2.1.0+", "2.1.0\n--json", "9223372036854775808.0.0",
+  ])("rejects invalid or ambiguous Yarr release version input: %s", async (version) => {
     const { service, run } = harness();
-    await expect(service.apply(version)).rejects.toThrow("valid bounded SemVer");
+    await expect(service.apply(version)).rejects.toThrow("valid bounded Yarr release version");
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -186,6 +301,29 @@ describe("UpdateService", () => {
 
   it.each(VALID_CASES)("accepts the closed matrix row: $name", async ({ operation, exitCode, value }) => {
     await expect(invoke(boundaryHarness(JSON.stringify(value), exitCode), operation)).resolves.toEqual(value);
+  });
+
+  it("rejects every impossible state-field and version-relation mutation from every legitimate row", () => {
+    let mutationCount = 0;
+    for (const candidate of VALID_CASES) {
+      expect(validateUpdateProtocolResponse(
+        candidate.operation,
+        candidate.exitCode,
+        JSON.stringify(candidate.value),
+      )).toEqual(candidate.value);
+      for (const mutation of impossibleTupleMutations(candidate)) {
+        mutationCount += 1;
+        expect(
+          () => validateUpdateProtocolResponse(
+            candidate.operation,
+            candidate.exitCode,
+            JSON.stringify(mutation.value),
+          ),
+          `${candidate.name}: ${mutation.name}`,
+        ).toThrow("invalid update response");
+      }
+    }
+    expect(mutationCount).toBeGreaterThan(700);
   });
 
   it("rejects the full cross-product of responses from every other operation", async () => {

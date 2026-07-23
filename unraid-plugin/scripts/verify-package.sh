@@ -92,6 +92,7 @@ for required in \
     usr/local/emhttp/plugins/yarr/api/package.json \
     usr/local/emhttp/plugins/yarr/api/package-lock.json \
     usr/local/emhttp/plugins/yarr/api/dist/index.js \
+    usr/local/emhttp/plugins/yarr/api/dist/update.service.js \
     usr/local/emhttp/plugins/yarr/web/yarr-settings.js \
     usr/local/emhttp/plugins/yarr/web/yarr-settings.css \
     usr/local/emhttp/plugins/yarr/web/yarr-dashboard.js \
@@ -99,6 +100,10 @@ for required in \
     usr/local/emhttp/plugins/yarr/package-manifest.sha256; do
     [[ -f "$temporary/root/$required" ]] || fail "archive missing required path: $required"
 done
+
+node "$package_root/tests/update-protocol-dist-contract.cjs" \
+    "$source_root/usr/local/emhttp/plugins/yarr/api/dist/update.service.js" \
+    "$temporary/root/usr/local/emhttp/plugins/yarr/api/dist/update.service.js"
 
 if find "$temporary/root/usr/local/emhttp/plugins/yarr/api/dist" -type f -name '*.spec.js' -print -quit | grep -q .; then
     fail 'API staging contains test output'

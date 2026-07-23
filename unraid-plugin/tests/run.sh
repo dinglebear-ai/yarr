@@ -5,6 +5,9 @@ test_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 
+node "$test_dir/update-protocol-dist-contract.cjs" \
+    "$test_dir/../source/usr/local/emhttp/plugins/yarr/api/dist/update.service.js"
+
 expect_rejection() {
     local label=$1
     shift

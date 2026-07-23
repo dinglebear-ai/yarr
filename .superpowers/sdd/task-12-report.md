@@ -474,3 +474,39 @@ No deployment, workflow dispatch, release publication, or upstream draft
 mutation occurred. Independent reviewer approval remains pending. Detailed
 evidence is in
 `.superpowers/sdd/task-12-exit-zero-updater-contract-report.md`.
+
+## Same-operation state-tuple remediation
+
+The follow-up review found that the 26-row updater matrix still omitted
+deterministic relations among installed, available, and packaged versions and
+the derived update/overlay/rollback fields.
+
+The validator now uses the shell-compatible core Yarr release grammar and
+integer tuple comparison, rejecting prerelease/build metadata, leading zeroes,
+and arithmetic-domain overflow. Shared invariants enforce same-major
+installed/package/available versions, exact derived `updateAvailable` state,
+packaged selection without an overlay, and rollback only with an active
+overlay. Explicit row predicates additionally enforce current equality,
+strictly newer update availability, committed apply equality, exact completed
+reset state, and completed/prepared/restored rollback slot state. No false
+ordering is imposed on manual rollback, which may swap either direction within
+the supported major.
+
+All 26 legitimate rows pass. Property-style mutation contracts reject 748
+impossible tuples per source, built, or staged module, including every key's
+nullability and all deterministic boolean/version relations. Focused API is
+62/62; full API is 209/209 plus typecheck/build/zero production audit; full web
+is 58/58 plus typecheck/both builds/browser smoke/zero production audit.
+Aggregate, verifier, workflow, archive, changed-shell, actionlint, secret, and
+diff gates pass.
+
+The umask 022/077 packages are byte-identical at SHA-256
+`abd1e4d28418309fb3c056bb03637c34292969603ccc092c2c6754e1d7d72406`,
+MD5 `6602d3e9bde7786723b659296b597ae3`, and 6,225,000 bytes. The
+archive has 57 entries, 42 declared files, no `./` member, and 14 UID/GID `0/0`
+directories at mode `0755`.
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent reviewer approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-state-tuple-validation-report.md`.

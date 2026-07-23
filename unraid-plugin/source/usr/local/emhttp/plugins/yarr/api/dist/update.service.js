@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateService = exports.UpdateOutcome = exports.UpdateOperation = void 0;
+exports.validateUpdateProtocolResponse = validateUpdateProtocolResponse;
 const paths_1 = require("./paths");
 var UpdateOperation;
 (function (UpdateOperation) {
@@ -56,8 +57,8 @@ class UpdateService {
         return this.run(UpdateOperation.CHECK, ["check", "--json"], CHECK_TIMEOUT_MS);
     }
     async apply(version) {
-        if (!isBoundedSemVer(version)) {
-            throw new Error("version must be a valid bounded SemVer");
+        if (!isYarrReleaseVersion(version)) {
+            throw new Error("version must be a valid bounded Yarr release version");
         }
         return this.run(UpdateOperation.APPLY, ["apply", "--version", version, "--json"], MUTATION_TIMEOUT_MS);
     }
@@ -132,10 +133,10 @@ function parseUpdateResponse(text) {
     };
 }
 function isVersion(value) {
-    return typeof value === "string" && isBoundedSemVer(value);
+    return typeof value === "string" && isYarrReleaseVersion(value);
 }
 function isOptionalVersion(value) {
-    return typeof value === "string" && (value === "" || isBoundedSemVer(value));
+    return typeof value === "string" && (value === "" || isYarrReleaseVersion(value));
 }
 function isUpdateOperation(value) {
     return typeof value === "string" &&
@@ -156,9 +157,27 @@ function isCleanupState(cleanupPending, recoveryIdentifier) {
 const exactMessage = (expected) => (value) => value.message === expected;
 const versionMessage = (prefix) => (value) => value.availableVersion !== "" && value.message === `${prefix}${value.availableVersion}`;
 const noAvailable = (value) => value.availableVersion === "" && !value.updateAvailable;
-const updateAvailable = (value) => value.availableVersion !== "" && value.updateAvailable;
-const current = (value) => value.availableVersion !== "" && !value.updateAvailable;
-const updated = (value) => current(value) && value.installedVersion === value.availableVersion;
+const updateAvailable = (value) => value.availableVersion !== "" &&
+    value.updateAvailable &&
+    compareYarrReleaseVersions(value.availableVersion, value.installedVersion) === 1;
+const current = (value) => value.availableVersion !== "" &&
+    !value.updateAvailable &&
+    compareYarrReleaseVersions(value.availableVersion, value.installedVersion) === 0;
+const updated = (value) => current(value) &&
+    value.installedVersion === value.availableVersion &&
+    value.usingOverlay;
+const applyRestorationIncomplete = (value) => value.availableVersion !== "";
+const resetCompleted = (value) => noAvailable(value) &&
+    value.installedVersion === value.packagedVersion &&
+    !value.usingOverlay &&
+    !value.rollbackAvailable;
+const rollbackCompleted = (value) => noAvailable(value) &&
+    value.usingOverlay &&
+    value.rollbackAvailable;
+const rollbackUnavailable = (value) => noAvailable(value) && !value.rollbackAvailable;
+const rollbackPrepared = (value) => noAvailable(value) &&
+    value.usingOverlay &&
+    value.rollbackAvailable;
 const OUTCOME_MATRIX = [
     { operation: UpdateOperation.CHECK, outcome: UpdateOutcome.CHECK_NO_COMPATIBLE_RELEASE, exitCode: 0, rolledBack: false, cleanupPending: false, message: exactMessage("No compatible release is available"), state: noAvailable },
     { operation: UpdateOperation.CHECK, outcome: UpdateOutcome.CHECK_UPDATE_AVAILABLE, exitCode: 0, rolledBack: false, cleanupPending: false, message: versionMessage("Update available: "), state: updateAvailable },
@@ -170,26 +189,29 @@ const OUTCOME_MATRIX = [
     { operation: UpdateOperation.APPLY, outcome: UpdateOutcome.APPLY_FAILED_BEFORE_ACTIVATION, exitCode: 1, rolledBack: false, cleanupPending: true, message: exactMessage("Update failed before activation"), state: updateAvailable },
     { operation: UpdateOperation.APPLY, outcome: UpdateOutcome.APPLY_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: false, message: exactMessage("Update failed; previous binary restored"), state: updateAvailable },
     { operation: UpdateOperation.APPLY, outcome: UpdateOutcome.APPLY_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: true, message: exactMessage("Update failed; previous binary restored"), state: updateAvailable },
-    { operation: UpdateOperation.APPLY, outcome: UpdateOutcome.APPLY_RESTORATION_INCOMPLETE, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Update failed; restoration incomplete; recovery snapshots retained"), state: (value) => value.availableVersion !== "" },
-    { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_COMPLETED, exitCode: 0, rolledBack: false, cleanupPending: false, usingOverlay: false, message: exactMessage("Yarr reset to packaged binary"), state: noAvailable },
-    { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_COMPLETED, exitCode: 1, rolledBack: false, cleanupPending: true, usingOverlay: false, message: exactMessage("Yarr reset; updater backup cleanup pending"), state: noAvailable },
+    { operation: UpdateOperation.APPLY, outcome: UpdateOutcome.APPLY_RESTORATION_INCOMPLETE, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Update failed; restoration incomplete; recovery snapshots retained"), state: applyRestorationIncomplete },
+    { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_COMPLETED, exitCode: 0, rolledBack: false, cleanupPending: false, usingOverlay: false, message: exactMessage("Yarr reset to packaged binary"), state: resetCompleted },
+    { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_COMPLETED, exitCode: 1, rolledBack: false, cleanupPending: true, usingOverlay: false, message: exactMessage("Yarr reset; updater backup cleanup pending"), state: resetCompleted },
     { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_FAILED_BEFORE_MUTATION, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Reset failed before mutation"), state: noAvailable },
     { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_FAILED_BEFORE_MUTATION, exitCode: 1, rolledBack: false, cleanupPending: true, message: exactMessage("Reset failed before mutation"), state: noAvailable },
     { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: false, message: exactMessage("Reset failed; previous binary restored"), state: noAvailable },
     { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: true, message: exactMessage("Reset failed; previous binary restored"), state: noAvailable },
     { operation: UpdateOperation.RESET, outcome: UpdateOutcome.RESET_RESTORATION_INCOMPLETE, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Reset failed; restoration incomplete; recovery snapshots retained"), state: noAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_COMPLETED, exitCode: 0, rolledBack: false, cleanupPending: false, usingOverlay: true, message: exactMessage("Yarr rolled back to previous binary"), state: noAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_COMPLETED, exitCode: 1, rolledBack: false, cleanupPending: true, usingOverlay: true, message: exactMessage("Yarr rolled back; recovery snapshot cleanup pending"), state: noAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_UNAVAILABLE, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Manual rollback is unavailable; no previous binary exists"), state: (value) => noAvailable(value) && !value.rollbackAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION, exitCode: 1, rolledBack: false, cleanupPending: false, usingOverlay: true, message: exactMessage("Rollback failed before activation"), state: (value) => noAvailable(value) && value.rollbackAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION, exitCode: 1, rolledBack: false, cleanupPending: true, usingOverlay: true, message: exactMessage("Rollback failed before activation"), state: (value) => noAvailable(value) && value.rollbackAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: false, usingOverlay: true, message: exactMessage("Rollback failed; current binary restored"), state: (value) => noAvailable(value) && value.rollbackAvailable },
-    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: true, usingOverlay: true, message: exactMessage("Rollback failed; current binary restored"), state: (value) => noAvailable(value) && value.rollbackAvailable },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_COMPLETED, exitCode: 0, rolledBack: false, cleanupPending: false, usingOverlay: true, message: exactMessage("Yarr rolled back to previous binary"), state: rollbackCompleted },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_COMPLETED, exitCode: 1, rolledBack: false, cleanupPending: true, usingOverlay: true, message: exactMessage("Yarr rolled back; recovery snapshot cleanup pending"), state: rollbackCompleted },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_UNAVAILABLE, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Manual rollback is unavailable; no previous binary exists"), state: rollbackUnavailable },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION, exitCode: 1, rolledBack: false, cleanupPending: false, usingOverlay: true, message: exactMessage("Rollback failed before activation"), state: rollbackPrepared },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_FAILED_BEFORE_ACTIVATION, exitCode: 1, rolledBack: false, cleanupPending: true, usingOverlay: true, message: exactMessage("Rollback failed before activation"), state: rollbackPrepared },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: false, usingOverlay: true, message: exactMessage("Rollback failed; current binary restored"), state: rollbackPrepared },
+    { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_RESTORED, exitCode: 1, rolledBack: true, cleanupPending: true, usingOverlay: true, message: exactMessage("Rollback failed; current binary restored"), state: rollbackPrepared },
     { operation: UpdateOperation.ROLLBACK, outcome: UpdateOutcome.ROLLBACK_RESTORATION_INCOMPLETE, exitCode: 1, rolledBack: false, cleanupPending: false, message: exactMessage("Rollback failed; restoration incomplete; recovery snapshots retained"), state: noAvailable },
 ];
 function isValidOperationOutcome(requestedOperation, exitCode, value) {
-    if (value.operation !== requestedOperation || !cleanupMatchesOperation(value))
+    if (value.operation !== requestedOperation ||
+        !cleanupMatchesOperation(value) ||
+        !hasValidDerivedState(value)) {
         return false;
+    }
     const rule = OUTCOME_MATRIX.find((candidate) => candidate.operation === value.operation &&
         candidate.outcome === value.outcome &&
         candidate.exitCode === exitCode &&
@@ -197,6 +219,13 @@ function isValidOperationOutcome(requestedOperation, exitCode, value) {
         candidate.cleanupPending === value.cleanupPending &&
         (candidate.usingOverlay === undefined || candidate.usingOverlay === value.usingOverlay));
     return rule !== undefined && rule.message(value) && rule.state(value);
+}
+function validateUpdateProtocolResponse(requestedOperation, exitCode, text) {
+    const parsed = parseUpdateResponse(text);
+    if (!isValidOperationOutcome(requestedOperation, exitCode, parsed)) {
+        invalidResponse();
+    }
+    return parsed;
 }
 function cleanupMatchesOperation(value) {
     if (!value.cleanupPending)
@@ -207,21 +236,51 @@ function cleanupMatchesOperation(value) {
     return value.operation !== UpdateOperation.CHECK &&
         new RegExp(`^\\.yarr\\.${label}\\.recovery\\.[A-Za-z0-9]{8}$`).test(value.recoveryIdentifier);
 }
-function isBoundedSemVer(value) {
+const MAX_SHELL_VERSION_COMPONENT = 9223372036854775807n;
+function parseYarrReleaseVersion(value) {
     if (value.length === 0 || value.length > 128)
-        return false;
-    const match = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/.exec(value);
-    if (!match || match.slice(1, 4).some((part) => part.length > 10))
-        return false;
-    return validIdentifiers(match[4], true) && validIdentifiers(match[5], false);
+        return undefined;
+    const match = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.exec(value);
+    if (!match)
+        return undefined;
+    const parts = [BigInt(match[1]), BigInt(match[2]), BigInt(match[3])];
+    return parts.every((part) => part <= MAX_SHELL_VERSION_COMPONENT)
+        ? parts
+        : undefined;
 }
-function validIdentifiers(value, rejectNumericLeadingZero) {
-    if (value === undefined)
-        return true;
-    return value.split(".").every((identifier) => identifier.length > 0 &&
-        identifier.length <= 32 &&
-        /^[0-9A-Za-z-]+$/.test(identifier) &&
-        (!rejectNumericLeadingZero || !/^0[0-9]+$/.test(identifier)));
+function isYarrReleaseVersion(value) {
+    return parseYarrReleaseVersion(value) !== undefined;
+}
+function compareYarrReleaseVersions(left, right) {
+    const leftParts = parseYarrReleaseVersion(left);
+    const rightParts = parseYarrReleaseVersion(right);
+    if (!leftParts || !rightParts)
+        return undefined;
+    for (let index = 0; index < leftParts.length; index += 1) {
+        if (leftParts[index] < rightParts[index])
+            return -1;
+        if (leftParts[index] > rightParts[index])
+            return 1;
+    }
+    return 0;
+}
+function hasValidDerivedState(value) {
+    const installed = parseYarrReleaseVersion(value.installedVersion);
+    const packaged = parseYarrReleaseVersion(value.packagedVersion);
+    if (!installed || !packaged || installed[0] !== packaged[0])
+        return false;
+    if (!value.usingOverlay && value.installedVersion !== value.packagedVersion)
+        return false;
+    if (value.rollbackAvailable && !value.usingOverlay)
+        return false;
+    if (value.availableVersion === "") {
+        return !value.updateAvailable;
+    }
+    const available = parseYarrReleaseVersion(value.availableVersion);
+    if (!available || available[0] !== packaged[0])
+        return false;
+    const comparison = compareYarrReleaseVersions(value.availableVersion, value.installedVersion);
+    return comparison !== undefined && value.updateAvailable === (comparison === 1);
 }
 function isRecord(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);

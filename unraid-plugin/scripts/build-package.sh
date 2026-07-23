@@ -79,6 +79,9 @@ mkdir -p "$generated_root/api/dist" "$generated_root/web"
 cp -- "$api_root/package.json" "$api_root/package-lock.json" "$generated_root/api/"
 find "$api_root/dist" -maxdepth 1 -type f -name '*.js' ! -name '*.spec.js' -exec cp -- '{}' "$generated_root/api/dist/" \;
 [[ -f "$generated_root/api/dist/index.js" ]] || { printf 'API build did not produce dist/index.js\n' >&2; exit 1; }
+node "$package_root/tests/update-protocol-dist-contract.cjs" \
+    "$api_root/dist/update.service.js" \
+    "$generated_root/api/dist/update.service.js"
 (cd "$generated_root/api" && npm ci --omit=dev --ignore-scripts --legacy-peer-deps)
 if [[ -d "$generated_root/api/node_modules" ]]; then
     find "$generated_root/api/node_modules" -name '.package-lock.json' -delete
