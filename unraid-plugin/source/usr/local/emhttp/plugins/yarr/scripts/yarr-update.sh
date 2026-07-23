@@ -310,9 +310,32 @@ yarr_update_valid_recovery_identifier() {
     [[ "$1" =~ ^\.yarr\.(update|reset|rollback)\.recovery\.[A-Za-z0-9]{8}$ ]]
 }
 
+yarr_update_valid_operation_outcome() {
+    case "$1:$2" in
+        CHECK:CHECK_NO_COMPATIBLE_RELEASE|CHECK:CHECK_UPDATE_AVAILABLE|CHECK:CHECK_CURRENT|\
+        APPLY:APPLY_CURRENT|APPLY:APPLY_UPDATED|APPLY:APPLY_FAILED_BEFORE_ACTIVATION|\
+        APPLY:APPLY_RESTORED|APPLY:APPLY_RESTORATION_INCOMPLETE|\
+        RESET:RESET_COMPLETED|RESET:RESET_FAILED_BEFORE_MUTATION|RESET:RESET_RESTORED|\
+        RESET:RESET_RESTORATION_INCOMPLETE|\
+        ROLLBACK:ROLLBACK_COMPLETED|ROLLBACK:ROLLBACK_UNAVAILABLE|\
+        ROLLBACK:ROLLBACK_FAILED_BEFORE_ACTIVATION|ROLLBACK:ROLLBACK_RESTORED|\
+        ROLLBACK:ROLLBACK_RESTORATION_INCOMPLETE)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 yarr_update_emit() {
-    local available=$1 rolled_back=$2 message=$3 installed packaged using_overlay update_available rollback_available=false
+    local operation=$1 outcome=$2 available=$3 rolled_back=$4 message=$5
+    local installed packaged using_overlay update_available rollback_available=false
     local cleanup_pending=$YARR_CLEANUP_PENDING recovery_identifier=$YARR_RECOVERY_IDENTIFIER
+    yarr_update_valid_operation_outcome "$operation" "$outcome" || {
+        yarr_update_error 'refusing to emit an unknown updater operation or outcome'
+        return 1
+    }
     if [[ "$cleanup_pending" == true ]]; then
         yarr_update_valid_recovery_identifier "$recovery_identifier" || {
             yarr_update_error 'refusing to emit an unsafe recovery identifier'
@@ -340,11 +363,12 @@ yarr_update_emit() {
     fi
     jq -cn --arg installedVersion "$installed" --arg packagedVersion "$packaged" \
         --arg availableVersion "$available" --arg message "$message" \
+        --arg operation "$operation" --arg outcome "$outcome" \
         --arg recoveryIdentifier "$recovery_identifier" \
         --argjson updateAvailable "$update_available" --argjson usingOverlay "$using_overlay" \
         --argjson rollbackAvailable "$rollback_available" --argjson rolledBack "$rolled_back" \
         --argjson cleanupPending "$cleanup_pending" \
-        '{installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rollbackAvailable: $rollbackAvailable, rolledBack: $rolledBack, cleanupPending: $cleanupPending, recoveryIdentifier: $recoveryIdentifier, message: $message}'
+        '{operation: $operation, outcome: $outcome, installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rollbackAvailable: $rollbackAvailable, rolledBack: $rolledBack, cleanupPending: $cleanupPending, recoveryIdentifier: $recoveryIdentifier, message: $message}'
 }
 
 yarr_update_lifecycle() {
@@ -968,18 +992,20 @@ yarr_update_rollback_manual_current() {
 }
 
 yarr_update_fail_manual_rollback() {
-    local message
+    local message outcome
     if yarr_update_rollback_manual_current; then
         message='Rollback failed; current binary restored'
+        outcome=ROLLBACK_RESTORED
         if ! yarr_update_remove_rollback_transaction; then
             yarr_update_error 'current binary restored but recovery snapshots could not be removed'
         fi
     else
         YARR_ROLLED_BACK=false
         message='Rollback failed; restoration incomplete; recovery snapshots retained'
+        outcome=ROLLBACK_RESTORATION_INCOMPLETE
     fi
     YARR_UPDATE_ROLLBACK=''
-    yarr_update_emit '' "$YARR_ROLLED_BACK" "$message" || return 1
+    yarr_update_emit ROLLBACK "$outcome" '' "$YARR_ROLLED_BACK" "$message" || return 1
     return 1
 }
 
@@ -995,7 +1021,8 @@ yarr_update_manual_rollback_locked() {
     YARR_TXN_PREVIOUS="${YARR_OVERLAY_DIR}/yarr.previous"
     if [[ ! -f "$YARR_TXN_ACTIVE" || -L "$YARR_TXN_ACTIVE" || ! -x "$YARR_TXN_ACTIVE" ||
         ! -f "$YARR_TXN_PREVIOUS" || -L "$YARR_TXN_PREVIOUS" || ! -x "$YARR_TXN_PREVIOUS" ]]; then
-        yarr_update_emit '' false 'Manual rollback is unavailable; no previous binary exists'
+        yarr_update_emit ROLLBACK ROLLBACK_UNAVAILABLE '' false \
+            'Manual rollback is unavailable; no previous binary exists'
         return 1
     fi
     installed=$(yarr_update_version_from_binary "$YARR_TXN_ACTIVE") || return 1
@@ -1007,7 +1034,8 @@ yarr_update_manual_rollback_locked() {
     YARR_TXN_WAS_RUNNING=false
     yarr_update_prepare_manual_rollback || {
         yarr_update_error 'could not create durable manual rollback snapshots'
-        yarr_update_emit '' false 'Rollback failed before activation' || return 1
+        yarr_update_emit ROLLBACK ROLLBACK_FAILED_BEFORE_ACTIVATION '' false \
+            'Rollback failed before activation' || return 1
         return 1
     }
     YARR_UPDATE_ROLLBACK=yarr_update_rollback_manual_current
@@ -1022,7 +1050,8 @@ yarr_update_manual_rollback_locked() {
         if (( ownership_status != 1 )); then
             yarr_update_error 'live daemon ownership is indeterminate'
             yarr_update_discard_manual_rollback_preparation
-            yarr_update_emit '' false 'Rollback failed before activation' || return 1
+            yarr_update_emit ROLLBACK ROLLBACK_FAILED_BEFORE_ACTIVATION '' false \
+                'Rollback failed before activation' || return 1
             return 1
         fi
     fi
@@ -1058,10 +1087,12 @@ yarr_update_manual_rollback_locked() {
     fi
     YARR_UPDATE_ROLLBACK=''
     if ! yarr_update_remove_rollback_transaction; then
-        yarr_update_emit '' false 'Yarr rolled back; recovery snapshot cleanup pending'
+        yarr_update_emit ROLLBACK ROLLBACK_COMPLETED '' false \
+            'Yarr rolled back; recovery snapshot cleanup pending'
         return 1
     fi
-    yarr_update_emit '' false 'Yarr rolled back to previous binary'
+    yarr_update_emit ROLLBACK ROLLBACK_COMPLETED '' false \
+        'Yarr rolled back to previous binary'
 }
 
 yarr_update_validate_supported_state() {
@@ -1088,9 +1119,15 @@ yarr_update_check_locked() {
     supported=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
     yarr_update_validate_supported_state "$installed" "$supported" || return 1
     available=$(yarr_update_select_available "$releases" "$installed" "$supported" "$UPDATE_CHANNEL" || true)
-    if [[ -z "$available" ]]; then yarr_update_emit '' false 'No compatible release is available'
-    elif yarr_update_version_gt "$available" "$installed"; then yarr_update_emit "$available" false "Update available: ${available}"
-    else yarr_update_emit "$available" false 'Yarr is current'; fi
+    if [[ -z "$available" ]]; then
+        yarr_update_emit CHECK CHECK_NO_COMPATIBLE_RELEASE '' false \
+            'No compatible release is available'
+    elif yarr_update_version_gt "$available" "$installed"; then
+        yarr_update_emit CHECK CHECK_UPDATE_AVAILABLE "$available" false \
+            "Update available: ${available}"
+    else
+        yarr_update_emit CHECK CHECK_CURRENT "$available" false 'Yarr is current'
+    fi
 }
 
 yarr_update_apply_prepared_locked() {
@@ -1123,42 +1160,48 @@ yarr_update_apply_prepared_locked() {
         return 1
     }
     if [[ "$version" == "$installed" ]]; then
-        yarr_update_emit "$version" false 'Yarr is current'
+        yarr_update_emit APPLY APPLY_CURRENT "$version" false 'Yarr is current'
         return 0
     fi
     yarr_update_ensure_overlay_dir || return 1
     if ! yarr_update_apply_locked "$candidate"; then
         if [[ "$YARR_RESTORATION_INCOMPLETE" == true ]]; then
-            yarr_update_emit "$version" false \
+            yarr_update_emit APPLY APPLY_RESTORATION_INCOMPLETE "$version" false \
                 'Update failed; restoration incomplete; recovery snapshots retained' || return 1
         elif [[ "$YARR_RESTORATION_ATTEMPTED" == true && "$YARR_ROLLED_BACK" == true ]]; then
-            yarr_update_emit "$version" true 'Update failed; previous binary restored' || return 1
+            yarr_update_emit APPLY APPLY_RESTORED "$version" true \
+                'Update failed; previous binary restored' || return 1
         elif [[ "$YARR_MUTATION_COMMITTED" == true ]]; then
-            yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending' || return 1
+            yarr_update_emit APPLY APPLY_UPDATED "$version" false \
+                'Yarr updated; obsolete backup cleanup pending' || return 1
         else
-            yarr_update_emit "$version" false 'Update failed before activation' || return 1
+            yarr_update_emit APPLY APPLY_FAILED_BEFORE_ACTIVATION "$version" false \
+                'Update failed before activation' || return 1
         fi
         return 1
     fi
-    yarr_update_emit "$version" false "Yarr updated to ${version}"
+    yarr_update_emit APPLY APPLY_UPDATED "$version" false "Yarr updated to ${version}"
 }
 
 yarr_update_reset_request_locked() {
     yarr_update_require_array_active || return 1
     if ! yarr_update_reset_locked; then
         if [[ "$YARR_RESTORATION_INCOMPLETE" == true ]]; then
-            yarr_update_emit '' false \
+            yarr_update_emit RESET RESET_RESTORATION_INCOMPLETE '' false \
                 'Reset failed; restoration incomplete; recovery snapshots retained' || return 1
         elif [[ "$YARR_RESTORATION_ATTEMPTED" == true && "$YARR_ROLLED_BACK" == true ]]; then
-            yarr_update_emit '' true 'Reset failed; previous binary restored' || return 1
+            yarr_update_emit RESET RESET_RESTORED '' true \
+                'Reset failed; previous binary restored' || return 1
         elif [[ "$YARR_MUTATION_COMMITTED" == true ]]; then
-            yarr_update_emit '' false 'Yarr reset; updater backup cleanup pending' || return 1
+            yarr_update_emit RESET RESET_COMPLETED '' false \
+                'Yarr reset; updater backup cleanup pending' || return 1
         else
-            yarr_update_emit '' false 'Reset failed before mutation' || return 1
+            yarr_update_emit RESET RESET_FAILED_BEFORE_MUTATION '' false \
+                'Reset failed before mutation' || return 1
         fi
         return 1
     fi
-    yarr_update_emit '' false 'Yarr reset to packaged binary'
+    yarr_update_emit RESET RESET_COMPLETED '' false 'Yarr reset to packaged binary'
 }
 
 yarr_update_check() {

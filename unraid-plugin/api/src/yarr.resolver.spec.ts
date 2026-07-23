@@ -138,6 +138,8 @@ function harness() {
   };
   const updates = {
     status: vi.fn(async () => ({
+      operation: "CHECK" as const,
+      outcome: "CHECK_UPDATE_AVAILABLE" as const,
       installedVersion: "2.0.0",
       packagedVersion: "2.0.0",
       availableVersion: "2.1.0",
@@ -151,6 +153,8 @@ function harness() {
       secret: "update-private",
     })),
     apply: vi.fn(async () => ({
+      operation: "APPLY" as const,
+      outcome: "APPLY_UPDATED" as const,
       installedVersion: "2.1.0",
       packagedVersion: "2.0.0",
       availableVersion: "2.1.0",
@@ -164,10 +168,12 @@ function harness() {
       secret: "update-private",
     })),
     reset: vi.fn(async () => ({
+      operation: "RESET" as const,
+      outcome: "RESET_COMPLETED" as const,
       installedVersion: "2.0.0",
       packagedVersion: "2.0.0",
-      availableVersion: "2.1.0",
-      updateAvailable: true,
+      availableVersion: "",
+      updateAvailable: false,
       usingOverlay: false,
       rollbackAvailable: false,
       rolledBack: false,
@@ -177,10 +183,12 @@ function harness() {
       secret: "update-private",
     })),
     rollback: vi.fn(async () => ({
+      operation: "ROLLBACK" as const,
+      outcome: "ROLLBACK_COMPLETED" as const,
       installedVersion: "2.0.0",
       packagedVersion: "2.0.0",
-      availableVersion: "2.1.0",
-      updateAvailable: true,
+      availableVersion: "",
+      updateAvailable: false,
       usingOverlay: true,
       rollbackAvailable: true,
       rolledBack: false,
@@ -299,9 +307,24 @@ describe("YarrResolver", () => {
     expect(updates.apply).toHaveBeenCalledWith("2.1.0");
     expect(updates.reset).toHaveBeenCalledOnce();
     expect(updates.rollback).toHaveBeenCalledOnce();
-    expect(applied).toMatchObject({ cleanupPending: false, recoveryIdentifier: "" });
-    expect(reset).toMatchObject({ cleanupPending: false, recoveryIdentifier: "" });
-    expect(rolledBack).toMatchObject({ cleanupPending: false, recoveryIdentifier: "" });
+    expect(applied).toMatchObject({
+      operation: "APPLY",
+      outcome: "APPLY_UPDATED",
+      cleanupPending: false,
+      recoveryIdentifier: "",
+    });
+    expect(reset).toMatchObject({
+      operation: "RESET",
+      outcome: "RESET_COMPLETED",
+      cleanupPending: false,
+      recoveryIdentifier: "",
+    });
+    expect(rolledBack).toMatchObject({
+      operation: "ROLLBACK",
+      outcome: "ROLLBACK_COMPLETED",
+      cleanupPending: false,
+      recoveryIdentifier: "",
+    });
     expect(JSON.stringify({ applied, reset, rolledBack })).not.toContain("update-private");
   });
 });

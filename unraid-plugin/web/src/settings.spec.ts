@@ -318,7 +318,7 @@ describe("Yarr settings", () => {
 
   it("uses unconfirmed refresh guidance for update and reset transport failures", async () => {
     await mountSettings();
-    api.queryYarrUpdateStatus.mockResolvedValue({ installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0", updateAvailable: true, usingOverlay: true, rolledBack: false, message: "Update available" });
+    api.queryYarrUpdateStatus.mockResolvedValue({ operation: "CHECK", outcome: "CHECK_UPDATE_AVAILABLE", installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0", updateAvailable: true, usingOverlay: true, rolledBack: false, message: "Update available: 1.3.0" });
     button("Updates").click();
     await flush();
     api.updateYarrBinary.mockRejectedValueOnce(new Error("lost response"));
@@ -463,12 +463,14 @@ describe("Yarr settings", () => {
   it("confirms update and reset and displays rollback results", async () => {
     await mountSettings();
     api.queryYarrUpdateStatus.mockResolvedValue({
+      operation: "CHECK", outcome: "CHECK_UPDATE_AVAILABLE",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
-      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false, message: "Update available",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false, message: "Update available: 1.3.0",
     });
     api.updateYarrBinary.mockResolvedValue({
+      operation: "APPLY", outcome: "APPLY_RESTORED",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
-      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: true, message: "Update failed; previous version restored",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: true, message: "Update failed; previous binary restored",
     });
     button("Updates").click();
     await flush();
@@ -477,10 +479,11 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain("Install Yarr 1.3.0?");
     button("Install update").click();
     await flush();
-    expect(host.textContent).toContain("previous version restored");
+    expect(host.textContent).toContain("The previous version was restored.");
     api.rollbackYarrBinary.mockResolvedValue({
-      installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
-      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      operation: "ROLLBACK", outcome: "ROLLBACK_COMPLETED",
+      installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "",
+      updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       message: "Yarr rolled back to previous binary",
     });
     button("Roll back to previous version").click();
@@ -498,17 +501,20 @@ describe("Yarr settings", () => {
   it("distinguishes confirmed restoration from incomplete manual rollback recovery", async () => {
     await mountSettings();
     api.queryYarrUpdateStatus.mockResolvedValue({
+      operation: "CHECK", outcome: "CHECK_CURRENT",
       installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       message: "Yarr is current",
     });
     api.rollbackYarrBinary
       .mockResolvedValueOnce({
+        operation: "ROLLBACK", outcome: "ROLLBACK_RESTORED",
         installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "",
         updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: true,
         message: "Rollback failed; current binary restored",
       })
       .mockResolvedValueOnce({
+        operation: "ROLLBACK", outcome: "ROLLBACK_RESTORATION_INCOMPLETE",
         installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "",
         updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
         message: "Rollback failed; restoration incomplete; recovery snapshots retained",
@@ -536,16 +542,19 @@ describe("Yarr settings", () => {
   it("never presents incomplete update or reset restoration as successful", async () => {
     await mountSettings();
     api.queryYarrUpdateStatus.mockResolvedValue({
+      operation: "CHECK", outcome: "CHECK_UPDATE_AVAILABLE",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       message: "Update available: 1.3.0",
     });
     api.updateYarrBinary.mockResolvedValue({
+      operation: "APPLY", outcome: "APPLY_RESTORATION_INCOMPLETE",
       installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       message: "Update failed; restoration incomplete; recovery snapshots retained",
     });
     api.resetYarrBinary.mockResolvedValue({
+      operation: "RESET", outcome: "RESET_RESTORATION_INCOMPLETE",
       installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "",
       updateAvailable: false, usingOverlay: false, rollbackAvailable: false, rolledBack: false,
       message: "Reset failed; restoration incomplete; recovery snapshots retained",
@@ -574,18 +583,21 @@ describe("Yarr settings", () => {
     const updateIdentifier = ".yarr.update.recovery.Ab12Cd34";
     const resetIdentifier = ".yarr.reset.recovery.Z9y8X7w6";
     api.queryYarrUpdateStatus.mockResolvedValue({
+      operation: "CHECK", outcome: "CHECK_UPDATE_AVAILABLE",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       cleanupPending: false, recoveryIdentifier: "",
       message: "Update available: 1.3.0",
     });
     api.updateYarrBinary.mockResolvedValue({
+      operation: "APPLY", outcome: "APPLY_FAILED_BEFORE_ACTIVATION",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       cleanupPending: true, recoveryIdentifier: updateIdentifier,
       message: "Update failed before activation",
     });
     api.resetYarrBinary.mockResolvedValue({
+      operation: "RESET", outcome: "RESET_FAILED_BEFORE_MUTATION",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "",
       updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       cleanupPending: true, recoveryIdentifier: resetIdentifier,
@@ -616,12 +628,14 @@ describe("Yarr settings", () => {
     await mountSettings();
     const identifier = ".yarr.update.recovery.R3s4T5o6";
     api.queryYarrUpdateStatus.mockResolvedValue({
+      operation: "CHECK", outcome: "CHECK_UPDATE_AVAILABLE",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       cleanupPending: false, recoveryIdentifier: "",
       message: "Update available: 1.3.0",
     });
     api.updateYarrBinary.mockResolvedValue({
+      operation: "APPLY", outcome: "APPLY_RESTORED",
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: true,
       cleanupPending: true, recoveryIdentifier: identifier,

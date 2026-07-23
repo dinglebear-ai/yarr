@@ -297,15 +297,25 @@ The JSON result keys are:
 
 ```json
 {
+  "operation": "CHECK",
+  "outcome": "CHECK_CURRENT",
   "installedVersion": "2.1.0",
   "packagedVersion": "2.1.0",
   "availableVersion": "2.1.0",
   "updateAvailable": false,
   "usingOverlay": false,
+  "rollbackAvailable": false,
   "rolledBack": false,
+  "cleanupPending": false,
+  "recoveryIdentifier": "",
   "message": "Yarr is current"
 }
 ```
+
+`operation` and its namespaced `outcome` form a closed machine contract.
+Validate them together with exit code, update/overlay state, rollback truth,
+cleanup truth and identifier, and the outcome-bound display message. Do not
+infer an updater outcome from arbitrary human-readable text.
 
 **Step 4: Run the focused contract**
 

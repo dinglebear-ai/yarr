@@ -19,6 +19,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Field, InputType, Int, ObjectType, registerEnumType } from "@nestjs/graphql";
+import { UpdateOperation, UpdateOutcome } from "./update.service";
 
 export const MAX_IMPORT_TEXT_LENGTH = 256 * 1024;
 const SERVICE_IDS = [
@@ -67,6 +68,8 @@ registerEnumType(YarrBindMode, { name: "YarrBindMode" });
 registerEnumType(YarrAuthMode, { name: "YarrAuthMode" });
 registerEnumType(YarrLogLevel, { name: "YarrLogLevel" });
 registerEnumType(YarrSecretUpdateKind, { name: "YarrSecretUpdateKind" });
+registerEnumType(UpdateOperation, { name: "YarrUpdateOperation" });
+registerEnumType(UpdateOutcome, { name: "YarrUpdateOutcome" });
 
 @ObjectType()
 export class YarrKeyValue {
@@ -233,6 +236,10 @@ export class YarrDiscoveryResult {
 
 @ObjectType()
 export class YarrUpdateStatus {
+  @Field(() => UpdateOperation)
+  operation!: UpdateOperation;
+  @Field(() => UpdateOutcome)
+  outcome!: UpdateOutcome;
   @Field(() => String)
   installedVersion!: string;
   @Field(() => String)
@@ -500,6 +507,13 @@ export const graphqlSchemaExtension = async () => `
   enum YarrAuthMode { BEARER GOOGLE_OAUTH TRUSTED_GATEWAY }
   enum YarrLogLevel { TRACE DEBUG INFO WARN ERROR }
   enum YarrSecretUpdateKind { PRESERVE SET CLEAR }
+  enum YarrUpdateOperation { CHECK APPLY RESET ROLLBACK }
+  enum YarrUpdateOutcome {
+    CHECK_NO_COMPATIBLE_RELEASE CHECK_UPDATE_AVAILABLE CHECK_CURRENT
+    APPLY_CURRENT APPLY_UPDATED APPLY_FAILED_BEFORE_ACTIVATION APPLY_RESTORED APPLY_RESTORATION_INCOMPLETE
+    RESET_COMPLETED RESET_FAILED_BEFORE_MUTATION RESET_RESTORED RESET_RESTORATION_INCOMPLETE
+    ROLLBACK_COMPLETED ROLLBACK_UNAVAILABLE ROLLBACK_FAILED_BEFORE_ACTIVATION ROLLBACK_RESTORED ROLLBACK_RESTORATION_INCOMPLETE
+  }
 
   type YarrKeyValue { key: String!, value: String! }
   type YarrRuntime { state: String!, pid: Int, version: String, bindAddress: String!, port: Int!, ready: Boolean!, healthMessage: String!, uptimeSeconds: Int }
@@ -513,8 +527,8 @@ export const graphqlSchemaExtension = async () => `
   type YarrDiscoveryCandidate { candidateId: String!, source: String!, serviceId: String!, confidence: Int!, reasons: [String!]!, baseUrl: String!, hasCredential: Boolean! }
   type YarrDiscoveryError { code: String!, message: String! }
   type YarrDiscoveryResult { discoveryId: String!, candidates: [YarrDiscoveryCandidate!]!, errors: [YarrDiscoveryError!]! }
-  type YarrUpdateStatus { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
-  type YarrUpdateResult { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
+  type YarrUpdateStatus { operation: YarrUpdateOperation!, outcome: YarrUpdateOutcome!, installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
+  type YarrUpdateResult { operation: YarrUpdateOperation!, outcome: YarrUpdateOutcome!, installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
 
   input YarrSecretUpdateInput { kind: YarrSecretUpdateKind!, value: String }
   input SaveYarrServiceInput { service: String!, enabled: Boolean, baseUrl: String, username: String, password: YarrSecretUpdateInput, apiKey: YarrSecretUpdateInput }

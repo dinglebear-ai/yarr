@@ -173,6 +173,15 @@ Manual rollback is available from the Updates panel or as
 overlay so `/usr/local/yarr/bin/yarr` is selected again. Neither action changes
 plugin configuration or service credentials.
 
+Every structured updater response carries closed `operation` and `outcome`
+discriminators. Operations are `CHECK`, `APPLY`, `RESET`, and `ROLLBACK`;
+outcomes are namespaced to their operation, such as `CHECK_UPDATE_AVAILABLE`,
+`APPLY_RESTORED`, or `RESET_COMPLETED`. The API validates operation, outcome,
+exit code, rollback state, cleanup state and identifier, overlay/update state,
+and the bounded message class as one tuple before GraphQL or the UI receives
+the response. Human-readable `message` remains display text and is never used
+as the authoritative outcome discriminator.
+
 ## API and web loader behavior
 
 The classic package stages production-only JavaScript for

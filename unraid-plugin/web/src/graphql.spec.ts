@@ -5,6 +5,7 @@ import {
   mutateYarrConfig,
   queryYarrConfig,
   queryYarrRuntime,
+  queryYarrUpdateStatus,
 } from "./graphql";
 
 const runtime = {
@@ -74,6 +75,29 @@ describe("Yarr GraphQL client", () => {
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toMatchObject({
       query: expect.stringContaining("yarrRuntime"),
     });
+  });
+
+  it("requests the validated updater operation and outcome discriminators", async () => {
+    const update = {
+      operation: "CHECK",
+      outcome: "CHECK_CURRENT",
+      installedVersion: "2.1.0",
+      packagedVersion: "2.1.0",
+      availableVersion: "2.1.0",
+      updateAvailable: false,
+      usingOverlay: false,
+      rollbackAvailable: false,
+      rolledBack: false,
+      cleanupPending: false,
+      recoveryIdentifier: "",
+      message: "Yarr is current",
+    };
+    vi.mocked(fetch).mockResolvedValue(graphqlResponse({ data: { yarrUpdateStatus: update } }));
+
+    await expect(queryYarrUpdateStatus()).resolves.toEqual(update);
+
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body));
+    expect(body.query).toContain("operation outcome");
   });
 
   it("returns a user-safe error for GraphQL failures", async () => {

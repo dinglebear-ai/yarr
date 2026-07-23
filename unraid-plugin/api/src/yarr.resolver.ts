@@ -240,6 +240,8 @@ function mapDiscovery(value: DiscoveryPreview): YarrDiscoveryResult {
 
 function mapUpdate(value: UpdateStatus): YarrUpdateStatus {
   return {
+    operation: value.operation,
+    outcome: value.outcome,
     installedVersion: value.installedVersion,
     packagedVersion: value.packagedVersion,
     availableVersion: value.availableVersion,

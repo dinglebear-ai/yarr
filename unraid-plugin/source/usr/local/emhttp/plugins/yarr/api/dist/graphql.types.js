@@ -13,6 +13,7 @@ exports.graphqlSchemaExtension = exports.YARR_INPUT_FIELDS = exports.YARR_INPUT_
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const graphql_1 = require("@nestjs/graphql");
+const update_service_1 = require("./update.service");
 exports.MAX_IMPORT_TEXT_LENGTH = 256 * 1024;
 const SERVICE_IDS = [
     "sonarr", "radarr", "prowlarr", "tautulli", "overseerr", "bazarr", "tracearr",
@@ -59,6 +60,8 @@ var YarrSecretUpdateKind;
 (0, graphql_1.registerEnumType)(YarrAuthMode, { name: "YarrAuthMode" });
 (0, graphql_1.registerEnumType)(YarrLogLevel, { name: "YarrLogLevel" });
 (0, graphql_1.registerEnumType)(YarrSecretUpdateKind, { name: "YarrSecretUpdateKind" });
+(0, graphql_1.registerEnumType)(update_service_1.UpdateOperation, { name: "YarrUpdateOperation" });
+(0, graphql_1.registerEnumType)(update_service_1.UpdateOutcome, { name: "YarrUpdateOutcome" });
 let YarrKeyValue = class YarrKeyValue {
     key;
     value;
@@ -417,6 +420,8 @@ exports.YarrDiscoveryResult = YarrDiscoveryResult = __decorate([
     (0, graphql_1.ObjectType)()
 ], YarrDiscoveryResult);
 let YarrUpdateStatus = class YarrUpdateStatus {
+    operation;
+    outcome;
     installedVersion;
     packagedVersion;
     availableVersion;
@@ -429,6 +434,14 @@ let YarrUpdateStatus = class YarrUpdateStatus {
     message;
 };
 exports.YarrUpdateStatus = YarrUpdateStatus;
+__decorate([
+    (0, graphql_1.Field)(() => update_service_1.UpdateOperation),
+    __metadata("design:type", String)
+], YarrUpdateStatus.prototype, "operation", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => update_service_1.UpdateOutcome),
+    __metadata("design:type", String)
+], YarrUpdateStatus.prototype, "outcome", void 0);
 __decorate([
     (0, graphql_1.Field)(() => String),
     __metadata("design:type", String)
@@ -825,6 +838,13 @@ const graphqlSchemaExtension = async () => `
   enum YarrAuthMode { BEARER GOOGLE_OAUTH TRUSTED_GATEWAY }
   enum YarrLogLevel { TRACE DEBUG INFO WARN ERROR }
   enum YarrSecretUpdateKind { PRESERVE SET CLEAR }
+  enum YarrUpdateOperation { CHECK APPLY RESET ROLLBACK }
+  enum YarrUpdateOutcome {
+    CHECK_NO_COMPATIBLE_RELEASE CHECK_UPDATE_AVAILABLE CHECK_CURRENT
+    APPLY_CURRENT APPLY_UPDATED APPLY_FAILED_BEFORE_ACTIVATION APPLY_RESTORED APPLY_RESTORATION_INCOMPLETE
+    RESET_COMPLETED RESET_FAILED_BEFORE_MUTATION RESET_RESTORED RESET_RESTORATION_INCOMPLETE
+    ROLLBACK_COMPLETED ROLLBACK_UNAVAILABLE ROLLBACK_FAILED_BEFORE_ACTIVATION ROLLBACK_RESTORED ROLLBACK_RESTORATION_INCOMPLETE
+  }
 
   type YarrKeyValue { key: String!, value: String! }
   type YarrRuntime { state: String!, pid: Int, version: String, bindAddress: String!, port: Int!, ready: Boolean!, healthMessage: String!, uptimeSeconds: Int }
@@ -838,8 +858,8 @@ const graphqlSchemaExtension = async () => `
   type YarrDiscoveryCandidate { candidateId: String!, source: String!, serviceId: String!, confidence: Int!, reasons: [String!]!, baseUrl: String!, hasCredential: Boolean! }
   type YarrDiscoveryError { code: String!, message: String! }
   type YarrDiscoveryResult { discoveryId: String!, candidates: [YarrDiscoveryCandidate!]!, errors: [YarrDiscoveryError!]! }
-  type YarrUpdateStatus { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
-  type YarrUpdateResult { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
+  type YarrUpdateStatus { operation: YarrUpdateOperation!, outcome: YarrUpdateOutcome!, installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
+  type YarrUpdateResult { operation: YarrUpdateOperation!, outcome: YarrUpdateOutcome!, installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, cleanupPending: Boolean!, recoveryIdentifier: String!, message: String! }
 
   input YarrSecretUpdateInput { kind: YarrSecretUpdateKind!, value: String }
   input SaveYarrServiceInput { service: String!, enabled: Boolean, baseUrl: String, username: String, password: YarrSecretUpdateInput, apiKey: YarrSecretUpdateInput }

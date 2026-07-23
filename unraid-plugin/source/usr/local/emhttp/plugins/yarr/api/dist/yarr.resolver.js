@@ -291,6 +291,8 @@ function mapDiscovery(value) {
 }
 function mapUpdate(value) {
     return {
+        operation: value.operation,
+        outcome: value.outcome,
         installedVersion: value.installedVersion,
         packagedVersion: value.packagedVersion,
         availableVersion: value.availableVersion,

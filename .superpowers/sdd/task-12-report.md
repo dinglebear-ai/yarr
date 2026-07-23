@@ -423,3 +423,54 @@ No deployment, workflow dispatch, release publication, or upstream draft
 mutation occurred. Independent reviewer approval remains pending. Detailed
 evidence is in
 `.superpowers/sdd/task-12-final-head-review-fixes-report.md`.
+
+## Exit-zero updater protocol remediation
+
+The subsequent final-head review found that successful updater responses could
+be accepted by message shape without an operation-specific state contract. The
+protocol now carries explicit `operation` and namespaced `outcome`
+discriminators on every structured shell result.
+
+`UpdateService` validates all results, including exit-zero results, through one
+closed 26-row matrix:
+
+- three `CHECK` rows
+- eight `APPLY` rows
+- seven `RESET` rows
+- eight `ROLLBACK` rows
+
+Each row binds requested operation, response operation, outcome, exit code,
+`rolledBack`, `cleanupPending`, recovery-identifier presence and operation
+prefix, `usingOverlay`, update/available-version state, rollback availability
+where deterministic, and the exact bounded message class. Unknown outcomes,
+cross-operation responses, forged operation fields, flipped exits, malformed
+booleans/identifiers, traversal, prefix mismatch, state contradictions, and
+message/outcome mismatch fail before resolver exposure.
+
+GraphQL publishes `YarrUpdateOperation` and `YarrUpdateOutcome` enums. The web
+client requests both fields, and the Updates panel uses the validated outcome
+rather than parsing message text to classify restoration, incomplete recovery,
+or pre-mutation cleanup.
+
+Verification:
+
+- updater contract: pass
+- focused API/GraphQL: 79/79
+- focused web: 39/39
+- full API: 206/206, typecheck, build, zero-vulnerability production audit
+- full web: 58/58, typecheck, settings/dashboard builds, browser registration
+  smoke, zero-vulnerability production audit
+- shell syntax and ShellCheck: pass
+- umask 022/077 package rebuilds: byte-identical
+- release/package verifier: pass
+- aggregate plugin/package harness: pass
+
+The rebuilt package is 6,224,220 bytes with SHA-256
+`8afebcddeccf771fa20868f05592526c54fdc36a5c0e8744a2314b0a49d894e2`
+and MD5 `a7a50dec2c3c02dea8ab2fdda751f97b`. It has 57 archive entries and
+42 declared payload files.
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent reviewer approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-exit-zero-updater-contract-report.md`.

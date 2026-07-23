@@ -68,6 +68,33 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
 
+### 2026-07-23 - Exit-zero updater protocol remediation
+
+- Added mandatory `operation` and namespaced `outcome` fields to every
+  structured updater shell response.
+- Replaced exit-zero special handling and message-led nonzero handling with one
+  closed 26-row UpdateService matrix covering check, apply, reset, and manual
+  rollback.
+- Bound every valid row to requested/response operation, outcome, exit code,
+  rollback and cleanup truth, validated recovery identifier, overlay/update
+  state, deterministic rollback availability, and bounded message class.
+- Added full cross-operation substitution coverage for native and forged
+  operation fields, plus flipped-exit and malformed state-tuple tests.
+- Added GraphQL operation/outcome enums and resolver/schema parity coverage.
+- Changed the web update panel to classify restoration and cleanup from
+  validated outcome fields rather than human message text.
+- Passed updater contract; focused API/GraphQL 79/79; focused web 39/39; full
+  API 206/206 plus typecheck/build/clean production audit; full web 58/58 plus
+  typecheck/both builds/browser smoke/clean production audit; ShellCheck;
+  release verifier; and aggregate plugin/package harness.
+- Rebuilt byte-identical packages under umask 022 and 077. Final package:
+  SHA-256
+  `8afebcddeccf771fa20868f05592526c54fdc36a5c0e8744a2314b0a49d894e2`,
+  MD5 `a7a50dec2c3c02dea8ab2fdda751f97b`, size 6,224,220 bytes,
+  57 archive entries and 42 declared files.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.
+
 ## 2026-07-23 - Task 12 final-head recovery cleanup fixes
 
 - Audited every update/reset/manual-rollback recovery-directory removal site

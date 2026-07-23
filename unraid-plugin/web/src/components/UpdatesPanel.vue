@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { queryYarrUpdateStatus, resetYarrBinary, rollbackYarrBinary, updateYarrBinary } from "../graphql";
 import type { YarrUpdateStatus } from "../types";
 import ConfirmDialog from "./ConfirmDialog.vue";
@@ -14,6 +14,29 @@ const confirmReset = ref(false);
 const confirmRollback = ref(false);
 let controller: AbortController | undefined;
 let generation = 0;
+const incompleteOutcomes = new Set<YarrUpdateStatus["outcome"]>([
+  "APPLY_RESTORATION_INCOMPLETE",
+  "RESET_RESTORATION_INCOMPLETE",
+  "ROLLBACK_RESTORATION_INCOMPLETE",
+]);
+const preMutationOutcomes = new Set<YarrUpdateStatus["outcome"]>([
+  "APPLY_FAILED_BEFORE_ACTIVATION",
+  "RESET_FAILED_BEFORE_MUTATION",
+  "ROLLBACK_FAILED_BEFORE_ACTIVATION",
+]);
+const restorationIncomplete = computed(() =>
+  status.value !== undefined && incompleteOutcomes.has(status.value.outcome));
+const failedBeforeMutation = computed(() =>
+  status.value !== undefined && preMutationOutcomes.has(status.value.outcome));
+const rollbackRestored = computed(() => status.value?.outcome === "ROLLBACK_RESTORED");
+const resultWarning = computed(() =>
+  status.value !== undefined && (
+    status.value.rolledBack ||
+    status.value.cleanupPending ||
+    restorationIncomplete.value ||
+    status.value.outcome === "ROLLBACK_FAILED_BEFORE_ACTIVATION" ||
+    status.value.outcome === "ROLLBACK_UNAVAILABLE"
+  ));
 
 async function load(): Promise<void> {
   controller?.abort();
@@ -94,11 +117,11 @@ onBeforeUnmount(() => { generation += 1; controller?.abort(); emit("busy", false
         <div><dt>Available</dt><dd>{{ status.availableVersion }}</dd></div>
         <div><dt>Source</dt><dd>{{ status.usingOverlay ? "Update overlay" : "Plugin package" }}</dd></div>
       </dl>
-      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack || status.cleanupPending || status.message.includes('restoration incomplete') || status.message.startsWith('Rollback failed') }" role="status">
+      <p class="yarr-result" :class="{ 'is-warning': resultWarning }" role="status">
         {{ status.message }}
-        <strong v-if="status.rolledBack">{{ status.message.startsWith("Rollback failed") ? " The current version was restored." : " The previous version was restored." }}</strong>
-        <strong v-if="status.message.includes('restoration incomplete')"> The prior binary and runtime state were not confirmed restored. Inspect the retained recovery snapshots before retrying.</strong>
-        <strong v-if="status.cleanupPending && status.message.includes('before')"> No live binary mutation was committed.</strong>
+        <strong v-if="status.rolledBack">{{ rollbackRestored ? " The current version was restored." : " The previous version was restored." }}</strong>
+        <strong v-if="restorationIncomplete"> The prior binary and runtime state were not confirmed restored. Inspect the retained recovery snapshots before retrying.</strong>
+        <strong v-if="status.cleanupPending && failedBeforeMutation"> No live binary mutation was committed.</strong>
         <strong v-if="status.cleanupPending"> Retained recovery snapshots <code>{{ status.recoveryIdentifier }}</code> under /mnt/user/appdata/yarr/bin require operator cleanup.</strong>
       </p>
       <div class="yarr-actions">

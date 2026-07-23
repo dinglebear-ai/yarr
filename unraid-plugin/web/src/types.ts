@@ -130,7 +130,29 @@ export interface YarrDiscoveryResult {
   errors: YarrDiscoveryError[];
 }
 
+export type YarrUpdateOperation = "CHECK" | "APPLY" | "RESET" | "ROLLBACK";
+export type YarrUpdateOutcome =
+  | "CHECK_NO_COMPATIBLE_RELEASE"
+  | "CHECK_UPDATE_AVAILABLE"
+  | "CHECK_CURRENT"
+  | "APPLY_CURRENT"
+  | "APPLY_UPDATED"
+  | "APPLY_FAILED_BEFORE_ACTIVATION"
+  | "APPLY_RESTORED"
+  | "APPLY_RESTORATION_INCOMPLETE"
+  | "RESET_COMPLETED"
+  | "RESET_FAILED_BEFORE_MUTATION"
+  | "RESET_RESTORED"
+  | "RESET_RESTORATION_INCOMPLETE"
+  | "ROLLBACK_COMPLETED"
+  | "ROLLBACK_UNAVAILABLE"
+  | "ROLLBACK_FAILED_BEFORE_ACTIVATION"
+  | "ROLLBACK_RESTORED"
+  | "ROLLBACK_RESTORATION_INCOMPLETE";
+
 export interface YarrUpdateStatus {
+  operation: YarrUpdateOperation;
+  outcome: YarrUpdateOutcome;
   installedVersion: string;
   packagedVersion: string;
   availableVersion: string;

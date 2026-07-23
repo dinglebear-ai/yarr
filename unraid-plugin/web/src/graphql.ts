@@ -57,7 +57,7 @@ const YARR_LOGS_QUERY = `query YarrLogs($lines: Int) {
   yarrLogs(lines: $lines) { lines truncated }
 }`;
 const UPDATE_FIELDS = `
-  installedVersion packagedVersion availableVersion updateAvailable usingOverlay rollbackAvailable rolledBack cleanupPending recoveryIdentifier message
+  operation outcome installedVersion packagedVersion availableVersion updateAvailable usingOverlay rollbackAvailable rolledBack cleanupPending recoveryIdentifier message
 `;
 const YARR_UPDATE_STATUS_QUERY = `query YarrUpdateStatus { yarrUpdateStatus { ${UPDATE_FIELDS} } }`;
 const PREVIEW_YARR_IMPORT_MUTATION = `mutation PreviewYarrImport($input: PreviewYarrImportInput!) {
