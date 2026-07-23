@@ -94,11 +94,12 @@ onBeforeUnmount(() => { generation += 1; controller?.abort(); emit("busy", false
         <div><dt>Available</dt><dd>{{ status.availableVersion }}</dd></div>
         <div><dt>Source</dt><dd>{{ status.usingOverlay ? "Update overlay" : "Plugin package" }}</dd></div>
       </dl>
-      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack || status.message.includes('restoration incomplete') || status.message.startsWith('Rollback failed') || status.message.includes('cleanup pending') }" role="status">
+      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack || status.cleanupPending || status.message.includes('restoration incomplete') || status.message.startsWith('Rollback failed') }" role="status">
         {{ status.message }}
-        <strong v-if="status.message.includes('recovery cleanup pending')"> The active binaries were not changed. Inspect and remove the retained directory under /mnt/user/appdata/yarr/bin before retrying.</strong>
-        <strong v-else-if="status.message.includes('restoration incomplete')"> The prior binary and runtime state were not confirmed restored. Inspect the retained recovery snapshots before retrying.</strong>
-        <strong v-else-if="status.rolledBack">{{ status.message.startsWith("Rollback failed") ? " The current version was restored." : " The previous version was restored." }}</strong>
+        <strong v-if="status.rolledBack">{{ status.message.startsWith("Rollback failed") ? " The current version was restored." : " The previous version was restored." }}</strong>
+        <strong v-if="status.message.includes('restoration incomplete')"> The prior binary and runtime state were not confirmed restored. Inspect the retained recovery snapshots before retrying.</strong>
+        <strong v-if="status.cleanupPending && status.message.includes('before')"> No live binary mutation was committed.</strong>
+        <strong v-if="status.cleanupPending"> Retained recovery snapshots <code>{{ status.recoveryIdentifier }}</code> under /mnt/user/appdata/yarr/bin require operator cleanup.</strong>
       </p>
       <div class="yarr-actions">
         <button v-if="status.updateAvailable" type="button" class="yarr-button" :disabled="busy" @click="confirmUpdate = true">Install {{ status.availableVersion }}</button>

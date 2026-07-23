@@ -9,6 +9,8 @@ export interface UpdateStatus {
   usingOverlay: boolean;
   rollbackAvailable: boolean;
   rolledBack: boolean;
+  cleanupPending: boolean;
+  recoveryIdentifier: string;
   message: string;
 }
 
@@ -17,10 +19,8 @@ export type UpdateResult = UpdateStatus;
 const MAX_UPDATE_OUTPUT_BYTES = 64 * 1024;
 const CHECK_TIMEOUT_MS = 30_000;
 const MUTATION_TIMEOUT_MS = 120_000;
-const UPDATE_PREPARATION_CLEANUP_PENDING =
-  /^Update failed before activation; recovery cleanup pending: \.yarr\.update\.recovery\.[A-Za-z0-9]{8}$/;
-const RESET_PREPARATION_CLEANUP_PENDING =
-  /^Reset failed before mutation; recovery cleanup pending: \.yarr\.reset\.recovery\.[A-Za-z0-9]{8}$/;
+const RECOVERY_IDENTIFIER =
+  /^\.yarr\.(update|reset|rollback)\.recovery\.[A-Za-z0-9]{8}$/;
 const UPDATE_KEYS = [
   "installedVersion",
   "packagedVersion",
@@ -29,6 +29,8 @@ const UPDATE_KEYS = [
   "usingOverlay",
   "rollbackAvailable",
   "rolledBack",
+  "cleanupPending",
+  "recoveryIdentifier",
   "message",
 ] as const;
 
@@ -70,7 +72,11 @@ export class UpdateService {
       throw new Error(`Yarr update ${operation} failed`);
     }
     const parsed = parseUpdateResponse(result.stdout);
-    if (result.exitCode !== 0 && !isExpectedNonzeroOutcome(operation, parsed)) {
+    if (
+      (result.exitCode === 0 &&
+        (parsed.rolledBack || parsed.cleanupPending || messageRequiresCleanup(parsed.message))) ||
+      (result.exitCode !== 0 && !isExpectedNonzeroOutcome(operation, parsed))
+    ) {
       throw new Error(`Yarr update ${operation} failed`);
     }
     return parsed;
@@ -97,6 +103,9 @@ function parseUpdateResponse(text: string): UpdateStatus {
     typeof candidate.usingOverlay !== "boolean" ||
     typeof candidate.rollbackAvailable !== "boolean" ||
     typeof candidate.rolledBack !== "boolean" ||
+    typeof candidate.cleanupPending !== "boolean" ||
+    typeof candidate.recoveryIdentifier !== "string" ||
+    !isCleanupState(candidate.cleanupPending, candidate.recoveryIdentifier) ||
     !isSafeMessage(candidate.message)
   ) {
     invalidResponse();
@@ -109,6 +118,8 @@ function parseUpdateResponse(text: string): UpdateStatus {
     usingOverlay: candidate.usingOverlay,
     rollbackAvailable: candidate.rollbackAvailable,
     rolledBack: candidate.rolledBack,
+    cleanupPending: candidate.cleanupPending,
+    recoveryIdentifier: candidate.recoveryIdentifier,
     message: candidate.message,
   };
 }
@@ -133,8 +144,7 @@ function isSafeMessage(value: unknown): value is string {
     /^Reset failed; restoration incomplete; recovery snapshots retained$/,
     /^Update failed before activation$/,
     /^Reset failed before mutation$/,
-    UPDATE_PREPARATION_CLEANUP_PENDING,
-    RESET_PREPARATION_CLEANUP_PENDING,
+    /^Rollback failed before activation$/,
     /^Rollback failed; current binary restored$/,
     /^Rollback failed; restoration incomplete; recovery snapshots retained$/,
     /^Manual rollback is unavailable; no previous binary exists$/,
@@ -147,43 +157,64 @@ function isExpectedNonzeroOutcome(
   operation: "check" | "apply" | "reset" | "rollback",
   value: UpdateStatus,
 ): boolean {
+  if (!cleanupMatchesOperation(operation, value)) return false;
   if (operation === "apply") {
-    return value.message === "Update failed; previous binary restored"
-      ? value.rolledBack
-      : !value.rolledBack && (
-        [
-          "Yarr updated; obsolete backup cleanup pending",
-          "Update failed; restoration incomplete; recovery snapshots retained",
-          "Update failed before activation",
-        ].includes(value.message) ||
-        UPDATE_PREPARATION_CLEANUP_PENDING.test(value.message)
-      );
+    if (value.message === "Update failed; previous binary restored") return value.rolledBack;
+    if (value.message === "Yarr updated; obsolete backup cleanup pending") {
+      return !value.rolledBack && value.cleanupPending;
+    }
+    if (value.message === "Update failed; restoration incomplete; recovery snapshots retained") {
+      return !value.rolledBack && !value.cleanupPending;
+    }
+    return value.message === "Update failed before activation" && !value.rolledBack;
   }
   if (operation === "reset") {
-    return value.message === "Reset failed; previous binary restored"
-      ? value.rolledBack
-      : !value.rolledBack && (
-        [
-          "Yarr reset; updater backup cleanup pending",
-          "Reset failed; restoration incomplete; recovery snapshots retained",
-          "Reset failed before mutation",
-        ].includes(value.message) ||
-        RESET_PREPARATION_CLEANUP_PENDING.test(value.message)
-      );
+    if (value.message === "Reset failed; previous binary restored") return value.rolledBack;
+    if (value.message === "Yarr reset; updater backup cleanup pending") {
+      return !value.rolledBack && value.cleanupPending;
+    }
+    if (value.message === "Reset failed; restoration incomplete; recovery snapshots retained") {
+      return !value.rolledBack && !value.cleanupPending;
+    }
+    return value.message === "Reset failed before mutation" && !value.rolledBack;
   }
   if (operation === "rollback") {
     if (value.message === "Rollback failed; current binary restored") return value.rolledBack;
     if (value.message === "Rollback failed; restoration incomplete; recovery snapshots retained") {
-      return !value.rolledBack;
+      return !value.rolledBack && !value.cleanupPending;
     }
     if (value.message === "Yarr rolled back; recovery snapshot cleanup pending") {
-      return !value.rolledBack;
+      return !value.rolledBack && value.cleanupPending;
     }
+    if (value.message === "Rollback failed before activation") return !value.rolledBack;
     return value.message === "Manual rollback is unavailable; no previous binary exists" &&
-      !value.rolledBack &&
-      !value.rollbackAvailable;
+      !value.rolledBack && !value.cleanupPending && !value.rollbackAvailable;
   }
   return false;
+}
+
+function isCleanupState(cleanupPending: boolean, recoveryIdentifier: string): boolean {
+  return cleanupPending
+    ? RECOVERY_IDENTIFIER.test(recoveryIdentifier)
+    : recoveryIdentifier === "";
+}
+
+function messageRequiresCleanup(message: string): boolean {
+  return [
+    "Yarr updated; obsolete backup cleanup pending",
+    "Yarr reset; updater backup cleanup pending",
+    "Yarr rolled back; recovery snapshot cleanup pending",
+  ].includes(message);
+}
+
+function cleanupMatchesOperation(
+  operation: "check" | "apply" | "reset" | "rollback",
+  value: UpdateStatus,
+): boolean {
+  if (!value.cleanupPending) return value.recoveryIdentifier === "";
+  const label = operation === "apply" ? "update" : operation;
+  return operation !== "check" &&
+    new RegExp(`^\\.yarr\\.${label}\\.recovery\\.[A-Za-z0-9]{8}$`).test(value.recoveryIdentifier);
 }
 
 function isBoundedSemVer(value: string): boolean {

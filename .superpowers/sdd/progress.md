@@ -68,6 +68,39 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
 
+## 2026-07-23 - Task 12 final-head recovery cleanup fixes
+
+- Audited every update/reset/manual-rollback recovery-directory removal site
+  and made removal failure a structured, validated outcome.
+- Added independent `cleanupPending` and bounded `recoveryIdentifier` fields
+  through shell JSON, API parsing, hand-maintained GraphQL SDL/types, resolver,
+  web queries/types, and update-panel rendering.
+- Preserved truthful combinations: pre-mutation cleanup failure is never
+  rollback; exact restoration may coexist with cleanup pending; incomplete
+  restoration retains durable snapshots without a false success claim.
+- Added API rejection for traversal, malformed/bare identifiers,
+  operation-prefix mismatch, invalid booleans, and contradictory
+  rollback/cleanup/exit combinations.
+- Completed the manual rollback preparation matrix across chmod, four staged
+  copies, four syncs, four verifications, transaction sync, and overlay sync.
+  Each normal failure was repeated and proved leak-free with unchanged
+  active/previous hashes and modes and no mutation moves.
+- Added direct update/reset/rollback tests for candidate/preparation failure
+  plus cleanup failure, exact restoration plus cleanup failure, and committed
+  operation plus cleanup failure.
+- Corrected active cache documentation to SHA-256 content tokens and immutable
+  content-hashed icon filenames.
+- Passed updater contracts; API focused 58/58 and full 185/185 plus typecheck,
+  build, and clean production audit; web focused 23/23 and full 57/57 plus
+  typecheck, both builds, browser smoke, and clean production audit.
+- Rebuilt byte-identical packages under umask 022 and 077 and passed the full
+  aggregate plugin/package harness. Final package:
+  SHA-256
+  `4e9c53bf87fd566fd929c717273d0b636f12fa35e491defd718704965bd87575`,
+  MD5 `aa19d0e84f83842285aa228efaecd380`, size 6,222,972 bytes.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.
+
 ### 2026-07-23 - Independent review 2 recovery follow-up
 
 - Closed the pre-mutation recovery-directory leak from base `89081f5`.

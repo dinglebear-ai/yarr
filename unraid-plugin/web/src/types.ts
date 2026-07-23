@@ -138,6 +138,8 @@ export interface YarrUpdateStatus {
   usingOverlay: boolean;
   rollbackAvailable: boolean;
   rolledBack: boolean;
+  cleanupPending: boolean;
+  recoveryIdentifier: string;
   message: string;
 }
 

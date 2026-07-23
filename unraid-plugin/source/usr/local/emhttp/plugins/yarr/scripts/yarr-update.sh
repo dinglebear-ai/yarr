@@ -37,6 +37,7 @@ YARR_UPDATE_ASSET=yarr-x86_64.tar.gz
 YARR_UPDATE_CHECKSUM_ASSET=${YARR_UPDATE_ASSET}.sha256
 YARR_MV_BIN=${YARR_MV_BIN:-/bin/mv}
 YARR_INSTALL_BIN=${YARR_INSTALL_BIN:-/usr/bin/install}
+YARR_CHMOD_BIN=${YARR_CHMOD_BIN:-/bin/chmod}
 YARR_SYNC_BIN=${YARR_SYNC_BIN:-/usr/bin/sync}
 YARR_TAR_BIN=${YARR_TAR_BIN:-/usr/bin/tar}
 YARR_RM_BIN=${YARR_RM_BIN:-/usr/bin/rm}
@@ -51,6 +52,7 @@ YARR_ROLLBACK_ACTIVE_SHA=''
 YARR_ROLLBACK_PREVIOUS_SHA=''
 YARR_ROLLBACK_ACTIVE_MODE=''
 YARR_ROLLBACK_PREVIOUS_MODE=''
+YARR_ROLLBACK_PREPARED=false
 YARR_RECOVERY_TRANSACTION=''
 YARR_RECOVERY_ACTIVE_SNAPSHOT=''
 YARR_RECOVERY_PREVIOUS_SNAPSHOT=''
@@ -63,10 +65,9 @@ YARR_RECOVERY_HAD_PREVIOUS=false
 YARR_RECOVERY_PREPARED=false
 YARR_RESTORATION_ATTEMPTED=false
 YARR_RESTORATION_INCOMPLETE=false
-YARR_PREPARATION_CLEANUP_PENDING=false
+YARR_CLEANUP_PENDING=false
 YARR_RECOVERY_IDENTIFIER=''
-YARR_RESET_CLEANUP_PENDING=false
-YARR_APPLY_CLEANUP_PENDING=false
+YARR_MUTATION_COMMITTED=false
 YARR_UPDATE_CONNECT_TIMEOUT=${YARR_UPDATE_CONNECT_TIMEOUT:-10}
 YARR_UPDATE_METADATA_TIMEOUT=${YARR_UPDATE_METADATA_TIMEOUT:-30}
 YARR_UPDATE_CHECKSUM_TIMEOUT=${YARR_UPDATE_CHECKSUM_TIMEOUT:-20}
@@ -305,8 +306,24 @@ yarr_update_validate_archive() {
     [[ -f "$payload" && ! -L "$payload" && -x "$payload" ]]
 }
 
+yarr_update_valid_recovery_identifier() {
+    [[ "$1" =~ ^\.yarr\.(update|reset|rollback)\.recovery\.[A-Za-z0-9]{8}$ ]]
+}
+
 yarr_update_emit() {
     local available=$1 rolled_back=$2 message=$3 installed packaged using_overlay update_available rollback_available=false
+    local cleanup_pending=$YARR_CLEANUP_PENDING recovery_identifier=$YARR_RECOVERY_IDENTIFIER
+    if [[ "$cleanup_pending" == true ]]; then
+        yarr_update_valid_recovery_identifier "$recovery_identifier" || {
+            yarr_update_error 'refusing to emit an unsafe recovery identifier'
+            return 1
+        }
+    else
+        [[ -z "$recovery_identifier" ]] || {
+            yarr_update_error 'refusing contradictory recovery cleanup state'
+            return 1
+        }
+    fi
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
     packaged=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
@@ -323,9 +340,11 @@ yarr_update_emit() {
     fi
     jq -cn --arg installedVersion "$installed" --arg packagedVersion "$packaged" \
         --arg availableVersion "$available" --arg message "$message" \
+        --arg recoveryIdentifier "$recovery_identifier" \
         --argjson updateAvailable "$update_available" --argjson usingOverlay "$using_overlay" \
         --argjson rollbackAvailable "$rollback_available" --argjson rolledBack "$rolled_back" \
-        '{installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rollbackAvailable: $rollbackAvailable, rolledBack: $rolledBack, message: $message}'
+        --argjson cleanupPending "$cleanup_pending" \
+        '{installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rollbackAvailable: $rollbackAvailable, rolledBack: $rolledBack, cleanupPending: $cleanupPending, recoveryIdentifier: $recoveryIdentifier, message: $message}'
 }
 
 yarr_update_lifecycle() {
@@ -393,9 +412,9 @@ yarr_update_with_lock() {
 
 yarr_update_apply_locked() {
     local candidate=$1 ownership_status candidate_sha candidate_mode
-    YARR_PREPARATION_CLEANUP_PENDING=false
+    YARR_CLEANUP_PENDING=false
     YARR_RECOVERY_IDENTIFIER=''
-    YARR_APPLY_CLEANUP_PENDING=false
+    YARR_MUTATION_COMMITTED=false
     YARR_ROLLED_BACK=false
     YARR_RESTORATION_ATTEMPTED=false
     YARR_RESTORATION_INCOMPLETE=false
@@ -409,7 +428,7 @@ yarr_update_apply_locked() {
     if ! yarr_update_copy_binary "$candidate" "${YARR_RECOVERY_TRANSACTION}/active.next" "$candidate_mode" ||
         ! yarr_update_binary_matches "${YARR_RECOVERY_TRANSACTION}/active.next" \
             "$candidate_sha" "$candidate_mode"; then
-        yarr_update_discard_unmodified_recovery || true
+        yarr_update_discard_unmodified_recovery
         return 1
     fi
     if [[ "$YARR_RECOVERY_HAD_ACTIVE" == true ]] &&
@@ -417,37 +436,37 @@ yarr_update_apply_locked() {
                 "${YARR_RECOVERY_TRANSACTION}/previous.next" "$YARR_RECOVERY_ACTIVE_MODE" ||
           ! yarr_update_binary_matches "${YARR_RECOVERY_TRANSACTION}/previous.next" \
                 "$YARR_RECOVERY_ACTIVE_SHA" "$YARR_RECOVERY_ACTIVE_MODE"; }; then
-        yarr_update_discard_unmodified_recovery || true
+        yarr_update_discard_unmodified_recovery
         return 1
     fi
     if ! "$YARR_SYNC_BIN" -f "$YARR_RECOVERY_TRANSACTION"; then
-        yarr_update_discard_unmodified_recovery || true
+        yarr_update_discard_unmodified_recovery
         return 1
     fi
     if yarr_pid_is_owned; then
         YARR_TXN_WAS_RUNNING=true
         if ! yarr_update_lifecycle stop; then
-            yarr_update_attempt_recovery || true
+            yarr_update_attempt_recovery
             return 1
         fi
     else
         ownership_status=$?
         if (( ownership_status != 1 )); then
             yarr_update_error 'live daemon ownership is indeterminate; retaining evidence'
-            yarr_update_discard_unmodified_recovery || true
+            yarr_update_discard_unmodified_recovery
             return 1
         fi
     fi
     if [[ "$YARR_RECOVERY_HAD_PREVIOUS" == true ]] &&
         ! "$YARR_MV_BIN" -f -- "$YARR_TXN_PREVIOUS" \
             "${YARR_RECOVERY_TRANSACTION}/previous.displaced"; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if [[ "$YARR_RECOVERY_HAD_ACTIVE" == true ]]; then
         if ! "$YARR_MV_BIN" -f -- "${YARR_RECOVERY_TRANSACTION}/previous.next" \
             "$YARR_TXN_PREVIOUS"; then
-            yarr_update_attempt_recovery || true
+            yarr_update_attempt_recovery
             return 1
         fi
     fi
@@ -459,11 +478,11 @@ yarr_update_apply_locked() {
               "$YARR_RECOVERY_ACTIVE_SHA" "$YARR_RECOVERY_ACTIVE_MODE"; } ||
         { [[ "$YARR_RECOVERY_HAD_ACTIVE" != true ]] &&
           [[ -e "$YARR_TXN_PREVIOUS" || -L "$YARR_TXN_PREVIOUS" ]]; }; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle start; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if ! yarr_update_confirm_runtime_state "$YARR_TXN_WAS_RUNNING" ||
@@ -473,12 +492,12 @@ yarr_update_apply_locked() {
               "$YARR_RECOVERY_ACTIVE_SHA" "$YARR_RECOVERY_ACTIVE_MODE"; } ||
         { [[ "$YARR_RECOVERY_HAD_ACTIVE" != true ]] &&
           [[ -e "$YARR_TXN_PREVIOUS" || -L "$YARR_TXN_PREVIOUS" ]]; }; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
+    YARR_MUTATION_COMMITTED=true
     YARR_UPDATE_ROLLBACK=''
     if ! yarr_update_remove_recovery_transaction; then
-        YARR_APPLY_CLEANUP_PENDING=true
         yarr_update_error 'updated binary is ready; recovery snapshot cleanup is pending'
         return 1
     fi
@@ -486,9 +505,9 @@ yarr_update_apply_locked() {
 
 yarr_update_reset_locked() {
     local ownership_status
-    YARR_PREPARATION_CLEANUP_PENDING=false
+    YARR_CLEANUP_PENDING=false
     YARR_RECOVERY_IDENTIFIER=''
-    YARR_RESET_CLEANUP_PENDING=false
+    YARR_MUTATION_COMMITTED=false
     YARR_ROLLED_BACK=false
     YARR_RESTORATION_ATTEMPTED=false
     YARR_RESTORATION_INCOMPLETE=false
@@ -500,49 +519,49 @@ yarr_update_reset_locked() {
     if yarr_pid_is_owned; then
         YARR_TXN_WAS_RUNNING=true
         if ! yarr_update_lifecycle stop; then
-            yarr_update_attempt_recovery || true
+            yarr_update_attempt_recovery
             return 1
         fi
     else
         ownership_status=$?
         if (( ownership_status != 1 )); then
             yarr_update_error 'live daemon ownership is indeterminate; retaining evidence'
-            yarr_update_discard_unmodified_recovery || true
+            yarr_update_discard_unmodified_recovery
             return 1
         fi
     fi
     if [[ "$YARR_RECOVERY_HAD_ACTIVE" == true ]] &&
         ! "$YARR_MV_BIN" -f -- "$YARR_TXN_ACTIVE" \
             "${YARR_RECOVERY_TRANSACTION}/active.retired"; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if [[ "$YARR_RECOVERY_HAD_PREVIOUS" == true ]] &&
         ! "$YARR_MV_BIN" -f -- "$YARR_TXN_PREVIOUS" \
             "${YARR_RECOVERY_TRANSACTION}/previous.retired"; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" ||
         [[ -e "$YARR_TXN_ACTIVE" || -L "$YARR_TXN_ACTIVE" ||
            -e "$YARR_TXN_PREVIOUS" || -L "$YARR_TXN_PREVIOUS" ]]; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle start; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
     if ! yarr_update_confirm_runtime_state "$YARR_TXN_WAS_RUNNING" ||
         [[ -e "$YARR_TXN_ACTIVE" || -L "$YARR_TXN_ACTIVE" ||
            -e "$YARR_TXN_PREVIOUS" || -L "$YARR_TXN_PREVIOUS" ]]; then
-        yarr_update_attempt_recovery || true
+        yarr_update_attempt_recovery
         return 1
     fi
+    YARR_MUTATION_COMMITTED=true
     YARR_UPDATE_ROLLBACK=''
     if ! yarr_update_remove_recovery_transaction; then
-        YARR_RESET_CLEANUP_PENDING=true
-        yarr_update_emit '' false 'Yarr reset; updater backup cleanup pending'
+        yarr_update_error 'packaged binary is ready; recovery snapshot cleanup is pending'
         return 1
     fi
 }
@@ -568,8 +587,6 @@ yarr_update_copy_binary() {
 
 yarr_update_prepare_recovery_snapshots() {
     local label=$1 transaction
-    YARR_PREPARATION_CLEANUP_PENDING=false
-    YARR_RECOVERY_IDENTIFIER=''
     YARR_RECOVERY_HAD_ACTIVE=false
     YARR_RECOVERY_HAD_PREVIOUS=false
     YARR_RECOVERY_PREPARED=false
@@ -598,40 +615,40 @@ yarr_update_prepare_recovery_snapshots() {
     YARR_RECOVERY_TRANSACTION=$transaction
     YARR_RECOVERY_ACTIVE_SNAPSHOT="${transaction}/active.snapshot"
     YARR_RECOVERY_PREVIOUS_SNAPSHOT="${transaction}/previous.snapshot"
-    if ! chmod 0700 "$transaction"; then
-        yarr_update_abort_recovery_preparation || true
+    if ! "$YARR_CHMOD_BIN" 0700 "$transaction"; then
+        yarr_update_abort_recovery_preparation
         return 1
     fi
     if [[ "$YARR_RECOVERY_HAD_ACTIVE" == true ]]; then
         if ! yarr_update_copy_binary "$YARR_TXN_ACTIVE" "$YARR_RECOVERY_ACTIVE_SNAPSHOT" \
             "$YARR_RECOVERY_ACTIVE_MODE"; then
-            yarr_update_abort_recovery_preparation || true
+            yarr_update_abort_recovery_preparation
             return 1
         fi
         if ! yarr_update_binary_matches "$YARR_RECOVERY_ACTIVE_SNAPSHOT" \
             "$YARR_RECOVERY_ACTIVE_SHA" "$YARR_RECOVERY_ACTIVE_MODE"; then
-            yarr_update_abort_recovery_preparation || true
+            yarr_update_abort_recovery_preparation
             return 1
         fi
     fi
     if [[ "$YARR_RECOVERY_HAD_PREVIOUS" == true ]]; then
         if ! yarr_update_copy_binary "$YARR_TXN_PREVIOUS" "$YARR_RECOVERY_PREVIOUS_SNAPSHOT" \
             "$YARR_RECOVERY_PREVIOUS_MODE"; then
-            yarr_update_abort_recovery_preparation || true
+            yarr_update_abort_recovery_preparation
             return 1
         fi
         if ! yarr_update_binary_matches "$YARR_RECOVERY_PREVIOUS_SNAPSHOT" \
             "$YARR_RECOVERY_PREVIOUS_SHA" "$YARR_RECOVERY_PREVIOUS_MODE"; then
-            yarr_update_abort_recovery_preparation || true
+            yarr_update_abort_recovery_preparation
             return 1
         fi
     fi
     if ! "$YARR_SYNC_BIN" -f "$transaction"; then
-        yarr_update_abort_recovery_preparation || true
+        yarr_update_abort_recovery_preparation
         return 1
     fi
     if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
-        yarr_update_abort_recovery_preparation || true
+        yarr_update_abort_recovery_preparation
         return 1
     fi
     YARR_RECOVERY_PREPARED=true
@@ -754,30 +771,28 @@ yarr_update_remove_recovery_transaction() {
         return 0
     fi
     [[ -d "$YARR_RECOVERY_TRANSACTION" && ! -L "$YARR_RECOVERY_TRANSACTION" ]] || return 1
-    "$YARR_RM_BIN" -rf -- "$YARR_RECOVERY_TRANSACTION" || return 1
+    if ! "$YARR_RM_BIN" -rf -- "$YARR_RECOVERY_TRANSACTION"; then
+        YARR_CLEANUP_PENDING=true
+        YARR_RECOVERY_IDENTIFIER=$identifier
+        return 1
+    fi
     yarr_update_clear_recovery_reference
 }
 
 yarr_update_abort_recovery_preparation() {
-    local identifier
-
     YARR_UPDATE_ROLLBACK=''
-    identifier=$(yarr_update_recovery_identifier) || {
-        yarr_update_error 'snapshot preparation failed and the recovery transaction identity could not be validated'
-        return 1
-    }
-    if yarr_update_remove_recovery_transaction; then
-        return 0
+    if ! yarr_update_remove_recovery_transaction; then
+        yarr_update_error "snapshot preparation failed; recovery cleanup pending: $YARR_RECOVERY_IDENTIFIER"
     fi
-    YARR_PREPARATION_CLEANUP_PENDING=true
-    YARR_RECOVERY_IDENTIFIER=$identifier
-    yarr_update_error "snapshot preparation failed; recovery cleanup pending: $identifier"
-    return 1
+    return 0
 }
 
 yarr_update_discard_unmodified_recovery() {
     YARR_UPDATE_ROLLBACK=''
-    yarr_update_remove_recovery_transaction
+    if ! yarr_update_remove_recovery_transaction; then
+        yarr_update_error "unmodified recovery transaction cleanup pending: $YARR_RECOVERY_IDENTIFIER"
+    fi
+    return 0
 }
 
 yarr_update_attempt_recovery() {
@@ -787,16 +802,71 @@ yarr_update_attempt_recovery() {
     if ! yarr_update_restore_recovery_pair; then
         YARR_UPDATE_ROLLBACK=''
         yarr_update_error "restoration incomplete; recovery snapshots retained at ${YARR_RECOVERY_TRANSACTION}"
-        return 1
+        return 0
     fi
     YARR_UPDATE_ROLLBACK=''
     if ! yarr_update_remove_recovery_transaction; then
         yarr_update_error "prior state restored; recovery snapshots retained at ${YARR_RECOVERY_TRANSACTION}"
     fi
+    return 0
+}
+
+yarr_update_rollback_identifier() {
+    local identifier
+
+    [[ -n "$YARR_ROLLBACK_TRANSACTION" ]] || return 1
+    identifier=${YARR_ROLLBACK_TRANSACTION##*/}
+    [[ "$identifier" =~ ^\.yarr\.rollback\.recovery\.[A-Za-z0-9]{8}$ ]] || return 1
+    [[ "$YARR_ROLLBACK_TRANSACTION" == "$YARR_OVERLAY_DIR/$identifier" ]] || return 1
+    printf '%s\n' "$identifier"
+}
+
+yarr_update_clear_rollback_reference() {
+    YARR_ROLLBACK_TRANSACTION=''
+    YARR_ROLLBACK_ACTIVE_SNAPSHOT=''
+    YARR_ROLLBACK_PREVIOUS_SNAPSHOT=''
+    YARR_TXN_NEXT_ACTIVE=''
+    YARR_TXN_NEXT_PREVIOUS=''
+    YARR_ROLLBACK_PREPARED=false
+}
+
+yarr_update_remove_rollback_transaction() {
+    local identifier
+
+    [[ -n "$YARR_ROLLBACK_TRANSACTION" ]] || return 0
+    identifier=$(yarr_update_rollback_identifier) || return 1
+    if [[ ! -e "$YARR_ROLLBACK_TRANSACTION" && ! -L "$YARR_ROLLBACK_TRANSACTION" ]]; then
+        yarr_update_clear_rollback_reference
+        return 0
+    fi
+    [[ -d "$YARR_ROLLBACK_TRANSACTION" && ! -L "$YARR_ROLLBACK_TRANSACTION" ]] || return 1
+    if ! "$YARR_RM_BIN" -rf -- "$YARR_ROLLBACK_TRANSACTION"; then
+        YARR_CLEANUP_PENDING=true
+        YARR_RECOVERY_IDENTIFIER=$identifier
+        return 1
+    fi
+    yarr_update_clear_rollback_reference
+}
+
+yarr_update_abort_manual_rollback_preparation() {
+    YARR_UPDATE_ROLLBACK=''
+    if ! yarr_update_remove_rollback_transaction; then
+        yarr_update_error "manual rollback preparation failed; recovery cleanup pending: $YARR_RECOVERY_IDENTIFIER"
+    fi
+    return 0
+}
+
+yarr_update_discard_manual_rollback_preparation() {
+    YARR_UPDATE_ROLLBACK=''
+    if ! yarr_update_remove_rollback_transaction; then
+        yarr_update_error "unmodified manual rollback cleanup pending: $YARR_RECOVERY_IDENTIFIER"
+    fi
+    return 0
 }
 
 yarr_update_prepare_manual_rollback() {
     local transaction
+    YARR_ROLLBACK_PREPARED=false
     YARR_ROLLBACK_ACTIVE_SHA=$(yarr_update_binary_sha "$YARR_TXN_ACTIVE") || return 1
     YARR_ROLLBACK_PREVIOUS_SHA=$(yarr_update_binary_sha "$YARR_TXN_PREVIOUS") || return 1
     YARR_ROLLBACK_ACTIVE_MODE=$(stat -c '%a' "$YARR_TXN_ACTIVE") || return 1
@@ -804,28 +874,51 @@ yarr_update_prepare_manual_rollback() {
     [[ "$YARR_ROLLBACK_ACTIVE_MODE" =~ ^[0-7]{3,4}$ &&
         "$YARR_ROLLBACK_PREVIOUS_MODE" =~ ^[0-7]{3,4}$ ]] || return 1
 
-    transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.rollback.XXXXXXXX") || return 1
-    chmod 700 "$transaction" || return 1
+    transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.rollback.recovery.XXXXXXXX") || return 1
     YARR_ROLLBACK_TRANSACTION=$transaction
     YARR_ROLLBACK_ACTIVE_SNAPSHOT="${transaction}/active.snapshot"
     YARR_ROLLBACK_PREVIOUS_SNAPSHOT="${transaction}/previous.snapshot"
     YARR_TXN_NEXT_ACTIVE="${transaction}/active.next"
     YARR_TXN_NEXT_PREVIOUS="${transaction}/previous.next"
+    if ! "$YARR_CHMOD_BIN" 0700 "$transaction"; then
+        yarr_update_abort_manual_rollback_preparation
+        return 1
+    fi
 
-    yarr_update_copy_binary "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
-        "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
-    yarr_update_copy_binary "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
-        "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
-    yarr_update_binary_matches "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
-        "$YARR_ROLLBACK_ACTIVE_SHA" "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
-    yarr_update_binary_matches "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
-        "$YARR_ROLLBACK_PREVIOUS_SHA" "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
-
-    yarr_update_copy_binary "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" "$YARR_TXN_NEXT_ACTIVE" \
-        "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
-    yarr_update_copy_binary "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" "$YARR_TXN_NEXT_PREVIOUS" \
-        "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
-    "$YARR_SYNC_BIN" -f "$transaction"
+    if ! yarr_update_copy_binary "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
+        "$YARR_ROLLBACK_ACTIVE_MODE" ||
+        ! yarr_update_binary_matches "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
+            "$YARR_ROLLBACK_ACTIVE_SHA" "$YARR_ROLLBACK_ACTIVE_MODE"; then
+        yarr_update_abort_manual_rollback_preparation
+        return 1
+    fi
+    if ! yarr_update_copy_binary "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" ||
+        ! yarr_update_binary_matches "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
+            "$YARR_ROLLBACK_PREVIOUS_SHA" "$YARR_ROLLBACK_PREVIOUS_MODE"; then
+        yarr_update_abort_manual_rollback_preparation
+        return 1
+    fi
+    if ! yarr_update_copy_binary "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" "$YARR_TXN_NEXT_ACTIVE" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" ||
+        ! yarr_update_binary_matches "$YARR_TXN_NEXT_ACTIVE" \
+            "$YARR_ROLLBACK_PREVIOUS_SHA" "$YARR_ROLLBACK_PREVIOUS_MODE"; then
+        yarr_update_abort_manual_rollback_preparation
+        return 1
+    fi
+    if ! yarr_update_copy_binary "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" "$YARR_TXN_NEXT_PREVIOUS" \
+        "$YARR_ROLLBACK_ACTIVE_MODE" ||
+        ! yarr_update_binary_matches "$YARR_TXN_NEXT_PREVIOUS" \
+            "$YARR_ROLLBACK_ACTIVE_SHA" "$YARR_ROLLBACK_ACTIVE_MODE"; then
+        yarr_update_abort_manual_rollback_preparation
+        return 1
+    fi
+    if ! "$YARR_SYNC_BIN" -f "$transaction" ||
+        ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
+        yarr_update_abort_manual_rollback_preparation
+        return 1
+    fi
+    YARR_ROLLBACK_PREPARED=true
 }
 
 yarr_update_restore_snapshot() {
@@ -839,6 +932,8 @@ yarr_update_restore_snapshot() {
 
 yarr_update_restore_manual_rollback() {
     local ownership_status
+    [[ "$YARR_ROLLBACK_PREPARED" == true && -d "$YARR_ROLLBACK_TRANSACTION" &&
+        ! -L "$YARR_ROLLBACK_TRANSACTION" ]] || return 1
     YARR_ROLLED_BACK=false
     if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle stop; then
         return 1
@@ -876,7 +971,7 @@ yarr_update_fail_manual_rollback() {
     local message
     if yarr_update_rollback_manual_current; then
         message='Rollback failed; current binary restored'
-        if ! "$YARR_RM_BIN" -rf -- "$YARR_ROLLBACK_TRANSACTION"; then
+        if ! yarr_update_remove_rollback_transaction; then
             yarr_update_error 'current binary restored but recovery snapshots could not be removed'
         fi
     else
@@ -884,7 +979,7 @@ yarr_update_fail_manual_rollback() {
         message='Rollback failed; restoration incomplete; recovery snapshots retained'
     fi
     YARR_UPDATE_ROLLBACK=''
-    yarr_update_emit '' "$YARR_ROLLED_BACK" "$message" || true
+    yarr_update_emit '' "$YARR_ROLLED_BACK" "$message" || return 1
     return 1
 }
 
@@ -893,6 +988,8 @@ yarr_update_manual_rollback_locked() {
     yarr_update_require_array_active || return 1
     yarr_load_config && yarr_validate_config || return 1
     yarr_update_ensure_overlay_dir || return 1
+    YARR_CLEANUP_PENDING=false
+    YARR_RECOVERY_IDENTIFIER=''
     YARR_ROLLED_BACK=false
     YARR_TXN_ACTIVE="${YARR_OVERLAY_DIR}/yarr"
     YARR_TXN_PREVIOUS="${YARR_OVERLAY_DIR}/yarr.previous"
@@ -910,6 +1007,7 @@ yarr_update_manual_rollback_locked() {
     YARR_TXN_WAS_RUNNING=false
     yarr_update_prepare_manual_rollback || {
         yarr_update_error 'could not create durable manual rollback snapshots'
+        yarr_update_emit '' false 'Rollback failed before activation' || return 1
         return 1
     }
     YARR_UPDATE_ROLLBACK=yarr_update_rollback_manual_current
@@ -922,7 +1020,9 @@ yarr_update_manual_rollback_locked() {
     else
         ownership_status=$?
         if (( ownership_status != 1 )); then
-            yarr_update_error 'live daemon ownership is indeterminate; retaining evidence'
+            yarr_update_error 'live daemon ownership is indeterminate'
+            yarr_update_discard_manual_rollback_preparation
+            yarr_update_emit '' false 'Rollback failed before activation' || return 1
             return 1
         fi
     fi
@@ -957,11 +1057,10 @@ yarr_update_manual_rollback_locked() {
         return 1
     fi
     YARR_UPDATE_ROLLBACK=''
-    if ! "$YARR_RM_BIN" -rf -- "$YARR_ROLLBACK_TRANSACTION"; then
+    if ! yarr_update_remove_rollback_transaction; then
         yarr_update_emit '' false 'Yarr rolled back; recovery snapshot cleanup pending'
         return 1
     fi
-    YARR_ROLLBACK_TRANSACTION=''
     yarr_update_emit '' false 'Yarr rolled back to previous binary'
 }
 
@@ -1029,21 +1128,15 @@ yarr_update_apply_prepared_locked() {
     fi
     yarr_update_ensure_overlay_dir || return 1
     if ! yarr_update_apply_locked "$candidate"; then
-        if [[ "$YARR_PREPARATION_CLEANUP_PENDING" == true ]]; then
-            yarr_update_emit "$version" false \
-                "Update failed before activation; recovery cleanup pending: $YARR_RECOVERY_IDENTIFIER"
-            return 1
-        elif [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
-            yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending'
-            return 1
-        fi
         if [[ "$YARR_RESTORATION_INCOMPLETE" == true ]]; then
             yarr_update_emit "$version" false \
-                'Update failed; restoration incomplete; recovery snapshots retained' || true
+                'Update failed; restoration incomplete; recovery snapshots retained' || return 1
         elif [[ "$YARR_RESTORATION_ATTEMPTED" == true && "$YARR_ROLLED_BACK" == true ]]; then
-            yarr_update_emit "$version" true 'Update failed; previous binary restored' || true
+            yarr_update_emit "$version" true 'Update failed; previous binary restored' || return 1
+        elif [[ "$YARR_MUTATION_COMMITTED" == true ]]; then
+            yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending' || return 1
         else
-            yarr_update_emit "$version" false 'Update failed before activation' || true
+            yarr_update_emit "$version" false 'Update failed before activation' || return 1
         fi
         return 1
     fi
@@ -1053,19 +1146,15 @@ yarr_update_apply_prepared_locked() {
 yarr_update_reset_request_locked() {
     yarr_update_require_array_active || return 1
     if ! yarr_update_reset_locked; then
-        if [[ "$YARR_PREPARATION_CLEANUP_PENDING" == true ]]; then
-            yarr_update_emit '' false \
-                "Reset failed before mutation; recovery cleanup pending: $YARR_RECOVERY_IDENTIFIER"
-            return 1
-        fi
-        [[ "$YARR_RESET_CLEANUP_PENDING" == true ]] && return 1
         if [[ "$YARR_RESTORATION_INCOMPLETE" == true ]]; then
             yarr_update_emit '' false \
-                'Reset failed; restoration incomplete; recovery snapshots retained' || true
+                'Reset failed; restoration incomplete; recovery snapshots retained' || return 1
         elif [[ "$YARR_RESTORATION_ATTEMPTED" == true && "$YARR_ROLLED_BACK" == true ]]; then
-            yarr_update_emit '' true 'Reset failed; previous binary restored' || true
+            yarr_update_emit '' true 'Reset failed; previous binary restored' || return 1
+        elif [[ "$YARR_MUTATION_COMMITTED" == true ]]; then
+            yarr_update_emit '' false 'Yarr reset; updater backup cleanup pending' || return 1
         else
-            yarr_update_emit '' false 'Reset failed before mutation' || true
+            yarr_update_emit '' false 'Reset failed before mutation' || return 1
         fi
         return 1
     fi

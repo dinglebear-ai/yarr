@@ -977,9 +977,11 @@ Expected: non-zero exit because package/install artifacts are absent.
 
 `Yarr.page` loads the built CSS and JS from `/plugins/yarr/web/`, mounts
 `<yarr-settings-app>`, bootstraps the host CSRF token, and cache-busts stable
-asset names by mtime. It contains no direct config-writing PHP endpoint and no
-credential handling. `YarrDashboard.page` uses the shared icon, reads the
-persistent dashboard toggle, and loads only the compact dashboard bundle.
+asset names with SHA-256 content tokens. It contains no direct config-writing
+PHP endpoint and no credential handling. `YarrDashboard.page` uses SHA-256
+content tokens for its compact bundle, references the immutable
+content-hashed icon filename shared with settings, reads the persistent
+dashboard toggle, and loads only the compact dashboard bundle.
 
 **Step 4: Implement API activation and rollback**
 

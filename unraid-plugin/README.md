@@ -186,10 +186,11 @@ restores the previous module, loader document, and API process before returning
 an error.
 
 `Yarr.page` is exposed at `/Settings/Yarr`, safely bootstraps the host CSRF
-token, cache-busts `yarr-settings.js` and `yarr-settings.css` by mtime, and
-mounts `<yarr-settings-app>`. `YarrDashboard.page` independently cache-busts
-the compact dashboard CSS/JS and mounts `<yarr-dashboard>` without loading the
-settings bundle. `DASHBOARD_WIDGET_ENABLE=true` is the persistent default and
+token, and cache-busts settings CSS/JS with SHA-256 content tokens.
+`YarrDashboard.page` independently uses SHA-256 content tokens for the compact
+dashboard CSS/JS and mounts `<yarr-dashboard>` without loading the settings
+bundle. Both descriptors and the dashboard component use the immutable
+content-hashed icon filename. `DASHBOARD_WIDGET_ENABLE=true` is the persistent default and
 the Server & Auth settings toggle can hide the widget. Both surfaces inherit
 Unraid's light/dark variables and contain no credential or upstream media
 detail.

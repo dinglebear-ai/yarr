@@ -246,6 +246,8 @@ describe("GraphQL extension contract", () => {
     expect(schema).toContain("updateYarrBinary(version: String!): YarrUpdateResult!");
     expect(schema).toContain("resetYarrBinary: YarrUpdateResult!");
     expect(schema).toContain("rollbackYarrBinary: YarrUpdateResult!");
+    expect(schema).toContain("cleanupPending: Boolean!");
+    expect(schema).toContain("recoveryIdentifier: String!");
   });
 
   it("matches every reachable decorated and hand-maintained schema contract bidirectionally", () => {

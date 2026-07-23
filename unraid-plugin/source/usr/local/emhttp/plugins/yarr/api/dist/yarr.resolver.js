@@ -298,6 +298,8 @@ function mapUpdate(value) {
         usingOverlay: value.usingOverlay,
         rollbackAvailable: value.rollbackAvailable,
         rolledBack: value.rolledBack,
+        cleanupPending: value.cleanupPending,
+        recoveryIdentifier: value.recoveryIdentifier,
         message: value.message,
     };
 }

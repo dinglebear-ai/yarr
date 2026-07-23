@@ -390,3 +390,36 @@ No deployment, workflow dispatch, release publication, or upstream draft
 mutation occurred. Independent review approval remains pending. Detailed
 evidence is in
 `.superpowers/sdd/task-12-independent-review2-followup-report.md`.
+
+## Final-head recovery cleanup remediation
+
+The final-head review on
+`1fcc18163bc5bdd39bd64184275f7a7772b881f8` identified three remaining
+issues. All are remediated:
+
+- Recovery-directory removal failures are now propagated for every update,
+  reset, and manual rollback removal site through shell JSON, API, GraphQL, and
+  UI.
+- `rolledBack` and `cleanupPending` are modeled independently. Exact
+  restoration plus retained snapshots is accepted and displayed as both
+  restoration success and cleanup required; malformed, traversal, mismatched,
+  or contradictory outcomes are rejected.
+- Manual rollback preparation uses the shared cleanup path for every chmod,
+  copy/install, verification, file-sync, transaction-sync, and overlay-sync
+  failure. Repeated normal failures do not leak transactions; failed cleanup
+  retains one validated mode-0700 transaction.
+- Active documentation describes SHA-256 CSS/JavaScript content tokens and the
+  immutable content-hashed icon filename.
+
+Focused updater, API/GraphQL, and UI tests passed. Full API (185 tests), web
+(57 tests), deterministic package, verifier, and aggregate plugin/package
+gates passed. The coordinated package is 6,222,972 bytes:
+
+- SHA-256:
+  `4e9c53bf87fd566fd929c717273d0b636f12fa35e491defd718704965bd87575`
+- MD5: `aa19d0e84f83842285aa228efaecd380`
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent reviewer approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-final-head-review-fixes-report.md`.

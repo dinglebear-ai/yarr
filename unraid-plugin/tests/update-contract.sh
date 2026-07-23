@@ -142,11 +142,13 @@ export YARR_TEST_OPERATION_LOG="$test_root/operations.log"
 mkdir -p "$YARR_TEST_FAKE_COUNTS"
 make_fake_boundary mv /bin/mv
 make_fake_boundary install /usr/bin/install
+make_fake_boundary chmod /bin/chmod
 make_fake_boundary sync /usr/bin/sync
 make_fake_boundary tar /usr/bin/tar
 make_fake_boundary rm /usr/bin/rm
 export YARR_MV_BIN="$test_root/bin/mv"
 export YARR_INSTALL_BIN="$test_root/bin/install"
+export YARR_CHMOD_BIN="$test_root/bin/chmod"
 export YARR_SYNC_BIN="$test_root/bin/sync"
 export YARR_TAR_BIN="$test_root/bin/tar"
 export YARR_RM_BIN="$test_root/bin/rm"
@@ -647,7 +649,8 @@ for operation in apply reset; do
                     "$updater" reset --json
             fi
             jq -e --arg message "$expected_preparation_message" \
-                '.rolledBack == false and .message == $message' \
+                '.rolledBack == false and .cleanupPending == false and
+                 .recoveryIdentifier == "" and .message == $message' \
                 "$tmp_dir/command.out" >/dev/null ||
                 fail "$operation $case_label did not return a truthful pre-mutation outcome"
             expect_eq '0' "$(recovery_directory_count "$recovery_label")" \
@@ -663,10 +666,10 @@ done
 for operation in apply reset; do
     if [[ "$operation" == apply ]]; then
         recovery_label=update
-        pending_prefix='Update failed before activation; recovery cleanup pending: '
+        expected_preparation_message='Update failed before activation'
     else
         recovery_label=reset
-        pending_prefix='Reset failed before mutation; recovery cleanup pending: '
+        expected_preparation_message='Reset failed before mutation'
     fi
     prepare_running_overlay
     active_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
@@ -684,13 +687,12 @@ for operation in apply reset; do
         expect_failure "$operation preparation cleanup failure" \
             "$updater" reset --json
     fi
-    cleanup_message=$(jq -r '.message' "$tmp_dir/command.out")
-    [[ "$cleanup_message" == "$pending_prefix"* ]] ||
-        fail "$operation cleanup failure was not preserved as a structured outcome"
-    recovery_identifier=${cleanup_message#"$pending_prefix"}
+    recovery_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
     [[ "$recovery_identifier" =~ ^\.yarr\.${recovery_label}\.recovery\.[A-Za-z0-9]{8}$ ]] ||
         fail "$operation cleanup failure returned an unsafe recovery identifier"
-    jq -e '.rolledBack == false' "$tmp_dir/command.out" >/dev/null ||
+    jq -e --arg message "$expected_preparation_message" \
+        '.rolledBack == false and .cleanupPending == true and .message == $message' \
+        "$tmp_dir/command.out" >/dev/null ||
         fail "$operation cleanup failure falsely claimed restoration"
     retained_recovery="$YARR_OVERLAY_DIR/$recovery_identifier"
     [[ -d "$retained_recovery" && ! -L "$retained_recovery" &&
@@ -719,7 +721,8 @@ for operation in apply reset; do
         expected_preparation_message='Reset failed before mutation'
     fi
     jq -e --arg message "$expected_preparation_message" \
-        '.rolledBack == false and .message == $message' \
+        '.rolledBack == false and .cleanupPending == false and
+         .recoveryIdentifier == "" and .message == $message' \
         "$tmp_dir/command.out" >/dev/null ||
         fail "$operation retry did not return a truthful pre-mutation outcome"
     expect_eq '0' "$(recovery_directory_count "$recovery_label")" \
@@ -730,13 +733,113 @@ for operation in apply reset; do
     assert_running_overlay_restored "$operation retry after cleanup failure"
 done
 
+manual_preparation_cases=(
+    'transaction chmod|chmod|1|false'
+    'active snapshot install|install|1|false'
+    'active snapshot file sync|sync|1|false'
+    'active snapshot verification|install|1|true'
+    'previous snapshot install|install|2|false'
+    'previous snapshot file sync|sync|2|false'
+    'previous snapshot verification|install|2|true'
+    'next active install|install|3|false'
+    'next active file sync|sync|3|false'
+    'next active verification|install|3|true'
+    'next previous install|install|4|false'
+    'next previous file sync|sync|4|false'
+    'next previous verification|install|4|true'
+    'rollback transaction sync|sync|5|false'
+    'rollback overlay sync|sync|6|false'
+)
+
+for case_spec in "${manual_preparation_cases[@]}"; do
+    IFS='|' read -r case_label boundary failure_at corrupt_install <<<"$case_spec"
+    prepare_running_overlay
+    write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
+    active_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
+    active_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr")
+    previous_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr.previous" | awk '{print $1}')
+    previous_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr.previous")
+    for attempt in 1 2; do
+        reset_boundaries
+        if [[ "$corrupt_install" == true ]]; then
+            export YARR_TEST_CORRUPT_INSTALL_AT=$failure_at
+        else
+            export YARR_TEST_FAIL_COMMAND=$boundary
+            export YARR_TEST_FAIL_AT=$failure_at
+        fi
+        expect_failure "manual rollback $case_label attempt $attempt" \
+            "$updater" rollback --json
+        jq -e '.rolledBack == false and .cleanupPending == false and
+            .recoveryIdentifier == "" and .message == "Rollback failed before activation"' \
+            "$tmp_dir/command.out" >/dev/null ||
+            fail "manual rollback $case_label did not return a truthful pre-mutation outcome"
+        expect_eq '0' "$(recovery_directory_count rollback)" \
+            "manual rollback $case_label leaked a recovery directory"
+        assert_preparation_sources_unchanged \
+            "manual rollback $case_label attempt $attempt" \
+            "$active_sha_before" "$active_mode_before" \
+            "$previous_sha_before" "$previous_mode_before"
+        "$rc" status >/dev/null ||
+            fail "manual rollback $case_label attempt $attempt changed runtime readiness"
+    done
+done
+
+prepare_running_overlay
+write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
+active_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
+active_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr")
+previous_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr.previous" | awk '{print $1}')
+previous_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr.previous")
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=sync
+export YARR_TEST_FAIL_AT=1
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'manual rollback preparation cleanup failure' "$updater" rollback --json
+rollback_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$rollback_identifier" =~ ^\.yarr\.rollback\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'manual rollback preparation cleanup returned an unsafe identifier'
+jq -e '.rolledBack == false and .cleanupPending == true and
+    .message == "Rollback failed before activation"' "$tmp_dir/command.out" >/dev/null ||
+    fail 'manual rollback preparation cleanup failure was not structured'
+rollback_recovery="$YARR_OVERLAY_DIR/$rollback_identifier"
+[[ -d "$rollback_recovery" && ! -L "$rollback_recovery" &&
+    -x "$rollback_recovery/active.snapshot" ]] ||
+    fail 'manual rollback preparation cleanup did not retain one partial transaction'
+expect_eq '700' "$(stat -c '%a' "$rollback_recovery")" \
+    'manual rollback preparation retained transaction mode'
+expect_eq '1' "$(recovery_directory_count rollback)" \
+    'manual rollback preparation cleanup directory count'
+assert_preparation_sources_unchanged 'manual rollback preparation cleanup failure' \
+    "$active_sha_before" "$active_mode_before" "$previous_sha_before" "$previous_mode_before"
+"$rc" status >/dev/null ||
+    fail 'manual rollback preparation cleanup failure changed runtime readiness'
+
+/bin/rm -rf -- "$rollback_recovery"
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=sync
+export YARR_TEST_FAIL_AT=1
+expect_failure 'manual rollback preparation retry after cleanup failure' \
+    "$updater" rollback --json
+jq -e '.rolledBack == false and .cleanupPending == false and
+    .recoveryIdentifier == "" and .message == "Rollback failed before activation"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'manual rollback preparation retry outcome is not truthful'
+expect_eq '0' "$(recovery_directory_count rollback)" \
+    'manual rollback preparation retry leaked a recovery directory'
+assert_preparation_sources_unchanged \
+    'manual rollback preparation retry after cleanup failure' \
+    "$active_sha_before" "$active_mode_before" "$previous_sha_before" "$previous_mode_before"
+"$rc" status >/dev/null ||
+    fail 'manual rollback preparation retry changed runtime readiness'
+
 prepare_running_overlay
 write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
 reset_boundaries
 export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-manual-rollback-readiness-once"
 expect_failure 'manual rollback activation fault' "$updater" rollback --json
 unset YARR_TEST_READY_FAIL_ONCE
-if ! jq -e '.rolledBack == true and .message == "Rollback failed; current binary restored"' \
+if ! jq -e '.rolledBack == true and .cleanupPending == false and
+    .recoveryIdentifier == "" and .message == "Rollback failed; current binary restored"' \
     "$tmp_dir/command.out" >/dev/null; then
     cat "$tmp_dir/command.out" >&2
     cat "$tmp_dir/command.err" >&2
@@ -752,12 +855,40 @@ fi
 prepare_running_overlay
 write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
 reset_boundaries
+export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-manual-rollback-readiness-with-cleanup"
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'manual rollback restoration cleanup fault' "$updater" rollback --json
+unset YARR_TEST_READY_FAIL_ONCE
+manual_restored_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$manual_restored_identifier" =~ ^\.yarr\.rollback\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'manual rollback restoration cleanup returned an unsafe identifier'
+jq -e '.rolledBack == true and .cleanupPending == true and
+    .message == "Rollback failed; current binary restored"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'manual rollback restoration cleanup did not preserve both outcome dimensions'
+manual_restored_recovery="$YARR_OVERLAY_DIR/$manual_restored_identifier"
+[[ -d "$manual_restored_recovery" &&
+    -x "$manual_restored_recovery/active.snapshot" &&
+    -x "$manual_restored_recovery/previous.snapshot" ]] ||
+    fail 'manual rollback restoration cleanup did not retain durable snapshots'
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" \
+    'manual restoration cleanup active restoration'
+expect_eq '2.0.1' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" \
+    'manual restoration cleanup previous restoration'
+"$rc" status >/dev/null ||
+    fail 'manual rollback restoration cleanup did not preserve readiness'
+/bin/rm -rf -- "$manual_restored_recovery"
+
+prepare_running_overlay
+write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
+reset_boundaries
 export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-manual-rollback-restore-readiness-once"
 export YARR_TEST_FAIL_COMMAND=install
 export YARR_TEST_FAIL_AT=5
 expect_failure 'manual rollback restoration helper fault' "$updater" rollback --json
 unset YARR_TEST_READY_FAIL_ONCE YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT
-if ! jq -e '.rolledBack == false and .rollbackAvailable == true and
+if ! jq -e '.rolledBack == false and .cleanupPending == false and
+    .recoveryIdentifier == "" and .rollbackAvailable == true and
     .message == "Rollback failed; restoration incomplete; recovery snapshots retained"' \
     "$tmp_dir/command.out" >/dev/null; then
     cat "$tmp_dir/command.out" >&2
@@ -798,6 +929,31 @@ expect_failure 'candidate install fault' "$updater" apply --version 2.1.0 --json
 assert_running_overlay_restored 'candidate install fault'
 
 prepare_running_overlay
+active_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
+active_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr")
+previous_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr.previous" | awk '{print $1}')
+previous_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr.previous")
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=install YARR_TEST_FAIL_AT=3
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'candidate install and cleanup fault' \
+    "$updater" apply --version 2.1.0 --json
+candidate_cleanup_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$candidate_cleanup_identifier" =~ ^\.yarr\.update\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'candidate cleanup fault returned an unsafe identifier'
+jq -e '.rolledBack == false and .cleanupPending == true and
+    .message == "Update failed before activation"' "$tmp_dir/command.out" >/dev/null ||
+    fail 'candidate cleanup fault was not propagated'
+candidate_cleanup_recovery="$YARR_OVERLAY_DIR/$candidate_cleanup_identifier"
+[[ -d "$candidate_cleanup_recovery" && -x "$candidate_cleanup_recovery/active.snapshot" &&
+    -x "$candidate_cleanup_recovery/previous.snapshot" ]] ||
+    fail 'candidate cleanup fault did not retain its recovery transaction'
+assert_preparation_sources_unchanged 'candidate install and cleanup fault' \
+    "$active_sha_before" "$active_mode_before" "$previous_sha_before" "$previous_mode_before"
+assert_running_overlay_restored 'candidate install and cleanup fault'
+/bin/rm -rf -- "$candidate_cleanup_recovery"
+
+prepare_running_overlay
 reset_boundaries
 export YARR_TEST_FAIL_COMMAND=sync YARR_TEST_FAIL_AT=5
 expect_failure 'durable sync fault' "$updater" apply --version 2.1.0 --json
@@ -823,6 +979,7 @@ expect_failure 'update restoration move fault after commit sync' \
     "$updater" apply --version 2.1.0 --json
 unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 YARR_TEST_FAIL_AT_2
 if ! jq -e '.rolledBack == false and
+    .cleanupPending == false and .recoveryIdentifier == "" and
     .message == "Update failed; restoration incomplete; recovery snapshots retained"' \
     "$tmp_dir/command.out" >/dev/null; then
     cat "$tmp_dir/command.out" >&2
@@ -854,6 +1011,7 @@ export YARR_TEST_FAIL_COMMAND_2=mv YARR_TEST_FAIL_AT_2=3
 expect_failure 'reset restoration move fault after commit sync' "$updater" reset --json
 unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 YARR_TEST_FAIL_AT_2
 if ! jq -e '.rolledBack == false and
+    .cleanupPending == false and .recoveryIdentifier == "" and
     .message == "Reset failed; restoration incomplete; recovery snapshots retained"' \
     "$tmp_dir/command.out" >/dev/null; then
     cat "$tmp_dir/command.out" >&2
@@ -882,6 +1040,47 @@ fi
 
 prepare_running_overlay
 reset_boundaries
+export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-update-readiness-before-cleanup"
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'update restoration cleanup fault' \
+    "$updater" apply --version 2.1.0 --json
+unset YARR_TEST_READY_FAIL_ONCE
+update_restored_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$update_restored_identifier" =~ ^\.yarr\.update\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'update restoration cleanup returned an unsafe identifier'
+jq -e '.rolledBack == true and .cleanupPending == true and
+    .message == "Update failed; previous binary restored"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'update restoration cleanup did not preserve both outcome dimensions'
+update_restored_recovery="$YARR_OVERLAY_DIR/$update_restored_identifier"
+[[ -d "$update_restored_recovery" && -x "$update_restored_recovery/active.snapshot" &&
+    -x "$update_restored_recovery/previous.snapshot" ]] ||
+    fail 'update restoration cleanup did not retain durable snapshots'
+assert_running_overlay_restored 'update restoration cleanup fault'
+/bin/rm -rf -- "$update_restored_recovery"
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-reset-readiness-before-cleanup"
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'reset restoration cleanup fault' "$updater" reset --json
+unset YARR_TEST_READY_FAIL_ONCE
+reset_restored_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$reset_restored_identifier" =~ ^\.yarr\.reset\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'reset restoration cleanup returned an unsafe identifier'
+jq -e '.rolledBack == true and .cleanupPending == true and
+    .message == "Reset failed; previous binary restored"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'reset restoration cleanup did not preserve both outcome dimensions'
+reset_restored_recovery="$YARR_OVERLAY_DIR/$reset_restored_identifier"
+[[ -d "$reset_restored_recovery" && -x "$reset_restored_recovery/active.snapshot" &&
+    -x "$reset_restored_recovery/previous.snapshot" ]] ||
+    fail 'reset restoration cleanup did not retain durable snapshots'
+assert_running_overlay_restored 'reset restoration cleanup fault'
+/bin/rm -rf -- "$reset_restored_recovery"
+
+prepare_running_overlay
+reset_boundaries
 export YARR_RC_YARR="$signal_rc"
 export YARR_TEST_SIGNAL_MARKER="$tmp_dir/signal-after-stop"
 expect_failure 'signal after service stop' "$updater" apply --version 2.1.0 --json
@@ -896,10 +1095,62 @@ assert_running_overlay_restored 'signal after first binary move'
 
 prepare_running_overlay
 reset_boundaries
-export YARR_TEST_FAIL_COMMAND=rm YARR_TEST_FAIL_AT=1
+export YARR_TEST_FAIL_RECOVERY_RM=true
 expect_failure 'reset backup cleanup fault' "$updater" reset --json
 [[ ! -e "$YARR_OVERLAY_DIR/yarr" && ! -e "$YARR_OVERLAY_DIR/yarr.previous" ]] || fail 'reset cleanup fault rolled back the effective reset'
 "$rc" status >/dev/null || fail 'reset cleanup fault did not keep packaged service ready'
+reset_cleanup_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$reset_cleanup_identifier" =~ ^\.yarr\.reset\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'reset committed cleanup returned an unsafe identifier'
+jq -e '.rolledBack == false and .cleanupPending == true and
+    .message == "Yarr reset; updater backup cleanup pending"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'reset committed cleanup was not propagated'
+reset_cleanup_recovery="$YARR_OVERLAY_DIR/$reset_cleanup_identifier"
+[[ -d "$reset_cleanup_recovery" ]] ||
+    fail 'reset committed cleanup did not retain its recovery transaction'
+/bin/rm -rf -- "$reset_cleanup_recovery"
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'apply committed cleanup fault' \
+    "$updater" apply --version 2.1.0 --json
+apply_cleanup_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$apply_cleanup_identifier" =~ ^\.yarr\.update\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'apply committed cleanup returned an unsafe identifier'
+jq -e '.rolledBack == false and .cleanupPending == true and
+    .message == "Yarr updated; obsolete backup cleanup pending"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'apply committed cleanup was not propagated'
+apply_cleanup_recovery="$YARR_OVERLAY_DIR/$apply_cleanup_identifier"
+[[ -d "$apply_cleanup_recovery" ]] ||
+    fail 'apply committed cleanup did not retain its recovery transaction'
+assert_candidate_committed 'apply committed cleanup fault'
+/bin/rm -rf -- "$apply_cleanup_recovery"
+
+prepare_running_overlay
+write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
+reset_boundaries
+export YARR_TEST_FAIL_RECOVERY_RM=true
+expect_failure 'manual rollback committed cleanup fault' "$updater" rollback --json
+manual_cleanup_identifier=$(jq -r '.recoveryIdentifier' "$tmp_dir/command.out")
+[[ "$manual_cleanup_identifier" =~ ^\.yarr\.rollback\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+    fail 'manual rollback committed cleanup returned an unsafe identifier'
+jq -e '.rolledBack == false and .cleanupPending == true and
+    .message == "Yarr rolled back; recovery snapshot cleanup pending"' \
+    "$tmp_dir/command.out" >/dev/null ||
+    fail 'manual rollback committed cleanup was not propagated'
+manual_cleanup_recovery="$YARR_OVERLAY_DIR/$manual_cleanup_identifier"
+[[ -d "$manual_cleanup_recovery" ]] ||
+    fail 'manual rollback committed cleanup did not retain its recovery transaction'
+expect_eq '2.0.1' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" \
+    'manual committed cleanup active binary'
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" \
+    'manual committed cleanup previous binary'
+"$rc" status >/dev/null ||
+    fail 'manual rollback committed cleanup did not retain readiness'
+/bin/rm -rf -- "$manual_cleanup_recovery"
 
 prepare_running_overlay
 reset_boundaries

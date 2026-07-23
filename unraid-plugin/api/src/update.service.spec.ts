@@ -20,6 +20,8 @@ const validStatus = {
   usingOverlay: false,
   rollbackAvailable: true,
   rolledBack: false,
+  cleanupPending: false,
+  recoveryIdentifier: "",
   message: "Update available: 2.1.0",
 };
 
@@ -99,8 +101,12 @@ describe("UpdateService", () => {
     JSON.stringify({ ...validStatus, message: "remote-private-value" }),
     JSON.stringify({
       ...validStatus,
-      message: "Update failed before activation; recovery cleanup pending: ../../private",
+      cleanupPending: true,
+      recoveryIdentifier: "../../private",
+      message: "Update failed before activation",
     }),
+    JSON.stringify({ ...validStatus, recoveryIdentifier: ".yarr.update.recovery.Ab12Cd34" }),
+    JSON.stringify({ ...validStatus, cleanupPending: "yes" }),
     `${JSON.stringify(validStatus)} trailing`,
     "x".repeat(64 * 1024 + 1),
   ])("rejects malformed, unsafe, or oversized updater output", async (stdout) => {
@@ -127,6 +133,8 @@ describe("UpdateService", () => {
     const cleanupPending = {
       ...validStatus,
       usingOverlay: true,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.update.recovery.C1e2A3n4",
       message: "Yarr updated; obsolete backup cleanup pending",
     };
     const manualRollbackFailed = {
@@ -152,12 +160,51 @@ describe("UpdateService", () => {
     const updatePreparationCleanupPending = {
       ...validStatus,
       rolledBack: false,
-      message: "Update failed before activation; recovery cleanup pending: .yarr.update.recovery.Ab12Cd34",
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.update.recovery.Ab12Cd34",
+      message: "Update failed before activation",
     };
     const resetPreparationCleanupPending = {
       ...validStatus,
       rolledBack: false,
-      message: "Reset failed before mutation; recovery cleanup pending: .yarr.reset.recovery.Z9y8X7w6",
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.reset.recovery.Z9y8X7w6",
+      message: "Reset failed before mutation",
+    };
+    const restoredWithCleanupPending = {
+      ...rolledBack,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.update.recovery.R3s4T5o6",
+    };
+    const resetRestoredWithCleanupPending = {
+      ...validStatus,
+      rolledBack: true,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.reset.recovery.R3s4T5o6",
+      message: "Reset failed; previous binary restored",
+    };
+    const rollbackRestoredWithCleanupPending = {
+      ...manualRollbackFailed,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.rollback.recovery.R3s4T5o6",
+    };
+    const resetCleanupPending = {
+      ...validStatus,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.reset.recovery.C1e2A3n4",
+      message: "Yarr reset; updater backup cleanup pending",
+    };
+    const rollbackCleanupPending = {
+      ...validStatus,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.rollback.recovery.C1e2A3n4",
+      message: "Yarr rolled back; recovery snapshot cleanup pending",
+    };
+    const rollbackPreparationCleanupPending = {
+      ...validStatus,
+      cleanupPending: true,
+      recoveryIdentifier: ".yarr.rollback.recovery.P1r2E3p4",
+      message: "Rollback failed before activation",
     };
 
     await expect(
@@ -184,6 +231,24 @@ describe("UpdateService", () => {
     await expect(
       boundaryHarness(JSON.stringify(resetPreparationCleanupPending), 1).reset(),
     ).resolves.toEqual(resetPreparationCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(restoredWithCleanupPending), 1).apply("2.1.0"),
+    ).resolves.toEqual(restoredWithCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(resetRestoredWithCleanupPending), 1).reset(),
+    ).resolves.toEqual(resetRestoredWithCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(rollbackRestoredWithCleanupPending), 1).rollback(),
+    ).resolves.toEqual(rollbackRestoredWithCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(resetCleanupPending), 1).reset(),
+    ).resolves.toEqual(resetCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(rollbackCleanupPending), 1).rollback(),
+    ).resolves.toEqual(rollbackCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(rollbackPreparationCleanupPending), 1).rollback(),
+    ).resolves.toEqual(rollbackPreparationCleanupPending);
   });
 
   it("keeps malformed and unexpected real-runner nonzero exits as failures", async () => {
@@ -215,6 +280,14 @@ describe("UpdateService", () => {
     await expect(
       boundaryHarness(JSON.stringify({
         ...validStatus,
+        cleanupPending: true,
+        recoveryIdentifier: ".yarr.update.recovery.Ab12Cd34",
+        message: "Yarr updated; obsolete backup cleanup pending",
+      }), 0).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
         rolledBack: true,
         message: "Reset failed; restoration incomplete; recovery snapshots retained",
       }), 1).reset(),
@@ -223,14 +296,42 @@ describe("UpdateService", () => {
       boundaryHarness(JSON.stringify({
         ...validStatus,
         rolledBack: true,
-        message: "Update failed before activation; recovery cleanup pending: .yarr.update.recovery.Ab12Cd34",
+        cleanupPending: true,
+        recoveryIdentifier: ".yarr.update.recovery.Ab12Cd34",
+        message: "Update failed before activation",
       }), 1).apply("2.1.0"),
     ).rejects.toThrow("Yarr update apply failed");
     await expect(
       boundaryHarness(JSON.stringify({
         ...validStatus,
         rolledBack: false,
-        message: "Reset failed before mutation; recovery cleanup pending: .yarr.reset.recovery.Z9y8X7w6",
+        cleanupPending: true,
+        recoveryIdentifier: ".yarr.reset.recovery.Z9y8X7w6",
+        message: "Reset failed before mutation",
+      }), 1).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        cleanupPending: true,
+        recoveryIdentifier: ".yarr.update.recovery.Ab12Cd34",
+        message: "Update failed; restoration incomplete; recovery snapshots retained",
+      }), 1).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        cleanupPending: true,
+        recoveryIdentifier: ".yarr.rollback.recovery.Ab12Cd34",
+        message: "Update failed before activation",
+      }), 1).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        cleanupPending: false,
+        recoveryIdentifier: "",
+        message: "Yarr updated; obsolete backup cleanup pending",
       }), 1).apply("2.1.0"),
     ).rejects.toThrow("Yarr update apply failed");
     await expect(
@@ -242,19 +343,15 @@ describe("UpdateService", () => {
     "No compatible release is available",
     "Update available: 2.1.0",
     "Yarr is current",
-    "Yarr reset; updater backup cleanup pending",
-    "Yarr updated; obsolete backup cleanup pending",
     "Update failed; previous binary restored",
     "Update failed; restoration incomplete; recovery snapshots retained",
     "Reset failed; restoration incomplete; recovery snapshots retained",
     "Update failed before activation",
     "Reset failed before mutation",
-    "Update failed before activation; recovery cleanup pending: .yarr.update.recovery.Ab12Cd34",
-    "Reset failed before mutation; recovery cleanup pending: .yarr.reset.recovery.Z9y8X7w6",
+    "Rollback failed before activation",
     "Rollback failed; current binary restored",
     "Rollback failed; restoration incomplete; recovery snapshots retained",
     "Manual rollback is unavailable; no previous binary exists",
-    "Yarr rolled back; recovery snapshot cleanup pending",
     "Yarr updated to 2.1.0",
     "Reset failed; previous binary restored",
     "Yarr reset to packaged binary",

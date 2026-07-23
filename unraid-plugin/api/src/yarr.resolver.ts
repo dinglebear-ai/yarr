@@ -247,6 +247,8 @@ function mapUpdate(value: UpdateStatus): YarrUpdateStatus {
     usingOverlay: value.usingOverlay,
     rollbackAvailable: value.rollbackAvailable,
     rolledBack: value.rolledBack,
+    cleanupPending: value.cleanupPending,
+    recoveryIdentifier: value.recoveryIdentifier,
     message: value.message,
   };
 }

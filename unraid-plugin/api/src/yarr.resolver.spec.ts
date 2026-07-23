@@ -145,6 +145,8 @@ function harness() {
       usingOverlay: false,
       rollbackAvailable: false,
       rolledBack: false,
+      cleanupPending: false,
+      recoveryIdentifier: "",
       message: "Yarr update 2.1.0 is available",
       secret: "update-private",
     })),
@@ -156,6 +158,8 @@ function harness() {
       usingOverlay: true,
       rollbackAvailable: true,
       rolledBack: false,
+      cleanupPending: false,
+      recoveryIdentifier: "",
       message: "Yarr updated to 2.1.0",
       secret: "update-private",
     })),
@@ -167,6 +171,8 @@ function harness() {
       usingOverlay: false,
       rollbackAvailable: false,
       rolledBack: false,
+      cleanupPending: false,
+      recoveryIdentifier: "",
       message: "Yarr reset to packaged binary",
       secret: "update-private",
     })),
@@ -178,6 +184,8 @@ function harness() {
       usingOverlay: true,
       rollbackAvailable: true,
       rolledBack: false,
+      cleanupPending: false,
+      recoveryIdentifier: "",
       message: "Yarr rolled back to previous binary",
       secret: "update-private",
     })),
@@ -291,6 +299,9 @@ describe("YarrResolver", () => {
     expect(updates.apply).toHaveBeenCalledWith("2.1.0");
     expect(updates.reset).toHaveBeenCalledOnce();
     expect(updates.rollback).toHaveBeenCalledOnce();
+    expect(applied).toMatchObject({ cleanupPending: false, recoveryIdentifier: "" });
+    expect(reset).toMatchObject({ cleanupPending: false, recoveryIdentifier: "" });
+    expect(rolledBack).toMatchObject({ cleanupPending: false, recoveryIdentifier: "" });
     expect(JSON.stringify({ applied, reset, rolledBack })).not.toContain("update-private");
   });
 });

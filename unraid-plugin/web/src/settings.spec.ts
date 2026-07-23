@@ -576,17 +576,20 @@ describe("Yarr settings", () => {
     api.queryYarrUpdateStatus.mockResolvedValue({
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      cleanupPending: false, recoveryIdentifier: "",
       message: "Update available: 1.3.0",
     });
     api.updateYarrBinary.mockResolvedValue({
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
-      message: `Update failed before activation; recovery cleanup pending: ${updateIdentifier}`,
+      cleanupPending: true, recoveryIdentifier: updateIdentifier,
+      message: "Update failed before activation",
     });
     api.resetYarrBinary.mockResolvedValue({
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "",
       updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
-      message: `Reset failed before mutation; recovery cleanup pending: ${resetIdentifier}`,
+      cleanupPending: true, recoveryIdentifier: resetIdentifier,
+      message: "Reset failed before mutation",
     });
 
     button("Updates").click();
@@ -597,7 +600,7 @@ describe("Yarr settings", () => {
     await flush();
     expect(host.textContent).toContain(updateIdentifier);
     expect(host.textContent).toContain("/mnt/user/appdata/yarr/bin");
-    expect(host.textContent).toContain("The active binaries were not changed.");
+    expect(host.textContent).toContain("No live binary mutation was committed.");
     expect(host.textContent).not.toContain("The previous version was restored.");
 
     button("Reset to packaged version").click();
@@ -607,6 +610,35 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain(resetIdentifier);
     expect(host.textContent).toContain("/mnt/user/appdata/yarr/bin");
     expect(host.textContent).not.toContain("The previous version was restored.");
+  });
+
+  it("reports successful restoration and retained cleanup independently", async () => {
+    await mountSettings();
+    const identifier = ".yarr.update.recovery.R3s4T5o6";
+    api.queryYarrUpdateStatus.mockResolvedValue({
+      installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      cleanupPending: false, recoveryIdentifier: "",
+      message: "Update available: 1.3.0",
+    });
+    api.updateYarrBinary.mockResolvedValue({
+      installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: true,
+      cleanupPending: true, recoveryIdentifier: identifier,
+      message: "Update failed; previous binary restored",
+    });
+
+    button("Updates").click();
+    await flush();
+    button("Install 1.3.0").click();
+    await nextTick();
+    button("Install update").click();
+    await flush();
+
+    expect(host.textContent).toContain("The previous version was restored.");
+    expect(host.textContent).toContain(identifier);
+    expect(host.textContent).toContain("require operator cleanup");
+    expect(host.textContent).not.toContain("restoration incomplete");
   });
 
   it("serializes usernames only for capable services and preserves qBittorrent", async () => {
