@@ -131,9 +131,19 @@ async function readJson(response: Response): Promise<GraphQLBody> {
   }
 }
 
+async function cancelResponseBody(body: ReadableStream<Uint8Array> | null): Promise<void> {
+  if (!body) return;
+  try {
+    await body.cancel();
+  } catch {
+    // Cancellation is best-effort and its implementation details are not user-facing.
+  }
+}
+
 async function request<T>(document: string, variables?: Record<string, unknown>, callerSignal?: AbortSignal): Promise<T> {
   const controller = new AbortController();
   let timedOut = false;
+  let httpFailed = false;
   const timeout = window.setTimeout(() => {
     timedOut = true;
     controller.abort(abortError(TIMEOUT_ERROR));
@@ -157,13 +167,19 @@ async function request<T>(document: string, variables?: Record<string, unknown>,
       signal: controller.signal,
     });
 
-    if (!response.ok) throw new Error(SAFE_REQUEST_ERROR);
+    if (!response.ok) {
+      httpFailed = true;
+      await cancelResponseBody(response.body);
+      controller.abort();
+      throw new Error(SAFE_REQUEST_ERROR);
+    }
     const body = await readJson(response);
     if (Array.isArray(body.errors) && body.errors.length > 0) throw new Error(SAFE_REQUEST_ERROR);
     if (!isRecord(body.data)) throw new Error(SAFE_REQUEST_ERROR);
     return body.data as T;
   } catch (error) {
     if (timedOut) throw new Error(TIMEOUT_ERROR);
+    if (httpFailed) throw new Error(SAFE_REQUEST_ERROR);
     if (controller.signal.aborted) throw new Error(ABORT_ERROR);
     if (error instanceof Error && error.message === SAFE_REQUEST_ERROR) throw error;
     throw new Error(SAFE_REQUEST_ERROR);

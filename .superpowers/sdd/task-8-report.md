@@ -21,6 +21,16 @@
 - `npm test -- --run src/graphql.spec.ts` passed: 5 tests.
 - `npx vue-tsc --noEmit` passed.
 
+## Final HTTP-error hardening
+
+- Non-2xx responses now cancel an available response body before the fixed safe HTTP error is raised, then abort the internal request controller after the cancellation attempt. Cancellation details and server response contents remain private.
+- Added a lazy, non-ending HTTP-error body test proving cancellation occurs without acquiring or materializing body chunks; shared timeout, CSRF, and caller-listener cleanup remains in the existing `finally` path.
+
+## Final validation
+
+- `npm test -- --run src/graphql.spec.ts src/components/SecretField.spec.ts` passed: 16 tests.
+- `npx vue-tsc --noEmit` passed.
+
 ## Self-review
 
 - Reviewed the new web-only surface for scope and whitespace issues.

@@ -88,6 +88,24 @@ describe("Yarr GraphQL client", () => {
     await expect(controlYarr("RESTART")).rejects.toThrow("Unable to complete this request.");
   });
 
+  it("cancels a non-ending HTTP-error body without materializing chunks", async () => {
+    const cancel = vi.fn();
+    const materialized = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        materialized();
+        controller.enqueue(new Uint8Array([1]));
+      },
+      cancel,
+    }, { highWaterMark: 0 });
+    vi.mocked(fetch).mockResolvedValue(new Response(body, { status: 503 }));
+
+    await expect(queryYarrRuntime()).rejects.toThrow("Unable to complete this request.");
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(materialized).not.toHaveBeenCalled();
+  });
+
   it("aborts a request after eight seconds", async () => {
     vi.useFakeTimers();
     vi.mocked(fetch).mockImplementation((_url, init) => new Promise((_resolve, reject) => {
