@@ -1,0 +1,339 @@
+name: Release Unraid plugin
+
+on:
+  push:
+    tags:
+      - "unraid-v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing package tag in unraid-vVERSION-BUILD form
+        required: true
+        type: string
+        default: "unraid-v2.1.0-1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unraid-plugin-release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "22.18.0"
+
+jobs:
+  prepare:
+    name: Validate package tag and metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      package_tag: ${{ steps.identity.outputs.package_tag }}
+      plugin_version: ${{ steps.identity.outputs.plugin_version }}
+      package_build: ${{ steps.identity.outputs.package_build }}
+      package_file: ${{ steps.identity.outputs.package_file }}
+    env:
+      PACKAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+    steps:
+      - name: Check out immutable package tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ env.PACKAGE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate two-version release identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$PACKAGE_TAG" =~ ^unraid-v([0-9]+\.[0-9]+\.[0-9]+)-([1-9][0-9]*)$ ]]; then
+            echo "::error::Package tag must match unraid-vVERSION-BUILD"
+            exit 1
+          fi
+          plugin_version="${BASH_REMATCH[1]}"
+          package_build="${BASH_REMATCH[2]}"
+          package_file="yarr-${plugin_version}-x86_64-${package_build}.txz"
+          git tag --points-at HEAD | grep -Fx -- "$PACKAGE_TAG" >/dev/null
+          jq -e --arg version "$plugin_version" --argjson build "$package_build" \
+            --arg file "$package_file" --arg tag "$PACKAGE_TAG" '
+              .pluginVersion == $version and
+              .apiVersion == $version and
+              .packageBuild == $build and
+              .packageFile == $file and
+              .packageUrl ==
+                ("https://github.com/dinglebear-ai/yarr/releases/download/" + $tag + "/" + $file) and
+              .binaryRepository == "dinglebear-ai/yarr" and
+              .binaryAsset == "yarr-x86_64.tar.gz"
+            ' unraid-plugin/release-manifest.json >/dev/null
+          grep -Fq "<!ENTITY version    \"${plugin_version}-${package_build}\">" unraid-plugin/yarr.plg
+          grep -Fq "<!ENTITY txz        \"${package_file}\">" unraid-plugin/yarr.plg
+          grep -Fq "releases/download/${PACKAGE_TAG}/${package_file}" unraid-plugin/yarr.plg
+          {
+            printf 'package_tag=%s\n' "$PACKAGE_TAG"
+            printf 'plugin_version=%s\n' "$plugin_version"
+            printf 'package_build=%s\n' "$package_build"
+            printf 'package_file=%s\n' "$package_file"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build and verify release payload
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PACKAGE_TAG: ${{ needs.prepare.outputs.package_tag }}
+      PLUGIN_VERSION: ${{ needs.prepare.outputs.plugin_version }}
+      PACKAGE_BUILD: ${{ needs.prepare.outputs.package_build }}
+      PACKAGE_FILE: ${{ needs.prepare.outputs.package_file }}
+    steps:
+      - name: Check out immutable package tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.prepare.outputs.package_tag }}
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            unraid-plugin/api/package-lock.json
+            unraid-plugin/web/package-lock.json
+
+      - name: Install package verification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq libxml2-utils shellcheck xz-utils
+
+      - name: Test and build API extension
+        shell: bash
+        run: cd unraid-plugin/api && npm ci && npm test && npx tsc --noEmit && npx tsc
+
+      - name: Test and build settings and dashboard elements
+        shell: bash
+        run: cd unraid-plugin/web && npm ci && npm test && npx vue-tsc --noEmit && npm run build
+
+      - name: Run release contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          find unraid-plugin -type f -name '*.sh' -print0 |
+            sort -z |
+            xargs -0 shellcheck -S error
+          bash unraid-plugin/tests/run.sh
+
+      - name: Download read-only upstream binary inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .release/upstream
+          repository="$(jq -r '.binaryRepository' unraid-plugin/release-manifest.json)"
+          asset="$(jq -r '.binaryAsset' unraid-plugin/release-manifest.json)"
+          UPSTREAM_TAG="v${PLUGIN_VERSION}"
+          state="$(gh release view "$UPSTREAM_TAG" --repo "$repository" --json tagName,assets)"
+          jq -e --arg tag "$UPSTREAM_TAG" --arg asset "$asset" '
+            .tagName == $tag and
+            ([.assets[].name] | sort) == ([$asset, ($asset + ".sha256")] | sort)
+          ' <<<"$state" >/dev/null
+          gh release download "$UPSTREAM_TAG" --repo "$repository" \
+            --pattern "$asset" --pattern "${asset}.sha256" --dir .release/upstream
+
+      - name: Build twice and refuse embedded version drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .release/repro
+          umask 022
+          YARR_RELEASE_ASSET_DIR="$PWD/.release/upstream" \
+            bash unraid-plugin/scripts/build-package.sh "$PLUGIN_VERSION" "$PACKAGE_BUILD"
+          bash unraid-plugin/scripts/verify-package.sh
+          cp -- "unraid-plugin/packages/$PACKAGE_FILE" .release/repro/umask-022.txz
+          umask 077
+          YARR_RELEASE_ASSET_DIR="$PWD/.release/upstream" \
+            bash unraid-plugin/scripts/build-package.sh "$PLUGIN_VERSION" "$PACKAGE_BUILD"
+          bash unraid-plugin/scripts/verify-package.sh
+          cmp -- .release/repro/umask-022.txz "unraid-plugin/packages/$PACKAGE_FILE"
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          tar --same-permissions -xJf "unraid-plugin/packages/$PACKAGE_FILE" -C "$root"
+          test "$("$root/usr/local/yarr/bin/yarr" --version)" = "yarr ${PLUGIN_VERSION}"
+
+      - name: Assemble and verify checksummed release inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .release/assets
+          cp -- "unraid-plugin/packages/$PACKAGE_FILE" .release/assets/
+          cp -- unraid-plugin/yarr.plg unraid-plugin/release-manifest.json .release/assets/
+          tar -xOJf "unraid-plugin/packages/$PACKAGE_FILE" \
+            usr/local/emhttp/plugins/yarr/package-manifest.sha256 \
+            > .release/assets/package-manifest.sha256
+          package_sha="$(sha256sum ".release/assets/$PACKAGE_FILE" | cut -d' ' -f1)"
+          plugin_sha="$(sha256sum .release/assets/yarr.plg | cut -d' ' -f1)"
+          manifest_sha="$(sha256sum .release/assets/release-manifest.json | cut -d' ' -f1)"
+          embedded_sha="$(sha256sum .release/assets/package-manifest.sha256 | cut -d' ' -f1)"
+          jq -n -S \
+            --arg tag "$PACKAGE_TAG" \
+            --arg version "$PLUGIN_VERSION" \
+            --argjson build "$PACKAGE_BUILD" \
+            --arg package "$PACKAGE_FILE" \
+            --arg packageSha "$package_sha" \
+            --argjson packageBytes "$(stat -c %s ".release/assets/$PACKAGE_FILE")" \
+            --arg pluginSha "$plugin_sha" \
+            --argjson pluginBytes "$(stat -c %s .release/assets/yarr.plg)" \
+            --arg manifestSha "$manifest_sha" \
+            --argjson manifestBytes "$(stat -c %s .release/assets/release-manifest.json)" \
+            --arg embeddedSha "$embedded_sha" \
+            --argjson embeddedBytes "$(stat -c %s .release/assets/package-manifest.sha256)" '
+              {
+                schemaVersion: 1,
+                releaseTag: $tag,
+                pluginVersion: $version,
+                packageBuild: $build,
+                assets: [
+                  {name: $package, role: "classic-package", sha256: $packageSha, bytes: $packageBytes},
+                  {name: "yarr.plg", role: "installer", sha256: $pluginSha, bytes: $pluginBytes},
+                  {name: "release-manifest.json", role: "release-metadata", sha256: $manifestSha, bytes: $manifestBytes},
+                  {name: "package-manifest.sha256", role: "payload-inventory", sha256: $embeddedSha, bytes: $embeddedBytes}
+                ]
+              }
+            ' > .release/assets/release-inventory.json
+          for file in "$PACKAGE_FILE" yarr.plg release-manifest.json \
+            package-manifest.sha256 release-inventory.json; do
+            (
+              cd .release/assets
+              sha256sum -- "$file" > "${file}.sha256"
+              sha256sum --check "${file}.sha256"
+            )
+          done
+          test "$package_sha" = "$(jq -r '.packageSha256' .release/assets/release-manifest.json)"
+          jq -e --arg tag "$PACKAGE_TAG" --arg version "$PLUGIN_VERSION" \
+            --argjson build "$PACKAGE_BUILD" '
+              .schemaVersion == 1 and
+              .releaseTag == $tag and
+              .pluginVersion == $version and
+              .packageBuild == $build and
+              (.assets | length == 4) and
+              ([.assets[].name] | unique | length) == 4
+            ' .release/assets/release-inventory.json >/dev/null
+
+      - name: Upload immutable release candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: yarr-unraid-release-${{ needs.prepare.outputs.package_tag }}
+          path: .release/assets/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish verified package release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PACKAGE_TAG: ${{ needs.prepare.outputs.package_tag }}
+      PLUGIN_VERSION: ${{ needs.prepare.outputs.plugin_version }}
+      PACKAGE_BUILD: ${{ needs.prepare.outputs.package_build }}
+      PACKAGE_FILE: ${{ needs.prepare.outputs.package_file }}
+    steps:
+      - name: Download immutable release candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: yarr-unraid-release-${{ needs.prepare.outputs.package_tag }}
+          path: release-assets
+
+      - name: Reverify every local asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t actual < <(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)
+          expected=(
+            "$PACKAGE_FILE"
+            "${PACKAGE_FILE}.sha256"
+            package-manifest.sha256
+            package-manifest.sha256.sha256
+            release-inventory.json
+            release-inventory.json.sha256
+            release-manifest.json
+            release-manifest.json.sha256
+            yarr.plg
+            yarr.plg.sha256
+          )
+          mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${actual[*]}" = "${expected[*]}"
+          (
+            cd release-assets
+            for checksum in *.sha256; do
+              sha256sum --check "$checksum"
+            done
+          )
+          while IFS=$'\t' read -r name sha bytes; do
+            test -f "release-assets/$name"
+            test "$(sha256sum "release-assets/$name" | cut -d' ' -f1)" = "$sha"
+            test "$(stat -c %s "release-assets/$name")" = "$bytes"
+          done < <(jq -r '.assets[] | [.name, .sha256, (.bytes | tostring)] | @tsv' \
+            release-assets/release-inventory.json)
+          test "$(jq -r '.packageSha256' release-assets/release-manifest.json)" = \
+            "$(sha256sum "release-assets/$PACKAGE_FILE" | cut -d' ' -f1)"
+          grep -Fq "<!ENTITY sha256     \"$(sha256sum "release-assets/$PACKAGE_FILE" | cut -d' ' -f1)\">" \
+            release-assets/yarr.plg
+
+      - name: Publish package release transactionally
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$PACKAGE_TAG" =~ ^unraid-v[0-9]+\.[0-9]+\.[0-9]+-[1-9][0-9]*$ ]]
+          if gh release view "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Refusing to modify existing package release $PACKAGE_TAG"
+            exit 1
+          fi
+          UPSTREAM_TAG="v${PLUGIN_VERSION}"
+          upstream_before="$(
+            gh release view "$UPSTREAM_TAG" --repo "$GITHUB_REPOSITORY" \
+              --json databaseId,isDraft,assets |
+              jq -Sc '{databaseId,isDraft,assets:([.assets[] | {name,size,digest}] | sort_by(.name))}'
+          )"
+          created=false
+          cleanup_draft() {
+            if [[ "$created" == true ]]; then
+              gh release delete "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" --yes || true
+            fi
+          }
+          trap cleanup_draft ERR INT TERM
+          gh release create "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --draft --verify-tag \
+            --title "Yarr Unraid plugin ${PLUGIN_VERSION}-${PACKAGE_BUILD}" \
+            --notes "Classic Unraid package for Yarr ${PLUGIN_VERSION}; upstream binary assets remain on v${PLUGIN_VERSION}."
+          created=true
+          gh release upload "$PACKAGE_TAG" release-assets/* --repo "$GITHUB_REPOSITORY"
+          remote="$(mktemp -d)"
+          gh release download "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$remote"
+          mapfile -t local_names < <(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t remote_names < <(find "$remote" -maxdepth 1 -type f -printf '%f\n' | sort)
+          test "${local_names[*]}" = "${remote_names[*]}"
+          for name in "${local_names[@]}"; do
+            cmp -- "release-assets/$name" "$remote/$name"
+          done
+          package_state="$(gh release view "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets)"
+          test "$(jq -r '.isDraft' <<<"$package_state")" = true
+          test "$(jq -r '[.assets[].name] | sort | join("\n")' <<<"$package_state")" = \
+            "$(printf '%s\n' "${local_names[@]}")"
+          upstream_after="$(
+            gh release view "$UPSTREAM_TAG" --repo "$GITHUB_REPOSITORY" \
+              --json databaseId,isDraft,assets |
+              jq -Sc '{databaseId,isDraft,assets:([.assets[] | {name,size,digest}] | sort_by(.name))}'
+          )"
+          test "$upstream_before" = "$upstream_after"
+          gh release edit "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --draft=false --latest=false
+          created=false
+          trap - ERR INT TERM
+          test "$(gh release view "$PACKAGE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')" = false

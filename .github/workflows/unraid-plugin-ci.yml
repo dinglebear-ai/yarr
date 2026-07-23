@@ -1,0 +1,162 @@
+name: Unraid plugin CI
+
+on:
+  push:
+    paths:
+      - "unraid-plugin/**"
+      - ".github/workflows/unraid-plugin-ci.yml"
+      - ".github/workflows/unraid-plugin-release.yml"
+      - "Justfile"
+      - "README.md"
+  pull_request:
+    paths:
+      - "unraid-plugin/**"
+      - ".github/workflows/unraid-plugin-ci.yml"
+      - ".github/workflows/unraid-plugin-release.yml"
+      - "Justfile"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unraid-plugin-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22.18.0"
+
+jobs:
+  verify:
+    name: Test and reproduce package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            unraid-plugin/api/package-lock.json
+            unraid-plugin/web/package-lock.json
+
+      - name: Install package verification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq libxml2-utils shellcheck xz-utils
+
+      - name: Test and build API extension
+        shell: bash
+        run: cd unraid-plugin/api && npm ci && npm test && npx tsc --noEmit && npx tsc
+
+      - name: Test and build settings and dashboard elements
+        shell: bash
+        run: cd unraid-plugin/web && npm ci && npm test && npx vue-tsc --noEmit && npm run build
+
+      - name: Verify both custom-element bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s unraid-plugin/web/dist/settings/yarr-settings.js
+          test -s unraid-plugin/web/dist/settings/yarr-settings.css
+          test -s unraid-plugin/web/dist/dashboard/yarr-dashboard.js
+          test -s unraid-plugin/web/dist/dashboard/yarr-dashboard.css
+          npm --prefix unraid-plugin/web run check:browser-bundles
+
+      - name: Run shell and static contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          find unraid-plugin -type f -name '*.sh' -print0 |
+            sort -z |
+            xargs -0 shellcheck -S error
+          bash unraid-plugin/tests/run.sh
+
+      - name: Download checksummed upstream binary inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/upstream
+          repository="$(jq -r '.binaryRepository' unraid-plugin/release-manifest.json)"
+          asset="$(jq -r '.binaryAsset' unraid-plugin/release-manifest.json)"
+          version="$(jq -r '.pluginVersion' unraid-plugin/release-manifest.json)"
+          state="$(gh release view "v${version}" --repo "$repository" --json tagName,assets)"
+          jq -e --arg tag "v${version}" --arg asset "$asset" '
+            .tagName == $tag and
+            ([.assets[].name] | sort) == ([$asset, ($asset + ".sha256")] | sort)
+          ' <<<"$state" >/dev/null
+          gh release download "v${version}" --repo "$repository" \
+            --pattern "$asset" --pattern "${asset}.sha256" --dir .ci/upstream
+
+      - name: Build twice and verify deterministic package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/repro
+          umask 022
+          YARR_RELEASE_ASSET_DIR="$PWD/.ci/upstream" bash unraid-plugin/scripts/build-package.sh 2.1.0 1
+          bash unraid-plugin/scripts/verify-package.sh
+          package="$(jq -r '.packageFile' unraid-plugin/release-manifest.json)"
+          cp -- "unraid-plugin/packages/$package" .ci/repro/umask-022.txz
+          umask 077
+          YARR_RELEASE_ASSET_DIR="$PWD/.ci/upstream" bash unraid-plugin/scripts/build-package.sh 2.1.0 1
+          bash unraid-plugin/scripts/verify-package.sh
+          cmp -- .ci/repro/umask-022.txz "unraid-plugin/packages/$package"
+
+      - name: Check packaged secrets inventory and paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$(jq -r '.packageFile' unraid-plugin/release-manifest.json)"
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          tar --same-permissions -xJf "unraid-plugin/packages/$package" -C "$root"
+          if grep -Ev '^[[:space:]]*(#.*)?$' \
+            "$root/usr/local/emhttp/plugins/yarr/default.env" | grep -q .; then
+            echo "::error::Packaged default.env contains a credential value"
+            exit 1
+          fi
+          inventory="$root/usr/local/emhttp/plugins/yarr/package-manifest.sha256"
+          test -s "$inventory"
+          while IFS=' ' read -r sha mode path extra; do
+            test -z "${extra:-}"
+            [[ "$sha" =~ ^[0-9a-f]{64}$ ]]
+            [[ "$mode" =~ ^[0-7]{3,4}$ ]]
+            [[ "$path" != /* && "$path" != *".."* && "$path" != *"//"* ]]
+            test -f "$root/$path"
+            test ! -L "$root/$path"
+            test "$(sha256sum "$root/$path" | cut -d' ' -f1)" = "$sha"
+          done < "$inventory"
+
+      - name: Stage checksummed CI artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/artifacts
+          package="$(jq -r '.packageFile' unraid-plugin/release-manifest.json)"
+          cp -- "unraid-plugin/packages/$package" unraid-plugin/yarr.plg \
+            unraid-plugin/release-manifest.json .ci/artifacts/
+          (
+            cd .ci/artifacts
+            sha256sum -- "$package" yarr.plg release-manifest.json > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Upload checksummed CI artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: yarr-unraid-package
+          path: .ci/artifacts/
+          if-no-files-found: error
+          retention-days: 7

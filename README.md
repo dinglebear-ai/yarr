@@ -20,6 +20,7 @@ kinds it knows about, and only does what you or your agent ask it to do.
 - [Naming](#naming)
 - [Capabilities And Boundaries](#capabilities-and-boundaries)
 - [Install](#install)
+- [Unraid Plugin](#unraid-plugin)
 - [Quickstart](#quickstart)
 - [Client Configuration](#client-configuration)
 - [Runtime Surfaces](#runtime-surfaces)
@@ -111,6 +112,27 @@ curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
 ```
 
 That script installs `yarr` into `~/.local/bin`.
+
+## Unraid Plugin
+
+The coordinated Unraid distribution lives under
+[`unraid-plugin/`](unraid-plugin/README.md). It combines the classic `.plg`
+installer and privileged service lifecycle, an external NestJS GraphQL
+extension, and Vue settings/dashboard custom elements.
+
+Install the plugin URL from Unraid's **Plugins > Install Plugin** page:
+
+```text
+https://raw.githubusercontent.com/dinglebear-ai/yarr/main/unraid-plugin/yarr.plg
+```
+
+Fresh installs bind Yarr to loopback. LAN or custom-address binding is rejected
+until authentication is configured; Tailscale Serve is the supported
+tailnet-only option. Service credentials stay in server-side boot
+configuration and are never returned to the browser. See the
+[Unraid operator and release guide](unraid-plugin/README.md) for persistence,
+discovery, updates, rollback, uninstall retention, troubleshooting, and
+release gates.
 
 ## Quickstart
 

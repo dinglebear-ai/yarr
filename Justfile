@@ -457,6 +457,16 @@ validate-plugin:
 unraid-test:
     bash unraid-plugin/tests/run.sh
 
+# Rebuild and verify the deterministic classic Unraid package.
+unraid-build version="2.1.0" build="1":
+    bash unraid-plugin/scripts/build-package.sh "{{version}}" "{{build}}"
+    bash unraid-plugin/scripts/verify-package.sh
+
+# Verify the committed classic package and coordinated release metadata.
+unraid-release-check:
+    bash unraid-plugin/tests/release-contract.sh
+    bash unraid-plugin/scripts/verify-package.sh
+
 # Validate all plugin skills have required SKILL.md fields
 validate-skills: validate-plugin
 
