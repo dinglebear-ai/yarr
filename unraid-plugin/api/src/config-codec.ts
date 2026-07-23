@@ -98,7 +98,7 @@ export function toPublicConfig(
       ...SERVICE_CATALOG.map((entry) => ({
         service: entry.id,
         enabled: enabledServices.has(entry.id),
-        baseUrl: firstValue(env.values, entry.urlKeys) ?? "",
+        baseUrl: safePublicServiceUrl(firstValue(env.values, entry.urlKeys)),
         username: null,
         hasPassword: hasValue(firstValue(env.values, entry.passwordKeys)),
         hasApiKey: hasValue(firstValue(env.values, entry.apiKeyKeys)),
@@ -185,7 +185,11 @@ function applyServiceInputs(
     }
     if (update.baseUrl !== undefined) {
       const normalized = normalizeServiceUrl(update.baseUrl);
-      if (!normalized) throw new Error(`${entry.id}.baseUrl must be an http or https URL without embedded credentials`);
+      if (!normalized) {
+        throw new Error(
+          `${entry.id}.baseUrl must be a bounded http or https URL without credentials, query, or fragment`,
+        );
+      }
       values[entry.urlKeys[0]] = normalized;
     }
     if (update.username !== undefined) {
@@ -215,6 +219,10 @@ function firstValue(values: Record<string, string>, keys: readonly string[]): st
     if (hasValue(values[key])) return values[key];
   }
   return undefined;
+}
+
+function safePublicServiceUrl(value: string | undefined): string {
+  return value === undefined ? "" : normalizeServiceUrl(value) ?? "";
 }
 
 export function validateConfigState(state: ParsedConfigState): void {

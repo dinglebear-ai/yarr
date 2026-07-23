@@ -111,3 +111,78 @@ npx tsc --noEmit
 
 - Validation used deterministic unit-level Docker request fakes; no live `/var/run/docker.sock` or Unraid deployment was part of Task 6.
 - GraphQL exposure is intentionally deferred to the later task.
+
+## Review Fixes After `0ae174f`
+
+The Task 6 review findings were fixed in a new commit; `0ae174f` was not amended.
+
+### Caller-safe import and error reporting
+
+- Unknown structured keys now produce a fixed generic warning without reflecting either key-associated values or unsupported service names.
+- Unsupported `YARR_SERVICES` entries are reported only as a count with singular/plural wording.
+- Docker failures crossing the discovery boundary are mapped by typed error code to fixed messages; injected or socket-derived error text is never returned.
+- Regressions use secret-shaped unknown values, unsupported service names, container values, URL query tokens, fragments, and credentials and prove they do not appear in previews or public config.
+
+### Strict service URL boundary
+
+- `normalizeServiceUrl` is the single catalog URL boundary used by import, discovery, config save, and defensive public rendering.
+- It accepts only HTTP and HTTPS URLs with no userinfo, query, or fragment.
+- It enforces 2,048 total characters, 253 hostname characters, 63 characters per DNS label, 1,024 path characters, and ports from 1 through 65,535.
+- Scheme and hostname casing, default ports, dot segments, duplicate path separators, root paths, and trailing separators normalize deterministically.
+- Unsafe pre-existing stored URLs render as an empty string and are never reflected.
+
+### Docker label allowlists and revalidation
+
+- Endpoint URL discovery reads only `net.unraid.docker.webui` and the explicit `io.yarr.service-url` override.
+- Identity hints read only `com.docker.compose.service` and `net.unraid.docker.name`.
+- Icon, OCI source, documentation, and arbitrary label URLs are ignored.
+- Apply reinspection requires the service ID, normalized URL, and URL-origin class to remain unchanged, preventing an allowed-label candidate from being replaced by an environment or other source.
+
+### Aggregate bounds
+
+- Discovery inspects at most 256 containers and applies at most one selected candidate for each of the 11 catalog services.
+- Every Docker result reports internal response bytes, including failures.
+- Discovery and apply each enforce an 8 MiB cumulative response budget and a 10-second aggregate deadline.
+- Every list/inspect request receives the remaining deadline clamped to at most 3,000 ms.
+- Retained discovery session payload is capped at 256 KiB in addition to the existing 64-session and five-minute TTL bounds.
+- Container IDs, names, images, identity labels, URLs, paths, hostnames, and fixed reasons are individually bounded.
+- Budget/deadline exhaustion stops processing with fixed typed nonfatal discovery warnings; apply fails before `ConfigService.save()`.
+
+### Docker non-success handling
+
+- Non-2xx responses immediately destroy both response and request instead of draining an unbounded or non-ending body.
+- The regression uses a non-ending response and proves immediate destruction and settlement.
+
+### Review RED/GREEN evidence
+
+Initial review RED:
+
+```text
+4 files failed, 22 tests failed, 31 passed
+- unsafe URL normalization/rendering accepted query, fragment, port zero, long host/path, and raw stored URLs
+- unknown YARR_SERVICES entries and Docker error messages were reflected
+- arbitrary icon/source label URLs were accepted
+- aggregate response/deadline/session budgets and response destruction were absent
+```
+
+Secondary hardening RED:
+
+```text
+discovery.service.spec.ts: 3 failed, 8 passed
+- list timeout exceeded the per-call 3-second maximum
+- apply accepted a label-to-environment URL-origin swap
+- apply did not enforce cumulative response bytes
+```
+
+Final GREEN:
+
+```text
+npm test -- --run src/config-codec.spec.ts src/import.service.spec.ts src/docker.service.spec.ts src/discovery.service.spec.ts
+  4 files passed, 54 tests passed
+
+npx tsc --noEmit
+  PASS
+
+git diff --check
+  PASS
+```

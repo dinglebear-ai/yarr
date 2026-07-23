@@ -9,8 +9,8 @@ interface DockerHarness {
   inspectContainer: ReturnType<typeof vi.fn>;
 }
 
-function ok<T>(data: T): DockerResult<T> {
-  return { ok: true, data };
+function ok<T>(data: T, bytesRead = 1): DockerResult<T> {
+  return { ok: true, data, bytesRead } as unknown as DockerResult<T>;
 }
 
 function configHarness() {
@@ -105,11 +105,75 @@ describe("DiscoveryService", () => {
     expect(JSON.stringify(preview)).not.toMatch(/sonarr-private|net\.unraid|SONARR_API_KEY|Labels|Env/);
   });
 
+  it("accepts only explicit endpoint labels and ignores realistic icon/source URLs", async () => {
+    const detail = {
+      Id: "radarr",
+      Name: "/radarr",
+      Config: {
+        Image: "lscr.io/linuxserver/radarr:latest",
+        Env: [],
+        Labels: {
+          "net.unraid.docker.icon": "https://private-icon.example/token.png",
+          "org.opencontainers.image.source": "https://private-source.example/repository",
+          "org.opencontainers.image.documentation": "https://private-docs.example/?token=secret",
+          arbitrary: "https://private-arbitrary.example:7878",
+          "net.unraid.docker.webui": "https://radarr.example.test:7878/",
+        },
+      },
+      NetworkSettings: { Ports: {}, Networks: {} },
+    };
+    const docker: DockerHarness = {
+      listContainers: vi.fn(async () => ok([{ Id: "radarr" }])),
+      inspectContainer: vi.fn(async () => ok(detail)),
+    };
+    const { config } = configHarness();
+    const service = new DiscoveryService(docker, config);
+
+    const preview = await service.discover();
+
+    expect(preview.candidates[0].baseUrl).toBe("https://radarr.example.test:7878");
+    expect(JSON.stringify(preview)).not.toMatch(
+      /private-icon|private-source|private-docs|private-arbitrary|secret/,
+    );
+
+    const envSubstitution = {
+      ...detail,
+      Config: {
+        ...detail.Config,
+        Env: ["RADARR_URL=https://radarr.example.test:7878"],
+        Labels: { "net.unraid.docker.icon": "https://private-icon.example/token.png" },
+      },
+    };
+    docker.inspectContainer.mockResolvedValueOnce(ok(envSubstitution));
+    await expect(
+      service.apply({
+        discoveryId: preview.discoveryId,
+        selectedCandidateIds: [preview.candidates[0].candidateId],
+        credentialConsent: {},
+      }),
+    ).rejects.toThrow("Docker discovery candidate changed; run discovery again");
+
+    const onlyUnsafeLabels = {
+      ...detail,
+      Config: {
+        ...detail.Config,
+        Labels: {
+          "net.unraid.docker.icon": "https://private-icon.example/token.png",
+          "org.opencontainers.image.source": "https://private-source.example/repository",
+        },
+      },
+    };
+    docker.inspectContainer.mockResolvedValueOnce(ok(onlyUnsafeLabels));
+    const withoutEndpoint = await service.discover();
+    expect(withoutEndpoint.candidates).toEqual([]);
+  });
+
   it("returns Docker failures as typed non-fatal discovery errors", async () => {
     const docker: DockerHarness = {
       listContainers: vi.fn(async () => ({
         ok: false,
         error: { code: "socket_unavailable", message: "Docker socket is unavailable" },
+        bytesRead: 0,
       })),
       inspectContainer: vi.fn(),
     };
@@ -120,6 +184,25 @@ describe("DiscoveryService", () => {
       candidates: [],
       errors: [{ code: "socket_unavailable", message: "Docker socket is unavailable" }],
     });
+  });
+
+  it("does not reflect Docker error messages supplied by the socket boundary", async () => {
+    const docker: DockerHarness = {
+      listContainers: vi.fn(async () => ({
+        ok: false,
+        error: { code: "request_failed", message: "private-container-value" },
+        bytesRead: 25,
+      })),
+      inspectContainer: vi.fn(),
+    };
+    const { config } = configHarness();
+
+    const preview = await new DiscoveryService(docker, config).discover();
+
+    expect(preview.errors).toEqual([
+      { code: "request_failed", message: "Docker request failed" },
+    ]);
+    expect(JSON.stringify(preview)).not.toContain("private-container-value");
   });
 
   it("re-inspects selected containers and imports credentials only with per-service consent", async () => {
@@ -255,5 +338,134 @@ describe("DiscoveryService", () => {
 
     expect(preview.candidates).toHaveLength(256);
     expect(docker.inspectContainer).toHaveBeenCalledTimes(256);
+  });
+
+  it("enforces a cumulative Docker response byte budget", async () => {
+    const containers = Array.from({ length: 10 }, (_, index) => ({ Id: `sonarr-${index}` }));
+    const docker: DockerHarness = {
+      listContainers: vi.fn(async () => ok(containers, 100)),
+      inspectContainer: vi.fn(async (id: string) =>
+        ok({
+          Id: id,
+          Name: `/${id}`,
+          Config: { Image: "sonarr", Env: ["SONARR_URL=http://sonarr:8989"], Labels: {} },
+          NetworkSettings: { Ports: {}, Networks: {} },
+        }, 2 * 1024 * 1024),
+      ),
+    };
+    const { config } = configHarness();
+
+    const preview = await new DiscoveryService(docker, config).discover();
+
+    expect(docker.inspectContainer).toHaveBeenCalledTimes(4);
+    expect(preview.candidates).toHaveLength(3);
+    expect(preview.errors).toContainEqual({
+      code: "budget_exceeded",
+      message: "Docker discovery response byte budget exceeded",
+    });
+  });
+
+  it("uses the remaining aggregate deadline and stops with a typed warning", async () => {
+    let now = 0;
+    const containers = Array.from({ length: 10 }, (_, index) => ({ Id: `sonarr-${index}` }));
+    const docker: DockerHarness = {
+      listContainers: vi.fn(async () => ok(containers)),
+      inspectContainer: vi.fn(async (id: string) => {
+        now += 4_000;
+        return ok({
+          Id: id,
+          Name: `/${id}`,
+          Config: { Image: "sonarr", Env: ["SONARR_URL=http://sonarr:8989"], Labels: {} },
+          NetworkSettings: { Ports: {}, Networks: {} },
+        });
+      }),
+    };
+    const { config } = configHarness();
+
+    const preview = await new DiscoveryService(docker, config, {
+      now: () => now,
+      maxElapsedMs: 10_000,
+    } as never).discover();
+
+    expect(docker.listContainers.mock.calls[0][0]).toEqual({ timeoutMs: 3000 });
+    expect(docker.inspectContainer.mock.calls.map((call) => call[1])).toEqual([
+      { timeoutMs: 3000 },
+      { timeoutMs: 3000 },
+      { timeoutMs: 2000 },
+    ]);
+    expect(preview.candidates).toHaveLength(2);
+    expect(preview.errors).toContainEqual({
+      code: "deadline_exceeded",
+      message: "Docker discovery time budget exceeded",
+    });
+  });
+
+  it("bounds retained discovery-session payload bytes", async () => {
+    const containers = Array.from({ length: 256 }, (_, index) => ({ Id: `sonarr-${index}` }));
+    const longPath = "a".repeat(1000);
+    const docker: DockerHarness = {
+      listContainers: vi.fn(async () => ok(containers)),
+      inspectContainer: vi.fn(async (id: string) =>
+        ok({
+          Id: id,
+          Name: `/${id}${"n".repeat(4096)}`,
+          Config: {
+            Image: "sonarr",
+            Env: [`SONARR_URL=http://sonarr:8989/${longPath}`],
+            Labels: {},
+          },
+          NetworkSettings: { Ports: {}, Networks: {} },
+        }),
+      ),
+    };
+    const { config } = configHarness();
+
+    const preview = await new DiscoveryService(docker, config).discover();
+
+    expect(preview.candidates.length).toBeLessThan(256);
+    expect(preview.errors).toContainEqual({
+      code: "budget_exceeded",
+      message: "Docker discovery session payload budget exceeded",
+    });
+    expect(preview.candidates.every((candidate) =>
+      candidate.baseUrl.length <= 2048 && candidate.reasons.every((reason) => reason.length <= 160)
+    )).toBe(true);
+  });
+
+  it("enforces aggregate byte bounds again while re-inspecting selected apply candidates", async () => {
+    const serviceIds = ["sonarr", "radarr", "prowlarr", "tautulli", "overseerr"];
+    let applying = false;
+    const details = Object.fromEntries(serviceIds.map((serviceId) => [
+      serviceId,
+      {
+        Id: serviceId,
+        Name: `/${serviceId}`,
+        Config: {
+          Image: serviceId,
+          Env: [`${serviceId.toUpperCase()}_URL=http://${serviceId}.internal`],
+          Labels: {},
+        },
+        NetworkSettings: { Ports: {}, Networks: {} },
+      },
+    ]));
+    const docker: DockerHarness = {
+      listContainers: vi.fn(async () => ok(serviceIds.map((Id) => ({ Id })))),
+      inspectContainer: vi.fn(async (id: string) =>
+        ok(details[id], applying ? 2 * 1024 * 1024 : 1),
+      ),
+    };
+    const { config } = configHarness();
+    const service = new DiscoveryService(docker, config);
+    const preview = await service.discover();
+    applying = true;
+
+    await expect(
+      service.apply({
+        discoveryId: preview.discoveryId,
+        selectedCandidateIds: preview.candidates.map((candidate) => candidate.candidateId),
+        credentialConsent: {},
+      }),
+    ).rejects.toThrow("Docker discovery apply response byte budget exceeded");
+    expect(config.save).not.toHaveBeenCalled();
   });
 });

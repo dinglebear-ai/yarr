@@ -2,8 +2,15 @@ import { isIP } from "node:net";
 
 import type { SaveConfigResult } from "./config.service";
 import type { SaveYarrConfigInput, SaveYarrServiceInput, SecretUpdate } from "./config.types";
-import type { DockerContainer, DockerError, DockerResult } from "./docker.service";
+import type {
+  DockerContainer,
+  DockerError,
+  DockerRequestOptions,
+  DockerResult,
+} from "./docker.service";
 import {
+  DOCKER_ENDPOINT_LABEL_KEYS,
+  DOCKER_IDENTITY_LABEL_KEYS,
   normalizeCatalogKey,
   normalizeServiceUrl,
   SERVICE_CATALOG,
@@ -12,8 +19,8 @@ import {
 import { ExpiringSessionStore, opaqueId, type SessionStoreOptions } from "./session-store";
 
 export interface DockerReader {
-  listContainers(): Promise<DockerResult<DockerContainer[]>>;
-  inspectContainer(id: string): Promise<DockerResult<DockerContainer>>;
+  listContainers(options?: DockerRequestOptions): Promise<DockerResult<DockerContainer[]>>;
+  inspectContainer(id: string, options?: DockerRequestOptions): Promise<DockerResult<DockerContainer>>;
 }
 
 export interface DiscoveryConfigWriter {
@@ -68,39 +75,87 @@ interface Analysis {
 }
 
 const MAX_DISCOVERY_CANDIDATES = 256;
+const MAX_DISCOVERY_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MAX_DISCOVERY_SESSION_BYTES = 256 * 1024;
+const DEFAULT_DISCOVERY_ELAPSED_MS = 10_000;
+const MAX_CONTAINER_ID_LENGTH = 256;
+const MAX_CONTAINER_NAME_LENGTH = 512;
+const MAX_CONTAINER_IMAGE_LENGTH = 512;
+const MAX_IDENTITY_LABEL_LENGTH = 256;
+
+export interface DiscoveryServiceOptions extends SessionStoreOptions {
+  maxElapsedMs?: number;
+}
 
 export class DiscoveryService {
   private readonly sessions: ExpiringSessionStore<DiscoverySession>;
+  private readonly now: () => number;
+  private readonly maxElapsedMs: number;
 
   constructor(
     private readonly docker: DockerReader,
     private readonly config: DiscoveryConfigWriter,
-    options: SessionStoreOptions = {},
+    options: DiscoveryServiceOptions = {},
   ) {
     this.sessions = new ExpiringSessionStore(options);
+    this.now = options.now ?? Date.now;
+    this.maxElapsedMs = positiveInteger(options.maxElapsedMs ?? DEFAULT_DISCOVERY_ELAPSED_MS);
   }
 
   async discover(): Promise<DiscoveryPreview> {
     const candidates: DiscoveryCandidate[] = [];
     const retained: RetainedCandidate[] = [];
     const errors: DockerError[] = [];
-    const listed = await this.docker.listContainers();
+    const startedAt = this.now();
+    let responseBytes = 0;
+    let sessionBytes = 0;
+    const listed = await this.docker.listContainers({
+      timeoutMs: Math.min(3000, remainingTime(startedAt, this.maxElapsedMs, this.now)),
+    });
+    responseBytes += listed.bytesRead;
+    if (responseBytes > MAX_DISCOVERY_RESPONSE_BYTES) {
+      errors.push(budgetError("Docker discovery response byte budget exceeded"));
+    } else if (elapsed(startedAt, this.now) >= this.maxElapsedMs) {
+      errors.push(deadlineError());
+    } else
     if (listed.ok) {
       for (const container of listed.data.slice(0, MAX_DISCOVERY_CANDIDATES)) {
-        const containerId = stringValue(container.Id);
+        const remaining = remainingTime(startedAt, this.maxElapsedMs, this.now);
+        if (remaining <= 0) {
+          errors.push(deadlineError());
+          break;
+        }
+        const containerId = boundedStringValue(container.Id, MAX_CONTAINER_ID_LENGTH);
         if (!containerId) continue;
-        const inspected = await this.docker.inspectContainer(containerId);
+        const inspected = await this.docker.inspectContainer(containerId, {
+          timeoutMs: Math.min(3000, remaining),
+        });
+        responseBytes += inspected.bytesRead;
+        if (responseBytes > MAX_DISCOVERY_RESPONSE_BYTES) {
+          errors.push(budgetError("Docker discovery response byte budget exceeded"));
+          break;
+        }
+        if (elapsed(startedAt, this.now) >= this.maxElapsedMs) {
+          errors.push(deadlineError());
+          break;
+        }
         if (!inspected.ok) {
-          errors.push(inspected.error);
+          errors.push(safeDockerError(inspected.error));
           continue;
         }
         const analysis = analyzeContainer(inspected.data, containerId);
         if (!analysis) continue;
+        const candidateBytes = Buffer.byteLength(JSON.stringify(analysis.retained));
+        if (sessionBytes + candidateBytes > MAX_DISCOVERY_SESSION_BYTES) {
+          errors.push(budgetError("Docker discovery session payload budget exceeded"));
+          break;
+        }
+        sessionBytes += candidateBytes;
         candidates.push(analysis.publicCandidate);
         retained.push(analysis.retained);
       }
     } else {
-      errors.push(listed.error);
+      errors.push(safeDockerError(listed.error));
     }
     const discoveryId = this.sessions.create({
       candidates: new Map(retained.map((candidate) => [candidate.candidateId, candidate])),
@@ -122,14 +177,28 @@ export class DiscoveryService {
     }
 
     const updates: SaveYarrServiceInput[] = [];
+    const startedAt = this.now();
+    let responseBytes = 0;
     for (const candidate of retained) {
-      const inspected = await this.docker.inspectContainer(candidate.containerId);
+      const remaining = remainingTime(startedAt, this.maxElapsedMs, this.now);
+      if (remaining <= 0) throw new Error("Docker discovery apply time budget exceeded");
+      const inspected = await this.docker.inspectContainer(candidate.containerId, {
+        timeoutMs: Math.min(3000, remaining),
+      });
+      responseBytes += inspected.bytesRead;
+      if (responseBytes > MAX_DISCOVERY_RESPONSE_BYTES) {
+        throw new Error("Docker discovery apply response byte budget exceeded");
+      }
+      if (elapsed(startedAt, this.now) >= this.maxElapsedMs) {
+        throw new Error("Docker discovery apply time budget exceeded");
+      }
       if (!inspected.ok) throw new Error("selected Docker container could not be re-inspected");
       const fresh = analyzeContainer(inspected.data, candidate.containerId);
       if (
         !fresh ||
         fresh.retained.serviceId !== candidate.serviceId ||
-        fresh.retained.baseUrl !== candidate.baseUrl
+        fresh.retained.baseUrl !== candidate.baseUrl ||
+        urlOriginReason(fresh.retained.reasons) !== urlOriginReason(candidate.reasons)
       ) {
         throw new Error("Docker discovery candidate changed; run discovery again");
       }
@@ -151,19 +220,30 @@ function analyzeContainer(container: DockerContainer, containerId: string): Anal
   const config = recordValue(container.Config);
   const network = recordValue(container.NetworkSettings);
   const env = parseEnvironment(arrayValue(config.Env));
-  const labels = stringRecord(config.Labels);
-  const image = stringValue(config.Image) ?? stringValue(container.Image) ?? "";
-  const name = stringValue(container.Name) ?? arrayValue(container.Names).map(stringValue).filter(Boolean).join(" ");
-  const entry = identifyService(name, image, labels, env);
+  const endpointLabels = selectedStringRecord(config.Labels, DOCKER_ENDPOINT_LABEL_KEYS, 2048);
+  const identityLabels = selectedStringRecord(
+    config.Labels,
+    DOCKER_IDENTITY_LABEL_KEYS,
+    MAX_IDENTITY_LABEL_LENGTH,
+  );
+  const image = boundedStringValue(config.Image, MAX_CONTAINER_IMAGE_LENGTH) ??
+    boundedStringValue(container.Image, MAX_CONTAINER_IMAGE_LENGTH) ?? "";
+  const name = boundedStringValue(container.Name, MAX_CONTAINER_NAME_LENGTH) ??
+    arrayValue(container.Names)
+      .map((value) => boundedStringValue(value, MAX_CONTAINER_NAME_LENGTH))
+      .filter((value): value is string => value !== undefined)
+      .join(" ")
+      .slice(0, MAX_CONTAINER_NAME_LENGTH);
+  const entry = identifyService(name, image, identityLabels, env);
   if (!entry) return null;
   const reasons: string[] = [];
-  const identityText = `${name} ${image} ${Object.values(labels).join(" ")}`.toLowerCase();
+  const identityText = `${name} ${image} ${Object.values(identityLabels).join(" ")}`.toLowerCase();
   if (entry.containerHints.some((hint) => identityText.includes(hint))) {
     reasons.push(`container identity matches ${entry.id}`);
   }
   if (hasCatalogEnvironment(entry, env)) reasons.push(`service environment matches ${entry.id}`);
 
-  const resolved = resolveBaseUrl(entry, env, labels, network);
+  const resolved = resolveBaseUrl(entry, env, endpointLabels, network);
   if (!resolved) return null;
   reasons.push(resolved.reason);
   const identityScore = reasons.some((reason) => reason.startsWith("service environment")) ? 45 : 30;
@@ -219,7 +299,9 @@ function resolveBaseUrl(
   const normalizedEnv = envUrl ? normalizeServiceUrl(envUrl) : null;
   if (normalizedEnv) return { baseUrl: normalizedEnv, reason: "URL found in container environment", score: 50 };
 
-  for (const value of Object.values(labels)) {
+  for (const key of DOCKER_ENDPOINT_LABEL_KEYS) {
+    const value = labels[key];
+    if (value === undefined) continue;
     const expanded = expandUnraidUrl(value, entry, network);
     const normalized = expanded ? normalizeServiceUrl(expanded) : null;
     if (normalized) return { baseUrl: normalized, reason: "URL found in container label", score: 45 };
@@ -330,9 +412,17 @@ function recordValue(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function stringRecord(value: unknown): Record<string, string> {
+function selectedStringRecord(
+  value: unknown,
+  allowedKeys: readonly string[],
+  maxValueLength: number,
+): Record<string, string> {
+  const source = recordValue(value);
   return Object.fromEntries(
-    Object.entries(recordValue(value)).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    allowedKeys.flatMap((key) => {
+      const selected = boundedStringValue(source[key], maxValueLength);
+      return selected === undefined ? [] : [[key, selected]];
+    }),
   );
 }
 
@@ -344,10 +434,59 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function boundedStringValue(value: unknown, maxLength: number): string | undefined {
+  const string = stringValue(value);
+  return string !== undefined && string.length <= maxLength ? string : undefined;
+}
+
 function hostForUrl(host: string): string {
   return isIP(host) === 6 ? `[${host}]` : host;
 }
 
 function hasValue(value: string | undefined): value is string {
   return value !== undefined && value.length > 0;
+}
+
+function elapsed(startedAt: number, now: () => number): number {
+  return Math.max(0, now() - startedAt);
+}
+
+function remainingTime(startedAt: number, maxElapsedMs: number, now: () => number): number {
+  return Math.max(0, maxElapsedMs - elapsed(startedAt, now));
+}
+
+function budgetError(message: string): DockerError {
+  return { code: "budget_exceeded", message };
+}
+
+function deadlineError(): DockerError {
+  return { code: "deadline_exceeded", message: "Docker discovery time budget exceeded" };
+}
+
+function safeDockerError(error: DockerError): DockerError {
+  const messages: Record<DockerError["code"], string> = {
+    timeout: "Docker socket request timed out",
+    socket_unavailable: "Docker socket is unavailable",
+    invalid_json: "Docker returned malformed JSON",
+    invalid_response: "Docker returned an invalid response",
+    http_status: "Docker returned a non-success HTTP status",
+    response_too_large: "Docker response exceeded 2 MiB",
+    request_failed: "Docker request failed",
+    budget_exceeded: "Docker discovery budget exceeded",
+    deadline_exceeded: "Docker discovery time budget exceeded",
+  };
+  return { code: error.code, message: messages[error.code] };
+}
+
+function positiveInteger(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error("maxElapsedMs must be positive");
+  return value;
+}
+
+function urlOriginReason(reasons: readonly string[]): string | undefined {
+  return reasons.find((reason) =>
+    reason.startsWith("URL found") ||
+    reason.startsWith("published port") ||
+    reason.startsWith("container network address")
+  );
 }

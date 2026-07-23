@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import * as codec from "./config-codec";
 import type { SaveYarrConfigInput } from "./config.types";
+import { normalizeServiceUrl } from "./service-catalog";
 
 const pluginConfig = `ENABLED=yes\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
 
@@ -193,5 +194,51 @@ describe("Yarr configuration codec", () => {
 
   it("accepts only ASCII configuration keys", () => {
     expect(() => codec.parseYarrEnvironment("YARR_É=invalid\n")).toThrow("expected KEY=value");
+  });
+
+  it("strictly normalizes safe service URLs through the catalog boundary", () => {
+    expect(normalizeServiceUrl(" HTTPS://Example.COM:443/a/../b// ")).toBe(
+      "https://example.com/b",
+    );
+    expect(normalizeServiceUrl("http://[2001:DB8::1]:8080/path/" )).toBe(
+      "http://[2001:db8::1]:8080/path",
+    );
+  });
+
+  it.each([
+    "http://user@example.test:8989",
+    "http://user:password@example.test:8989",
+    "http://example.test:8989/?token=private-query",
+    "http://example.test:8989/#private-fragment",
+    "http://example.test:0",
+    "http://example.test:65536",
+    "not-a-url",
+    `http://${"a".repeat(64)}.example.test`,
+    `http://example.test/${"a".repeat(1025)}`,
+    `http://example.test/${"a".repeat(2048)}`,
+  ])("rejects unsafe service URL %s", (url) => {
+    expect(normalizeServiceUrl(url)).toBeNull();
+    const current = {
+      plugin: codec.parsePluginConfig(pluginConfig),
+      env: codec.parseYarrEnvironment(""),
+    };
+    expect(() =>
+      codec.mergeConfigInput(current, {
+        services: [{ service: "sonarr", enabled: true, baseUrl: url }],
+      }),
+    ).toThrow("without credentials, query, or fragment");
+  });
+
+  it("defensively hides unsafe pre-existing service URLs from public rendering", () => {
+    const view = codec.toPublicConfig(
+      codec.parsePluginConfig(pluginConfig),
+      codec.parseYarrEnvironment(
+        "YARR_SERVICES=sonarr,radarr\nYARR_SONARR_URL=http://sonarr:8989/?token=private-query\nYARR_RADARR_URL=http://user:private-password@radarr:7878\n",
+      ),
+    );
+
+    expect(view.services.find((service) => service.service === "sonarr")?.baseUrl).toBe("");
+    expect(view.services.find((service) => service.service === "radarr")?.baseUrl).toBe("");
+    expect(JSON.stringify(view)).not.toMatch(/private-query|private-password/);
   });
 });

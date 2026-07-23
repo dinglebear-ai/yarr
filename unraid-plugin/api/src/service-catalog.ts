@@ -35,24 +35,58 @@ export const SERVICE_CATALOG_BY_ID: ReadonlyMap<string, ServiceCatalogEntry> = n
   SERVICE_CATALOG.map((entry) => [entry.id, entry]),
 );
 
+export const DOCKER_ENDPOINT_LABEL_KEYS = [
+  "net.unraid.docker.webui",
+  "io.yarr.service-url",
+] as const;
+
+export const DOCKER_IDENTITY_LABEL_KEYS = [
+  "com.docker.compose.service",
+  "net.unraid.docker.name",
+] as const;
+
+export const MAX_SERVICE_URL_LENGTH = 2048;
+export const MAX_SERVICE_HOSTNAME_LENGTH = 253;
+export const MAX_SERVICE_PATH_LENGTH = 1024;
+
 export function normalizeCatalogKey(key: string): string {
   return key.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
 export function normalizeServiceUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (
+    trimmed.length === 0 ||
+    trimmed.length > MAX_SERVICE_URL_LENGTH ||
+    trimmed.includes("?") ||
+    trimmed.includes("#")
+  ) {
+    return null;
+  }
   try {
-    const url = new URL(value.trim());
+    const url = new URL(trimmed);
     if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
       return null;
     }
-    url.hash = "";
-    const normalized = url.toString();
-    return normalized.endsWith("/") && url.pathname === "/" && !url.search
-      ? normalized.slice(0, -1)
-      : normalized.replace(/\/$/, "");
+    const hostname = url.hostname.startsWith("[") && url.hostname.endsWith("]")
+      ? url.hostname.slice(1, -1)
+      : url.hostname;
+    if (!validHostname(hostname) || (url.port !== "" && (Number(url.port) < 1 || Number(url.port) > 65535))) {
+      return null;
+    }
+    if (url.pathname.length > MAX_SERVICE_PATH_LENGTH) return null;
+    const path = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
+    const normalized = `${url.protocol}//${url.host}${path === "" || path === "/" ? "" : path}`;
+    return normalized.length <= MAX_SERVICE_URL_LENGTH ? normalized : null;
   } catch {
     return null;
   }
+}
+
+function validHostname(hostname: string): boolean {
+  if (hostname.length === 0 || hostname.length > MAX_SERVICE_HOSTNAME_LENGTH) return false;
+  if (hostname.includes(":")) return true;
+  return hostname.split(".").every((label) => label.length > 0 && label.length <= 63);
 }
 
 function service(

@@ -76,7 +76,7 @@ export class ImportService {
       }
       const target = KEY_INDEX.get(key);
       if (!target) {
-        warnings.push(`Unknown structured key ${rawKey}`);
+        warnings.push("Unknown structured key was ignored");
         continue;
       }
       const imported = services.get(target.entry.id) ?? { serviceId: target.entry.id };
@@ -187,10 +187,14 @@ function assertStructuredInput(input: Record<string, string>): void {
 }
 
 function warnUnknownListedServices(value: string, warnings: string[]): void {
-  for (const serviceId of value.split(",").map((item) => item.trim()).filter(Boolean)) {
-    if (!SERVICE_CATALOG_BY_ID.has(serviceId.toLowerCase())) {
-      warnings.push(`Unknown YARR_SERVICES entry ${serviceId}`);
-    }
+  const unsupported = value
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter((serviceId) => serviceId.length > 0 && !SERVICE_CATALOG_BY_ID.has(serviceId));
+  if (unsupported.length > 0) {
+    warnings.push(
+      `YARR_SERVICES contains ${unsupported.length} unsupported ${unsupported.length === 1 ? "entry" : "entries"}`,
+    );
   }
 }
 

@@ -86,14 +86,17 @@ describe("DockerService", () => {
     expect(await new DockerService(timeoutFactory).listContainers()).toEqual({
       ok: false,
       error: { code: "timeout", message: "Docker socket request timed out" },
+      bytesRead: 0,
     });
     expect(await new DockerService(malformed.factory).listContainers()).toEqual({
       ok: false,
       error: { code: "invalid_json", message: "Docker returned malformed JSON" },
+      bytesRead: 8,
     });
     expect(await new DockerService(missingFactory).listContainers()).toEqual({
       ok: false,
       error: { code: "socket_unavailable", message: "Docker socket is unavailable" },
+      bytesRead: 0,
     });
   });
 
@@ -104,10 +107,39 @@ describe("DockerService", () => {
     expect(await new DockerService(denied.factory).listContainers()).toEqual({
       ok: false,
       error: { code: "http_status", message: "Docker returned HTTP 403" },
+      bytesRead: 0,
     });
     expect(await new DockerService(oversized.factory).listContainers()).toEqual({
       ok: false,
       error: { code: "response_too_large", message: "Docker response exceeded 2 MiB" },
+      bytesRead: 2 * 1024 * 1024 + 2,
     });
+  });
+
+  it("reports bytes read and honors a lower caller deadline timeout", async () => {
+    const { factory, requests } = responseFactory('[{"Id":"abc"}]');
+    const result = await new DockerService(factory).listContainers({ timeoutMs: 125 });
+
+    expect(result).toEqual({ ok: true, data: [{ Id: "abc" }], bytesRead: 14 });
+    expect(requests[0].timeout).toBe(125);
+  });
+
+  it("destroys a non-ending non-2xx response immediately", async () => {
+    let response: (PassThrough & { statusCode: number }) | undefined;
+    const factory: DockerRequestFactory = (_options, callback) => {
+      const request = new FakeRequest(() => {
+        response = new PassThrough() as PassThrough & { statusCode: number };
+        response.statusCode = 500;
+        callback(response as unknown as IncomingMessage);
+      });
+      return request as unknown as ClientRequest;
+    };
+
+    await expect(new DockerService(factory).listContainers()).resolves.toEqual({
+      ok: false,
+      error: { code: "http_status", message: "Docker returned HTTP 500" },
+      bytesRead: 0,
+    });
+    expect(response?.destroyed).toBe(true);
   });
 });

@@ -52,7 +52,7 @@ describe("ImportService", () => {
         hasApiKey: false,
       },
     ]);
-    expect(preview.warnings).toContain("Unknown structured key UNKNOWN_SETTING");
+    expect(preview.warnings).toContain("Unknown structured key was ignored");
     expect(JSON.stringify(preview)).not.toMatch(/sonarr-private|qbit-private|unknown-private|jacob/);
     expect(preview.previewId).toMatch(/^[A-Za-z0-9_-]{32,}$/);
   });
@@ -72,6 +72,39 @@ describe("ImportService", () => {
       "RADARR_URL must be an http or https URL without embedded credentials",
     ]);
     expect(JSON.stringify(preview)).not.toContain("private");
+  });
+
+  it("never reflects unknown values or unsupported YARR_SERVICES entries", async () => {
+    const { config } = configHarness();
+    const service = new ImportService(config);
+
+    const preview = await service.preview({
+      YARR_SERVICES: "sonarr,private-unsupported-service",
+      UNKNOWN_SECRET: "private-unknown-value",
+    });
+
+    expect(preview.warnings).toEqual([
+      "YARR_SERVICES contains 1 unsupported entry",
+      "Unknown structured key was ignored",
+    ]);
+    expect(JSON.stringify(preview)).not.toMatch(/private-unsupported-service|private-unknown-value/);
+  });
+
+  it("rejects query, fragment, malformed, and overlength imported URLs without reflection", async () => {
+    const { config } = configHarness();
+    const service = new ImportService(config);
+    const preview = await service.preview({
+      SONARR_URL: "http://sonarr:8989/?token=private-query",
+      RADARR_URL: "http://radarr:7878/#private-fragment",
+      PROWLARR_URL: "malformed-private-value",
+      BAZARR_URL: `http://bazarr:6767/${"x".repeat(2048)}`,
+    });
+
+    expect(preview.mappings).toEqual([]);
+    expect(JSON.stringify(preview)).not.toMatch(
+      /private-query|private-fragment|malformed-private-value/,
+    );
+    expect(preview.warnings).toHaveLength(4);
   });
 
   it("preserves credentials unless consent explicitly authorizes them", async () => {
