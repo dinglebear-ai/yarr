@@ -4,11 +4,15 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": ["node", "vitest/globals"],
+    "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts"]
 }

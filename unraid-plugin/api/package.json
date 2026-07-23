@@ -26,6 +26,7 @@
   "devDependencies": {
     "@nestjs/common": "11.1.26",
     "@nestjs/config": "4.0.2",
+    "@nestjs/core": "^11.1.26",
     "@nestjs/graphql": "13.4.2",
     "@types/node": "22.18.0",
     "@unraid/shared": "file:.ci-stubs/unraid-shared",
