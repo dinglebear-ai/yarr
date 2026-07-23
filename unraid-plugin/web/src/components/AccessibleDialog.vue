@@ -28,7 +28,7 @@ function focusables(): HTMLElement[] {
 function preferredFocus(): HTMLElement | undefined {
   const preferred = panel.value?.querySelector<HTMLElement>("[data-autofocus]");
   if (preferred && isEnabledVisible(preferred)) return preferred;
-  return focusables()[0];
+  return focusables()[0] ?? panel.value;
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -39,7 +39,11 @@ function onKeydown(event: KeyboardEvent): void {
   }
   if (event.key !== "Tab" || !props.open) return;
   const available = focusables();
-  if (available.length === 0) return;
+  if (available.length === 0) {
+    event.preventDefault();
+    panel.value?.focus();
+    return;
+  }
   const current = document.activeElement instanceof HTMLElement ? available.indexOf(document.activeElement) : -1;
   if (event.shiftKey && current <= 0) {
     event.preventDefault();
@@ -89,6 +93,7 @@ onBeforeUnmount(() => {
       aria-modal="true"
       :aria-labelledby="titleId"
       :aria-busy="busy"
+      tabindex="-1"
     >
       <header class="yarr-dialog__header">
         <h2 :id="titleId">{{ title }}</h2>

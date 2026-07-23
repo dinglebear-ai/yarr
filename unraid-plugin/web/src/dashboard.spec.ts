@@ -91,6 +91,19 @@ describe("Yarr dashboard", () => {
     expect(host.textContent).toContain("Wait for the next refresh");
   });
 
+  it("uses fixed indeterminate guidance when a dashboard control response is lost", async () => {
+    api.controlYarr.mockRejectedValueOnce(new Error("lost response"));
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await flush();
+    host.querySelector<HTMLButtonElement>("button")!.click();
+    await flush();
+
+    expect(host.textContent).toContain("Control result was not confirmed. Refresh status before retrying.");
+    expect(host.textContent).not.toContain("did not complete");
+  });
+
   it("uses viewport geometry when IntersectionObserver is unavailable", async () => {
     vi.unstubAllGlobals();
     vi.stubGlobal("IntersectionObserver", undefined);

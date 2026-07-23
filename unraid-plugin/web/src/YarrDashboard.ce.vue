@@ -70,7 +70,7 @@ async function runAction(): Promise<void> {
     const result = await controlYarr(action.value, controller.signal);
     if (current === generation) runtime.value = result;
   } catch {
-    if (current === generation && !controller.signal.aborted) error.value = "Yarr did not complete the action. Open settings and review logs.";
+    if (current === generation && !controller.signal.aborted) error.value = "Control result was not confirmed. Refresh status before retrying.";
   } finally {
     if (current === generation) {
       busy.value = false;

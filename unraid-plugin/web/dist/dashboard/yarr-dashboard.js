@@ -4310,7 +4310,7 @@ const $l = ["aria-busy"], Vl = {
         const F = await Hl(S.value, l.signal);
         D === a && (s.value = F);
       } catch {
-        D === a && !l.signal.aborted && (n.value = "Yarr did not complete the action. Open settings and review logs.");
+        D === a && !l.signal.aborted && (n.value = "Control result was not confirmed. Refresh status before retrying.");
       } finally {
         D === a && (r.value = !1, k());
       }

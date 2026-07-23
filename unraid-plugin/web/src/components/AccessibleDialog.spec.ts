@@ -4,29 +4,32 @@ import AccessibleDialog from "./AccessibleDialog.vue";
 
 let app: ReturnType<typeof createApp> | undefined;
 
-function mountDialog() {
+function mountDialog(initialBusy = false) {
   const invoker = document.createElement("button");
   invoker.textContent = "Open dialog";
   document.body.append(invoker);
   invoker.focus();
   const open = ref(true);
+  const busy = ref(initialBusy);
+  const controlsEnabled = ref(!initialBusy);
   const host = document.createElement("div");
   document.body.append(host);
   app = createApp(defineComponent({
     setup: () => () => h(AccessibleDialog, {
       open: open.value,
       title: "Contained dialog",
+      busy: busy.value,
       onClose: () => { open.value = false; },
     }, {
       default: () => [
-        h("button", { type: "button" }, "First generic"),
+        h("button", { type: "button", disabled: !controlsEnabled.value }, "First generic"),
         h("button", { type: "button", disabled: true }, "Disabled"),
       ],
-      footer: () => h("button", { type: "button", "data-autofocus": "" }, "Preferred focus"),
+      footer: () => h("button", { type: "button", disabled: !controlsEnabled.value, "data-autofocus": "" }, "Preferred focus"),
     }),
   }));
   app.mount(host);
-  return { host, invoker, open };
+  return { host, invoker, open, busy, controlsEnabled };
 }
 
 afterEach(() => {
@@ -80,5 +83,37 @@ describe("AccessibleDialog", () => {
     expect(document.activeElement).toBe(invoker);
     expect(remove).toHaveBeenCalledWith("keydown", expect.any(Function));
     expect(remove).toHaveBeenCalledWith("focusin", expect.any(Function));
+  });
+
+  it("contains focus on the panel while busy with zero focusable controls, then resumes cycling", async () => {
+    const { host, busy, controlsEnabled } = mountDialog(true);
+    await nextTick();
+    const panel = host.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(panel.tabIndex).toBe(-1);
+    expect(document.activeElement).toBe(panel);
+
+    const forward = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    panel.dispatchEvent(forward);
+    expect(forward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(panel);
+    const backward = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+    panel.dispatchEvent(backward);
+    expect(backward.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(panel);
+
+    controlsEnabled.value = true;
+    busy.value = false;
+    await nextTick();
+    panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+    expect(document.activeElement?.textContent).toBe("Close");
+  });
+
+  it("redirects external focus to the panel when a busy dialog has no focusable controls", async () => {
+    const { host, invoker } = mountDialog(true);
+    await nextTick();
+    const panel = host.querySelector<HTMLElement>('[role="dialog"]')!;
+    invoker.focus();
+    invoker.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(document.activeElement).toBe(panel);
   });
 });

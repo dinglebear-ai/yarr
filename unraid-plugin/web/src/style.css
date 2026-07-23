@@ -39,7 +39,7 @@ yarr-settings-app {
 .yarr-tabs button { appearance: none; background: transparent; border: 0; border-bottom: 0.2rem solid transparent; color: var(--yarr-muted); cursor: pointer; font: inherit; font-weight: 700; padding: 0.9rem 1rem 0.7rem; }
 .yarr-tabs button:first-child { padding-left: 0; }
 .yarr-tabs button[aria-selected="true"] { border-bottom-color: var(--yarr-accent); color: var(--yarr-text); }
-[role="tabpanel"] { outline: none; }
+.yarr-shell [role="tabpanel"] { outline: none; }
 
 .yarr-panel { padding: 1.25rem 0; }
 .yarr-section-heading { align-items: flex-start; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 1rem; }
