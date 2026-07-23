@@ -102,6 +102,28 @@ yarr-dashboard {
 .yarr-secret-field label { display: block; margin: 0.4rem 0; }
 .yarr-secret-field input[type="password"] { display: block; margin: 0.5rem 0 0; max-width: 28rem; width: 100%; }
 
+yarr-settings-app input,
+yarr-settings-app button,
+yarr-settings-app select,
+yarr-settings-app textarea,
+yarr-dashboard input,
+yarr-dashboard button,
+yarr-dashboard select,
+yarr-dashboard textarea {
+  font: inherit;
+}
+
+.yarr-foundation-summary {
+  display: grid;
+  gap: 0.625rem 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin: 1rem 0 0;
+}
+
+.yarr-foundation-summary div { min-width: 0; }
+.yarr-foundation-summary dt { color: var(--yarr-muted); font-size: 0.875em; font-weight: 700; }
+.yarr-foundation-summary dd { margin: 0.2rem 0 0; overflow-wrap: anywhere; }
+
 .yarr-shell input:focus-visible {
   outline: 2px solid var(--yarr-accent);
   outline-offset: 2px;

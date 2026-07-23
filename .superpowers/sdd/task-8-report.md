@@ -25,3 +25,17 @@
 
 - Reviewed the new web-only surface for scope and whitespace issues.
 - No API/schema or root files were changed.
+
+## Review fixes
+
+- Replaced the response text-buffer path with bounded `ReadableStream` consumption. Valid `Content-Length` values are rejected early when oversized, while every stream is still byte-counted and cancelled immediately when it crosses the 1,000,000-byte boundary.
+- Added safe handling for absent bodies, stream-reader failures, malformed JSON, dishonest or missing lengths, and UTF-8 multibyte payloads. The client never reads an unbounded response with `text()`, `json()`, or `arrayBuffer()`.
+- Added client lifecycle coverage for caller abort composition, caller-listener cleanup, timeout cleanup, CSRF polling cleanup, and oversized-stream cancellation. Request variables and server errors remain unlogged and absent from user-facing errors.
+- Added an accessible, generated secret-input id with a visible associated label and explicit `aria-label`; stored values are still never received or reconstructed.
+- Replaced the settings placeholder with a compact loaded runtime/configuration summary: runtime readiness, endpoint and bind mode, authentication mode, configured-service count, and Tailscale Serve state.
+- Applied inherited fonts to form controls under both host custom elements.
+
+## Review validation
+
+- `npm test -- --run src/graphql.spec.ts src/components/SecretField.spec.ts` passed: 15 tests.
+- `npx vue-tsc --noEmit` passed.

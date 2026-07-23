@@ -74,13 +74,56 @@ async function waitForCsrfToken(signal: AbortSignal): Promise<void> {
 }
 
 async function readJson(response: Response): Promise<GraphQLBody> {
-  const length = Number(response.headers.get("content-length"));
-  if (Number.isFinite(length) && length > MAX_RESPONSE_BYTES) throw new Error(SAFE_REQUEST_ERROR);
+  const body = response.body;
+  if (!body) throw new Error(SAFE_REQUEST_ERROR);
 
-  const text = await response.text();
-  if (text.length > MAX_RESPONSE_BYTES) throw new Error(SAFE_REQUEST_ERROR);
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && /^(?:0|[1-9]\d*)$/.test(contentLength)) {
+    const length = Number(contentLength);
+    if (Number.isSafeInteger(length) && length > MAX_RESPONSE_BYTES) {
+      try {
+        await body.cancel();
+      } catch {
+        // The user-safe error below is the only result exposed to callers.
+      }
+      throw new Error(SAFE_REQUEST_ERROR);
+    }
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
   try {
-    const json: unknown = JSON.parse(text);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_RESPONSE_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {
+          // The response has already crossed its trusted size boundary.
+        }
+        throw new Error(SAFE_REQUEST_ERROR);
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message === SAFE_REQUEST_ERROR) throw error;
+    throw new Error(SAFE_REQUEST_ERROR);
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    const json: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!isRecord(json)) throw new Error(SAFE_REQUEST_ERROR);
     return json;
   } catch {
@@ -102,6 +145,7 @@ async function request<T>(document: string, variables?: Record<string, unknown>,
 
   try {
     await waitForCsrfToken(controller.signal);
+    if (controller.signal.aborted) throw abortError(ABORT_ERROR);
     const response = await fetch("/graphql", {
       method: "POST",
       credentials: "same-origin",
