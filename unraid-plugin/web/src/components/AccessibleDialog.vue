@@ -12,19 +12,56 @@ const panel = ref<HTMLElement>();
 const titleId = `yarr-dialog-${useId()}`;
 let restoreTarget: HTMLElement | null = null;
 
+const focusableSelector = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
+
+function isEnabledVisible(element: HTMLElement): boolean {
+  if (element.hasAttribute("disabled") || element.getAttribute("aria-disabled") === "true") return false;
+  if (element.hidden || element.closest("[hidden]")) return false;
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+function focusables(): HTMLElement[] {
+  return [...(panel.value?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])].filter(isEnabledVisible);
+}
+
+function preferredFocus(): HTMLElement | undefined {
+  const preferred = panel.value?.querySelector<HTMLElement>("[data-autofocus]");
+  if (preferred && isEnabledVisible(preferred)) return preferred;
+  return focusables()[0];
+}
+
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === "Escape" && !props.busy) {
     event.preventDefault();
     emit("close");
+    return;
+  }
+  if (event.key !== "Tab" || !props.open) return;
+  const available = focusables();
+  if (available.length === 0) return;
+  const current = document.activeElement instanceof HTMLElement ? available.indexOf(document.activeElement) : -1;
+  if (event.shiftKey && current <= 0) {
+    event.preventDefault();
+    available.at(-1)?.focus();
+  } else if (!event.shiftKey && (current === -1 || current === available.length - 1)) {
+    event.preventDefault();
+    available[0].focus();
   }
 }
 
-function removeListener(): void {
+function onFocusIn(event: FocusEvent): void {
+  if (!props.open || !panel.value || panel.value.contains(event.target as Node)) return;
+  preferredFocus()?.focus();
+}
+
+function removeListeners(): void {
   document.removeEventListener("keydown", onKeydown);
+  document.removeEventListener("focusin", onFocusIn);
 }
 
 watch(() => props.open, async (open) => {
-  removeListener();
+  removeListeners();
   if (!open) {
     restoreTarget?.focus();
     restoreTarget = null;
@@ -32,13 +69,13 @@ watch(() => props.open, async (open) => {
   }
   restoreTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   document.addEventListener("keydown", onKeydown);
+  document.addEventListener("focusin", onFocusIn);
   await nextTick();
-  const target = panel.value?.querySelector<HTMLElement>("[data-autofocus], button, input, select, textarea, a[href]");
-  target?.focus();
-});
+  preferredFocus()?.focus();
+}, { immediate: true });
 
 onBeforeUnmount(() => {
-  removeListener();
+  removeListeners();
   restoreTarget?.focus();
 });
 </script>

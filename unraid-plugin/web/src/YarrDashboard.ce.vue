@@ -11,11 +11,16 @@ let elementVisible = false;
 let timer: number | undefined;
 let controller: AbortController | undefined;
 let observer: IntersectionObserver | undefined;
+let usingGeometryFallback = false;
 let generation = 0;
 
 const visible = () => elementVisible && document.visibilityState !== "hidden";
-const action = computed<YarrControlAction>(() => runtime.value?.state === "running" ? "RESTART" : "START");
-const actionLabel = computed(() => action.value === "RESTART" ? "Restart Yarr" : "Start Yarr");
+const action = computed<YarrControlAction | null>(() => {
+  if (runtime.value?.state === "running") return "STOP";
+  if (runtime.value?.state === "stopped") return "START";
+  return null;
+});
+const actionLabel = computed(() => action.value === "STOP" ? "Stop Yarr" : "Start Yarr");
 
 function clearTimer(): void {
   if (timer !== undefined) window.clearTimeout(timer);
@@ -55,6 +60,7 @@ async function refresh(): Promise<void> {
 }
 
 async function runAction(): Promise<void> {
+  if (!action.value) return;
   controller?.abort();
   controller = new AbortController();
   const current = ++generation;
@@ -74,12 +80,28 @@ async function runAction(): Promise<void> {
 }
 
 function visibilityChanged(): void {
+  if (usingGeometryFallback) elementVisible = viewportVisible();
+  if (visible()) void refresh(); else stop();
+}
+
+function viewportVisible(): boolean {
+  if (!root.value || document.visibilityState === "hidden") return false;
+  const rect = root.value.getBoundingClientRect();
+  const width = window.innerWidth || document.documentElement.clientWidth;
+  const height = window.innerHeight || document.documentElement.clientHeight;
+  return rect.bottom > 0 && rect.right > 0 && rect.top < height && rect.left < width;
+}
+
+function geometryChanged(): void {
+  const next = viewportVisible();
+  if (next === elementVisible) return;
+  elementVisible = next;
   if (visible()) void refresh(); else stop();
 }
 
 onMounted(() => {
   document.addEventListener("visibilitychange", visibilityChanged);
-  if ("IntersectionObserver" in window) {
+  if (typeof IntersectionObserver === "function") {
     observer = new IntersectionObserver((entries) => {
       const next = entries.some((entry) => entry.isIntersecting);
       if (next === elementVisible) return;
@@ -88,8 +110,11 @@ onMounted(() => {
     });
     if (root.value) observer.observe(root.value);
   } else {
-    elementVisible = true;
-    void refresh();
+    usingGeometryFallback = true;
+    window.addEventListener("scroll", geometryChanged, { passive: true });
+    window.addEventListener("resize", geometryChanged);
+    elementVisible = viewportVisible();
+    if (visible()) void refresh();
   }
 });
 
@@ -97,6 +122,10 @@ onBeforeUnmount(() => {
   elementVisible = false;
   stop();
   observer?.disconnect();
+  if (usingGeometryFallback) {
+    window.removeEventListener("scroll", geometryChanged);
+    window.removeEventListener("resize", geometryChanged);
+  }
   document.removeEventListener("visibilitychange", visibilityChanged);
 });
 </script>
@@ -116,7 +145,10 @@ onBeforeUnmount(() => {
         <li><span>Endpoint</span><strong>{{ runtime.bindAddress }}:{{ runtime.port }}</strong></li>
         <li><span>Version</span><strong>{{ runtime.version ?? "Unavailable" }}</strong></li>
       </ol>
-      <div class="yarr-dashboard__footer"><p>{{ runtime.healthMessage }}</p><button type="button" :disabled="busy" @click="runAction">{{ busy ? "Working..." : actionLabel }}</button></div>
+      <div class="yarr-dashboard__footer">
+        <p>{{ action ? runtime.healthMessage : "State is changing or unavailable. Wait for the next refresh before acting." }}</p>
+        <button v-if="action" type="button" :disabled="busy" @click="runAction">{{ busy ? "Working..." : actionLabel }}</button>
+      </div>
     </template>
   </section>
 </template>

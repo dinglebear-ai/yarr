@@ -27,6 +27,7 @@ const googleSecretConfigured = ref(false);
 const activeTab = ref<Tab>("Overview");
 const loading = ref(true);
 const busy = ref(false);
+const delegatedBusy = ref(false);
 const loadError = ref("");
 const actionError = ref("");
 const resultMessage = ref("");
@@ -39,6 +40,7 @@ let actionController: AbortController | undefined;
 let loadGeneration = 0;
 
 const loaded = computed(() => config.value && runtime.value && plugin.value && auth.value);
+const operationBusy = computed(() => busy.value || delegatedBusy.value);
 
 function extraValue(service: YarrConfig["services"][number] | undefined, key: string): string {
   return service?.extra.find((entry) => entry.key === key)?.value ?? "";
@@ -164,7 +166,7 @@ async function save(): Promise<void> {
     hydrate(result.config);
     resultMessage.value = mutationMessage(result);
   } catch {
-    if (!actionController.signal.aborted) actionError.value = "Changes could not be saved. Review the fields and retry; existing configuration was not replaced.";
+    if (!actionController.signal.aborted) actionError.value = "Save result was not confirmed. Refresh current state before retrying.";
   } finally {
     busy.value = false;
   }
@@ -179,7 +181,7 @@ async function control(action: YarrControlAction): Promise<void> {
     runtime.value = await controlYarr(action, actionController.signal);
     resultMessage.value = action === "STOP" ? "Yarr stopped." : action === "START" ? "Yarr started." : "Yarr restarted.";
   } catch {
-    if (!actionController.signal.aborted) actionError.value = "Yarr could not complete that action. Check runtime status and logs before retrying.";
+    if (!actionController.signal.aborted) actionError.value = "Control result was not confirmed. Refresh current state before retrying.";
   } finally {
     busy.value = false;
   }
@@ -252,6 +254,7 @@ onBeforeUnmount(() => {
               :aria-selected="activeTab === tab"
               :aria-controls="`yarr-panel-${index}`"
               :tabindex="activeTab === tab ? 0 : -1"
+              :disabled="operationBusy"
               @click="selectTab(tab)"
               @keydown="tabKey($event, index)"
             >{{ tab }}</button>
@@ -259,10 +262,10 @@ onBeforeUnmount(() => {
         </div>
 
         <div :id="`yarr-panel-${tabs.indexOf(activeTab)}`" role="tabpanel" :aria-labelledby="`yarr-tab-${tabs.indexOf(activeTab)}`" tabindex="0">
-          <OverviewPanel v-if="activeTab === 'Overview'" :runtime="runtime!" :config="config!" :busy="busy" @control="control" @import="importOpen = true" @discover="discoveryOpen = true" />
-          <ServicesPanel v-else-if="activeTab === 'Services'" :services="services" :disabled="busy" @update="services = $event" />
-          <ServerAuthPanel v-else-if="activeTab === 'Server & Auth'" :plugin="plugin!" :auth="auth!" :bearer-configured="bearerConfigured" :google-secret-configured="googleSecretConfigured" :disabled="busy" @plugin="plugin = $event" @auth="auth = $event" />
-          <UpdatesPanel v-else-if="activeTab === 'Updates'" />
+          <OverviewPanel v-if="activeTab === 'Overview'" :runtime="runtime!" :config="config!" :busy="operationBusy" @control="control" @import="importOpen = true" @discover="discoveryOpen = true" />
+          <ServicesPanel v-else-if="activeTab === 'Services'" :services="services" :disabled="operationBusy" @update="services = $event" />
+          <ServerAuthPanel v-else-if="activeTab === 'Server & Auth'" :plugin="plugin!" :auth="auth!" :bearer-configured="bearerConfigured" :google-secret-configured="googleSecretConfigured" :disabled="operationBusy" @plugin="plugin = $event" @auth="auth = $event" />
+          <UpdatesPanel v-else-if="activeTab === 'Updates'" @busy="delegatedBusy = $event" />
           <LogsPanel v-else />
         </div>
 
@@ -272,12 +275,12 @@ onBeforeUnmount(() => {
             <p v-else-if="resultMessage" class="yarr-result" role="status">{{ resultMessage }}</p>
             <p v-else>Changes are validated again by the Yarr service before they are applied.</p>
           </div>
-          <button type="button" class="yarr-button" :disabled="busy" @click="save">{{ busy ? "Saving..." : "Save changes" }}</button>
+          <button type="button" class="yarr-button" :disabled="operationBusy" @click="save">{{ busy ? "Saving..." : "Save changes" }}</button>
         </div>
       </template>
     </main>
 
-    <ImportDialog :open="importOpen" @close="importOpen = false" @applied="applied" />
-    <DiscoveryDialog :open="discoveryOpen" @close="discoveryOpen = false" @applied="applied" />
+    <ImportDialog :open="importOpen" @close="importOpen = false" @applied="applied" @busy="delegatedBusy = $event" />
+    <DiscoveryDialog :open="discoveryOpen" @close="discoveryOpen = false" @applied="applied" @busy="delegatedBusy = $event" />
   </section>
 </template>

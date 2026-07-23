@@ -67,7 +67,50 @@ describe("Yarr dashboard", () => {
     expect(host.textContent).toContain("127.0.0.1:40070");
     expect(host.textContent).toContain("1.2.3");
     expect(host.querySelectorAll("button")).toHaveLength(1);
+    expect(host.querySelector("button")?.textContent).toContain("Stop Yarr");
     expect(host.querySelector("a")?.getAttribute("href")).toBe("/Settings/Yarr");
+  });
+
+  it("offers START only when stopped and no action for transitional or unknown states", async () => {
+    api.queryYarrRuntime.mockResolvedValueOnce({ ...runtime, state: "stopped", ready: false });
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await flush();
+    expect(host.querySelector("button")?.textContent).toContain("Start Yarr");
+    app.unmount();
+    app = undefined;
+    host.replaceChildren();
+
+    api.queryYarrRuntime.mockResolvedValueOnce({ ...runtime, state: "starting", ready: false });
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await flush();
+    expect(host.querySelector("button")).toBeNull();
+    expect(host.textContent).toContain("Wait for the next refresh");
+  });
+
+  it("uses viewport geometry when IntersectionObserver is unavailable", async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal("IntersectionObserver", undefined);
+    const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue({ top: 2000, bottom: 2100, left: 0, right: 300, width: 300, height: 100, x: 0, y: 2000, toJSON: () => ({}) });
+    const remove = vi.spyOn(window, "removeEventListener");
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    await flush();
+    expect(api.queryYarrRuntime).not.toHaveBeenCalled();
+
+    rect.mockReturnValue({ top: 0, bottom: 100, left: 0, right: 300, width: 300, height: 100, x: 0, y: 0, toJSON: () => ({}) });
+    window.dispatchEvent(new Event("scroll"));
+    await flush();
+    expect(api.queryYarrRuntime).toHaveBeenCalledTimes(1);
+
+    app.unmount();
+    app = undefined;
+    expect(remove).toHaveBeenCalledWith("scroll", expect.any(Function));
+    expect(remove).toHaveBeenCalledWith("resize", expect.any(Function));
   });
 
   it("polls every 30 seconds only while the document and element are visible", async () => {

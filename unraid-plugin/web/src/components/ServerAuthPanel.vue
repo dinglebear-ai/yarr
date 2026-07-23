@@ -40,10 +40,10 @@ function authSecret(key: "bearerToken" | "googleClientSecret", value: YarrSecret
     </div>
 
     <div class="yarr-auth-section">
-      <SecretField v-if="plugin.authMode === 'BEARER'" name="bearer-token" label="Bearer token" :configured="bearerConfigured" :intent="auth.bearerToken.kind" @update="authSecret('bearerToken', $event)" />
+      <SecretField v-if="plugin.authMode === 'BEARER'" name="bearer-token" label="Bearer token" :configured="bearerConfigured" :intent="auth.bearerToken.kind" :disabled="disabled" @update="authSecret('bearerToken', $event)" />
       <template v-else-if="plugin.authMode === 'GOOGLE_OAUTH'">
         <label>Google client ID<input type="text" :value="auth.googleClientId" :disabled="disabled" autocomplete="off" @input="patchAuth({ googleClientId: ($event.target as HTMLInputElement).value })"></label>
-        <SecretField name="google-client-secret" label="Google client secret" :configured="googleSecretConfigured" :intent="auth.googleClientSecret.kind" @update="authSecret('googleClientSecret', $event)" />
+        <SecretField name="google-client-secret" label="Google client secret" :configured="googleSecretConfigured" :intent="auth.googleClientSecret.kind" :disabled="disabled" @update="authSecret('googleClientSecret', $event)" />
       </template>
       <div v-else class="yarr-form-grid">
         <label>Trusted gateway hosts<textarea :value="auth.trustedGatewayHosts" :disabled="disabled" rows="3" @input="patchAuth({ trustedGatewayHosts: ($event.target as HTMLTextAreaElement).value })" /></label>

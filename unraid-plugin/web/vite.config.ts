@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue({ customElement: /\.ce\.vue$/ })],
+    define: {
+      "process.env.NODE_ENV": JSON.stringify("production"),
+      global: "globalThis",
+    },
     build: {
       outDir: dashboard ? "dist/dashboard" : "dist/settings",
       emptyOutDir: true,

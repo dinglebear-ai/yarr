@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && vite build --mode dashboard",
+    "build": "vite build && vite build --mode dashboard && npm run check:browser-bundles",
     "build:settings": "vite build",
     "build:dashboard": "vite build --mode dashboard",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:browser-bundles": "node scripts/check-browser-bundles.mjs"
   },
   "dependencies": {
     "vue": "^3.5.20"

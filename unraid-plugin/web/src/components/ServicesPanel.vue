@@ -39,8 +39,8 @@ function secret(index: number, key: "password" | "apiKey", value: YarrSecretUpda
         <label>{{ name(service.service) }} username<input type="text" :value="service.username ?? ''" :disabled="disabled" autocomplete="off" @input="patch(index, { username: ($event.target as HTMLInputElement).value })"></label>
       </div>
       <div class="yarr-secret-grid">
-        <SecretField :name="`${service.service}-password`" :label="`${name(service.service)} password`" :configured="service.hasPassword" :intent="service.password.kind" @update="secret(index, 'password', $event)" />
-        <SecretField :name="`${service.service}-api-key`" :label="`${name(service.service)} API key`" :configured="service.hasApiKey" :intent="service.apiKey.kind" @update="secret(index, 'apiKey', $event)" />
+        <SecretField :name="`${service.service}-password`" :label="`${name(service.service)} password`" :configured="service.hasPassword" :intent="service.password.kind" :disabled="disabled" @update="secret(index, 'password', $event)" />
+        <SecretField :name="`${service.service}-api-key`" :label="`${name(service.service)} API key`" :configured="service.hasApiKey" :intent="service.apiKey.kind" :disabled="disabled" @update="secret(index, 'apiKey', $event)" />
       </div>
     </section>
   </section>

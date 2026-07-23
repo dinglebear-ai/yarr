@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { queryYarrUpdateStatus, resetYarrBinary, updateYarrBinary } from "../graphql";
 import type { YarrUpdateStatus } from "../types";
 import ConfirmDialog from "./ConfirmDialog.vue";
+
+const emit = defineEmits<{ busy: [value: boolean] }>();
 
 const status = ref<YarrUpdateStatus>();
 const error = ref("");
@@ -38,7 +40,7 @@ async function install(): Promise<void> {
     status.value = await updateYarrBinary(status.value.availableVersion, controller.signal);
     confirmUpdate.value = false;
   } catch {
-    if (!controller.signal.aborted) error.value = "The update did not complete. Review the result and Yarr logs before retrying.";
+    if (!controller.signal.aborted) error.value = "Update result was not confirmed. Refresh update status before retrying.";
   } finally {
     busy.value = false;
   }
@@ -53,22 +55,23 @@ async function reset(): Promise<void> {
     status.value = await resetYarrBinary(controller.signal);
     confirmReset.value = false;
   } catch {
-    if (!controller.signal.aborted) error.value = "Reset did not complete. Review Yarr logs before retrying.";
+    if (!controller.signal.aborted) error.value = "Reset result was not confirmed. Refresh update status before retrying.";
   } finally {
     busy.value = false;
   }
 }
 
 onMounted(load);
-onBeforeUnmount(() => { generation += 1; controller?.abort(); });
+watch(busy, (value) => emit("busy", value));
+onBeforeUnmount(() => { generation += 1; controller?.abort(); emit("busy", false); });
 </script>
 
 <template>
   <section class="yarr-panel" aria-labelledby="updates-heading" :aria-busy="busy">
     <div class="yarr-section-heading"><div><h2 id="updates-heading">Updates</h2><p>Install a verified release or return to the package version.</p></div><button type="button" class="yarr-button is-quiet" :disabled="busy" @click="load">Check again</button></div>
-    <div v-if="error" class="yarr-error" role="alert"><p>{{ error }}</p><button type="button" class="yarr-button" :disabled="busy" @click="load">Retry update check</button></div>
-    <p v-else-if="!status" role="status">Checking update status...</p>
-    <template v-else>
+    <div v-if="error" class="yarr-error" role="alert"><p>{{ error }}</p><button v-if="!status" type="button" class="yarr-button" :disabled="busy" @click="load">Retry update check</button></div>
+    <p v-if="!status && !error" role="status">Checking update status...</p>
+    <template v-if="status">
       <dl class="yarr-detail-list">
         <div><dt>Installed</dt><dd>{{ status.installedVersion }}</dd></div>
         <div><dt>Packaged</dt><dd>{{ status.packagedVersion }}</dd></div>

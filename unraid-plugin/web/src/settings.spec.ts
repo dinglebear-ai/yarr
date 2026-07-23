@@ -220,6 +220,97 @@ describe("Yarr settings", () => {
     button("Keep credential").click();
   });
 
+  it("disables credential editors while a save is unresolved without discarding intent", async () => {
+    await mountSettings();
+    button("Server & Auth").click();
+    await nextTick();
+    const setRadio = [...host.querySelectorAll<HTMLInputElement>('input[type="radio"]')]
+      .find((radio) => radio.parentElement?.textContent?.includes("Set a new value"))!;
+    setRadio.click();
+    await nextTick();
+    let resolveSave!: (value: unknown) => void;
+    api.mutateYarrConfig.mockReturnValue(new Promise((resolve) => { resolveSave = resolve; }));
+    button("Save changes").click();
+    await nextTick();
+    const field = host.querySelector(".yarr-secret-field")!;
+    expect([...field.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")].every((control) => control.disabled)).toBe(true);
+    expect(field.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.parentElement?.textContent).toContain("Set a new value");
+    resolveSave({ config, changed: false, restarted: false, rolledBack: false, error: null });
+    await flush();
+  });
+
+  it("uses unconfirmed refresh guidance for save and control transport failures", async () => {
+    await mountSettings();
+    api.mutateYarrConfig.mockRejectedValueOnce(new Error("lost response"));
+    button("Save changes").click();
+    await flush();
+    expect(host.textContent).toContain("Save result was not confirmed. Refresh current state before retrying.");
+
+    api.controlYarr.mockRejectedValueOnce(new Error("lost response"));
+    button("Restart Yarr").click();
+    await flush();
+    expect(host.textContent).toContain("Control result was not confirmed. Refresh current state before retrying.");
+    expect(host.textContent).not.toContain("existing configuration was not replaced");
+  });
+
+  it("uses unconfirmed refresh guidance for import and discovery apply failures", async () => {
+    await mountSettings();
+    api.previewYarrImport.mockResolvedValue({
+      previewId: "p".repeat(32),
+      mappings: [{ serviceId: "sonarr", baseUrl: "http://sonarr:8989", hasUsername: false, hasPassword: false, hasApiKey: true }],
+      warnings: [],
+    });
+    api.applyYarrImport.mockRejectedValueOnce(new Error("lost response"));
+    button("Import configuration").click();
+    await nextTick();
+    await setValue(input("Paste environment settings"), "SONARR_URL=http://sonarr:8989");
+    button("Preview import").click();
+    await flush();
+    host.querySelector<HTMLInputElement>('input[name="import-service-sonarr"]')!.click();
+    await nextTick();
+    button("Apply selected").click();
+    await flush();
+    expect(host.textContent).toContain("Import result was not confirmed. Refresh current configuration before retrying.");
+    button("Cancel").click();
+    await nextTick();
+
+    api.queryYarrDiscovery.mockResolvedValue({
+      discoveryId: "d".repeat(32),
+      candidates: [{ candidateId: "c".repeat(32), source: "docker", serviceId: "sonarr", confidence: 90, reasons: ["match"], baseUrl: "http://sonarr:8989", hasCredential: false }],
+      errors: [],
+    });
+    api.applyYarrDiscovery.mockRejectedValueOnce(new Error("lost response"));
+    button("Discover Docker services").click();
+    await flush();
+    host.querySelector<HTMLInputElement>('input[name="discovery-candidate-' + "c".repeat(32) + '"]')!.click();
+    await nextTick();
+    button("Apply selected").click();
+    await flush();
+    expect(host.textContent).toContain("Discovery apply result was not confirmed. Refresh current configuration before retrying.");
+  });
+
+  it("uses unconfirmed refresh guidance for update and reset transport failures", async () => {
+    await mountSettings();
+    api.queryYarrUpdateStatus.mockResolvedValue({ installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0", updateAvailable: true, usingOverlay: true, rolledBack: false, message: "Update available" });
+    button("Updates").click();
+    await flush();
+    api.updateYarrBinary.mockRejectedValueOnce(new Error("lost response"));
+    button("Install 1.3.0").click();
+    await nextTick();
+    button("Install update").click();
+    await flush();
+    expect(host.textContent).toContain("Update result was not confirmed. Refresh update status before retrying.");
+    button("Cancel").click();
+    await nextTick();
+
+    api.resetYarrBinary.mockRejectedValueOnce(new Error("lost response"));
+    button("Reset to packaged version").click();
+    await nextTick();
+    button("Reset Yarr").click();
+    await flush();
+    expect(host.textContent).toContain("Reset result was not confirmed. Refresh update status before retrying.");
+  });
+
   it("previews import metadata without secret text and requires selection with per-service consent", async () => {
     await mountSettings();
     api.previewYarrImport.mockResolvedValue({

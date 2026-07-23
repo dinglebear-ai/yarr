@@ -29,4 +29,22 @@ describe("SecretField", () => {
     expect(input?.id).toMatch(/^yarr-secret-bearer-token-/);
     expect(label?.textContent).toContain("Bearer token");
   });
+
+  it("disables every credential control without changing intent", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    mounted = createApp(SecretField, {
+      name: "bearer-token",
+      label: "Bearer token",
+      configured: true,
+      intent: "SET",
+      disabled: true,
+    });
+    mounted.mount(host);
+    await nextTick();
+
+    expect([...host.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")]).not.toHaveLength(0);
+    expect([...host.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")].every((control) => control.disabled)).toBe(true);
+    expect(host.querySelector<HTMLInputElement>('input[type="password"]')?.value).toBe("");
+  });
 });

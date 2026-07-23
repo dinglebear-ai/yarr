@@ -5,7 +5,7 @@ import type { YarrConfigMutationResult, YarrImportMapping, YarrImportPreview } f
 import AccessibleDialog from "./AccessibleDialog.vue";
 
 const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: []; applied: [result: YarrConfigMutationResult] }>();
+const emit = defineEmits<{ close: []; applied: [result: YarrConfigMutationResult]; busy: [value: boolean] }>();
 const rawText = ref("");
 const preview = ref<YarrImportPreview>();
 const selected = ref<string[]>([]);
@@ -77,12 +77,13 @@ async function apply(): Promise<void> {
     emit("applied", result);
     emit("close");
   } catch {
-    if (!controller.signal.aborted) error.value = "Selected services could not be imported. Review the preview and retry.";
+    if (!controller.signal.aborted) error.value = "Import result was not confirmed. Refresh current configuration before retrying.";
     busy.value = false;
   }
 }
 
 watch(() => props.open, (open) => { if (open) reset(); else rawText.value = ""; });
+watch(busy, (value) => emit("busy", value));
 onBeforeUnmount(reset);
 </script>
 

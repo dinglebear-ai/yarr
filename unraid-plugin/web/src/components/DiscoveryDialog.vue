@@ -5,7 +5,7 @@ import type { YarrConfigMutationResult, YarrDiscoveryResult } from "../types";
 import AccessibleDialog from "./AccessibleDialog.vue";
 
 const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: []; applied: [result: YarrConfigMutationResult] }>();
+const emit = defineEmits<{ close: []; applied: [result: YarrConfigMutationResult]; busy: [value: boolean] }>();
 const discovery = ref<YarrDiscoveryResult>();
 const selected = ref<string[]>([]);
 const consent = ref<Record<string, boolean>>({});
@@ -69,7 +69,7 @@ async function apply(): Promise<void> {
     emit("applied", result);
     emit("close");
   } catch {
-    if (!controller.signal.aborted) error.value = "Selected Docker services could not be applied. Review the candidates and retry.";
+    if (!controller.signal.aborted) error.value = "Discovery apply result was not confirmed. Refresh current configuration before retrying.";
     busy.value = false;
   }
 }
@@ -79,6 +79,7 @@ function selectedService(serviceId: string): boolean {
 }
 
 watch(() => props.open, (open) => { if (open) { reset(); void discover(); } else reset(); });
+watch(busy, (value) => emit("busy", value));
 onBeforeUnmount(reset);
 </script>
 
