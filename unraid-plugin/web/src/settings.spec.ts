@@ -35,6 +35,7 @@ const runtime: YarrRuntime = {
 const config: YarrConfig = {
   plugin: {
     enabled: true,
+    dashboardWidgetEnable: true,
     bindMode: "LOOPBACK",
     customHost: "",
     port: 40070,
@@ -181,6 +182,22 @@ describe("Yarr settings", () => {
     button("Save changes").click();
     await flush();
     expect(host.textContent).toContain("Save outcome is indeterminate");
+  });
+
+  it("persists the dashboard widget toggle through the typed config mutation", async () => {
+    await mountSettings();
+    button("Server & Auth").click();
+    await nextTick();
+    const toggle = input("Dashboard widget") as HTMLInputElement;
+    expect(toggle.checked).toBe(true);
+    toggle.click();
+    await nextTick();
+    button("Save changes").click();
+    await flush();
+
+    expect(api.mutateYarrConfig).toHaveBeenCalledWith(expect.objectContaining({
+      dashboardWidgetEnable: false,
+    }), expect.any(AbortSignal));
   });
 
   it("blocks non-loopback binding when the yarr auth row is missing", async () => {

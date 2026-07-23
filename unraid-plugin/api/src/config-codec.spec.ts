@@ -4,7 +4,7 @@ import * as codec from "./config-codec";
 import type { SaveYarrConfigInput } from "./config.types";
 import { normalizeServiceUrl } from "./service-catalog";
 
-const pluginConfig = `ENABLED=yes\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
+const pluginConfig = `ENABLED=yes\nDASHBOARD_WIDGET_ENABLE=true\nBIND_MODE=loopback\nCUSTOM_HOST=\nPORT=40070\nAUTH_MODE=bearer\nTAILSCALE_SERVE=no\nTAILSCALE_HOSTNAME=\nLOG_LEVEL=info\nUPDATE_CHANNEL=stable\n`;
 
 describe("Yarr configuration codec", () => {
   it("preserves unknown yarr.cfg keys without accepting them from input", () => {
@@ -51,6 +51,28 @@ describe("Yarr configuration codec", () => {
     const merged = codec.mergeConfigInput(current, { port: 40100 });
 
     expect(merged.env.values.YARR_MCP_TOKEN).toBe("private-token");
+  });
+
+  it("defaults, validates, and persists dashboard widget visibility", () => {
+    const withoutDashboardKey = codec.parsePluginConfig(
+      pluginConfig.replace("DASHBOARD_WIDGET_ENABLE=true\n", ""),
+    );
+    expect(codec.toPublicConfig(withoutDashboardKey, codec.parseYarrEnvironment("")).plugin)
+      .toMatchObject({ dashboardWidgetEnable: true });
+
+    const merged = codec.mergeConfigInput(
+      { plugin: withoutDashboardKey, env: codec.parseYarrEnvironment("") },
+      { dashboardWidgetEnable: false },
+    );
+    expect(merged.plugin.values.DASHBOARD_WIDGET_ENABLE).toBe("false");
+    expect(codec.toPublicConfig(merged.plugin, merged.env).plugin.dashboardWidgetEnable).toBe(false);
+
+    expect(() => codec.toPublicConfig(
+      codec.parsePluginConfig(
+        pluginConfig.replace("DASHBOARD_WIDGET_ENABLE=true", "DASHBOARD_WIDGET_ENABLE=no"),
+      ),
+      codec.parseYarrEnvironment(""),
+    )).toThrow("DASHBOARD_WIDGET_ENABLE must be true or false");
   });
 
   it("clears an explicitly cleared secret", () => {

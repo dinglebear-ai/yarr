@@ -32,12 +32,39 @@ const dashboardPage = await readFile(
   "utf8",
 );
 for (const required of [
+  'Menu="Dashboard"',
+  'Icon="yarr.png"',
+  'Tag="plug"',
+  "DASHBOARD_WIDGET_ENABLE",
   "<yarr-dashboard></yarr-dashboard>",
   "/plugins/yarr/web/yarr-dashboard.css",
   "/plugins/yarr/web/yarr-dashboard.js",
+  "filemtime",
 ]) {
   if (!dashboardPage.includes(required)) {
     throw new Error(`YarrDashboard.page does not mount the packaged dashboard contract: ${required}`);
+  }
+}
+if (dashboardPage.includes("yarr-settings.js") || dashboardPage.includes("yarr-settings.css")) {
+  throw new Error("YarrDashboard.page loads the full settings bundle");
+}
+
+const settingsPage = await readFile(
+  resolve("../source/usr/local/emhttp/plugins/yarr/Yarr.page"),
+  "utf8",
+);
+for (const required of [
+  'Menu="Utilities"',
+  'Icon="yarr.png"',
+  'Tag="plug"',
+  "<yarr-settings-app></yarr-settings-app>",
+  "/plugins/yarr/web/yarr-settings.css",
+  "/plugins/yarr/web/yarr-settings.js",
+  "window.csrf_token",
+  "filemtime",
+]) {
+  if (!settingsPage.includes(required)) {
+    throw new Error(`Yarr.page does not satisfy the packaged settings contract: ${required}`);
   }
 }
 

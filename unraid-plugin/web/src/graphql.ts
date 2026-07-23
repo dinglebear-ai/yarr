@@ -30,7 +30,7 @@ const RUNTIME_FIELDS = `
   state pid version bindAddress port ready healthMessage uptimeSeconds
 `;
 const CONFIG_FIELDS = `
-  plugin { enabled bindMode customHost port authMode tailscaleServe tailscaleHostname logLevel updateChannel }
+  plugin { enabled dashboardWidgetEnable bindMode customHost port authMode tailscaleServe tailscaleHostname logLevel updateChannel }
   services { service enabled baseUrl username hasPassword hasApiKey extra { key value } }
 `;
 const MUTATION_FIELDS = `

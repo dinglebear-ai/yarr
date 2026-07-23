@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">Yarr</title>
+  <desc id="description">A bright Y over cyan orbital radar rings with a rose signal point on a dark navy tile.</desc>
+  <defs>
+    <linearGradient id="tile" x1="36" y1="24" x2="220" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102a3a"/>
+      <stop offset="0.52" stop-color="#07131c"/>
+      <stop offset="1" stop-color="#0b202d"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="54" y1="56" x2="205" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67cbfa"/>
+      <stop offset="1" stop-color="#29b6f6"/>
+    </linearGradient>
+    <filter id="cyan-glow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="248" height="248" rx="48" fill="url(#tile)"/>
+  <rect x="5.5" y="5.5" width="245" height="245" rx="46.5" fill="none" stroke="#1d3d4e" stroke-width="3"/>
+  <g fill="none" stroke="url(#orbit)" stroke-linecap="round">
+    <circle cx="128" cy="128" r="78" stroke-width="3" opacity="0.28"/>
+    <circle cx="128" cy="128" r="55" stroke-width="2" opacity="0.2"/>
+    <ellipse cx="128" cy="128" rx="92" ry="47" stroke-width="5" opacity="0.88" transform="rotate(-24 128 128)" filter="url(#cyan-glow)"/>
+    <path d="M57 161a82 82 0 0 1 129-89" stroke-width="7" opacity="0.78"/>
+  </g>
+  <circle cx="202" cy="76" r="10" fill="#f9a8c4"/>
+  <circle cx="202" cy="76" r="4" fill="#fff4f7"/>
+  <path d="M74 65l54 64 54-64M128 129v65" fill="none" stroke="#e6f4fb" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M128 129v65" fill="none" stroke="#67cbfa" stroke-width="7" stroke-linecap="round" opacity="0.8"/>
+</svg>

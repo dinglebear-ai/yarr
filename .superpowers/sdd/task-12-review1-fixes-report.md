@@ -248,3 +248,13 @@ The package was rebuilt from those read-only, verified assets under both
   mutation was prohibited.
 - Beads has no configured Dolt remote; the local bead comment is authoritative
   and `bd dolt push` is expected to report that no remote is configured.
+
+## 2026-07-23 post-review release-blocker follow-up
+
+After the original whole-feature remediation review, the user added a release-blocking integration scope. That scope is now implemented and validated: shared original icon assets, canonical settings discoverability at `Settings/Yarr`, durable dashboard enablement, a production-grade compact dashboard widget, actual staged API/web payload contracts, and strict archive directory metadata.
+
+The coordinated package was rebuilt from the staged real API and both web bundles under umask `022` and `077`. Outputs are byte-identical (SHA-256 `e961580952e43d8fde61bb4c9518b3289d2025d24616f3cb25af845398e2fd43`, MD5 `a87c1b417b3fb56147b6edcc4fd790bc`, 6,229,812 bytes). Explicit `tar -tvf` checks show 14 root-UID/GID directories, all exactly `0755`; 56 total canonical members contain no `./` entry. Negative contracts reject a `0777` directory and dot-root archive paths.
+
+Focused and full API/web suites, typechecks/builds, production audit, browser smoke, aggregate shell contracts, ShellCheck/actionlint/Python workflow gates, repository-identity and secret-argv scans, package/release verification, icon render checks, and diff hygiene all pass. No live host, workflow, release, or upstream draft asset was mutated.
+
+This follow-up is intentionally marked ready for the parent's sequential independent reviews. It does not claim that the newly added scope has reviewer approval.

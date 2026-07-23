@@ -163,6 +163,7 @@ function mapConfig(value: YarrConfigView): YarrConfig {
   return {
     plugin: {
       enabled: value.plugin.enabled,
+      dashboardWidgetEnable: value.plugin.dashboardWidgetEnable,
       bindMode: value.plugin.bindMode as YarrConfig["plugin"]["bindMode"],
       customHost: value.plugin.customHost,
       port: value.plugin.port,
@@ -242,6 +243,7 @@ function mapUpdate(value: UpdateStatus): YarrUpdateStatus {
 function toConfigInput(input: SaveYarrConfigInput): DomainSaveYarrConfigInput {
   return {
     enabled: input.enabled,
+    dashboardWidgetEnable: input.dashboardWidgetEnable,
     bindMode: input.bindMode,
     customHost: input.customHost,
     port: input.port,

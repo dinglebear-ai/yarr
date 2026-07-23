@@ -1,0 +1,23 @@
+Menu="Utilities"
+Title="Yarr"
+Icon="yarr.png"
+Tag="plug"
+---
+<?php
+/*
+ * Thin settings shell. GraphQL requests use the authenticated webGUI session
+ * and its CSRF token; configuration and credentials remain server-side.
+ */
+$yarr_csrf = $var['csrf_token'] ?? '';
+if ($yarr_csrf === '') {
+    $yarr_csrf = @parse_ini_file('/usr/local/emhttp/state/var.ini')['csrf_token'] ?? '';
+}
+$yarr_web = '/usr/local/emhttp/plugins/yarr/web';
+$yarr_settings_css_v = @filemtime("$yarr_web/yarr-settings.css") ?: '0';
+$yarr_settings_js_v = @filemtime("$yarr_web/yarr-settings.js") ?: '0';
+?>
+<script>window.csrf_token = <?= json_encode((string) $yarr_csrf, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+<link rel="stylesheet" href="/plugins/yarr/web/yarr-settings.css?v=<?= $yarr_settings_css_v ?>">
+<noscript><p>This settings page requires JavaScript.</p></noscript>
+<yarr-settings-app></yarr-settings-app>
+<script type="module" src="/plugins/yarr/web/yarr-settings.js?v=<?= $yarr_settings_js_v ?>"></script>

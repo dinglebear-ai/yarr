@@ -101,6 +101,8 @@ export class YarrRuntime {
 export class YarrPluginConfig {
   @Field(() => Boolean)
   enabled!: boolean;
+  @Field(() => Boolean)
+  dashboardWidgetEnable!: boolean;
   @Field(() => YarrBindMode)
   bindMode!: YarrBindMode;
   @Field(() => String)
@@ -308,6 +310,10 @@ export class SaveYarrConfigInput {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  dashboardWidgetEnable?: boolean;
   @Field(() => YarrBindMode, { nullable: true })
   @IsOptional()
   @IsEnum(YarrBindMode)
@@ -470,7 +476,7 @@ export const YARR_INPUT_FIELDS: Readonly<Record<string, readonly string[]>> = {
   YarrSecretUpdateInput: ["kind", "value"],
   SaveYarrServiceInput: ["service", "enabled", "baseUrl", "username", "password", "apiKey"],
   SaveYarrConfigInput: [
-    "enabled", "bindMode", "customHost", "port", "authMode", "tailscaleServe",
+    "enabled", "dashboardWidgetEnable", "bindMode", "customHost", "port", "authMode", "tailscaleServe",
     "tailscaleHostname", "logLevel", "updateChannel", "bearerToken", "googleClientId",
     "googleClientSecret", "trustedGatewayHosts", "trustedGatewayOrigins", "services",
   ],
@@ -489,7 +495,7 @@ export const graphqlSchemaExtension = async () => `
 
   type YarrKeyValue { key: String!, value: String! }
   type YarrRuntime { state: String!, pid: Int, version: String, bindAddress: String!, port: Int!, ready: Boolean!, healthMessage: String!, uptimeSeconds: Int }
-  type YarrPluginConfig { enabled: Boolean!, bindMode: YarrBindMode!, customHost: String!, port: Int!, authMode: YarrAuthMode!, tailscaleServe: Boolean!, tailscaleHostname: String!, logLevel: YarrLogLevel!, updateChannel: String! }
+  type YarrPluginConfig { enabled: Boolean!, dashboardWidgetEnable: Boolean!, bindMode: YarrBindMode!, customHost: String!, port: Int!, authMode: YarrAuthMode!, tailscaleServe: Boolean!, tailscaleHostname: String!, logLevel: YarrLogLevel!, updateChannel: String! }
   type YarrServiceConfig { service: String!, enabled: Boolean!, baseUrl: String!, username: String, hasPassword: Boolean!, hasApiKey: Boolean!, extra: [YarrKeyValue!]! }
   type YarrConfig { plugin: YarrPluginConfig!, services: [YarrServiceConfig!]! }
   type YarrConfigMutationResult { config: YarrConfig!, changed: Boolean!, restarted: Boolean!, rolledBack: Boolean!, error: String }
@@ -504,7 +510,7 @@ export const graphqlSchemaExtension = async () => `
 
   input YarrSecretUpdateInput { kind: YarrSecretUpdateKind!, value: String }
   input SaveYarrServiceInput { service: String!, enabled: Boolean, baseUrl: String, username: String, password: YarrSecretUpdateInput, apiKey: YarrSecretUpdateInput }
-  input SaveYarrConfigInput { enabled: Boolean, bindMode: YarrBindMode, customHost: String, port: Int, authMode: YarrAuthMode, tailscaleServe: Boolean, tailscaleHostname: String, logLevel: YarrLogLevel, updateChannel: String, bearerToken: YarrSecretUpdateInput, googleClientId: String, googleClientSecret: YarrSecretUpdateInput, trustedGatewayHosts: String, trustedGatewayOrigins: String, services: [SaveYarrServiceInput!] }
+  input SaveYarrConfigInput { enabled: Boolean, dashboardWidgetEnable: Boolean, bindMode: YarrBindMode, customHost: String, port: Int, authMode: YarrAuthMode, tailscaleServe: Boolean, tailscaleHostname: String, logLevel: YarrLogLevel, updateChannel: String, bearerToken: YarrSecretUpdateInput, googleClientId: String, googleClientSecret: YarrSecretUpdateInput, trustedGatewayHosts: String, trustedGatewayOrigins: String, services: [SaveYarrServiceInput!] }
   input PreviewYarrImportInput { text: String! }
   input YarrCredentialConsentInput { serviceId: String!, consent: Boolean! }
   input ApplyYarrImportInput { previewId: String!, selectedServiceIds: [String!]!, credentialConsent: [YarrCredentialConsentInput!]! }

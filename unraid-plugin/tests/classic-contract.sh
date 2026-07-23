@@ -5,8 +5,10 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 plugin_root="$repo_root/unraid-plugin"
 source_root="$plugin_root/source"
 classic="$plugin_root/yarr.plg"
-page="$source_root/usr/local/emhttp/plugins/yarr/yarr.page"
+page="$source_root/usr/local/emhttp/plugins/yarr/Yarr.page"
 dashboard_page="$source_root/usr/local/emhttp/plugins/yarr/YarrDashboard.page"
+icon="$source_root/usr/local/emhttp/plugins/yarr/yarr.png"
+icon_source="$plugin_root/assets/yarr.svg"
 default_cfg="$source_root/usr/local/emhttp/plugins/yarr/default.cfg"
 default_env="$source_root/usr/local/emhttp/plugins/yarr/default.env"
 classic_install="$source_root/usr/local/emhttp/plugins/yarr/scripts/install-classic-plugin.sh"
@@ -15,6 +17,7 @@ api_install="$source_root/usr/local/emhttp/plugins/yarr/scripts/install-api-plug
 api_uninstall="$source_root/usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh"
 build_script="$plugin_root/scripts/build-package.sh"
 verify_script="$plugin_root/scripts/verify-package.sh"
+archive_layout_script="$plugin_root/scripts/verify-archive-layout.sh"
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 
@@ -39,9 +42,9 @@ expect_failure_message() {
 }
 
 for required in \
-    "$classic" "$page" "$default_cfg" "$default_env" \
+    "$classic" "$page" "$dashboard_page" "$icon" "$icon_source" "$default_cfg" "$default_env" \
     "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" \
-    "$build_script" "$verify_script"; do
+    "$build_script" "$verify_script" "$archive_layout_script"; do
     [[ -f "$required" ]] || fail "missing Task 10 artifact: ${required#"$repo_root/"}"
 done
 
@@ -53,6 +56,7 @@ for url in "${urls[@]}"; do
     [[ "$url" == https://* ]] || fail "non-HTTPS download: $url"
 done
 grep -Fq 'sha256sum -c -' "$classic" || fail 'classic download lacks SHA-256 verification'
+grep -Fq '<!ENTITY launch     "Settings/Yarr">' "$classic" || fail 'classic launch route is not Settings/Yarr'
 plugin_sha=$(sed -n 's/.*<!ENTITY sha256[[:space:]]*"\([0-9a-f]*\)".*/\1/p' "$classic")
 [[ "$plugin_sha" =~ ^[0-9a-f]{64}$ ]] || fail 'classic SHA-256 entity is malformed'
 
@@ -73,15 +77,40 @@ if grep -Eq '(/boot/config/plugins/yarr|/mnt/user/appdata/yarr).*(rm|remove)|(rm
     fail 'classic uninstall removes persistent config or appdata'
 fi
 
-grep -Fq '<link rel="stylesheet" href="/plugins/yarr/web/yarr-settings.css">' "$page" || fail 'settings page CSS path is wrong'
+[[ ! -e "$source_root/usr/local/emhttp/plugins/yarr/yarr.page" ]] || fail 'lowercase settings page route still exists'
+grep -Fq 'Menu="Utilities"' "$page" || fail 'settings page is not in Utilities'
+grep -Fq 'Icon="yarr.png"' "$page" || fail 'settings page does not use the packaged Yarr icon'
+grep -Fq 'Tag="plug"' "$page" || fail 'settings page tag drifted'
+grep -Fq '/plugins/yarr/web/yarr-settings.css?v=' "$page" || fail 'settings page CSS is not cache-busted'
 grep -Fq '<yarr-settings-app></yarr-settings-app>' "$page" || fail 'settings custom element is not mounted'
-grep -Fq '<script type="module" src="/plugins/yarr/web/yarr-settings.js"></script>' "$page" || fail 'settings page JS path is wrong'
-if grep -Eqi '(\$_(POST|GET)|file_put_contents|fopen|credential|password|secret|token)' "$page"; then
-    fail 'settings page contains config writing or credential handling'
+grep -Fq '/plugins/yarr/web/yarr-settings.js?v=' "$page" || fail 'settings page JS is not cache-busted'
+grep -Fq "\$var['csrf_token']" "$page" || fail 'settings page does not use the host CSRF token'
+grep -Fq '/usr/local/emhttp/state/var.ini' "$page" || fail 'settings page lacks the safe host CSRF fallback'
+grep -Fq 'json_encode((string) $yarr_csrf' "$page" || fail 'settings page does not encode CSRF data for JavaScript'
+if grep -Eqi '(\$_(POST|GET)|file_put_contents|fopen|/boot/config/plugins/yarr)' "$page"; then
+    fail 'settings page contains a config-writing endpoint'
 fi
+grep -Fq 'Menu="Dashboard"' "$dashboard_page" || fail 'dashboard page is not in Dashboard'
+grep -Fq 'Title="Yarr"' "$dashboard_page" || fail 'dashboard title drifted'
+grep -Fq 'Icon="yarr.png"' "$dashboard_page" || fail 'dashboard page does not use the packaged Yarr icon'
+grep -Fq 'Tag="plug"' "$dashboard_page" || fail 'dashboard tag drifted'
+grep -Fq 'DASHBOARD_WIDGET_ENABLE' "$dashboard_page" || fail 'dashboard page has no config-backed condition'
+grep -Fq '/boot/config/plugins/yarr/yarr.cfg' "$dashboard_page" || fail 'dashboard condition does not read persistent config'
 grep -Fq '<yarr-dashboard></yarr-dashboard>' "$dashboard_page" || fail 'dashboard custom element is not mounted'
-grep -Fq '/plugins/yarr/web/yarr-dashboard.css' "$dashboard_page" || fail 'dashboard CSS path is wrong'
-grep -Fq '/plugins/yarr/web/yarr-dashboard.js' "$dashboard_page" || fail 'dashboard JS path is wrong'
+grep -Fq '/plugins/yarr/web/yarr-dashboard.css?v=' "$dashboard_page" || fail 'dashboard CSS is not cache-busted'
+grep -Fq '/plugins/yarr/web/yarr-dashboard.js?v=' "$dashboard_page" || fail 'dashboard JS is not cache-busted'
+if grep -Fq 'yarr-settings.' "$dashboard_page"; then
+    fail 'dashboard page loads the full settings bundle'
+fi
+
+[[ $(stat -c %a "$icon") == 644 ]] || fail 'source yarr.png must be mode 0644'
+icon_header=$(od -An -tx1 -N26 "$icon" | tr -d ' \n')
+[[ "$icon_header" == 89504e470d0a1a0a0000000d4948445200000100000001000806 ]] ||
+    fail 'source yarr.png must be a 256x256 8-bit RGBA PNG'
+grep -Fq 'viewBox="0 0 256 256"' "$icon_source" || fail 'Yarr icon source has the wrong canvas'
+grep -Fq '#29b6f6' "$icon_source" || fail 'Yarr icon source lacks the Aurora cyan motif'
+grep -Fq '#f9a8c4' "$icon_source" || fail 'Yarr icon source lacks the rose signal accent'
+grep -Fxq 'DASHBOARD_WIDGET_ENABLE=true' "$default_cfg" || fail 'dashboard widget does not default enabled'
 
 [[ $(stat -c %a "$default_cfg") == 600 ]] || fail 'default.cfg must be mode 0600'
 [[ $(stat -c %a "$default_env") == 600 ]] || fail 'default.env must be mode 0600'
@@ -398,7 +427,7 @@ PATH="$reinstall_bin:$PATH" YARR_TEST_ROOT="$uninstall_root" \
 [[ ! -e "$uninstall_root/var/run/yarr-array-stopping" ]] || fail 'mounted reinstall retained the stale array fence'
 grep -Fxq 'rc start' "$uninstall_ops" || fail 'mounted reinstall did not enter the mounted start transition'
 
-for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" "$build_script" "$verify_script"; do
+for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" "$build_script" "$verify_script" "$archive_layout_script"; do
     [[ -x "$executable" ]] || fail "script is not executable: ${executable#"$repo_root/"}"
     bash -n "$executable"
 done
@@ -407,12 +436,29 @@ grep -Fq '/usr/local/yarr/bin/yarr' "$build_script" || fail 'build does not stag
 grep -Fq 'install -d -m 0755' "$build_script" || fail 'build does not fix packaged directory modes'
 grep -Fq 'yarr-dashboard.js' "$build_script" || fail 'build does not stage the dashboard bundle'
 grep -Fq 'yarr-settings.js' "$build_script" || fail 'build does not stage the settings bundle'
+grep -Fq 'yarr.png' "$build_script" || fail 'build does not validate and stage the shared Yarr icon'
 grep -Fq 'package-manifest.sha256' "$build_script" || fail 'build does not embed a SHA-256/mode inventory'
 grep -Fq 'package-manifest.sha256' "$verify_script" || fail 'verifier does not enforce embedded inventory'
 grep -Fq 'git ls-files' "$verify_script" || fail 'verifier does not enforce tracked source parity'
 grep -Fq 'xmllint' "$verify_script" || fail 'verifier does not validate plugin XML'
 grep -Fq 'packaged /usr/local/yarr directory mode is not 0755' "$verify_script" || fail 'verifier does not check /usr/local/yarr mode'
 grep -Fq 'packaged /usr/local/yarr/bin directory mode is not 0755' "$verify_script" || fail 'verifier does not check /usr/local/yarr/bin mode'
+grep -Fq 'verify-archive-layout.sh' "$verify_script" || fail 'package verifier does not enforce canonical directory layout'
+grep -Fq 'directory is not root:root mode 0755' "$archive_layout_script" || fail 'archive layout verifier does not reject writable directories'
+
+layout_root="$tmp_dir/layout-root"
+mkdir -p "$layout_root/etc" "$layout_root/usr"
+chmod 0755 "$layout_root" "$layout_root/etc" "$layout_root/usr"
+tar -C "$layout_root" --owner=0 --group=0 --numeric-owner -cJf "$tmp_dir/layout-safe.txz" etc usr
+"$archive_layout_script" "$tmp_dir/layout-safe.txz" >/dev/null
+chmod 0777 "$layout_root/usr"
+tar -C "$layout_root" --owner=0 --group=0 --numeric-owner -cJf "$tmp_dir/layout-writable.txz" etc usr
+expect_failure_message 'group/world-writable archive directory' 'directory is not root:root mode 0755' \
+    "$archive_layout_script" "$tmp_dir/layout-writable.txz"
+chmod 0755 "$layout_root/usr"
+tar -C "$layout_root" --owner=0 --group=0 --numeric-owner -cJf "$tmp_dir/layout-dot-root.txz" .
+expect_failure_message 'archive dot root member' 'non-canonical archive path: ./' \
+    "$archive_layout_script" "$tmp_dir/layout-dot-root.txz"
 
 # A traversal-shaped upstream release archive must be rejected before builds
 # or release metadata swaps. This is intentionally stopped at archive intake.

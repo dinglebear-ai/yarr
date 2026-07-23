@@ -1,9 +1,19 @@
 Menu="Dashboard"
 Title="Yarr"
-Icon="server"
-Tag="server"
+Icon="yarr.png"
+Tag="plug"
+Cond="(preg_match('/^DASHBOARD_WIDGET_ENABLE\s*=\s*[\x22\x27]?false[\x22\x27]?\s*$/m', @file_get_contents('/boot/config/plugins/yarr/yarr.cfg') ?: '') !== 1)"
 ---
-<link rel="stylesheet" href="/plugins/yarr/web/yarr-dashboard.css">
+<?php
+/*
+ * Main/Dashboard mount for the compact Yarr runtime bundle. It deliberately
+ * does not load the full settings application.
+ */
+$yarr_dashboard_web = '/usr/local/emhttp/plugins/yarr/web';
+$yarr_dashboard_css_v = @filemtime("$yarr_dashboard_web/yarr-dashboard.css") ?: '0';
+$yarr_dashboard_js_v = @filemtime("$yarr_dashboard_web/yarr-dashboard.js") ?: '0';
+?>
+<link rel="stylesheet" href="/plugins/yarr/web/yarr-dashboard.css?v=<?= $yarr_dashboard_css_v ?>">
 <noscript><p>The Yarr dashboard widget requires JavaScript.</p></noscript>
 <yarr-dashboard></yarr-dashboard>
-<script type="module" src="/plugins/yarr/web/yarr-dashboard.js"></script>
+<script type="module" src="/plugins/yarr/web/yarr-dashboard.js?v=<?= $yarr_dashboard_js_v ?>"></script>

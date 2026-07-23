@@ -259,3 +259,34 @@ Final local evidence:
 
 Detailed evidence is in
 `.superpowers/sdd/task-12-review1-fixes-report.md`.
+
+## 2026-07-23 post-review integration scope
+
+The follow-up integration scope is implemented without changing root Yarr authentication or performing any live mutation. The classic plugin now ships a canonical `Yarr.page` at `Settings/Yarr`, a production dashboard page and compact bundle, and one shared original Yarr icon. The dashboard enablement setting is durable across the shell/JSON transaction pair and exposed through the validated GraphQL and Vue settings surfaces.
+
+Archive construction now normalizes the complete staged directory tree and validates the resulting tar metadata. Both reproducibility builds contain 56 canonical members (14 directories and 42 regular files), contain no `./` member, use root UID/GID, and encode every directory as `0755`. Negative fixtures prove that a dot-root member or a group/world-writable directory is rejected.
+
+### Final artifact evidence
+
+| Evidence | Result |
+| --- | --- |
+| Package | `unraid-plugin/packages/yarr-2.1.0-x86_64-1.txz` |
+| SHA-256 | `e961580952e43d8fde61bb4c9518b3289d2025d24616f3cb25af845398e2fd43` |
+| MD5 | `a87c1b417b3fb56147b6edcc4fd790bc` |
+| Size | 6,229,812 bytes |
+| Reproducibility | byte-identical under umask `022` and `077` |
+| Archive layout | 56 entries, 14 directories, 42 regular files, 0 dot-root members |
+| Icon | 256x256 RGBA, mode `0644`, SHA-256 `731c27cf832515526b3a761c16d6fde878b7121dbaf6892feaf6296309b5c949` |
+| Required source inventory | 16 paths |
+| Package verifier payload count | 41 files |
+
+### Final verification evidence
+
+- API focused tests: 52/52; full tests: 161/161; typecheck, build, and production audit passed with 0 vulnerabilities.
+- Web focused tests: 23/23; full tests: 48/48; typecheck, settings build, dashboard build, and browser registration smoke passed.
+- Settings bundle: 181.53 kB JS and 9.45 kB CSS. Dashboard bundle: 122.76 kB JS and 4.22 kB CSS.
+- Aggregate contract harness passed workflow, release inventory, lifecycle/config recovery, updater/race/resource, real packaged API activation/removal, classic/browser/package, secret/cmdline sentinel, and archive negative-mutation contracts.
+- Static gates passed for 17 shell syntax files, canonical error-severity ShellCheck, actionlint, 2 Python workflow contracts, canonical repository identity, secret-free argv policy, explicit tar listings, package verification, release zero-SHA rejection, and diff hygiene.
+- Deterministic icon rendering matched the committed PNG byte-for-byte. The 32x32 RGBA render retained 71 bright-Y pixels, 39 cyan-core pixels, a 120-pixel cyan silhouette, the rose accent, and 884 opaque pixels.
+
+No deployment, workflow dispatch, release publication, or upstream `v2.1.0` draft-asset mutation occurred. The earlier review decision predates this added integration scope; the parent will run sequential independent reviews, so this report does not claim approval.

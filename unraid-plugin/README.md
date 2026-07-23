@@ -19,6 +19,8 @@ without changing Yarr's normal Rust, npm, Docker, or MCP distributions.
 - `web/` builds the light-DOM `<yarr-settings-app>` and `<yarr-dashboard>`
   custom elements. The classic settings page loads the settings bundle; the
   Unraid dashboard loader consumes the dashboard bundle.
+- `assets/yarr.svg` is the original icon artwork; the package carries its
+  256x256 RGBA `yarr.png` rendering for both Unraid page entries and the widget.
 - `scripts/` builds and verifies the deterministic `.txz`.
 - `tests/` enforces lifecycle, updater, classic/API activation, workflow,
   release, path, inventory, mode, and secret contracts without requiring
@@ -151,11 +153,14 @@ process arguments. Activation loads the exact staged package, awaits its
 restores the previous module, loader document, and API process before returning
 an error.
 
-The settings page loads `yarr-settings.js` and `yarr-settings.css` and mounts
-`<yarr-settings-app>`. `YarrDashboard.page` independently loads the dashboard
-CSS/JS and mounts `<yarr-dashboard>`. Both are standalone browser bundles, inherit Unraid's
-light/dark host variables, use the host GraphQL/CSRF boundary, and contain no
-credential values.
+`Yarr.page` is exposed at `/Settings/Yarr`, safely bootstraps the host CSRF
+token, cache-busts `yarr-settings.js` and `yarr-settings.css` by mtime, and
+mounts `<yarr-settings-app>`. `YarrDashboard.page` independently cache-busts
+the compact dashboard CSS/JS and mounts `<yarr-dashboard>` without loading the
+settings bundle. `DASHBOARD_WIDGET_ENABLE=true` is the persistent default and
+the Server & Auth settings toggle can hide the widget. Both surfaces inherit
+Unraid's light/dark variables and contain no credential or upstream media
+detail.
 
 ## Troubleshooting and logs
 
@@ -243,7 +248,8 @@ just unraid-release-check
 `build-package.sh` verifies the upstream archive checksum and embedded version
 before staging anything. It normalizes ownership, modes, path order, and
 timestamps; verifies the candidate package; and only then replaces the package,
-manifest, and `.plg` metadata.
+manifest, and `.plg` metadata. The archive never contains a `./` member, and
+every packaged directory is root-owned mode `0755` under any caller umask.
 
 ## Two-version release procedure
 

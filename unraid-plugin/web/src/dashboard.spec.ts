@@ -66,9 +66,41 @@ describe("Yarr dashboard", () => {
     expect(host.textContent).toContain("Ready");
     expect(host.textContent).toContain("127.0.0.1:40070");
     expect(host.textContent).toContain("1.2.3");
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("/plugins/yarr/yarr.png");
+    expect(host.querySelector(".yarr-dashboard__status")?.getAttribute("role")).toBe("status");
     expect(host.querySelectorAll("button")).toHaveLength(1);
     expect(host.querySelector("button")?.textContent).toContain("Stop Yarr");
     expect(host.querySelector("a")?.getAttribute("href")).toBe("/Settings/Yarr");
+  });
+
+  it("renders honest loading, error, and stale states without exposing fleet detail", async () => {
+    let resolveStatus!: (value: typeof runtime) => void;
+    api.queryYarrRuntime.mockReturnValueOnce(new Promise((resolve) => { resolveStatus = resolve; }));
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await nextTick();
+    expect(host.textContent).toContain("Checking the local Yarr runtime");
+    expect(host.textContent).toContain("Awaiting first confirmed status");
+    resolveStatus(runtime);
+    await flush();
+
+    api.queryYarrRuntime.mockReturnValueOnce(new Promise(() => undefined));
+    await vi.advanceTimersByTimeAsync(80_000);
+    expect(host.textContent).toContain("Status is stale");
+    expect(host.querySelector("button")).toBeNull();
+    expect(host.textContent).not.toMatch(/sonarr|radarr|api.?key|token/i);
+
+    app.unmount();
+    app = undefined;
+    host.replaceChildren();
+    api.queryYarrRuntime.mockRejectedValueOnce(new Error("private upstream detail"));
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await flush();
+    expect(host.textContent).toContain("Status unavailable");
+    expect(host.textContent).not.toContain("private upstream detail");
   });
 
   it("offers START only when stopped and no action for transitional or unknown states", async () => {
@@ -139,6 +171,16 @@ describe("Yarr dashboard", () => {
     document.dispatchEvent(new Event("visibilitychange"));
     await vi.advanceTimersByTimeAsync(60_000);
     expect(api.queryYarrRuntime).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not overlap a slow status poll", async () => {
+    api.queryYarrRuntime.mockReturnValue(new Promise(() => undefined));
+    app = createApp(YarrDashboard);
+    app.mount(host);
+    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await nextTick();
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(api.queryYarrRuntime).toHaveBeenCalledTimes(1);
   });
 
   it("aborts stale work and removes timers, observers, and listeners on disconnect", async () => {

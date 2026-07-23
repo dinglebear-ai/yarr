@@ -1,9 +1,0 @@
-Menu="Utilities"
-Title="Yarr"
-Icon="server"
-Tag="server"
----
-<link rel="stylesheet" href="/plugins/yarr/web/yarr-settings.css">
-<noscript><p>This settings page requires JavaScript.</p></noscript>
-<yarr-settings-app></yarr-settings-app>
-<script type="module" src="/plugins/yarr/web/yarr-settings.js"></script>

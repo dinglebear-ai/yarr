@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+* **unraid:** add canonical settings/dashboard routes, original Yarr artwork, a persistent dashboard toggle, and a compact freshness-aware runtime widget
+
+### Fixed
+
+* **unraid:** enforce cache-busted page assets and canonical root-owned mode-0755 package directories
+
 ## [2.1.0](https://github.com/dinglebear-ai/yarr/compare/v2.0.1...v2.1.0) (2026-07-20)
 
 

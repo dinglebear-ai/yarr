@@ -375,8 +375,12 @@ The Vue 3 frontend builds two custom-element entrypoints:
 - `<yarr-settings-app>` for the full settings application.
 - `<yarr-dashboard>` for a compact Main/Dashboard widget.
 
-The classic `yarr.page` and `YarrDashboard.page` files only load their respective compiled assets and mount the custom
-elements. The frontend inherits Unraid's CSS variables and light/dark behavior;
+The canonical `Yarr.page` settings route and `YarrDashboard.page` only load
+their respective compiled assets and mount the custom elements. Both use the
+packaged Yarr icon and mtime cache busting. The settings shell safely exposes
+the host CSRF token. The dashboard page is conditioned by the persistent
+`DASHBOARD_WIDGET_ENABLE=true|false` setting and never loads the full settings
+bundle. The frontend inherits Unraid's CSS variables and light/dark behavior;
 it does not introduce an unrelated palette.
 
 Settings sections:
@@ -387,7 +391,8 @@ Settings sections:
    discovery, confidence/evidence, explicit endpoint selection, and explicit
    credential import.
 3. **Server & Auth:** bind mode, port, bearer/OAuth/trusted-gateway settings,
-   Tailscale Serve, data path, effective URLs, and validation guidance.
+   Tailscale Serve, dashboard visibility, data path, effective URLs, and
+   validation guidance.
 4. **Updates:** bundled/active/latest versions, update/reset operations,
    compatibility warnings, progress, and rollback outcome.
 5. **Logs:** bounded redacted Yarr/service logs with refresh and download of the

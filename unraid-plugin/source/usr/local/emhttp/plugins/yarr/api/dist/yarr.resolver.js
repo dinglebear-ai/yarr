@@ -214,6 +214,7 @@ function mapConfig(value) {
     return {
         plugin: {
             enabled: value.plugin.enabled,
+            dashboardWidgetEnable: value.plugin.dashboardWidgetEnable,
             bindMode: value.plugin.bindMode,
             customHost: value.plugin.customHost,
             port: value.plugin.port,
@@ -288,6 +289,7 @@ function mapUpdate(value) {
 function toConfigInput(input) {
     return {
         enabled: input.enabled,
+        dashboardWidgetEnable: input.dashboardWidgetEnable,
         bindMode: input.bindMode,
         customHost: input.customHost,
         port: input.port,

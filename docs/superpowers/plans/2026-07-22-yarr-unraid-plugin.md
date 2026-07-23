@@ -917,7 +917,7 @@ bd comments add rustarr-bhf "Task 9 complete: settings, discovery, updater, logs
 **Files:**
 
 - Create: `unraid-plugin/yarr.plg`
-- Create: `unraid-plugin/source/usr/local/emhttp/plugins/yarr/yarr.page`
+- Create: `unraid-plugin/source/usr/local/emhttp/plugins/yarr/Yarr.page`
 - Create: `unraid-plugin/source/usr/local/emhttp/plugins/yarr/default.cfg`
 - Create: `unraid-plugin/source/usr/local/emhttp/plugins/yarr/default.env`
 - Create: `unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh`
@@ -956,7 +956,11 @@ Expected: non-zero exit because package/install artifacts are absent.
 
 **Step 3: Implement the classic settings page**
 
-`yarr.page` loads the built CSS and JS from `/plugins/yarr/web/` and mounts `<yarr-settings-app>`. It contains no direct config-writing PHP endpoint and no credential handling.
+`Yarr.page` loads the built CSS and JS from `/plugins/yarr/web/`, mounts
+`<yarr-settings-app>`, bootstraps the host CSRF token, and cache-busts stable
+asset names by mtime. It contains no direct config-writing PHP endpoint and no
+credential handling. `YarrDashboard.page` uses the shared icon, reads the
+persistent dashboard toggle, and loads only the compact dashboard bundle.
 
 **Step 4: Implement API activation and rollback**
 

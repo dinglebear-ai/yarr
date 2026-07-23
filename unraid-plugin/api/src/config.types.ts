@@ -4,6 +4,7 @@ export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 export interface YarrPluginConfig {
   enabled: boolean;
+  dashboardWidgetEnable: boolean;
   bindMode: BindMode;
   customHost: string;
   port: number;
@@ -53,6 +54,7 @@ export interface SaveYarrServiceInput {
 
 export interface SaveYarrConfigInput {
   enabled?: boolean;
+  dashboardWidgetEnable?: boolean;
   bindMode?: BindMode;
   customHost?: string;
   port?: number;

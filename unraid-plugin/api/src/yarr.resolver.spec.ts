@@ -24,6 +24,7 @@ function harness() {
   const configView = {
     plugin: {
       enabled: true,
+      dashboardWidgetEnable: true,
       bindMode: "loopback" as const,
       customHost: "",
       port: 40070,
@@ -191,12 +192,17 @@ describe("YarrResolver", () => {
     await resolver.controlYarr(YarrControlAction.START);
     await resolver.controlYarr(YarrControlAction.STOP);
     await resolver.controlYarr(YarrControlAction.RESTART);
-    const result = await resolver.saveYarrConfig(new SaveYarrConfigInput());
+    const result = await resolver.saveYarrConfig(Object.assign(new SaveYarrConfigInput(), {
+      dashboardWidgetEnable: false,
+    }));
 
     expect(runtime.start).toHaveBeenCalledOnce();
     expect(runtime.stop).toHaveBeenCalledOnce();
     expect(runtime.restart).toHaveBeenCalledOnce();
     expect(config.save).toHaveBeenCalledOnce();
+    expect(config.save).toHaveBeenCalledWith(expect.objectContaining({
+      dashboardWidgetEnable: false,
+    }));
     expect(JSON.stringify(result)).not.toMatch(/plugin-private|service-private|mutation-private/);
   });
 

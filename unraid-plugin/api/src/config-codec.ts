@@ -17,6 +17,7 @@ import { normalizeServiceUrl, SERVICE_CATALOG, SERVICE_CATALOG_BY_ID } from "./s
 
 const PLUGIN_DEFAULTS = {
   ENABLED: "yes",
+  DASHBOARD_WIDGET_ENABLE: "true",
   BIND_MODE: "loopback",
   CUSTOM_HOST: "",
   PORT: "40070",
@@ -29,6 +30,7 @@ const PLUGIN_DEFAULTS = {
 
 const INPUT_KEYS = new Set<keyof SaveYarrConfigInput>([
   "enabled",
+  "dashboardWidgetEnable",
   "bindMode",
   "customHost",
   "port",
@@ -118,6 +120,13 @@ export function mergeConfigInput(
   const env = { values: { ...current.env.values } };
 
   applyBoolean(input.enabled, plugin.values, "ENABLED");
+  applyBoolean(
+    input.dashboardWidgetEnable,
+    plugin.values,
+    "DASHBOARD_WIDGET_ENABLE",
+    "true",
+    "false",
+  );
   applyEnum(input.bindMode, BIND_MODES, plugin.values, "BIND_MODE", "bindMode");
   applyString(input.customHost, plugin.values, "CUSTOM_HOST", "customHost");
   applyPort(input.port, plugin.values);
@@ -322,6 +331,12 @@ function pluginConfig(values: Record<string, string>): YarrPluginConfig {
 
   return {
     enabled: parseBoolean(raw.ENABLED, "ENABLED"),
+    dashboardWidgetEnable: parseBoolean(
+      raw.DASHBOARD_WIDGET_ENABLE,
+      "DASHBOARD_WIDGET_ENABLE",
+      "true",
+      "false",
+    ),
     bindMode: raw.BIND_MODE as BindMode,
     customHost: raw.CUSTOM_HOST,
     port,
@@ -344,14 +359,20 @@ function assertInputKeys(input: SaveYarrConfigInput): void {
   }
 }
 
-function applyBoolean(value: boolean | undefined, values: Record<string, string>, key: string): void {
+function applyBoolean(
+  value: boolean | undefined,
+  values: Record<string, string>,
+  key: string,
+  trueValue = "yes",
+  falseValue = "no",
+): void {
   if (value === undefined) {
     return;
   }
   if (typeof value !== "boolean") {
     throw new Error(`${key} must be a boolean`);
   }
-  values[key] = value ? "yes" : "no";
+  values[key] = value ? trueValue : falseValue;
 }
 
 function applyEnum<T extends string>(
@@ -428,14 +449,19 @@ function applySecret(
   throw new Error(`${inputKey} is invalid`);
 }
 
-function parseBoolean(value: string, key: string): boolean {
-  if (value === "yes") {
+function parseBoolean(
+  value: string,
+  key: string,
+  trueValue = "yes",
+  falseValue = "no",
+): boolean {
+  if (value === trueValue) {
     return true;
   }
-  if (value === "no") {
+  if (value === falseValue) {
     return false;
   }
-  throw new Error(`${key} must be yes or no`);
+  throw new Error(`${key} must be ${trueValue} or ${falseValue}`);
 }
 
 function effectiveHost(config: YarrPluginConfig): string {

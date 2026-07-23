@@ -88,6 +88,14 @@ fi
 cp -- "$web_root/dist/settings/yarr-settings.js" "$web_root/dist/settings/yarr-settings.css" \
     "$web_root/dist/dashboard/yarr-dashboard.js" "$web_root/dist/dashboard/yarr-dashboard.css" \
     "$generated_root/web/"
+[[ -f "$generated_root/Yarr.page" && ! -e "$generated_root/yarr.page" ]] || {
+    printf 'classic settings route must be the canonical Yarr.page\n' >&2
+    exit 1
+}
+[[ -f "$generated_root/yarr.png" && ! -L "$generated_root/yarr.png" ]] || {
+    printf 'classic source is missing the packaged Yarr icon\n' >&2
+    exit 1
+}
 
 find "$candidate_source" -type d -exec chmod 0755 '{}' +
 find "$candidate_source" -type f -exec chmod 0644 '{}' +
@@ -96,6 +104,7 @@ find "$generated_root/scripts" -maxdepth 1 -type f \
     \( -name 'install-*.sh' -o -name 'uninstall-*.sh' -o -name 'yarr-update.sh' \) \
     -exec chmod 0755 '{}' +
 chmod 0600 "$generated_root/default.cfg" "$generated_root/default.env"
+chmod 0644 "$generated_root/yarr.png"
 if find "$candidate_source" -type l -print -quit | grep -q .; then
     printf 'classic source contains a link\n' >&2
     exit 1

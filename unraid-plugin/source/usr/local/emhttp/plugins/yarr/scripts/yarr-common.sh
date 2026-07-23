@@ -269,7 +269,7 @@ yarr_recover_config_transaction() {
 yarr_set_config_value() {
     local key=$1 value=$2
     case "$key" in
-        ENABLED|BIND_MODE|CUSTOM_HOST|PORT|AUTH_MODE|TAILSCALE_SERVE|TAILSCALE_HOSTNAME|LOG_LEVEL|UPDATE_CHANNEL)
+        ENABLED|DASHBOARD_WIDGET_ENABLE|BIND_MODE|CUSTOM_HOST|PORT|AUTH_MODE|TAILSCALE_SERVE|TAILSCALE_HOSTNAME|LOG_LEVEL|UPDATE_CHANNEL)
             yarr_has_control_characters "$value" && {
                 yarr_error "control character in ${key}"
                 return 1
@@ -286,6 +286,7 @@ yarr_set_config_value() {
 yarr_load_config() {
     yarr_recover_config_transaction || return 1
     ENABLED=yes
+    DASHBOARD_WIDGET_ENABLE=true
     BIND_MODE=loopback
     CUSTOM_HOST=''
     PORT=40070
@@ -363,6 +364,7 @@ yarr_valid_tailscale_hostname() {
 
 yarr_validate_config() {
     [[ "$ENABLED" == yes || "$ENABLED" == no ]] || { yarr_error 'ENABLED must be yes or no'; return 1; }
+    [[ "$DASHBOARD_WIDGET_ENABLE" == true || "$DASHBOARD_WIDGET_ENABLE" == false ]] || { yarr_error 'DASHBOARD_WIDGET_ENABLE must be true or false'; return 1; }
     [[ "$BIND_MODE" == loopback || "$BIND_MODE" == lan || "$BIND_MODE" == custom ]] || { yarr_error 'BIND_MODE must be loopback, lan, or custom'; return 1; }
     [[ "$PORT" =~ ^[0-9]+$ ]] && ((10#$PORT >= 1 && 10#$PORT <= 65535)) || { yarr_error 'PORT must be between 1 and 65535'; return 1; }
     case "$AUTH_MODE" in

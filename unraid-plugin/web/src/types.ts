@@ -22,6 +22,7 @@ export interface YarrKeyValue {
 
 export interface YarrPluginConfig {
   enabled: boolean;
+  dashboardWidgetEnable: boolean;
   bindMode: YarrBindMode;
   customHost: string;
   port: number;
@@ -71,6 +72,7 @@ export interface SaveYarrServiceInput {
 
 export interface SaveYarrConfigInput {
   enabled?: boolean;
+  dashboardWidgetEnable?: boolean;
   bindMode?: YarrBindMode;
   customHost?: string;
   port?: number;

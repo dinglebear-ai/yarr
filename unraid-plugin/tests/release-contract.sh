@@ -117,6 +117,7 @@ for path in "${paths[@]}"; do
     seen[$path]=1
     [[ "$path" == unraid-plugin/yarr.plg ||
         "$path" == unraid-plugin/release-manifest.json ||
+        "$path" == unraid-plugin/assets/* ||
         "$path" == unraid-plugin/source/* ||
         "$path" == unraid-plugin/api/* ||
         "$path" == unraid-plugin/web/* ]] ||
