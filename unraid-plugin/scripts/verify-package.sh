@@ -18,6 +18,11 @@ fail() {
 
 [[ -f "$archive" ]] || fail "missing archive: $archive"
 "$package_root/scripts/verify-archive-layout.sh" "$archive"
+guard_archive="$temporary/$(basename "$archive")"
+install -m 0600 -- "$archive" "$guard_archive"
+YARR_PACKAGE_TRUST_UID=$(id -u) YARR_PACKAGE_TRUST_GID=$(id -g) \
+    "$source_root/usr/local/emhttp/plugins/yarr/scripts/validate-classic-package.sh" \
+    "$guard_archive" >/dev/null
 bash "$package_root/tests/release-contract.sh" --manifest "$manifest" --reject-zero-sha
 xmllint --noout "$plugin"
 
@@ -87,8 +92,10 @@ for required in \
     usr/local/emhttp/plugins/yarr/Yarr.page \
     usr/local/emhttp/plugins/yarr/YarrDashboard.page \
     usr/local/emhttp/plugins/yarr/yarr-2b068b08366b.png \
+    usr/local/emhttp/plugins/yarr/scripts/api-readiness.sh \
     usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh \
     usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh \
+    usr/local/emhttp/plugins/yarr/scripts/validate-classic-package.sh \
     usr/local/emhttp/plugins/yarr/api/package.json \
     usr/local/emhttp/plugins/yarr/api/package-lock.json \
     usr/local/emhttp/plugins/yarr/api/dist/index.js \

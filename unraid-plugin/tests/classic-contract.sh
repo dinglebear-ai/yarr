@@ -15,6 +15,8 @@ classic_install="$source_root/usr/local/emhttp/plugins/yarr/scripts/install-clas
 classic_uninstall="$source_root/usr/local/emhttp/plugins/yarr/scripts/uninstall-classic-plugin.sh"
 api_install="$source_root/usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh"
 api_uninstall="$source_root/usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh"
+api_readiness="$source_root/usr/local/emhttp/plugins/yarr/scripts/api-readiness.sh"
+package_validator="$source_root/usr/local/emhttp/plugins/yarr/scripts/validate-classic-package.sh"
 build_script="$plugin_root/scripts/build-package.sh"
 verify_script="$plugin_root/scripts/verify-package.sh"
 archive_layout_script="$plugin_root/scripts/verify-archive-layout.sh"
@@ -44,6 +46,7 @@ expect_failure_message() {
 for required in \
     "$classic" "$page" "$dashboard_page" "$icon" "$icon_source" "$default_cfg" "$default_env" \
     "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" \
+    "$api_readiness" "$package_validator" \
     "$build_script" "$verify_script" "$archive_layout_script"; do
     [[ -f "$required" ]] || fail "missing Task 10 artifact: ${required#"$repo_root/"}"
 done
@@ -55,7 +58,10 @@ mapfile -t urls < <(xmllint --noent --xpath '//FILE/URL/text()' "$classic" 2>/de
 for url in "${urls[@]}"; do
     [[ "$url" == https://* ]] || fail "non-HTTPS download: $url"
 done
-grep -Fq 'sha256sum -c -' "$classic" || fail 'classic download lacks SHA-256 verification'
+grep -Fq 'actual_sha=$(sha256sum "$package_path"' "$classic" ||
+    fail 'classic download lacks explicit SHA-256 calculation'
+grep -Fq '[[ "$actual_sha" == "$expected_sha" ]]' "$classic" ||
+    fail 'classic download is not bound to the PLG-pinned SHA-256'
 grep -Fq '<!ENTITY launch     "Settings/Yarr">' "$classic" || fail 'classic launch route is not Settings/Yarr'
 plugin_sha=$(sed -n 's/.*<!ENTITY sha256[[:space:]]*"\([0-9a-f]*\)".*/\1/p' "$classic")
 [[ "$plugin_sha" =~ ^[0-9a-f]{64}$ ]] || fail 'classic SHA-256 entity is malformed'
@@ -67,15 +73,203 @@ xmllint --noent --xpath 'string(/PLUGIN/FILE[@Run="/bin/bash" and @Method="remov
 bash -n "$install_inline"
 bash -n "$remove_inline"
 grep -Fq 'upgradepkg --install-new --reinstall' "$install_inline" || fail 'classic install is not idempotent'
+grep -Fq '.trusted.sha256' "$install_inline" || fail 'classic install lacks retained-package digest provenance'
+grep -Fq 'stage_execution_copy' "$install_inline" || fail 'classic install executes mutable package paths'
+grep -Fq 'validate-classic-package.sh' "$install_inline" || fail 'classic rollback lacks strict archive validation'
+grep -Fq 'sync -f "$sidecar"' "$install_inline" || fail 'classic package provenance is not durable'
 grep -Fq 'install-classic-plugin.sh' "$install_inline" || fail 'classic install does not delegate coordinated activation'
 grep -Fq 'uninstall-classic-plugin.sh' "$remove_inline" || fail 'classic uninstall does not stop before package removal'
 grep -Fq 'flock --exclusive --wait 30 9' "$install_inline" || fail 'classic package install does not hold the stable lifecycle lock'
-grep -Fq '/etc/rc.d/rc.yarr --lock-fd 9 stop' "$install_inline" || fail 'classic upgrade does not stop the old daemon under lock'
+grep -Fq '"$rc_yarr" --lock-fd 9 stop' "$install_inline" || fail 'classic upgrade does not stop the old daemon under lock'
 grep -Fq 'flock --exclusive --wait 30 9' "$remove_inline" || fail 'classic package removal does not hold the stable lifecycle lock'
 grep -Fq 'API uninstall failed; refusing to remove classic payload' "$remove_inline" || fail 'classic removal is not gated on API uninstall success'
 if grep -Eq '(/boot/config/plugins/yarr|/mnt/user/appdata/yarr).*(rm|remove)|(rm|remove).*(/boot/config/plugins/yarr|/mnt/user/appdata/yarr)' "$remove_inline"; then
     fail 'classic uninstall removes persistent config or appdata'
 fi
+
+make_classic_fixture_archive() {
+    local archive=$1 unsafe=${2:-no} stage="$tmp_dir/package-stage"
+    rm -rf -- "$stage"
+    mkdir -p "$stage/etc/rc.d" "$stage/usr/local/yarr/bin" \
+        "$stage/usr/local/emhttp/plugins/yarr/scripts" \
+        "$stage/usr/local/emhttp/plugins/yarr/api/dist" \
+        "$stage/usr/local/emhttp/plugins/yarr/web"
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$stage/etc/rc.d/rc.yarr"
+    printf '#!/usr/bin/env bash\nprintf "yarr 2.0.0\\n"\n' > "$stage/usr/local/yarr/bin/yarr"
+    printf 'ENABLED=no\n' > "$stage/usr/local/emhttp/plugins/yarr/default.cfg"
+    printf '# credentials\n' > "$stage/usr/local/emhttp/plugins/yarr/default.env"
+    printf 'Menu="Utilities"\n' > "$stage/usr/local/emhttp/plugins/yarr/Yarr.page"
+    printf 'Menu="Dashboard"\n' > "$stage/usr/local/emhttp/plugins/yarr/YarrDashboard.page"
+    printf 'png\n' > "$stage/usr/local/emhttp/plugins/yarr/yarr-2b068b08366b.png"
+    cp "$api_readiness" "$stage/usr/local/emhttp/plugins/yarr/scripts/api-readiness.sh"
+    cp "$package_validator" "$stage/usr/local/emhttp/plugins/yarr/scripts/validate-classic-package.sh"
+    for script in install-api-plugin.sh install-classic-plugin.sh \
+        uninstall-api-plugin.sh uninstall-classic-plugin.sh; do
+        printf '#!/usr/bin/env bash\nexit 0\n' \
+            > "$stage/usr/local/emhttp/plugins/yarr/scripts/$script"
+    done
+    printf '{"name":"unraid-api-plugin-yarr","version":"2.0.0","main":"dist/index.js"}\n' \
+        > "$stage/usr/local/emhttp/plugins/yarr/api/package.json"
+    printf '{"name":"unraid-api-plugin-yarr","version":"2.0.0","packages":{"":{"version":"2.0.0"}}}\n' \
+        > "$stage/usr/local/emhttp/plugins/yarr/api/package-lock.json"
+    printf 'module.exports={};\n' > "$stage/usr/local/emhttp/plugins/yarr/api/dist/index.js"
+    printf 'settings\n' > "$stage/usr/local/emhttp/plugins/yarr/web/yarr-settings.js"
+    printf 'settings\n' > "$stage/usr/local/emhttp/plugins/yarr/web/yarr-settings.css"
+    printf 'dashboard\n' > "$stage/usr/local/emhttp/plugins/yarr/web/yarr-dashboard.js"
+    printf 'dashboard\n' > "$stage/usr/local/emhttp/plugins/yarr/web/yarr-dashboard.css"
+    find "$stage" -type d -exec chmod 0755 '{}' +
+    find "$stage" -type f -exec chmod 0644 '{}' +
+    chmod 0600 "$stage/usr/local/emhttp/plugins/yarr/default.cfg" \
+        "$stage/usr/local/emhttp/plugins/yarr/default.env"
+    chmod 0755 "$stage/etc/rc.d/rc.yarr" "$stage/usr/local/yarr/bin/yarr" \
+        "$stage/usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh" \
+        "$stage/usr/local/emhttp/plugins/yarr/scripts/install-classic-plugin.sh" \
+        "$stage/usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh" \
+        "$stage/usr/local/emhttp/plugins/yarr/scripts/uninstall-classic-plugin.sh" \
+        "$stage/usr/local/emhttp/plugins/yarr/scripts/validate-classic-package.sh"
+    (
+        cd "$stage"
+        find . -type f \
+            ! -path './usr/local/emhttp/plugins/yarr/package-manifest.sha256' \
+            -print0 | sort -z | while IFS= read -r -d '' file; do
+            printf '%s %s %s\n' "$(sha256sum "$file" | cut -d' ' -f1)" \
+                "$(stat -c %a "$file")" "${file#./}"
+        done
+    ) > "$stage/usr/local/emhttp/plugins/yarr/package-manifest.sha256"
+    chmod 0644 "$stage/usr/local/emhttp/plugins/yarr/package-manifest.sha256"
+    [[ "$unsafe" != writable-directory ]] || chmod 0777 "$stage/usr/local"
+    tar -C "$stage" --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
+        --format=posix --pax-option=delete=atime,delete=ctime -cJf "$archive" etc usr
+    chmod 0600 "$archive"
+}
+
+write_fixture_sidecar() {
+    local package=$1 digest=$2
+    printf '%s  %s\n' "$digest" "${package##*/}" > "${package}.trusted.sha256"
+    chmod 0600 "${package}.trusted.sha256"
+}
+
+prepare_classic_package_case() {
+    local label=$1
+    classic_package_root="$tmp_dir/classic-package-$label"
+    classic_package_dir="$classic_package_root/boot/config/plugins/yarr"
+    classic_package_emhttp="$classic_package_root/usr/local/emhttp/plugins/yarr"
+    classic_package_bin="$classic_package_root/bin"
+    classic_package_current="$classic_package_dir/yarr-2.1.0-x86_64-1.txz"
+    classic_package_previous="$classic_package_dir/yarr-2.0.0-x86_64-1.txz"
+    classic_upgrade_log="$classic_package_root/upgradepkg.log"
+    mkdir -p "$classic_package_dir" "$classic_package_emhttp/scripts" \
+        "$classic_package_bin" "$classic_package_root/var/lock" \
+        "$classic_package_root/var/run"
+    make_classic_fixture_archive "$classic_package_current"
+    make_classic_fixture_archive "$classic_package_previous"
+    classic_current_sha=$(sha256sum "$classic_package_current" | cut -d' ' -f1)
+    sed -E "s|^expected_sha=\"[0-9a-f]{64}\"|expected_sha=\"$classic_current_sha\"|" \
+        "$install_inline" > "$classic_package_root/install.sh"
+    cat > "$classic_package_bin/upgradepkg" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "${!#}" >> "$YARR_CLASSIC_UPGRADE_LOG"
+exit 0
+EOF
+    cat > "$classic_package_bin/removepkg" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+    cat > "$classic_package_bin/logger" <<'EOF'
+#!/usr/bin/env bash
+printf 'logger %s\n' "$*" >&2
+EOF
+    cat > "$classic_package_emhttp/scripts/install-classic-plugin.sh" <<'EOF'
+#!/usr/bin/env bash
+count=0
+[[ ! -f "$YARR_CLASSIC_ACTIVATION_COUNT" ]] || count=$(cat "$YARR_CLASSIC_ACTIVATION_COUNT")
+count=$((count + 1))
+printf '%s\n' "$count" > "$YARR_CLASSIC_ACTIVATION_COUNT"
+[[ "$count" -gt 1 ]]
+EOF
+    chmod 0755 "$classic_package_root/install.sh" "$classic_package_bin/upgradepkg" \
+        "$classic_package_bin/removepkg" "$classic_package_bin/logger" \
+        "$classic_package_emhttp/scripts/install-classic-plugin.sh"
+    : > "$classic_upgrade_log"
+    : > "$classic_package_root/activation.count"
+}
+
+run_classic_package_case() {
+    env YARR_CLASSIC_TEST_ROOT="$classic_package_root" \
+        YARR_CLASSIC_UPGRADE_LOG="$classic_upgrade_log" \
+        YARR_CLASSIC_ACTIVATION_COUNT="$classic_package_root/activation.count" \
+        PATH="$classic_package_bin:$PATH" \
+        bash "$classic_package_root/install.sh"
+}
+
+for rejection in missing-sidecar wrong-hash corrupt-archive unsafe-archive \
+    symlink-package symlink-sidecar basename-trick; do
+    prepare_classic_package_case "$rejection"
+    case "$rejection" in
+        missing-sidecar) ;;
+        wrong-hash)
+            write_fixture_sidecar "$classic_package_previous" \
+                aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            ;;
+        corrupt-archive)
+            printf 'not an xz tar\n' > "$classic_package_previous"
+            chmod 0600 "$classic_package_previous"
+            write_fixture_sidecar "$classic_package_previous" \
+                "$(sha256sum "$classic_package_previous" | cut -d' ' -f1)"
+            ;;
+        unsafe-archive)
+            make_classic_fixture_archive "$classic_package_previous" writable-directory
+            write_fixture_sidecar "$classic_package_previous" \
+                "$(sha256sum "$classic_package_previous" | cut -d' ' -f1)"
+            ;;
+        symlink-package)
+            mv "$classic_package_previous" "$classic_package_root/real-previous.txz"
+            ln -s "$classic_package_root/real-previous.txz" "$classic_package_previous"
+            write_fixture_sidecar "$classic_package_previous" \
+                "$(sha256sum "$classic_package_root/real-previous.txz" | cut -d' ' -f1)"
+            ;;
+        symlink-sidecar)
+            printf '%s  %s\n' "$(sha256sum "$classic_package_previous" | cut -d' ' -f1)" \
+                "${classic_package_previous##*/}" > "$classic_package_root/sidecar-target"
+            chmod 0600 "$classic_package_root/sidecar-target"
+            ln -s "$classic_package_root/sidecar-target" \
+                "${classic_package_previous}.trusted.sha256"
+            ;;
+        basename-trick)
+            mv "$classic_package_previous" \
+                "$classic_package_dir/yarr-2.0.0-x86_64-01.txz"
+            classic_package_previous="$classic_package_dir/yarr-2.0.0-x86_64-01.txz"
+            write_fixture_sidecar "$classic_package_previous" \
+                "$(sha256sum "$classic_package_previous" | cut -d' ' -f1)"
+            ;;
+    esac
+    expect_failure_message "classic retained package $rejection" \
+        'retained package lacks trusted provenance or is unsafe' \
+        run_classic_package_case
+    [[ ! -s "$classic_upgrade_log" ]] ||
+        fail "classic retained package $rejection reached upgradepkg"
+done
+
+prepare_classic_package_case trusted-prior
+previous_sha=$(sha256sum "$classic_package_previous" | cut -d' ' -f1)
+write_fixture_sidecar "$classic_package_previous" "$previous_sha"
+expect_failure_message 'trusted classic package rollback' \
+    'trusted classic package rollback completed' run_classic_package_case
+[[ $(wc -l < "$classic_upgrade_log") == 2 ]] ||
+    fail 'trusted classic rollback did not execute exactly current and prior packages'
+while IFS= read -r executed; do
+    [[ "$executed" == "$classic_package_root/var/run/yarr-classic-package."*"/yarr-"*.txz &&
+        "$executed" != "$classic_package_dir/"* ]] ||
+        fail "upgradepkg received a mutable or unbounded path: $executed"
+done < "$classic_upgrade_log"
+[[ -f "$classic_package_previous" &&
+    -f "${classic_package_previous}.trusted.sha256" &&
+    $(stat -c %a "$classic_package_previous") == 600 &&
+    $(stat -c %a "${classic_package_previous}.trusted.sha256") == 600 ]] ||
+    fail 'trusted rollback did not preserve the exact prior package/sidecar pair'
+[[ ! -e "$classic_package_current" &&
+    ! -e "${classic_package_current}.trusted.sha256" ]] ||
+    fail 'failed current package pair was retained after verified classic rollback'
 
 [[ ! -e "$source_root/usr/local/emhttp/plugins/yarr/yarr.page" ]] || fail 'lowercase settings page route still exists'
 grep -Fq 'Menu="Utilities"' "$page" || fail 'settings page is not in Utilities'
@@ -219,6 +413,14 @@ cat > "$api_root/bin/unraid-api" <<'EOF'
 set -euo pipefail
 printf 'api %s\n' "$1" >> "$YARR_TEST_OPERATIONS"
 case "$1" in
+  status)
+    if [[ -f "$YARR_TEST_API_RUNNING" ]]; then
+      printf 'online\n'
+      exit 0
+    fi
+    printf 'stopped\n'
+    exit 3
+    ;;
   stop)
     rm -f "$YARR_TEST_API_RUNNING"
     exit 0
@@ -232,7 +434,8 @@ case "$1" in
       exit 1
     fi
     : > "$YARR_TEST_API_RUNNING"
-    printf '%s\n' "${YARR_TEST_NEW_LOG:-YarrApiModule loaded}" >> "$YARR_TEST_API_LOG"
+    log_variable="YARR_TEST_NEW_LOG_AT_${count}"
+    printf '%s\n' "${!log_variable:-${YARR_TEST_NEW_LOG:-YarrApiModule loaded}}" >> "$YARR_TEST_API_LOG"
     ;;
   *) exit 2 ;;
 esac
@@ -241,6 +444,10 @@ cat > "$api_root/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'curl\n' >> "$YARR_TEST_OPERATIONS"
+count=0
+[[ ! -f "$YARR_TEST_CURL_COUNT_FILE" ]] || count=$(cat "$YARR_TEST_CURL_COUNT_FILE")
+count=$((count + 1))
+printf '%s\n' "$count" > "$YARR_TEST_CURL_COUNT_FILE"
 tr '\0' ' ' < "/proc/$$/cmdline" >> "$YARR_TEST_CMDLINES"
 printf '\n' >> "$YARR_TEST_CMDLINES"
 if grep -Fq 'contract-api-key' "/proc/$$/cmdline"; then
@@ -257,8 +464,24 @@ for argument in "$@"; do
   fi
   previous=$argument
 done
-if [[ "${YARR_TEST_PROBE_FAIL:-no}" == yes ]]; then
+body=''
+previous=''
+for argument in "$@"; do
+  if [[ "$previous" == --data ]]; then
+    body=$argument
+  fi
+  previous=$argument
+done
+if (( count >= ${YARR_TEST_CURL_FAIL_START:-999999} &&
+      count <= ${YARR_TEST_CURL_FAIL_END:-0} )); then
+  exit 7
+fi
+if [[ "${YARR_TEST_PROBE_FAIL:-no}" == yes ]] ||
+    (( count >= ${YARR_TEST_PROBE_FAIL_START:-999999} &&
+       count <= ${YARR_TEST_PROBE_FAIL_END:-0} )); then
   printf '%s\n' '{"errors":[{"message":"field missing"}]}'
+elif [[ "$body" == *YarrUninstallProbe* ]]; then
+  printf '%s\n' '{"data":{"queryType":{"fields":[{"name":"info"}]},"mutationType":{"fields":[{"name":"login"}]}}}'
 else
   printf '%s\n' '{"data":{"yarrRuntime":{"__typename":"YarrRuntime"}}}'
 fi
@@ -267,6 +490,7 @@ chmod 755 "$api_root/bin/unraid-api" "$api_root/bin/curl"
 : > "$tmp_dir/api-operations.log"
 : > "$tmp_dir/api-running"
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 
 cat > "$api_root/bin/mv" <<'EOF'
 #!/usr/bin/env bash
@@ -295,6 +519,7 @@ api_env=(
     YARR_TEST_API_LOG="$api_log"
     YARR_TEST_API_RUNNING="$tmp_dir/api-running"
     YARR_TEST_START_COUNT_FILE="$tmp_dir/api-start-count"
+    YARR_TEST_CURL_COUNT_FILE="$tmp_dir/api-curl-count"
     YARR_TEST_CMDLINES="$tmp_dir/api-cmdlines"
 )
 env "${api_env[@]}" "$api_install"
@@ -327,8 +552,9 @@ set_payload_version() {
 
 set_payload_version 2.1.1
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 expect_failure_message 'fatal-log API activation' 'new fatal/module-load error in graphql-api.log' env "${api_env[@]}" \
-    YARR_TEST_NEW_LOG='FATAL Plugin from unraid-api-plugin-yarr is invalid' \
+    YARR_TEST_NEW_LOG_AT_1='FATAL Plugin from unraid-api-plugin-yarr is invalid' \
     "$api_install"
 [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'failed activation did not restore prior API target'
 jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' "$api_home/package.json" >/dev/null || fail 'rollback damaged prior package registration'
@@ -336,21 +562,26 @@ jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || f
 
 set_payload_version 2.1.2
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 expect_failure_message 'probe API activation' 'yarrRuntime probe failed' env "${api_env[@]}" \
-    YARR_TEST_NEW_LOG='YarrApiModule loaded' YARR_TEST_PROBE_FAIL=yes "$api_install"
+    YARR_TEST_NEW_LOG='YarrApiModule loaded' \
+    YARR_TEST_PROBE_FAIL_START=1 YARR_TEST_PROBE_FAIL_END=2 "$api_install"
 [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'probe failure did not restore prior API target'
 [[ -f "$tmp_dir/api-running" ]] || fail 'probe rollback left unraid-api stopped'
 
 set_payload_version 2.1.3
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 expect_failure_message 'rollback restart retry' 'failed to restart prior unraid-api (attempt 1 of 3)' env "${api_env[@]}" \
-    YARR_TEST_NEW_LOG='YarrApiModule loaded' YARR_TEST_PROBE_FAIL=yes \
+    YARR_TEST_NEW_LOG='YarrApiModule loaded' \
+    YARR_TEST_PROBE_FAIL_START=1 YARR_TEST_PROBE_FAIL_END=2 \
     YARR_TEST_FAIL_START_AT=2 "$api_install"
 [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'restart-retry rollback did not restore prior API target'
 [[ -f "$tmp_dir/api-running" ]] || fail 'rollback restart retry left unraid-api stopped'
 
 set_payload_version 2.1.4
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 expect_failure_message 'rollback restart exhaustion' 'rollback could not restart prior unraid-api' env "${api_env[@]}" \
     YARR_TEST_FAIL_ALL_STARTS=yes "$api_install"
 [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'restart-exhaustion rollback did not restore prior API target'
@@ -362,8 +593,79 @@ env "${api_env[@]}" "$api_root/bin/unraid-api" start
 [[ -f "$tmp_dir/api-running" ]] || fail 'test recovery could not restart unraid-api after restart exhaustion'
 
 uninstall_env=("${api_env[@]}" YARR_API_MV="$api_root/bin/mv" YARR_TEST_MV_COUNT_FILE="$tmp_dir/api-mv-count")
+
+reset_api_fault_counters() {
+    : > "$tmp_dir/api-mv-count"
+    : > "$tmp_dir/api-start-count"
+    : > "$tmp_dir/api-curl-count"
+    : > "$tmp_dir/api-operations.log"
+}
+
+assert_prior_api_restored() {
+    local label=$1
+    [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] ||
+        fail "$label did not restore prior API target"
+    [[ -f "$tmp_dir/api-running" ]] || fail "$label left unraid-api stopped"
+    jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' \
+        "$api_home/package.json" >/dev/null || fail "$label damaged package registration"
+    jq -e '.plugins | index("unraid-api-plugin-yarr")' \
+        "$api_config" >/dev/null || fail "$label damaged config registration"
+    if find "$api_nodes" -maxdepth 1 \
+        -name '.unraid-api-plugin-yarr.uninstall-recovery.*' -print -quit | grep -q .; then
+        fail "$label retained recovery after verified rollback"
+    fi
+}
+
+reset_api_fault_counters
+expect_failure_message 'uninstall start nonzero' 'unraid-api launch failed without Yarr' \
+    env "${uninstall_env[@]}" YARR_TEST_FAIL_START_AT=1 "$api_uninstall"
+assert_prior_api_restored 'start-nonzero uninstall rollback'
+
+reset_api_fault_counters
+expect_failure_message 'uninstall zero start without listener' \
+    'host GraphQL readiness or Yarr schema-removal probe failed' \
+    env "${uninstall_env[@]}" YARR_TEST_CURL_FAIL_START=2 YARR_TEST_CURL_FAIL_END=3 \
+    "$api_uninstall"
+assert_prior_api_restored 'listener-unready uninstall rollback'
+
+reset_api_fault_counters
+expect_failure_message 'uninstall GraphQL readiness failure' \
+    'host GraphQL readiness or Yarr schema-removal probe failed' \
+    env "${uninstall_env[@]}" YARR_TEST_PROBE_FAIL_START=2 YARR_TEST_PROBE_FAIL_END=3 \
+    "$api_uninstall"
+assert_prior_api_restored 'GraphQL-unready uninstall rollback'
+
+reset_api_fault_counters
+expect_failure_message 'uninstall log readiness failure' \
+    'new fatal/module-load error in graphql-api.log' \
+    env "${uninstall_env[@]}" \
+    YARR_TEST_NEW_LOG_AT_1='FATAL Cannot find module after Yarr removal' \
+    "$api_uninstall"
+assert_prior_api_restored 'log-unready uninstall rollback'
+
+reset_api_fault_counters
+expect_failure_message 'uninstall rollback readiness failure' \
+    'API uninstall recovery incomplete; retained recovery:' \
+    env "${uninstall_env[@]}" YARR_TEST_FAIL_START_AT=1 \
+    YARR_TEST_PROBE_FAIL_START=2 YARR_TEST_PROBE_FAIL_END=3 \
+    "$api_uninstall"
+[[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] ||
+    fail 'rollback-unready uninstall did not restore the prior target bytes'
+jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' \
+    "$api_home/package.json" >/dev/null ||
+    fail 'rollback-unready uninstall damaged package registration'
+rollback_recovery=$(find "$api_nodes" -maxdepth 1 -type d \
+    -name '.unraid-api-plugin-yarr.uninstall-recovery.*' -print -quit)
+[[ -n "$rollback_recovery" && ! -L "$rollback_recovery" &&
+    $(stat -c %a "$rollback_recovery") == 700 &&
+    -f "$rollback_recovery/package.json" &&
+    -f "$rollback_recovery/api.json" ]] ||
+    fail 'rollback-unready uninstall did not retain actionable mode-0700 recovery'
+/bin/rm -rf -- "$rollback_recovery"
+
 : > "$tmp_dir/api-mv-count"
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 expect_failure_message 'mid-uninstall recovery' 'API uninstall failed; restoring prior activation' env "${uninstall_env[@]}" \
     YARR_TEST_FAIL_MV_AT=4 YARR_TEST_FAIL_START_AT=1 "$api_uninstall"
 [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'mid-uninstall failure did not restore prior API target'
@@ -373,11 +675,33 @@ jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || f
 
 : > "$tmp_dir/api-mv-count"
 : > "$tmp_dir/api-start-count"
+: > "$tmp_dir/api-curl-count"
 env "${uninstall_env[@]}" "$api_uninstall"
 [[ ! -e "$api_nodes/unraid-api-plugin-yarr" && ! -L "$api_nodes/unraid-api-plugin-yarr" ]] || fail 'API uninstall retained active target'
 [[ ! -e "$api_nodes/.unraid-api-plugin-yarr" ]] || fail 'API uninstall retained activation store'
 jq -e '.peerDependencies.existing == "*" and (.peerDependencies["unraid-api-plugin-yarr"] == null)' "$api_home/package.json" >/dev/null || fail 'API uninstall damaged package registration'
 jq -e '.plugins == ["existing"]' "$api_config" >/dev/null || fail 'API uninstall damaged config registration'
+
+# A deterministically stopped host API remains stopped and is not started just
+# to prove a state that can only be observed after a future operator start.
+mkdir -p "$api_nodes/.unraid-api-plugin-yarr/prior"
+printf 'prior\n' > "$api_nodes/.unraid-api-plugin-yarr/prior/marker"
+ln -s "$api_nodes/.unraid-api-plugin-yarr/prior" "$api_nodes/unraid-api-plugin-yarr"
+jq '.peerDependencies["unraid-api-plugin-yarr"] = "*" |
+    .peerDependenciesMeta["unraid-api-plugin-yarr"] = {"optional":true}' \
+    "$api_home/package.json" > "$api_home/package.json.new"
+mv "$api_home/package.json.new" "$api_home/package.json"
+jq '.plugins += ["unraid-api-plugin-yarr"]' "$api_config" > "$api_config.new"
+mv "$api_config.new" "$api_config"
+rm -f "$tmp_dir/api-running"
+reset_api_fault_counters
+env "${uninstall_env[@]}" "$api_uninstall"
+if grep -Eq '^api (start|stop)$' "$tmp_dir/api-operations.log"; then
+    fail 'stopped-state API uninstall started or stopped the host API'
+fi
+[[ ! -e "$api_nodes/unraid-api-plugin-yarr" &&
+    ! -e "$api_nodes/.unraid-api-plugin-yarr" ]] ||
+    fail 'stopped-state API uninstall retained Yarr loader artifacts'
 
 # Classic uninstall must stop first, remove volatile state, and retain boot
 # config plus appdata. Package paths are removed by removepkg in yarr.plg.
@@ -464,10 +788,12 @@ PATH="$reinstall_bin:$PATH" YARR_TEST_ROOT="$uninstall_root" \
 [[ ! -e "$uninstall_root/var/run/yarr-array-stopping" ]] || fail 'mounted reinstall retained the stale array fence'
 grep -Fxq 'rc start' "$uninstall_ops" || fail 'mounted reinstall did not enter the mounted start transition'
 
-for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" "$build_script" "$verify_script" "$archive_layout_script"; do
+for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" \
+    "$package_validator" "$build_script" "$verify_script" "$archive_layout_script"; do
     [[ -x "$executable" ]] || fail "script is not executable: ${executable#"$repo_root/"}"
     bash -n "$executable"
 done
+bash -n "$api_readiness"
 
 grep -Fq '/usr/local/yarr/bin/yarr' "$build_script" || fail 'build does not stage the binary at the runtime path'
 grep -Fq 'install -d -m 0755' "$build_script" || fail 'build does not fix packaged directory modes'
@@ -481,6 +807,7 @@ grep -Fq 'xmllint' "$verify_script" || fail 'verifier does not validate plugin X
 grep -Fq 'packaged /usr/local/yarr directory mode is not 0755' "$verify_script" || fail 'verifier does not check /usr/local/yarr mode'
 grep -Fq 'packaged /usr/local/yarr/bin directory mode is not 0755' "$verify_script" || fail 'verifier does not check /usr/local/yarr/bin mode'
 grep -Fq 'verify-archive-layout.sh' "$verify_script" || fail 'package verifier does not enforce canonical directory layout'
+grep -Fq 'validate-classic-package.sh' "$verify_script" || fail 'package verifier does not run the packaged rollback validator'
 grep -Fq 'directory is not root:root mode 0755' "$archive_layout_script" || fail 'archive layout verifier does not reject writable directories'
 
 layout_root="$tmp_dir/layout-root"

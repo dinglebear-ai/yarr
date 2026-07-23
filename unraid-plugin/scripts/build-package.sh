@@ -104,7 +104,8 @@ find "$candidate_source" -type d -exec chmod 0755 '{}' +
 find "$candidate_source" -type f -exec chmod 0644 '{}' +
 find "$candidate_source/etc/rc.d" "$generated_root/event" -type f -exec chmod 0755 '{}' +
 find "$generated_root/scripts" -maxdepth 1 -type f \
-    \( -name 'install-*.sh' -o -name 'uninstall-*.sh' -o -name 'yarr-update.sh' \) \
+    \( -name 'install-*.sh' -o -name 'uninstall-*.sh' -o -name 'yarr-update.sh' \
+       -o -name 'validate-classic-package.sh' \) \
     -exec chmod 0755 '{}' +
 chmod 0600 "$generated_root/default.cfg" "$generated_root/default.env"
 chmod 0644 "$generated_root/yarr-2b068b08366b.png"
@@ -171,7 +172,8 @@ find "$source_root" -type d -exec chmod 0755 '{}' +
 find "$source_root" -type f -exec chmod 0644 '{}' +
 find "$source_root/etc/rc.d" "$source_plugin_root/event" -type f -exec chmod 0755 '{}' +
 find "$source_plugin_root/scripts" -maxdepth 1 -type f \
-    \( -name 'install-*.sh' -o -name 'uninstall-*.sh' -o -name 'yarr-update.sh' \) \
+    \( -name 'install-*.sh' -o -name 'uninstall-*.sh' -o -name 'yarr-update.sh' \
+       -o -name 'validate-classic-package.sh' \) \
     -exec chmod 0755 '{}' +
 chmod 0600 "$source_plugin_root/default.cfg" "$source_plugin_root/default.env"
 mkdir -p "$package_root/packages"

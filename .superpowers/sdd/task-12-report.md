@@ -510,3 +510,33 @@ No deployment, workflow dispatch, release publication, or upstream draft
 mutation occurred. Independent reviewer approval remains pending. Detailed
 evidence is in
 `.superpowers/sdd/task-12-state-tuple-validation-report.md`.
+
+## Trusted classic rollback and API uninstall remediation
+
+Retained classic packages now require exact durable digest provenance created
+only after independently pinned PLG verification. Rollback rejects legacy or
+malformed provenance, wrong hashes, unsafe archives, unsafe ownership/modes,
+links, path tricks, and inventory drift before service or package mutation.
+Only a root-only revalidated transaction copy can reach `upgradepkg`, and
+retention/pruning keeps packages and sidecars paired.
+
+API-plugin uninstall now preserves known running/stopped state and uses the
+same authenticated GraphQL plus new-log readiness contract as install. Start
+exit zero is only launch. A running uninstall commits only after host readiness
+and Yarr schema absence; any failure restores exact prior target/store/link
+state and proves Yarr-present readiness. Rollback-unready state retains the
+mode-`0700` recovery transaction and reports explicit incomplete recovery.
+
+Focused negative and recovery contracts, the aggregate lifecycle/updater/
+classic/workflow/release harness, ShellCheck, actionlint, API `209/209`, web
+`58/58`, typechecks, builds, browser smoke, and zero-finding production audits
+pass. The umask `022`/`077` packages are byte-identical at SHA-256
+`7439d06c221872a6ef5b3832aa202ee13bc56d31ce00f7738f3e576c21b251ef`,
+MD5 `1ecea0fe788a759b203ec7a86bd1dafc`, and `6,227,392` bytes. The
+archive has `59` entries, `44` declared files, no `./` member, and `14`
+root-ID directories at mode `0755`.
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent reviewer approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-classic-trust-api-uninstall-report.md`.

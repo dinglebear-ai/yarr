@@ -162,10 +162,15 @@ The classic plugin:
 3. Creates default persistent configuration only when absent.
 4. Recreates `/etc/rc.d/rc.yarr` on install/boot.
 5. Atomically activates `unraid-api-plugin-yarr`, reloads `unraid-api`, checks
-   its log/schema readiness, and rolls back on failure.
+   authenticated log/schema readiness, and rolls back on failure. Uninstall
+   uses the same readiness boundary, proves Yarr fields absent before commit,
+   and retains a mode-0700 recovery transaction if rollback readiness fails.
 6. Starts Yarr immediately only when enabled and the array is mounted.
-7. Retains one prior classic archive for coordinated package rollback.
-8. Stops Yarr and removes API activation during uninstall while preserving data.
+7. Retains one prior classic archive only with its atomically persisted,
+   PLG-derived trusted SHA-256 sidecar; rollback revalidates archive safety and
+   executes a root-only verified copy.
+8. Stops Yarr and transactionally removes API activation during uninstall
+   while preserving data and a deterministically stopped host API state.
 
 ## Service Lifecycle
 
@@ -543,6 +548,9 @@ Tracearr, or other media mutation is authorized by this verification plan.
 - LAN/custom non-loopback binding cannot be saved without an accepted auth mode.
 - Binary updates verify published checksums and archive shape, reject incompatible
   versions, and roll back on failed readiness.
+- Classic package rollback requires a root-owned mode-0600 archive and atomic
+  digest sidecar pair whose trust originated from the PLG-pinned checksum.
+  Legacy unproven archives are never executed.
 - Local Rust, shell, package, backend, frontend, schema, and security gates pass.
 - The plugin is installed and verified on `tootie` without media mutations.
 - Persistent config and appdata survive ordinary uninstall.

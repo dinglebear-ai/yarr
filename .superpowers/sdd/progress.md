@@ -68,6 +68,31 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
 
+### 2026-07-23 - Classic trust and API uninstall remediation
+
+- Added independently anchored, atomically persisted package digest sidecars
+  and strict retained-package archive/inventory validation.
+- Root `upgradepkg` now receives only private transaction copies whose digest,
+  provenance binding, metadata, and archive contents were revalidated.
+- Added pair-consistent retention/pruning and fail-closed legacy behavior.
+- Factored authenticated GraphQL/new-log readiness for install and uninstall.
+- Made API-plugin uninstall transactional across running and stopped host
+  state, with exact rollback, rollback readiness proof, and retained recovery
+  on incomplete rollback.
+- Added seven untrusted-package rejection cases plus trusted rollback, and
+  start-nonzero, no-listener, GraphQL, log, rollback, rollback-unready,
+  successful running, and successful stopped API-uninstall cases.
+- Gates: API `209/209`, web `58/58`, focused classic, aggregate plugin/package,
+  verifier, ShellCheck, actionlint, typechecks/builds/browser smoke, and zero
+  production audits pass.
+- Deterministic umask `022`/`077` package:
+  SHA-256 `7439d06c221872a6ef5b3832aa202ee13bc56d31ce00f7738f3e576c21b251ef`,
+  MD5 `1ecea0fe788a759b203ec7a86bd1dafc`, size `6,227,392` bytes,
+  `59` entries, `44` declared files, `14` root-owned mode-`0755`
+  directories, and no `./` member.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.
+
 ### 2026-07-23 - Same-operation updater state validation
 
 - Strengthened the closed 26-row updater matrix with strict core Yarr release

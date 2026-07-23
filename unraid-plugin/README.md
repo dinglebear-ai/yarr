@@ -182,7 +182,33 @@ and the bounded message class as one tuple before GraphQL or the UI receives
 the response. Human-readable `message` remains display text and is never used
 as the authoritative outcome discriminator.
 
+## Trusted classic rollback
+
+Classic rollback never derives trust from a retained archive's filename or
+from hashing unknown legacy bytes. The PLG-pinned checksum first authenticates
+the downloaded package, whose packaged validator then enforces canonical
+paths, root ownership, safe modes/types, required payloads, and the embedded
+file checksum/mode inventory. Only then is a mode-`0600`, root-owned digest
+sidecar written atomically and durably beside the retained archive.
+
+Rollback requires the exact archive/sidecar basename binding, recomputes
+SHA-256, reruns the strict validator, and executes a separately verified copy
+from a root-only runtime directory. A legacy archive without provenance fails
+closed before daemon stop or `upgradepkg`; it is never trusted by calculating
+a new digest. Package pruning preserves the current pair and one trusted prior
+pair, and removes archive/sidecar pairs together only after activation commits.
+
 ## API and web loader behavior
+
+API-plugin uninstall treats `unraid-api start` as launch only. A running host
+must pass the same authenticated GraphQL and new-log readiness checks used by
+activation, with all Yarr query/mutation fields absent, before detached
+activation artifacts are deleted. Failure restores the exact loader files,
+target, and immutable store, restarts the prior state, and proves its
+readiness. If rollback readiness is unproven, the mode-`0700` recovery
+transaction remains under the API module directory and uninstall returns
+failure. When status proves the API was stopped, uninstall validates the
+detached loader state without starting it.
 
 The classic package stages production-only JavaScript for
 `unraid-api-plugin-yarr`. Activation installs a content-addressed module,

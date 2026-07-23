@@ -6,8 +6,8 @@
   <!ENTITY launch     "Settings/Yarr">
   <!ENTITY txz        "yarr-2.1.0-x86_64-1.txz">
   <!ENTITY txzURL     "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz">
-  <!ENTITY md5        "6602d3e9bde7786723b659296b597ae3">
-  <!ENTITY sha256     "abd1e4d28418309fb3c056bb03637c34292969603ccc092c2c6754e1d7d72406">
+  <!ENTITY md5        "1ecea0fe788a759b203ec7a86bd1dafc">
+  <!ENTITY sha256     "7439d06c221872a6ef5b3832aa202ee13bc56d31ce00f7738f3e576c21b251ef">
   <!ENTITY plugin     "/boot/config/plugins/&name;">
   <!ENTITY emhttp     "/usr/local/emhttp/plugins/&name;">
 ]>
@@ -30,17 +30,164 @@
 <FILE Run="/bin/bash">
 <INLINE>
 set -euo pipefail
-package_path="&plugin;/&txz;"
+root=${YARR_CLASSIC_TEST_ROOT:-}
+plugin_dir="${root}&plugin;"
+emhttp="${root}&emhttp;"
+rc_yarr="${root}/etc/rc.d/rc.yarr"
+lock_path="${root}/var/lock/yarr-plugin.lock"
+runtime_root="${root}/var/run"
+package_name="&txz;"
+package_path="$plugin_dir/$package_name"
 expected_sha="&sha256;"
-printf '%s  %s\n' "$expected_sha" "$package_path" | sha256sum -c -
-mkdir -p /var/lock
-exec 9&gt;/var/lock/yarr-plugin.lock
-chmod 0600 /var/lock/yarr-plugin.lock
-flock --exclusive --wait 30 9
+trust_uid=0
+trust_gid=0
+if [[ -n "$root" ]]; then
+  trust_uid=$(id -u)
+  trust_gid=$(id -g)
+fi
 
-if [ -x /etc/rc.d/rc.yarr ]; then
-  /etc/rc.d/rc.yarr --lock-fd 9 stop
-  if /etc/rc.d/rc.yarr --lock-fd 9 status &gt;/dev/null 2&gt;&amp;1; then
+fail() {
+  logger -t yarr "$1"
+  printf 'yarr: %s\n' "$1" &gt;&amp;2
+  exit 1
+}
+
+safe_package_basename() {
+  local basename=$1
+  [[ ${#basename} -le 128 &amp;&amp;
+      "$basename" =~ ^yarr-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-x86_64-([1-9][0-9]*)\.txz$ ]]
+}
+
+require_regular_package() {
+  local package=$1 basename=${1##*/}
+  safe_package_basename "$basename" || return 1
+  [[ "$package" == "$plugin_dir/$basename" &amp;&amp; -f "$package" &amp;&amp; ! -L "$package" ]] || return 1
+  [[ $(stat -c '%u:%g:%h' "$package") == "${trust_uid}:${trust_gid}:1" ]]
+}
+
+normalize_trusted_package() {
+  local package=$1
+  require_regular_package "$package" || return 1
+  if [[ -z "$root" ]]; then
+    chown 0:0 -- "$package" || return 1
+  fi
+  chmod 0600 -- "$package"
+}
+
+write_trust_sidecar() {
+  local package=$1 digest=$2 basename=${1##*/} sidecar temporary line
+  sidecar="${package}.trusted.sha256"
+  line="${digest}  ${basename}"
+  if [[ -e "$sidecar" || -L "$sidecar" ]]; then
+    [[ -f "$sidecar" &amp;&amp; ! -L "$sidecar" &amp;&amp;
+        $(stat -c '%u:%g:%a:%h' "$sidecar") == "${trust_uid}:${trust_gid}:600:1" ]] ||
+        return 1
+  fi
+  umask 077
+  temporary=$(mktemp "$plugin_dir/.${basename}.trusted.XXXXXXXX") || return 1
+  if ! printf '%s\n' "$line" &gt; "$temporary" ||
+      ! chmod 0600 "$temporary"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+  if [[ -z "$root" ]] &amp;&amp; ! chown 0:0 -- "$temporary"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+  if ! sync -f "$temporary" ||
+      ! mv -Tf -- "$temporary" "$sidecar" ||
+      ! sync -f "$sidecar" ||
+      ! sync -f "$plugin_dir"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+}
+
+verify_trusted_pair() {
+  local package=$1 basename=${1##*/} sidecar digest line actual
+  sidecar="${package}.trusted.sha256"
+  require_regular_package "$package" || return 1
+  [[ $(stat -c %a "$package") == 600 ]] || return 1
+  [[ -f "$sidecar" &amp;&amp; ! -L "$sidecar" &amp;&amp;
+      $(stat -c '%u:%g:%a:%h' "$sidecar") == "${trust_uid}:${trust_gid}:600:1" ]] ||
+      return 1
+  [[ $(wc -l &lt; "$sidecar") == 1 ]] || return 1
+  line=$(cat "$sidecar") || return 1
+  [[ "$line" =~ ^([0-9a-f]{64})[[:space:]][[:space:]]([^[:space:]]+)$ ]] || return 1
+  digest=${BASH_REMATCH[1]}
+  [[ ${BASH_REMATCH[2]} == "$basename" ]] || return 1
+  actual=$(sha256sum "$package" | cut -d' ' -f1) || return 1
+  [[ "$actual" == "$digest" ]] || return 1
+  YARR_PACKAGE_TRUST_UID="$trust_uid" YARR_PACKAGE_TRUST_GID="$trust_gid" \
+    "$validator" "$package" &gt;/dev/null || return 1
+  printf '%s\n' "$digest"
+}
+
+stage_execution_copy() {
+  local package=$1 digest=$2 basename=${1##*/} destination actual
+  destination="$transaction/$basename"
+  install -m 0600 -- "$package" "$destination" || return 1
+  if [[ -z "$root" ]] &amp;&amp; ! chown 0:0 -- "$destination"; then
+    return 1
+  fi
+  actual=$(sha256sum "$destination" | cut -d' ' -f1) || return 1
+  [[ "$actual" == "$digest" ]] || return 1
+  YARR_PACKAGE_TRUST_UID="$trust_uid" YARR_PACKAGE_TRUST_GID="$trust_gid" \
+    "$validator" "$destination" &gt;/dev/null || return 1
+  printf '%s\n' "$destination"
+}
+
+mkdir -p "$plugin_dir" "${root}/var/lock" "$runtime_root"
+exec 9&gt;"$lock_path"
+chmod 0600 "$lock_path"
+flock --exclusive --wait 30 9
+[[ -f "$package_path" &amp;&amp; ! -L "$package_path" ]] ||
+  fail 'downloaded package is not a regular file'
+actual_sha=$(sha256sum "$package_path" | cut -d' ' -f1) ||
+  fail 'downloaded package digest could not be calculated'
+[[ "$actual_sha" == "$expected_sha" ]] ||
+  fail 'downloaded package SHA-256 differs from the trusted PLG digest'
+normalize_trusted_package "$package_path" ||
+  fail 'downloaded package ownership or mode is unsafe'
+
+transaction=$(mktemp -d "$runtime_root/yarr-classic-package.XXXXXXXX") ||
+  fail 'could not create root-only package transaction'
+chmod 0700 "$transaction"
+trap 'rm -rf -- "$transaction"' EXIT
+validator_member='usr/local/emhttp/plugins/yarr/scripts/validate-classic-package.sh'
+validator="$transaction/validate-classic-package.sh"
+member_count=$(tar -tJf "$package_path" | grep -Fxc "$validator_member" || true)
+[[ "$member_count" == 1 ]] || fail 'trusted package does not contain exactly one classic validator'
+tar -xJOf "$package_path" "$validator_member" &gt; "$validator" ||
+  fail 'could not extract trusted classic package validator'
+chmod 0700 "$validator"
+YARR_PACKAGE_TRUST_UID="$trust_uid" YARR_PACKAGE_TRUST_GID="$trust_gid" \
+  "$validator" "$package_path" &gt;/dev/null ||
+  fail 'downloaded package failed strict archive validation'
+write_trust_sidecar "$package_path" "$expected_sha" ||
+  fail 'could not durably record downloaded package provenance'
+
+mapfile -d '' previous_packages &lt; &lt;(
+  find "$plugin_dir" -maxdepth 1 -mindepth 1 -name 'yarr-*.txz' \
+    ! -name "$package_name" -print0 | sort -zV
+)
+previous=''
+previous_digest=''
+for candidate in "${previous_packages[@]}"; do
+  candidate_digest=$(verify_trusted_pair "$candidate") ||
+    fail "retained package lacks trusted provenance or is unsafe: ${candidate##*/}"
+  previous=$candidate
+  previous_digest=$candidate_digest
+done
+
+current_digest=$(verify_trusted_pair "$package_path") ||
+  fail 'downloaded package provenance could not be revalidated'
+package_execution=$(stage_execution_copy "$package_path" "$current_digest") ||
+  fail 'downloaded package could not be staged as a verified execution copy'
+
+if [ -x "$rc_yarr" ]; then
+  "$rc_yarr" --lock-fd 9 stop
+  if "$rc_yarr" --lock-fd 9 status &gt;/dev/null 2&gt;&amp;1; then
     logger -t yarr "upgrade refused: old daemon remains active"
     exit 1
   else
@@ -52,31 +199,42 @@ if [ -x /etc/rc.d/rc.yarr ]; then
   fi
 fi
 
-mapfile -d '' previous_packages &lt; &lt;(find "&plugin;" -maxdepth 1 -type f -name 'yarr-*.txz' ! -name '&txz;' -print0 | sort -zV)
-previous=""
-if [ "${#previous_packages[@]}" -gt 0 ]; then
-  previous="${previous_packages[${#previous_packages[@]}-1]}"
-fi
-
-upgradepkg --install-new --reinstall "$package_path"
-if ! "&emhttp;/scripts/install-classic-plugin.sh" --lock-fd 9; then
-  if [ -n "$previous" ] &amp;&amp; [ -f "$previous" ]; then
-    logger -t yarr "activation failed; restoring $previous"
-    upgradepkg --install-new --reinstall "$previous" || logger -t yarr "ERROR: classic package rollback failed"
-    "&emhttp;/scripts/install-classic-plugin.sh" --lock-fd 9 || logger -t yarr "ERROR: restored package activation failed"
+upgradepkg --install-new --reinstall "$package_execution"
+if ! "$emhttp/scripts/install-classic-plugin.sh" --lock-fd 9; then
+  if [[ -n "$previous" ]]; then
+    logger -t yarr "activation failed; revalidating trusted rollback package ${previous##*/}"
+    rollback_digest=$(verify_trusted_pair "$previous") ||
+      fail "activation failed and retained rollback package is no longer trusted: ${previous##*/}"
+    [[ "$rollback_digest" == "$previous_digest" ]] ||
+      fail 'activation failed and retained rollback package provenance changed'
+    rollback_execution=$(stage_execution_copy "$previous" "$rollback_digest") ||
+      fail 'activation failed and trusted rollback execution copy could not be prepared'
+    if upgradepkg --install-new --reinstall "$rollback_execution" &amp;&amp;
+        "$emhttp/scripts/install-classic-plugin.sh" --lock-fd 9; then
+      rm -f -- "$package_path" "${package_path}.trusted.sha256"
+      sync -f "$plugin_dir" || true
+      logger -t yarr "trusted classic package rollback completed"
+    else
+      logger -t yarr "ERROR: classic package rollback or restored activation failed; trusted package pairs retained"
+    fi
   else
-    logger -t yarr "activation failed on fresh install; removing unpaired package"
+    logger -t yarr "activation failed on fresh install; trusted package archive retained for recovery"
     removepkg "yarr-2.1.0-x86_64-1" || logger -t yarr "ERROR: fresh package cleanup failed"
   fi
   exit 1
 fi
 
-kept=0
-while IFS= read -r -d '' old; do
-  [ "$old" = "$package_path" ] &amp;&amp; continue
-  kept=$((kept + 1))
-  [ "$kept" -le 1 ] || rm -f -- "$old"
-done &lt; &lt;(find "&plugin;" -maxdepth 1 -type f -name 'yarr-*.txz' -print0 | sort -zVr)
+for old in "${previous_packages[@]}"; do
+  [[ "$old" == "$previous" ]] &amp;&amp; continue
+  rm -f -- "$old" "${old}.trusted.sha256"
+done
+while IFS= read -r -d '' sidecar; do
+  bound_package=${sidecar%.trusted.sha256}
+  if [[ "$bound_package" != "$package_path" &amp;&amp; "$bound_package" != "$previous" ]]; then
+    rm -f -- "$sidecar"
+  fi
+done &lt; &lt;(find "$plugin_dir" -maxdepth 1 -mindepth 1 -name 'yarr-*.txz.trusted.sha256' -print0)
+sync -f "$plugin_dir" || fail 'retained package inventory could not be synchronized'
 
 printf '\nYarr &version; installed. Configure it at Settings -&gt; Yarr.\n'
 </INLINE>

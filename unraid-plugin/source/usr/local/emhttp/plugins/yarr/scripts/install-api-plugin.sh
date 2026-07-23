@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=${YARR_API_TEST_ROOT:-}
 plugin_name=unraid-api-plugin-yarr
 payload="${root}/usr/local/emhttp/plugins/yarr/api"
@@ -19,6 +20,8 @@ probe_url=${YARR_API_GRAPHQL_URL:-http://127.0.0.1/graphql}
 attempts=${YARR_API_ATTEMPTS:-30}
 interval=${YARR_API_INTERVAL:-1}
 restart_attempts=${YARR_API_RESTART_ATTEMPTS:-3}
+# shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/api-readiness.sh
+source "$script_dir/api-readiness.sh"
 
 log_message() {
     if [[ -n "$root" ]]; then
@@ -61,50 +64,6 @@ restore_file() {
     temporary=$(mktemp "${destination}.restore.XXXXXX")
     cp -p -- "$backup" "$temporary"
     mv -f -- "$temporary" "$destination"
-}
-
-read_new_log() {
-    local before_inode=$1 before_size=$2 current_inode current_size offset
-    current_inode=$(stat -c %i "$api_log" 2>/dev/null || printf missing)
-    current_size=$(stat -c %s "$api_log" 2>/dev/null || printf 0)
-    if [[ "$current_inode" == "$before_inode" && "$current_size" -ge "$before_size" ]]; then
-        offset=$((before_size + 1))
-        tail -c "+${offset}" "$api_log" 2>/dev/null || true
-    else
-        cat "$api_log" 2>/dev/null || true
-    fi
-}
-
-has_new_loader_failure() {
-    grep -Eiq '(FATAL|Unhandled|ERR_MODULE_NOT_FOUND|Cannot find module|unraid-api-plugin-yarr[^[:cntrl:]]*(invalid|failed|error))'
-}
-
-probe_runtime() {
-    local api_key='' response header_file='' curl_status
-    if [[ -n "${YARR_API_PROBE_KEY:-}" ]]; then
-        api_key=$YARR_API_PROBE_KEY
-    elif [[ -f "$api_credentials" ]]; then
-        api_key=$(sed -n 's/^apikey="\([^"]*\)".*/\1/p' "$api_credentials" | head -n 1)
-    fi
-    local -a args=(--fail --silent --show-error --max-time 5 \
-        --header 'Content-Type: application/json' \
-        --data '{"query":"query YarrActivationProbe { yarrRuntime { __typename } }"}')
-    if [[ -n "$api_key" ]]; then
-        umask 077
-        header_file=$(mktemp "${TMPDIR:-/tmp}/yarr-api-probe.XXXXXX")
-        chmod 0600 "$header_file"
-        printf 'x-api-key: %s\n' "$api_key" > "$header_file"
-        args+=(--header "@${header_file}")
-    fi
-    if response=$("$curl_command" "${args[@]}" "$probe_url"); then
-        curl_status=0
-    else
-        curl_status=$?
-    fi
-    [[ -z "$header_file" ]] || rm -f -- "$header_file"
-    (( curl_status == 0 )) || return "$curl_status"
-    jq -e '((.errors // []) | length) == 0 and .data.yarrRuntime.__typename == "YarrRuntime"' \
-        <<< "$response" >/dev/null
 }
 
 [[ -f "$payload/package.json" && -f "$payload/package-lock.json" && -f "$payload/dist/index.js" ]] || {
@@ -169,10 +128,16 @@ cleanup() {
 }
 
 restart_prior_api() {
-    local attempt
+    local mode=$1 attempt rollback_inode rollback_size
     for ((attempt = 1; attempt <= restart_attempts; attempt++)); do
+        rollback_inode=$(stat -c %i "$api_log" 2>/dev/null || printf missing)
+        rollback_size=$(stat -c %s "$api_log" 2>/dev/null || printf 0)
         if "$api_command" start; then
-            return 0
+            if yarr_api_wait_ready "$mode" "$rollback_inode" "$rollback_size"; then
+                return 0
+            fi
+            log_message "rollback unraid-api restart was not ready: ${YARR_API_READINESS_FAILURE}"
+            return 1
         fi
         log_message "failed to restart prior unraid-api (attempt ${attempt} of ${restart_attempts})"
         ((attempt == restart_attempts)) || sleep "$interval"
@@ -205,7 +170,7 @@ rollback_activation() {
     esac
     restore_file "$state_backup/package.json" "$api_package_json" || failed=true
     restore_file "$state_backup/api.json" "$api_config_json" || failed=true
-    restart_prior_api || failed=true
+    restart_prior_api "$prior_probe_mode" || failed=true
     if "$created_activation" && [[ "$activation" != "$prior_link" ]]; then
         rm -rf -- "$activation" || failed=true
     fi
@@ -236,11 +201,19 @@ ln -s -- "$activation" "$temporary_link"
 
 cp -p -- "$api_package_json" "$state_backup/package.json"
 cp -p -- "$api_config_json" "$state_backup/api.json"
+prior_probe_mode=yarr-absent
+if jq -e --arg name "$plugin_name" \
+    '(.peerDependencies[$name] != null)' "$state_backup/package.json" >/dev/null 2>&1 ||
+    jq -e --arg name "$plugin_name" \
+    '(.plugins // []) | map(split("@")[0]) | index($name) != null' \
+    "$state_backup/api.json" >/dev/null 2>&1; then
+    prior_probe_mode=yarr-present
+fi
 
 if ! "$api_command" stop; then
     "$created_activation" && rm -rf -- "$activation"
     log_message 'could not stop unraid-api before activation'
-    restart_prior_api || log_message 'unraid-api state could not be recovered after stop failure'
+    restart_prior_api "$prior_probe_mode" || log_message 'unraid-api state could not be recovered after stop failure'
     exit 1
 fi
 transaction_active=true
@@ -270,29 +243,11 @@ else
 fi
 
 verified=false
-fatal_log=false
 if "$activation_started"; then
-    for ((attempt = 1; attempt <= attempts; attempt++)); do
-        new_log=$(read_new_log "$before_inode" "$before_size")
-        if has_new_loader_failure <<< "$new_log"; then
-            fatal_log=true
-            failure_reason='new fatal/module-load error in graphql-api.log'
-            break
-        fi
-        if probe_runtime; then
-            new_log=$(read_new_log "$before_inode" "$before_size")
-            if ! has_new_loader_failure <<< "$new_log"; then
-                verified=true
-                break
-            fi
-            fatal_log=true
-            failure_reason='new fatal/module-load error in graphql-api.log'
-            break
-        fi
-        sleep "$interval"
-    done
-    if ! "$verified" && ! "$fatal_log" && [[ -z "$failure_reason" ]]; then
-        failure_reason='yarrRuntime probe failed'
+    if yarr_api_wait_ready yarr-present "$before_inode" "$before_size"; then
+        verified=true
+    elif [[ -z "$failure_reason" ]]; then
+        failure_reason=$YARR_API_READINESS_FAILURE
     fi
 fi
 

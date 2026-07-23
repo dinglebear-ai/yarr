@@ -995,7 +995,15 @@ dashboard toggle, and loads only the compact dashboard bundle.
 
 **Step 4: Implement API activation and rollback**
 
-Stage the built API package under `/usr/local/emhttp/plugins/yarr/api/`, install locked production dependencies there, then atomically point `/usr/local/unraid-api/node_modules/unraid-api-plugin-yarr` at the staged package. Reload the API using the supported Unraid service entry point. Treat a new fatal/module-load error in `/var/log/graphql-api.log` or failure to expose `yarrRuntime` as activation failure.
+Stage the built API package under `/usr/local/emhttp/plugins/yarr/api/`, install locked production dependencies there, then atomically point `/usr/local/unraid-api/node_modules/unraid-api-plugin-yarr` at the staged package. Reload the API using the supported Unraid service entry point. Treat a new fatal/module-load error in `/var/log/graphql-api.log` or failure to expose `yarrRuntime` as activation failure. Uninstall uses the same authenticated GraphQL/new-log readiness helper: a running host must become ready with all Yarr fields absent before detached target/store artifacts are deleted; rollback restores exact loader state and proves prior readiness, retaining a bounded mode-0700 recovery transaction on incomplete recovery. A deterministically stopped API remains stopped.
+
+Classic package retention uses an exact archive plus mode-0600 trusted-digest
+sidecar pair. The sidecar may be created only after the current PLG-pinned
+SHA-256 and strict packaged archive validator independently authenticate the
+archive. Rollback revalidates the pair and executes only a root-only verified
+copy. Legacy archives without provenance and malformed, linked, unsafe, or
+misbound pairs fail before `upgradepkg`; pruning never separates the only
+trusted recovery pair.
 
 **Step 5: Implement deterministic package building**
 
