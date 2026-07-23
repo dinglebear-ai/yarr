@@ -45,6 +45,14 @@ checksum_line=$(cat "$download/$checksum_asset")
 [[ $(tar -tzf "$download/$archive_asset") == yarr ]] || { printf 'upstream archive must contain exactly yarr\n' >&2; exit 1; }
 read -r upstream_mode _ <<< "$(tar --numeric-owner -tvzf "$download/$archive_asset")"
 [[ "$upstream_mode" == -rwxr-xr-x ]] || { printf 'upstream yarr is not a regular mode-0755 executable\n' >&2; exit 1; }
+committed_upstream_sha=$(jq -er \
+    '.upstreamBinarySha256 | select(type == "string" and test("^[0-9a-f]{64}$"))' \
+    "$manifest")
+actual_upstream_sha=$(sha256sum "$download/$archive_asset" | cut -d' ' -f1)
+[[ "$actual_upstream_sha" == "$committed_upstream_sha" ]] || {
+    printf 'upstream archive differs from committed release digest\n' >&2
+    exit 1
+}
 mkdir "$temporary/upstream"
 tar --same-permissions -xzf "$download/$archive_asset" -C "$temporary/upstream"
 [[ -f "$temporary/upstream/yarr" && ! -L "$temporary/upstream/yarr" && -x "$temporary/upstream/yarr" ]] || {

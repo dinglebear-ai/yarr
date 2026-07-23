@@ -54,13 +54,22 @@ that may run without remote-client authentication.
   unless bearer or OAuth authentication is fully configured.
 - **Custom:** binds an explicitly validated host/address. It has the same
   authentication gate as LAN mode.
+- **Trusted gateway:** the typed `TRUSTED_GATEWAY` / `trusted-gateway` mode is
+  the third approved non-loopback authentication mode. It is safe only when
+  every direct client is blocked from Yarr and requests can arrive solely
+  through a controlled authenticating proxy whose exact hosts or origins are
+  listed in `YARR_MCP_ALLOWED_HOSTS` or `YARR_MCP_ALLOWED_ORIGINS`. Those
+  allowlists establish provenance, not end-user identity; the gateway must
+  authenticate users, strip spoofable forwarding headers, and terminate
+  untrusted connections before forwarding to Yarr.
 - **Tailscale Serve:** keeps the Yarr process on loopback and publishes the
   configured endpoint through a service-scoped Tailscale Serve mapping. Stop,
   uninstall, and failed activation remove only Yarr's mapping.
 
 Do not expose a no-auth listener on LAN, a custom address, or a public reverse
-proxy. The save and start paths enforce this boundary server-side; the browser
-warning is not the security control.
+proxy. Bearer, Google OAuth, and trusted gateway are the only approved
+non-loopback modes. The save and start paths enforce this boundary server-side;
+the browser warning is not the security control.
 
 ## Credentials and service import
 
@@ -253,15 +262,23 @@ Release sequence:
 2. Build twice under umask `022` and `077`; require byte-identical `.txz`
    output.
 3. Verify the embedded Yarr version equals `pluginVersion`, every input
-   checksum, archive path/type/mode/owner, source parity, generated manifest,
-   `.plg` checksum, and release URL.
+   checksum, the independently committed upstream archive SHA-256, archive
+   path/type/mode/owner, source parity, committed package SHA-256, `.plg`
+   checksum, and release URL. Rebuilds must byte-match the package committed at
+   the immutable package-tag commit.
 4. Stage the package, installer, manifest, embedded payload inventory,
    machine-readable inventory, and a checksum file for every artifact.
 5. Create a new `unraid-v*` GitHub release as a draft, upload and download all
-   assets, compare every byte, confirm the upstream `v*` release is unchanged,
-   and only then publish with `latest=false`.
+   assets, compare every byte, confirm both the package tag commit and upstream
+   `v*` asset snapshot are unchanged, and only then publish with
+   `latest=false`. The create request carries the resolved SHA as
+   `target_commitish`; because GitHub ignores that field when a tag already
+   exists, repeated immutable tag resolution remains the authoritative commit
+   check and the per-run marker records the same SHA.
 6. If any pre-publication step fails, delete only the newly created package
-   draft so no partial public release remains.
+   draft after re-reading it by release ID and proving it is still an owned
+   draft. Ambiguous create/upload/publish responses are reconciled from server
+   state using a per-run marker; a published release is never deleted.
 
 The workflow refuses an already existing package release rather than clobbering
 assets. It does not implicitly publish the existing `v2.1.0` draft.

@@ -29,11 +29,9 @@ env:
 
 jobs:
   verify:
-    name: Test and reproduce package
-    runs-on: ubuntu-latest
+    name: Test and reproduce committed package
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -54,7 +52,12 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y jq libxml2-utils shellcheck xz-utils
+          sudo apt-get install -y jq libxml2-utils python3-yaml shellcheck xz-utils
+
+      - name: Install pinned actionlint
+        uses: taiki-e/install-action@6c1f7cf125e42770ff087ea443901b487cc5471a # v2
+        with:
+          tool: actionlint@1.7.12
 
       - name: Test and build API extension
         shell: bash
@@ -74,44 +77,69 @@ jobs:
           test -s unraid-plugin/web/dist/dashboard/yarr-dashboard.css
           npm --prefix unraid-plugin/web run check:browser-bundles
 
+      - name: Validate workflow syntax and semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          actionlint .github/workflows/unraid-plugin-ci.yml .github/workflows/unraid-plugin-release.yml
+          python3 unraid-plugin/tests/workflow_contract.py \
+            --ci .github/workflows/unraid-plugin-ci.yml \
+            --release .github/workflows/unraid-plugin-release.yml
+
       - name: Run shell and static contracts
         shell: bash
         run: |
           set -euo pipefail
-          find unraid-plugin -type f -name '*.sh' -print0 |
+          find unraid-plugin -path '*/node_modules' -prune -o \
+            -type f -name '*.sh' -print0 |
             sort -z |
             xargs -0 shellcheck -S error
           bash unraid-plugin/tests/run.sh
 
       - name: Download checksummed upstream binary inputs
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p .ci/upstream
           repository="$(jq -r '.binaryRepository' unraid-plugin/release-manifest.json)"
           asset="$(jq -r '.binaryAsset' unraid-plugin/release-manifest.json)"
           version="$(jq -r '.pluginVersion' unraid-plugin/release-manifest.json)"
+          UPSTREAM_SHA256="$(jq -r '.upstreamBinarySha256' unraid-plugin/release-manifest.json)"
           state="$(gh release view "v${version}" --repo "$repository" --json tagName,assets)"
           jq -e --arg tag "v${version}" --arg asset "$asset" '
             .tagName == $tag and
             ([.assets[].name] | sort) == ([$asset, ($asset + ".sha256")] | sort)
           ' <<<"$state" >/dev/null
+          asset_digest="$(jq -r --arg asset "$asset" '.assets[] | select(.name == $asset) | .digest' <<<"$state")"
+          test "$asset_digest" = "sha256:${UPSTREAM_SHA256}"
           gh release download "v${version}" --repo "$repository" \
             --pattern "$asset" --pattern "${asset}.sha256" --dir .ci/upstream
+          actual_upstream_sha="$(sha256sum ".ci/upstream/$asset" | cut -d' ' -f1)"
+          test "$actual_upstream_sha" = "$UPSTREAM_SHA256"
+          (cd .ci/upstream && sha256sum --check "${asset}.sha256")
 
-      - name: Build twice and verify deterministic package
+      - name: Build twice and verify committed deterministic package
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .ci/repro
+          mkdir -p .ci/committed .ci/repro
+          package="$(jq -r '.packageFile' unraid-plugin/release-manifest.json)"
+          PACKAGE_SHA256="$(jq -r '.packageSha256' unraid-plugin/release-manifest.json)"
+          cp -- "unraid-plugin/packages/$package" .ci/committed/
+          test "$(sha256sum ".ci/committed/$package" | cut -d' ' -f1)" = "$PACKAGE_SHA256"
           umask 022
           YARR_RELEASE_ASSET_DIR="$PWD/.ci/upstream" bash unraid-plugin/scripts/build-package.sh 2.1.0 1
           bash unraid-plugin/scripts/verify-package.sh
-          package="$(jq -r '.packageFile' unraid-plugin/release-manifest.json)"
+          test "$(sha256sum "unraid-plugin/packages/$package" | cut -d' ' -f1)" = "$PACKAGE_SHA256"
+          cmp -- .ci/committed/"$package" "unraid-plugin/packages/$package"
           cp -- "unraid-plugin/packages/$package" .ci/repro/umask-022.txz
           umask 077
           YARR_RELEASE_ASSET_DIR="$PWD/.ci/upstream" bash unraid-plugin/scripts/build-package.sh 2.1.0 1
           bash unraid-plugin/scripts/verify-package.sh
+          test "$(sha256sum "unraid-plugin/packages/$package" | cut -d' ' -f1)" = "$PACKAGE_SHA256"
+          cmp -- .ci/committed/"$package" "unraid-plugin/packages/$package"
           cmp -- .ci/repro/umask-022.txz "unraid-plugin/packages/$package"
 
       - name: Check packaged secrets inventory and paths
@@ -145,7 +173,7 @@ jobs:
           set -euo pipefail
           mkdir -p .ci/artifacts
           package="$(jq -r '.packageFile' unraid-plugin/release-manifest.json)"
-          cp -- "unraid-plugin/packages/$package" unraid-plugin/yarr.plg \
+          cp -- ".ci/committed/$package" unraid-plugin/yarr.plg \
             unraid-plugin/release-manifest.json .ci/artifacts/
           (
             cd .ci/artifacts

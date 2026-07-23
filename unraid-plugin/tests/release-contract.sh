@@ -72,25 +72,20 @@ require_regex() {
     grep -Eq -- "$pattern" "$file" || fail "$message"
 }
 
-check_immutable_actions() {
-    local workflow=$1
-    local label=$2
-    mapfile -t actions < <(sed -nE 's/^[[:space:]]*uses:[[:space:]]*([^ #]+).*/\1/p' "$workflow")
-    [[ ${#actions[@]} -ge 2 ]] || fail "$label workflow has no meaningful action set"
-    local action
-    for action in "${actions[@]}"; do
-        [[ "$action" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$ ]] ||
-            fail "$label workflow action is not pinned to an immutable SHA: $action"
-    done
-}
-
-[[ -f "$manifest" ]] || fail "missing release manifest: $manifest"
-[[ -f "$inventory" ]] || fail "missing package inventory: $inventory"
-[[ -f "$ci_workflow" ]] || fail "missing Unraid CI workflow: $ci_workflow"
-[[ -f "$release_workflow" ]] || fail "missing Unraid release workflow: $release_workflow"
-[[ -f "$plugin_readme" ]] || fail "missing Unraid operator documentation: $plugin_readme"
-[[ -f "$root_readme" ]] || fail "missing root README: $root_readme"
-[[ -f "$justfile" ]] || fail "missing Justfile: $justfile"
+for required_file in \
+    "$manifest" \
+    "$inventory" \
+    "$ci_workflow" \
+    "$release_workflow" \
+    "$plugin_readme" \
+    "$root_readme" \
+    "$justfile" \
+    "$package_root/tests/workflow_contract.py" \
+    "$package_root/scripts/github-release-provenance.sh" \
+    "$package_root/scripts/publish-package-release.sh"; do
+    [[ -f "$required_file" && ! -L "$required_file" ]] ||
+        fail "missing or unsafe release input: $required_file"
+done
 
 mapfile -t paths < "$inventory"
 [[ ${#paths[@]} -gt 0 ]] || fail "package inventory is empty"
@@ -99,30 +94,37 @@ previous=''
 declare -A seen=()
 for path in "${paths[@]}"; do
     [[ -n "$path" ]] || fail "package inventory contains an empty line"
-    [[ "$path" != /* && "$path" != */ && "$path" != *//* ]] || fail "inventory path is not canonical: $path"
-    IFS='/' read -r -a components <<< "$path"
+    [[ "$path" != /* && "$path" != */ && "$path" != *//* ]] ||
+        fail "inventory path is not canonical: $path"
+    IFS='/' read -r -a components <<<"$path"
     canonical=''
     for component in "${components[@]}"; do
-        [[ -n "$component" && "$component" != . && "$component" != .. ]] || fail "inventory path is not canonical: $path"
+        [[ -n "$component" && "$component" != . && "$component" != .. ]] ||
+            fail "inventory path is not canonical: $path"
         canonical+="${canonical:+/}$component"
     done
     [[ "$canonical" == "$path" ]] || fail "inventory path is not canonical: $path"
     [[ "$path" == unraid-plugin/* ]] || fail "inventory path is outside package root: $path"
     [[ -z "${seen[$path]+yes}" ]] || fail "duplicate inventory path: $path"
     seen[$path]=1
-    [[ "$path" == unraid-plugin/yarr.plg || "$path" == unraid-plugin/release-manifest.json || "$path" == unraid-plugin/source/* || "$path" == unraid-plugin/api/* || "$path" == unraid-plugin/web/* ]] || fail "unrecognized runtime prefix: $path"
+    [[ "$path" == unraid-plugin/yarr.plg ||
+        "$path" == unraid-plugin/release-manifest.json ||
+        "$path" == unraid-plugin/source/* ||
+        "$path" == unraid-plugin/api/* ||
+        "$path" == unraid-plugin/web/* ]] ||
+        fail "unrecognized runtime prefix: $path"
     absolute="$repo_root/$path"
     [[ "$absolute" == "$package_root"/* ]] || fail "inventory path escapes package root: $path"
     if [[ -n "$previous" && "$previous" > "$path" ]]; then
         fail "package inventory is not sorted"
     fi
-    previous="$path"
+    previous=$path
 done
 
 manifest_keys=$(jq -r 'keys_unsorted[]' "$manifest")
 while IFS= read -r key; do
     case "$key" in
-        schemaVersion|pluginVersion|packageBuild|packageFile|packageSha256|packageUrl|binaryRepository|binaryAsset|apiPackage|apiVersion|settingsElement|dashboardElement) ;;
+        schemaVersion|pluginVersion|packageBuild|packageFile|packageSha256|packageUrl|binaryRepository|binaryAsset|upstreamBinarySha256|apiPackage|apiVersion|settingsElement|dashboardElement) ;;
         *) fail "unknown manifest key: $key" ;;
     esac
 done < <(printf '%s\n' "$manifest_keys" | sed '/^$/d')
@@ -136,6 +138,7 @@ jq -e '
     (.packageUrl | type == "string") and
     (.binaryRepository | type == "string") and
     (.binaryAsset | type == "string") and
+    (.upstreamBinarySha256 | type == "string" and test("^[0-9a-f]{64}$")) and
     (.apiPackage | type == "string") and
     (.apiVersion | type == "string") and
     (.settingsElement | type == "string") and
@@ -146,115 +149,41 @@ plugin_version=$(jq -r '.pluginVersion' "$manifest")
 package_build=$(jq -r '.packageBuild' "$manifest")
 expected_package_file="yarr-${plugin_version}-x86_64-${package_build}.txz"
 actual_package_file=$(jq -r '.packageFile' "$manifest")
-[[ "$actual_package_file" == "$expected_package_file" ]] || fail "package filename does not match manifest identity: expected $expected_package_file, got $actual_package_file"
+[[ "$actual_package_file" == "$expected_package_file" ]] ||
+    fail "package filename does not match manifest identity: expected $expected_package_file, got $actual_package_file"
 jq -e --arg version "$plugin_version" --arg file "$expected_package_file" \
     --arg tag "unraid-v${plugin_version}-${package_build}" '
       .apiVersion == $version and
       .binaryRepository == "dinglebear-ai/yarr" and
       .binaryAsset == "yarr-x86_64.tar.gz" and
+      (.upstreamBinarySha256 | test("^[0-9a-f]{64}$")) and
       .apiPackage == "unraid-api-plugin-yarr" and
       .settingsElement == "yarr-settings-app" and
       .dashboardElement == "yarr-dashboard" and
       .packageUrl ==
         ("https://github.com/dinglebear-ai/yarr/releases/download/" + $tag + "/" + $file)
-    ' "$manifest" >/dev/null || fail "manifest component or two-version release contract failed"
+    ' "$manifest" >/dev/null ||
+    fail "manifest component or two-version release contract failed"
 
-if "$reject_zero_sha" && jq -e '.packageSha256 == ("0" * 64)' "$manifest" >/dev/null; then
-    fail "zero package checksum is not allowed for a packaged release"
+if "$reject_zero_sha" &&
+    jq -e '.packageSha256 == ("0" * 64) or .upstreamBinarySha256 == ("0" * 64)' \
+        "$manifest" >/dev/null; then
+    fail "zero release checksum is not allowed for a packaged release"
 fi
 
-check_immutable_actions "$ci_workflow" "CI"
-check_immutable_actions "$release_workflow" "release"
-
-require_regex "$ci_workflow" '^permissions:$' "CI workflow lacks top-level permissions"
-require_literal "$ci_workflow" "  contents: read" "CI workflow lacks read-only contents permission"
-if grep -Eq 'contents:[[:space:]]*write|packages:[[:space:]]*write|id-token:[[:space:]]*write' "$ci_workflow"; then
-    fail "CI workflow grants write permissions"
-fi
-require_literal "$ci_workflow" '"unraid-plugin/**"' "CI workflow is not scoped to plugin paths"
-require_literal "$ci_workflow" '".github/workflows/unraid-plugin-ci.yml"' "CI workflow does not watch itself"
-require_literal "$ci_workflow" '".github/workflows/unraid-plugin-release.yml"' "CI workflow does not watch release automation"
-require_literal "$ci_workflow" 'cd unraid-plugin/api && npm ci && npm test && npx tsc --noEmit && npx tsc' \
-    "CI workflow omits the complete API gate"
-require_literal "$ci_workflow" 'cd unraid-plugin/web && npm ci && npm test && npx vue-tsc --noEmit && npm run build' \
-    "CI workflow omits the complete web gate"
-require_literal "$ci_workflow" 'yarr-settings.js' "CI workflow does not assert the settings bundle"
-require_literal "$ci_workflow" 'yarr-dashboard.js' "CI workflow does not assert the dashboard bundle"
-require_literal "$ci_workflow" 'bash unraid-plugin/tests/run.sh' "CI workflow omits classic/static contracts"
-require_literal "$ci_workflow" 'shellcheck -S error' "CI workflow omits ShellCheck"
-require_literal "$ci_workflow" "bash unraid-plugin/scripts/build-package.sh ${plugin_version} ${package_build}" \
-    "CI workflow build identity differs from release manifest"
-require_literal "$ci_workflow" 'bash unraid-plugin/scripts/verify-package.sh' \
-    "CI workflow omits package verification"
-require_literal "$ci_workflow" 'umask 022' "CI workflow omits the first deterministic umask"
-require_literal "$ci_workflow" 'umask 077' "CI workflow omits the second deterministic umask"
-require_literal "$ci_workflow" 'cmp -- .ci/repro/umask-022.txz' \
-    "CI workflow does not compare deterministic package output"
-require_literal "$ci_workflow" 'default.env contains a credential value' \
-    "CI workflow omits the packaged-secret check"
-require_literal "$ci_workflow" 'package-manifest.sha256' \
-    "CI workflow omits embedded inventory verification"
-require_literal "$ci_workflow" '[[ "$path" != /* && "$path" != *".."* && "$path" != *"//"* ]]' \
-    "CI workflow omits explicit package path checks"
-require_literal "$ci_workflow" 'sha256sum --check SHA256SUMS' \
-    "CI workflow does not verify its staged artifact checksums"
-require_literal "$ci_workflow" 'actions/upload-artifact@' \
-    "CI workflow does not retain the checksummed package artifact"
-
-require_regex "$release_workflow" '^permissions:$' "release workflow lacks top-level permissions"
-require_literal "$release_workflow" "  contents: read" "release workflow lacks read-only default permission"
-[[ $(grep -Ec '^[[:space:]]+contents:[[:space:]]+write$' "$release_workflow") -eq 1 ]] ||
-    fail "release workflow must grant contents write exactly once"
-require_literal "$release_workflow" '"unraid-v*"' \
-    "release workflow does not trigger on unraid-v* tags"
-require_literal "$release_workflow" 'workflow_dispatch:' \
-    "release workflow lacks a manual trigger"
-require_literal "$release_workflow" \
-    '^unraid-v([0-9]+\.[0-9]+\.[0-9]+)-([1-9][0-9]*)$' \
-    "release workflow lacks the strict package-tag parser"
-require_literal "$release_workflow" 'cd unraid-plugin/api && npm ci && npm test && npx tsc --noEmit && npx tsc' \
-    "release workflow omits the complete API gate"
-require_literal "$release_workflow" 'cd unraid-plugin/web && npm ci && npm test && npx vue-tsc --noEmit && npm run build' \
-    "release workflow omits the complete web gate"
-require_literal "$release_workflow" 'bash unraid-plugin/tests/run.sh' \
-    "release workflow omits classic/static contracts"
-require_literal "$release_workflow" 'bash unraid-plugin/scripts/verify-package.sh' \
-    "release workflow omits package verification"
-require_literal "$release_workflow" 'umask 022' "release workflow omits the first deterministic umask"
-require_literal "$release_workflow" 'umask 077' "release workflow omits the second deterministic umask"
-require_literal "$release_workflow" 'cmp -- .release/repro/umask-022.txz' \
-    "release workflow does not compare deterministic package output"
-require_literal "$release_workflow" 'yarr ${PLUGIN_VERSION}' \
-    "release workflow does not verify the embedded Yarr version"
-require_literal "$release_workflow" 'package-manifest.sha256' \
-    "release workflow omits the embedded payload inventory"
-require_literal "$release_workflow" 'release-inventory.json' \
-    "release workflow omits the machine-readable inventory"
-require_literal "$release_workflow" 'for checksum in *.sha256' \
-    "release workflow does not reverify every artifact checksum"
-require_literal "$release_workflow" 'actions/upload-artifact@' \
-    "release workflow does not stage an immutable candidate"
-require_literal "$release_workflow" 'actions/download-artifact@' \
-    "release workflow does not consume the immutable candidate"
-require_literal "$release_workflow" 'UPSTREAM_TAG="v${PLUGIN_VERSION}"' \
-    "release workflow does not isolate the upstream binary tag"
-require_literal "$release_workflow" 'gh release view "$UPSTREAM_TAG"' \
-    "release workflow does not snapshot the upstream binary release"
-require_literal "$release_workflow" 'gh release create "$PACKAGE_TAG"' \
-    "release workflow does not create the package release"
-require_literal "$release_workflow" '--draft --verify-tag' \
-    "release workflow does not stage a verified draft"
-require_literal "$release_workflow" 'trap cleanup_draft ERR INT TERM' \
-    "release workflow has no partial-draft cleanup"
-require_literal "$release_workflow" 'gh release upload "$PACKAGE_TAG"' \
-    "release workflow does not upload to the package tag"
-require_literal "$release_workflow" 'gh release edit "$PACKAGE_TAG"' \
-    "release workflow does not publish the verified package tag"
-require_literal "$release_workflow" '--draft=false --latest=false' \
-    "release workflow can publish before verification or replace binary latest"
-if grep -Eq 'gh release (create|delete|edit|upload) "\$UPSTREAM_TAG"|gh release (create|delete|edit|upload) "v\$\{PLUGIN_VERSION\}"' "$release_workflow"; then
-    fail "release workflow can mutate the upstream binary release"
-fi
+python3 "$package_root/tests/workflow_contract.py" \
+    --ci "$ci_workflow" \
+    --release "$release_workflow" ||
+    fail "structured workflow contract failed"
+require_literal "$package_root/scripts/publish-package-release.sh" \
+    'target_commitish: $sha' \
+    "release transaction does not carry resolved SHA as target commitish"
+require_literal "$package_root/scripts/publish-package-release.sh" \
+    'query_release_by_id "$owned_release_id"' \
+    "release transaction cleanup is not anchored to release ID"
+require_literal "$package_root/scripts/publish-package-release.sh" \
+    'refusing cleanup of published release ID' \
+    "release transaction can delete a published release"
 
 [[ $(grep -c '^## ' "$plugin_readme") -ge 10 ]] ||
     fail "Unraid operator documentation is too shallow"
@@ -269,11 +198,14 @@ for heading in \
     '## Uninstall' \
     '## Two-version release procedure' \
     '## Disposable-Unraid live release gate'; do
-    require_literal "$plugin_readme" "$heading" "Unraid operator documentation is missing $heading"
+    require_literal "$plugin_readme" "$heading" \
+        "Unraid operator documentation is missing $heading"
 done
 for required_text in \
     'Loopback is the default' \
     'authentication gate as LAN mode' \
+    'typed `TRUSTED_GATEWAY` / `trusted-gateway` mode' \
+    'allowlists establish provenance, not end-user identity' \
     'Tailscale Serve' \
     'Credentials are server-side only' \
     'read-only `GET` list/inspect operations' \
@@ -286,13 +218,17 @@ for required_text in \
     '/var/log/yarr.log' \
     '/var/log/graphql-api.log' \
     'unraid-v2.1.0-1' \
+    'independently committed upstream archive SHA-256' \
+    'per-run marker' \
+    'a published release is never deleted' \
     'It does not implicitly publish the existing `v2.1.0` draft' \
     'Do not run this privileged gate against a production Unraid host'; do
     require_literal "$plugin_readme" "$required_text" \
         "Unraid operator documentation omits required invariant: $required_text"
 done
 require_literal "$root_readme" '## Unraid Plugin' "root README has no Unraid entry point"
-require_literal "$root_readme" 'unraid-plugin/README.md' "root README does not link the Unraid guide"
+require_literal "$root_readme" 'unraid-plugin/README.md' \
+    "root README does not link the Unraid guide"
 require_regex "$justfile" '^unraid-test:' "Justfile lacks unraid-test"
 require_regex "$justfile" '^unraid-build version="2\.1\.0" build="1":' \
     "Justfile lacks the deterministic Unraid build recipe"
