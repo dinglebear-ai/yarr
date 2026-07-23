@@ -68,6 +68,30 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
 
+### 2026-07-23 - Independent review 2 recovery follow-up
+
+- Closed the pre-mutation recovery-directory leak from base `89081f5`.
+  Apply/reset cleanup now covers every snapshot install, file sync,
+  content/mode verification, transaction sync, and overlay sync failure.
+- Successful preparation aborts retain zero directories. Cleanup failure
+  instead preserves one mode-`0700` transaction and its bounded identifier
+  with `rolledBack=false` through shell, API, and UI. Post-mutation retention
+  is unchanged.
+- Repeated fault evidence: `32` normal apply/reset attempts preserve exact
+  source hashes/modes/readiness and retain zero directories; cleanup-removal
+  faults retain one actionable directory and cleanup-plus-retry returns to
+  zero.
+- Gates: updater PASS; focused API `40/40`; focused settings `22/22`; full API
+  `187/187`; full web `56/56`; both builds/typechecks, browser smoke,
+  zero-vulnerability production audits, package verifier, and aggregate
+  plugin/package harness PASS.
+- Umask `022`/`077` artifacts are byte-identical at SHA-256
+  `0f93751134d1e832e351c0f859ef3c96db83c6bfe164e8e070945fffd92f7cad`,
+  MD5 `2de6a0dd2423c1f55aebb023dbc19522`, size `6,220,520` bytes, with
+  `57` entries, no `./`, and `14` root-ID directories at `0755`.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.
+
 ### 2026-07-23 - Independent review 2 remediation
 
 - Logger lifecycle evidence is now atomic mode `0600` and binds PID to start

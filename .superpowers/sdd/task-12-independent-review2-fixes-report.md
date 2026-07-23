@@ -110,3 +110,25 @@ Rust source was not changed, so Rust compilation/test gates were not repeated.
 No residual implementation concern is known. Real Unraid installation and
 runtime validation remains the parent release process's disposable-host gate;
 this report does not claim independent review approval.
+
+## Reviewer-2 recovery-directory follow-up
+
+- Every apply/reset failure after recovery transaction creation and before
+  mutation now enters a validated preparation-abort path. Coverage spans both
+  snapshot installs, both file syncs, both content/mode verifications, the
+  transaction sync, and the overlay-directory sync.
+- Successful abort cleanup leaves no recovery directory. Cleanup failure
+  retains exactly one private transaction and emits its bounded basename with
+  `rolledBack=false` through shell JSON, the real command runner, and Vue.
+- Each normal fault was retried twice across apply and reset: all `32`
+  attempts preserved source hashes/modes/readiness, issued no live-path move,
+  and retained zero directories. Explicit cleanup-removal faults retained one
+  identifiable directory; operator cleanup plus retry retained zero.
+- Post-mutation preservation remains unchanged.
+- Follow-up gates: updater PASS; focused API `40/40`; focused settings `22/22`;
+  full API `187/187`; full web `56/56`; typechecks/builds/browser smoke/audits,
+  package verifier, and aggregate harness PASS.
+- Umask `022`/`077` artifacts are byte-identical at SHA-256
+  `0f93751134d1e832e351c0f859ef3c96db83c6bfe164e8e070945fffd92f7cad`,
+  MD5 `2de6a0dd2423c1f55aebb023dbc19522`, size `6,220,520` bytes. Both
+  have `57` entries, no `./`, and `14` UID/GID `0/0` directories at `0755`.

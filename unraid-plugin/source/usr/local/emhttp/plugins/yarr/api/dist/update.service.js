@@ -5,6 +5,8 @@ const paths_1 = require("./paths");
 const MAX_UPDATE_OUTPUT_BYTES = 64 * 1024;
 const CHECK_TIMEOUT_MS = 30_000;
 const MUTATION_TIMEOUT_MS = 120_000;
+const UPDATE_PREPARATION_CLEANUP_PENDING = /^Update failed before activation; recovery cleanup pending: \.yarr\.update\.recovery\.[A-Za-z0-9]{8}$/;
+const RESET_PREPARATION_CLEANUP_PENDING = /^Reset failed before mutation; recovery cleanup pending: \.yarr\.reset\.recovery\.[A-Za-z0-9]{8}$/;
 const UPDATE_KEYS = [
     "installedVersion",
     "packagedVersion",
@@ -110,6 +112,8 @@ function isSafeMessage(value) {
         /^Reset failed; restoration incomplete; recovery snapshots retained$/,
         /^Update failed before activation$/,
         /^Reset failed before mutation$/,
+        UPDATE_PREPARATION_CLEANUP_PENDING,
+        RESET_PREPARATION_CLEANUP_PENDING,
         /^Rollback failed; current binary restored$/,
         /^Rollback failed; restoration incomplete; recovery snapshots retained$/,
         /^Manual rollback is unavailable; no previous binary exists$/,
@@ -121,20 +125,22 @@ function isExpectedNonzeroOutcome(operation, value) {
     if (operation === "apply") {
         return value.message === "Update failed; previous binary restored"
             ? value.rolledBack
-            : [
+            : !value.rolledBack && ([
                 "Yarr updated; obsolete backup cleanup pending",
                 "Update failed; restoration incomplete; recovery snapshots retained",
                 "Update failed before activation",
-            ].includes(value.message) && !value.rolledBack;
+            ].includes(value.message) ||
+                UPDATE_PREPARATION_CLEANUP_PENDING.test(value.message));
     }
     if (operation === "reset") {
         return value.message === "Reset failed; previous binary restored"
             ? value.rolledBack
-            : [
+            : !value.rolledBack && ([
                 "Yarr reset; updater backup cleanup pending",
                 "Reset failed; restoration incomplete; recovery snapshots retained",
                 "Reset failed before mutation",
-            ].includes(value.message) && !value.rolledBack;
+            ].includes(value.message) ||
+                RESET_PREPARATION_CLEANUP_PENDING.test(value.message));
     }
     if (operation === "rollback") {
         if (value.message === "Rollback failed; current binary restored")

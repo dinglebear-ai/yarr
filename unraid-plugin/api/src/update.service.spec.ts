@@ -97,6 +97,10 @@ describe("UpdateService", () => {
     JSON.stringify({ ...validStatus, updateAvailable: "yes" }),
     JSON.stringify({ ...validStatus, installedVersion: "02.0.0" }),
     JSON.stringify({ ...validStatus, message: "remote-private-value" }),
+    JSON.stringify({
+      ...validStatus,
+      message: "Update failed before activation; recovery cleanup pending: ../../private",
+    }),
     `${JSON.stringify(validStatus)} trailing`,
     "x".repeat(64 * 1024 + 1),
   ])("rejects malformed, unsafe, or oversized updater output", async (stdout) => {
@@ -145,6 +149,16 @@ describe("UpdateService", () => {
       rolledBack: false,
       message: "Reset failed; restoration incomplete; recovery snapshots retained",
     };
+    const updatePreparationCleanupPending = {
+      ...validStatus,
+      rolledBack: false,
+      message: "Update failed before activation; recovery cleanup pending: .yarr.update.recovery.Ab12Cd34",
+    };
+    const resetPreparationCleanupPending = {
+      ...validStatus,
+      rolledBack: false,
+      message: "Reset failed before mutation; recovery cleanup pending: .yarr.reset.recovery.Z9y8X7w6",
+    };
 
     await expect(
       boundaryHarness(JSON.stringify(rolledBack), 1).apply("2.1.0"),
@@ -164,6 +178,12 @@ describe("UpdateService", () => {
     await expect(
       boundaryHarness(JSON.stringify(resetRestorationIncomplete), 1).reset(),
     ).resolves.toEqual(resetRestorationIncomplete);
+    await expect(
+      boundaryHarness(JSON.stringify(updatePreparationCleanupPending), 1).apply("2.1.0"),
+    ).resolves.toEqual(updatePreparationCleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(resetPreparationCleanupPending), 1).reset(),
+    ).resolves.toEqual(resetPreparationCleanupPending);
   });
 
   it("keeps malformed and unexpected real-runner nonzero exits as failures", async () => {
@@ -200,6 +220,20 @@ describe("UpdateService", () => {
       }), 1).reset(),
     ).rejects.toThrow("Yarr update reset failed");
     await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        rolledBack: true,
+        message: "Update failed before activation; recovery cleanup pending: .yarr.update.recovery.Ab12Cd34",
+      }), 1).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        rolledBack: false,
+        message: "Reset failed before mutation; recovery cleanup pending: .yarr.reset.recovery.Z9y8X7w6",
+      }), 1).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
       boundaryHarness(JSON.stringify(validStatus), 2, "private-output").reset(),
     ).rejects.toThrow("Yarr update reset failed");
   });
@@ -215,6 +249,8 @@ describe("UpdateService", () => {
     "Reset failed; restoration incomplete; recovery snapshots retained",
     "Update failed before activation",
     "Reset failed before mutation",
+    "Update failed before activation; recovery cleanup pending: .yarr.update.recovery.Ab12Cd34",
+    "Reset failed before mutation; recovery cleanup pending: .yarr.reset.recovery.Z9y8X7w6",
     "Rollback failed; current binary restored",
     "Rollback failed; restoration incomplete; recovery snapshots retained",
     "Manual rollback is unavailable; no previous binary exists",

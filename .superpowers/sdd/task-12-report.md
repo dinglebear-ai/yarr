@@ -366,3 +366,27 @@ No deployment, workflow dispatch, release publication, or upstream draft
 mutation occurred. Independent review approval remains pending. Detailed
 evidence is in
 `.superpowers/sdd/task-12-independent-review2-fixes-report.md`.
+
+## 2026-07-23 independent review 2 recovery follow-up
+
+The remaining pre-mutation recovery-directory leak is remediated from
+`89081f572806eefb36e2dc4c34c1668ef1e6f495`. Apply and reset immediately remove
+their newly created transaction after every snapshot preparation failure. If
+that removal fails, the transaction remains private and shell/API/UI preserve
+its validated identifier with `rolledBack=false`; normal retries cannot
+accumulate directories. Failures after mutation begins still retain durable
+snapshots.
+
+Focused gates pass: updater contract, API update service `40/40`, and web
+settings `22/22`. Full API is `187/187`; full web is `56/56`; both typechecks,
+builds, browser bundle smoke, and production audits pass. Package verification
+and the aggregate plugin/package harness pass. Umask `022` and `077` packages
+are byte-identical at SHA-256
+`0f93751134d1e832e351c0f859ef3c96db83c6bfe164e8e070945fffd92f7cad`,
+MD5 `2de6a0dd2423c1f55aebb023dbc19522`, and `6,220,520` bytes. Each archive has
+`57` entries, no `./` member, and `14` UID/GID `0/0` directories at `0755`.
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent review approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-independent-review2-followup-report.md`.

@@ -160,6 +160,14 @@ failed restoration step. `rolledBack=true` is emitted only after exact
 hash/mode checks, durability syncs, and prior runtime-state readiness all pass.
 An incomplete restoration fails explicitly with `rolledBack=false` and retains
 the snapshots and surviving binaries under the overlay for operator recovery.
+If snapshot preparation fails before either live binary is touched, the updater
+removes that new recovery transaction immediately. A removal failure is
+reported as `rolledBack=false` with the validated
+`.yarr.update.recovery.*` or `.yarr.reset.recovery.*` identifier; the Updates
+panel preserves that identifier and directs the operator to
+`/mnt/user/appdata/yarr/bin`. Recovery transactions remain retained by design
+after mutation begins until restoration is proven or an operator resolves the
+failure.
 Manual rollback is available from the Updates panel or as
 `yarr-update.sh rollback --json`. **Reset to packaged** removes the appdata
 overlay so `/usr/local/yarr/bin/yarr` is selected again. Neither action changes

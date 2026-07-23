@@ -63,6 +63,8 @@ YARR_RECOVERY_HAD_PREVIOUS=false
 YARR_RECOVERY_PREPARED=false
 YARR_RESTORATION_ATTEMPTED=false
 YARR_RESTORATION_INCOMPLETE=false
+YARR_PREPARATION_CLEANUP_PENDING=false
+YARR_RECOVERY_IDENTIFIER=''
 YARR_RESET_CLEANUP_PENDING=false
 YARR_APPLY_CLEANUP_PENDING=false
 YARR_UPDATE_CONNECT_TIMEOUT=${YARR_UPDATE_CONNECT_TIMEOUT:-10}
@@ -391,6 +393,8 @@ yarr_update_with_lock() {
 
 yarr_update_apply_locked() {
     local candidate=$1 ownership_status candidate_sha candidate_mode
+    YARR_PREPARATION_CLEANUP_PENDING=false
+    YARR_RECOVERY_IDENTIFIER=''
     YARR_APPLY_CLEANUP_PENDING=false
     YARR_ROLLED_BACK=false
     YARR_RESTORATION_ATTEMPTED=false
@@ -482,6 +486,8 @@ yarr_update_apply_locked() {
 
 yarr_update_reset_locked() {
     local ownership_status
+    YARR_PREPARATION_CLEANUP_PENDING=false
+    YARR_RECOVERY_IDENTIFIER=''
     YARR_RESET_CLEANUP_PENDING=false
     YARR_ROLLED_BACK=false
     YARR_RESTORATION_ATTEMPTED=false
@@ -562,6 +568,8 @@ yarr_update_copy_binary() {
 
 yarr_update_prepare_recovery_snapshots() {
     local label=$1 transaction
+    YARR_PREPARATION_CLEANUP_PENDING=false
+    YARR_RECOVERY_IDENTIFIER=''
     YARR_RECOVERY_HAD_ACTIVE=false
     YARR_RECOVERY_HAD_PREVIOUS=false
     YARR_RECOVERY_PREPARED=false
@@ -587,24 +595,45 @@ yarr_update_prepare_recovery_snapshots() {
         [[ "$YARR_RECOVERY_PREVIOUS_MODE" =~ ^[0-7]{3,4}$ ]] || return 1
     fi
     transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.${label}.recovery.XXXXXXXX") || return 1
-    chmod 0700 "$transaction" || return 1
     YARR_RECOVERY_TRANSACTION=$transaction
     YARR_RECOVERY_ACTIVE_SNAPSHOT="${transaction}/active.snapshot"
     YARR_RECOVERY_PREVIOUS_SNAPSHOT="${transaction}/previous.snapshot"
+    if ! chmod 0700 "$transaction"; then
+        yarr_update_abort_recovery_preparation || true
+        return 1
+    fi
     if [[ "$YARR_RECOVERY_HAD_ACTIVE" == true ]]; then
-        yarr_update_copy_binary "$YARR_TXN_ACTIVE" "$YARR_RECOVERY_ACTIVE_SNAPSHOT" \
-            "$YARR_RECOVERY_ACTIVE_MODE" || return 1
-        yarr_update_binary_matches "$YARR_RECOVERY_ACTIVE_SNAPSHOT" \
-            "$YARR_RECOVERY_ACTIVE_SHA" "$YARR_RECOVERY_ACTIVE_MODE" || return 1
+        if ! yarr_update_copy_binary "$YARR_TXN_ACTIVE" "$YARR_RECOVERY_ACTIVE_SNAPSHOT" \
+            "$YARR_RECOVERY_ACTIVE_MODE"; then
+            yarr_update_abort_recovery_preparation || true
+            return 1
+        fi
+        if ! yarr_update_binary_matches "$YARR_RECOVERY_ACTIVE_SNAPSHOT" \
+            "$YARR_RECOVERY_ACTIVE_SHA" "$YARR_RECOVERY_ACTIVE_MODE"; then
+            yarr_update_abort_recovery_preparation || true
+            return 1
+        fi
     fi
     if [[ "$YARR_RECOVERY_HAD_PREVIOUS" == true ]]; then
-        yarr_update_copy_binary "$YARR_TXN_PREVIOUS" "$YARR_RECOVERY_PREVIOUS_SNAPSHOT" \
-            "$YARR_RECOVERY_PREVIOUS_MODE" || return 1
-        yarr_update_binary_matches "$YARR_RECOVERY_PREVIOUS_SNAPSHOT" \
-            "$YARR_RECOVERY_PREVIOUS_SHA" "$YARR_RECOVERY_PREVIOUS_MODE" || return 1
+        if ! yarr_update_copy_binary "$YARR_TXN_PREVIOUS" "$YARR_RECOVERY_PREVIOUS_SNAPSHOT" \
+            "$YARR_RECOVERY_PREVIOUS_MODE"; then
+            yarr_update_abort_recovery_preparation || true
+            return 1
+        fi
+        if ! yarr_update_binary_matches "$YARR_RECOVERY_PREVIOUS_SNAPSHOT" \
+            "$YARR_RECOVERY_PREVIOUS_SHA" "$YARR_RECOVERY_PREVIOUS_MODE"; then
+            yarr_update_abort_recovery_preparation || true
+            return 1
+        fi
     fi
-    "$YARR_SYNC_BIN" -f "$transaction" || return 1
-    "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" || return 1
+    if ! "$YARR_SYNC_BIN" -f "$transaction"; then
+        yarr_update_abort_recovery_preparation || true
+        return 1
+    fi
+    if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
+        yarr_update_abort_recovery_preparation || true
+        return 1
+    fi
     YARR_RECOVERY_PREPARED=true
     YARR_UPDATE_ROLLBACK=yarr_update_rollback_recovery_current
 }
@@ -698,11 +727,52 @@ yarr_update_rollback_recovery_current() {
     yarr_update_restore_recovery_pair
 }
 
-yarr_update_remove_recovery_transaction() {
-    [[ -n "$YARR_RECOVERY_TRANSACTION" ]] || return 0
-    "$YARR_RM_BIN" -rf -- "$YARR_RECOVERY_TRANSACTION" || return 1
+yarr_update_recovery_identifier() {
+    local identifier
+
+    [[ -n "$YARR_RECOVERY_TRANSACTION" ]] || return 1
+    identifier=${YARR_RECOVERY_TRANSACTION##*/}
+    [[ "$identifier" =~ ^\.yarr\.(update|reset)\.recovery\.[A-Za-z0-9]{8}$ ]] || return 1
+    [[ "$YARR_RECOVERY_TRANSACTION" == "$YARR_OVERLAY_DIR/$identifier" ]] || return 1
+    printf '%s\n' "$identifier"
+}
+
+yarr_update_clear_recovery_reference() {
     YARR_RECOVERY_TRANSACTION=''
+    YARR_RECOVERY_ACTIVE_SNAPSHOT=''
+    YARR_RECOVERY_PREVIOUS_SNAPSHOT=''
     YARR_RECOVERY_PREPARED=false
+}
+
+yarr_update_remove_recovery_transaction() {
+    local identifier
+
+    [[ -n "$YARR_RECOVERY_TRANSACTION" ]] || return 0
+    identifier=$(yarr_update_recovery_identifier) || return 1
+    if [[ ! -e "$YARR_RECOVERY_TRANSACTION" && ! -L "$YARR_RECOVERY_TRANSACTION" ]]; then
+        yarr_update_clear_recovery_reference
+        return 0
+    fi
+    [[ -d "$YARR_RECOVERY_TRANSACTION" && ! -L "$YARR_RECOVERY_TRANSACTION" ]] || return 1
+    "$YARR_RM_BIN" -rf -- "$YARR_RECOVERY_TRANSACTION" || return 1
+    yarr_update_clear_recovery_reference
+}
+
+yarr_update_abort_recovery_preparation() {
+    local identifier
+
+    YARR_UPDATE_ROLLBACK=''
+    identifier=$(yarr_update_recovery_identifier) || {
+        yarr_update_error 'snapshot preparation failed and the recovery transaction identity could not be validated'
+        return 1
+    }
+    if yarr_update_remove_recovery_transaction; then
+        return 0
+    fi
+    YARR_PREPARATION_CLEANUP_PENDING=true
+    YARR_RECOVERY_IDENTIFIER=$identifier
+    yarr_update_error "snapshot preparation failed; recovery cleanup pending: $identifier"
+    return 1
 }
 
 yarr_update_discard_unmodified_recovery() {
@@ -959,7 +1029,11 @@ yarr_update_apply_prepared_locked() {
     fi
     yarr_update_ensure_overlay_dir || return 1
     if ! yarr_update_apply_locked "$candidate"; then
-        if [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
+        if [[ "$YARR_PREPARATION_CLEANUP_PENDING" == true ]]; then
+            yarr_update_emit "$version" false \
+                "Update failed before activation; recovery cleanup pending: $YARR_RECOVERY_IDENTIFIER"
+            return 1
+        elif [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
             yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending'
             return 1
         fi
@@ -979,6 +1053,11 @@ yarr_update_apply_prepared_locked() {
 yarr_update_reset_request_locked() {
     yarr_update_require_array_active || return 1
     if ! yarr_update_reset_locked; then
+        if [[ "$YARR_PREPARATION_CLEANUP_PENDING" == true ]]; then
+            yarr_update_emit '' false \
+                "Reset failed before mutation; recovery cleanup pending: $YARR_RECOVERY_IDENTIFIER"
+            return 1
+        fi
         [[ "$YARR_RESET_CLEANUP_PENDING" == true ]] && return 1
         if [[ "$YARR_RESTORATION_INCOMPLETE" == true ]]; then
             yarr_update_emit '' false \

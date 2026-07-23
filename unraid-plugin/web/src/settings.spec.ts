@@ -569,6 +569,46 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain("The prior binary and runtime state were not confirmed restored.");
   });
 
+  it("preserves preparation cleanup identifiers and displays operator action", async () => {
+    await mountSettings();
+    const updateIdentifier = ".yarr.update.recovery.Ab12Cd34";
+    const resetIdentifier = ".yarr.reset.recovery.Z9y8X7w6";
+    api.queryYarrUpdateStatus.mockResolvedValue({
+      installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: "Update available: 1.3.0",
+    });
+    api.updateYarrBinary.mockResolvedValue({
+      installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: `Update failed before activation; recovery cleanup pending: ${updateIdentifier}`,
+    });
+    api.resetYarrBinary.mockResolvedValue({
+      installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "",
+      updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: `Reset failed before mutation; recovery cleanup pending: ${resetIdentifier}`,
+    });
+
+    button("Updates").click();
+    await flush();
+    button("Install 1.3.0").click();
+    await nextTick();
+    button("Install update").click();
+    await flush();
+    expect(host.textContent).toContain(updateIdentifier);
+    expect(host.textContent).toContain("/mnt/user/appdata/yarr/bin");
+    expect(host.textContent).toContain("The active binaries were not changed.");
+    expect(host.textContent).not.toContain("The previous version was restored.");
+
+    button("Reset to packaged version").click();
+    await nextTick();
+    button("Reset Yarr").click();
+    await flush();
+    expect(host.textContent).toContain(resetIdentifier);
+    expect(host.textContent).toContain("/mnt/user/appdata/yarr/bin");
+    expect(host.textContent).not.toContain("The previous version was restored.");
+  });
+
   it("serializes usernames only for capable services and preserves qBittorrent", async () => {
     await mountSettings();
     api.mutateYarrConfig.mockResolvedValue({

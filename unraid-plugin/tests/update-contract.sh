@@ -119,8 +119,16 @@ if { [[ "\${YARR_TEST_FAIL_COMMAND:-}" == "\$name" && "\${YARR_TEST_FAIL_AT:-0}"
     { [[ "\${YARR_TEST_FAIL_COMMAND_2:-}" == "\$name" && "\${YARR_TEST_FAIL_AT_2:-0}" == "\$count" ]]; }; then
     exit 1
 fi
+if [[ "\$name" == rm && "\${YARR_TEST_FAIL_RECOVERY_RM:-false}" == true &&
+      "\$*" == *".yarr."*".recovery."* ]]; then
+    exit 1
+fi
 $real "\$@"
 status=\$?
+if [[ "\$status" == 0 && "\$name" == install &&
+      "\${YARR_TEST_CORRUPT_INSTALL_AT:-0}" == "\$count" ]]; then
+    printf '\\ncorrupted snapshot\\n' >> "\${!#}"
+fi
 if [[ "\$status" == 0 && "\${YARR_TEST_SIGNAL_COMMAND:-}" == "\$name" && "\${YARR_TEST_SIGNAL_AT:-0}" == "\$count" ]]; then
     kill -TERM "\$PPID"
 fi
@@ -148,7 +156,8 @@ reset_boundaries() {
     mkdir -p "$YARR_TEST_FAKE_COUNTS"
     : > "$YARR_TEST_OPERATION_LOG"
     unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
-        YARR_TEST_FAIL_AT_2 YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
+        YARR_TEST_FAIL_AT_2 YARR_TEST_CORRUPT_INSTALL_AT \
+        YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 }
 
 write_yarr() {
@@ -575,6 +584,152 @@ assert_candidate_committed() {
     "$rc" status >/dev/null || fail "$1 did not retain candidate readiness"
 }
 
+recovery_directory_count() {
+    local operation=$1
+    find "$YARR_OVERLAY_DIR" -maxdepth 1 -type d \
+        -name ".yarr.${operation}.recovery.*" -printf . | wc -c
+}
+
+assert_preparation_sources_unchanged() {
+    local label=$1 active_sha=$2 active_mode=$3 previous_sha=$4 previous_mode=$5
+    expect_eq "$active_sha" "$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')" \
+        "$label active binary hash"
+    expect_eq "$active_mode" "$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr")" \
+        "$label active binary mode"
+    expect_eq "$previous_sha" "$(sha256sum "$YARR_OVERLAY_DIR/yarr.previous" | awk '{print $1}')" \
+        "$label previous binary hash"
+    expect_eq "$previous_mode" "$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr.previous")" \
+        "$label previous binary mode"
+    if grep -q '^mv ' "$YARR_TEST_OPERATION_LOG"; then
+        fail "$label mutated a source binary"
+    fi
+}
+
+snapshot_preparation_cases=(
+    'active snapshot install|install|1|false'
+    'active snapshot file sync|sync|1|false'
+    'active snapshot verification|install|1|true'
+    'previous snapshot install|install|2|false'
+    'previous snapshot file sync|sync|2|false'
+    'previous snapshot verification|install|2|true'
+    'recovery transaction sync|sync|3|false'
+    'overlay directory sync|sync|4|false'
+)
+
+for operation in apply reset; do
+    if [[ "$operation" == apply ]]; then
+        recovery_label=update
+        expected_preparation_message='Update failed before activation'
+    else
+        recovery_label=reset
+        expected_preparation_message='Reset failed before mutation'
+    fi
+    for case_spec in "${snapshot_preparation_cases[@]}"; do
+        IFS='|' read -r case_label boundary failure_at corrupt_install <<<"$case_spec"
+        prepare_running_overlay
+        active_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
+        active_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr")
+        previous_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr.previous" | awk '{print $1}')
+        previous_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr.previous")
+        for attempt in 1 2; do
+            reset_boundaries
+            if [[ "$corrupt_install" == true ]]; then
+                export YARR_TEST_CORRUPT_INSTALL_AT=$failure_at
+            else
+                export YARR_TEST_FAIL_COMMAND=$boundary
+                export YARR_TEST_FAIL_AT=$failure_at
+            fi
+            if [[ "$operation" == apply ]]; then
+                expect_failure "$operation $case_label attempt $attempt" \
+                    "$updater" apply --version 2.1.0 --json
+            else
+                expect_failure "$operation $case_label attempt $attempt" \
+                    "$updater" reset --json
+            fi
+            jq -e --arg message "$expected_preparation_message" \
+                '.rolledBack == false and .message == $message' \
+                "$tmp_dir/command.out" >/dev/null ||
+                fail "$operation $case_label did not return a truthful pre-mutation outcome"
+            expect_eq '0' "$(recovery_directory_count "$recovery_label")" \
+                "$operation $case_label leaked a recovery directory"
+            assert_preparation_sources_unchanged "$operation $case_label attempt $attempt" \
+                "$active_sha_before" "$active_mode_before" \
+                "$previous_sha_before" "$previous_mode_before"
+            assert_running_overlay_restored "$operation $case_label attempt $attempt"
+        done
+    done
+done
+
+for operation in apply reset; do
+    if [[ "$operation" == apply ]]; then
+        recovery_label=update
+        pending_prefix='Update failed before activation; recovery cleanup pending: '
+    else
+        recovery_label=reset
+        pending_prefix='Reset failed before mutation; recovery cleanup pending: '
+    fi
+    prepare_running_overlay
+    active_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
+    active_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr")
+    previous_sha_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr.previous" | awk '{print $1}')
+    previous_mode_before=$(stat -c '%a' "$YARR_OVERLAY_DIR/yarr.previous")
+    reset_boundaries
+    export YARR_TEST_FAIL_COMMAND=sync
+    export YARR_TEST_FAIL_AT=1
+    export YARR_TEST_FAIL_RECOVERY_RM=true
+    if [[ "$operation" == apply ]]; then
+        expect_failure "$operation preparation cleanup failure" \
+            "$updater" apply --version 2.1.0 --json
+    else
+        expect_failure "$operation preparation cleanup failure" \
+            "$updater" reset --json
+    fi
+    cleanup_message=$(jq -r '.message' "$tmp_dir/command.out")
+    [[ "$cleanup_message" == "$pending_prefix"* ]] ||
+        fail "$operation cleanup failure was not preserved as a structured outcome"
+    recovery_identifier=${cleanup_message#"$pending_prefix"}
+    [[ "$recovery_identifier" =~ ^\.yarr\.${recovery_label}\.recovery\.[A-Za-z0-9]{8}$ ]] ||
+        fail "$operation cleanup failure returned an unsafe recovery identifier"
+    jq -e '.rolledBack == false' "$tmp_dir/command.out" >/dev/null ||
+        fail "$operation cleanup failure falsely claimed restoration"
+    retained_recovery="$YARR_OVERLAY_DIR/$recovery_identifier"
+    [[ -d "$retained_recovery" && ! -L "$retained_recovery" &&
+        -x "$retained_recovery/active.snapshot" ]] ||
+        fail "$operation cleanup failure did not retain its partial recovery transaction"
+    expect_eq '700' "$(stat -c '%a' "$retained_recovery")" \
+        "$operation retained recovery transaction mode"
+    expect_eq '1' "$(recovery_directory_count "$recovery_label")" \
+        "$operation cleanup failure recovery directory count"
+    assert_preparation_sources_unchanged "$operation cleanup failure" \
+        "$active_sha_before" "$active_mode_before" \
+        "$previous_sha_before" "$previous_mode_before"
+    assert_running_overlay_restored "$operation cleanup failure"
+
+    /bin/rm -rf -- "$retained_recovery"
+    reset_boundaries
+    export YARR_TEST_FAIL_COMMAND=sync
+    export YARR_TEST_FAIL_AT=1
+    if [[ "$operation" == apply ]]; then
+        expect_failure "$operation preparation retry after cleanup failure" \
+            "$updater" apply --version 2.1.0 --json
+        expected_preparation_message='Update failed before activation'
+    else
+        expect_failure "$operation preparation retry after cleanup failure" \
+            "$updater" reset --json
+        expected_preparation_message='Reset failed before mutation'
+    fi
+    jq -e --arg message "$expected_preparation_message" \
+        '.rolledBack == false and .message == $message' \
+        "$tmp_dir/command.out" >/dev/null ||
+        fail "$operation retry did not return a truthful pre-mutation outcome"
+    expect_eq '0' "$(recovery_directory_count "$recovery_label")" \
+        "$operation retry leaked a recovery directory"
+    assert_preparation_sources_unchanged "$operation retry after cleanup failure" \
+        "$active_sha_before" "$active_mode_before" \
+        "$previous_sha_before" "$previous_mode_before"
+    assert_running_overlay_restored "$operation retry after cleanup failure"
+done
+
 prepare_running_overlay
 write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
 reset_boundaries
@@ -753,7 +908,8 @@ expect_failure 'signal during apply post-commit cleanup' "$updater" apply --vers
 assert_candidate_committed 'signal during apply post-commit cleanup'
 
 unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
-    YARR_TEST_FAIL_AT_2 YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
+    YARR_TEST_FAIL_AT_2 YARR_TEST_CORRUPT_INSTALL_AT \
+    YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 "$rc" stop
 
 printf 'update contract: PASS\n'
