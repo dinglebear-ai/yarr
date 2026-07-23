@@ -335,3 +335,34 @@ production audit findings. The rebuilt package is SHA-256
 `dab032149ea8d3682dc41b94d58d62f7906a39a383705fd7ef0c9b8c38f98957`,
 MD5 `1ae9cdd127b855f24bc178a57ada09e1`, size `6,221,988` bytes. No live or
 release mutation occurred, and no review approval is claimed.
+
+## 2026-07-23 independent review 2 remediation
+
+All four findings from independent reviewer 2 are remediated from
+`84decee6bc8b6257a42eeab62fe1531ee9d18bd4`: logger signals now require
+atomic private PID/start-tick/executable/argv identity evidence; apply and reset
+now use non-consumable durable snapshots and truthful restoration outcomes;
+credential-only import requires an imported or existing valid service URL; and
+stopped status establishes process ownership before parsing malformed config.
+
+Fault injection proves apply/reset commit-sync failure followed by restoration
+move failure retains recovery snapshots and surviving binaries with
+`rolledBack=false`. PID-reuse coverage proves an unrelated `sleep` survives
+stale logger evidence. Malformed/no-PID status, pre-install quiescence, array
+stop, and uninstall all complete, while unverified live PID evidence remains
+fail-closed.
+
+Final gates pass with API `184/184`, web `55/55`, both typechecks/builds,
+browser smoke, zero-vulnerability production audits, focused lifecycle/updater
+contracts, aggregate package/plugin contracts, package verification,
+ShellCheck `16`, actionlint `2`, Python `2`, secret inventory, and diff hygiene.
+Umask `022` and `077` packages are byte-identical at SHA-256
+`0615f59bf6b68fe6a9bf9e490bca9996e3cb598c6c86663d83fd02cb301b0a67`,
+MD5 `f122fe0b41741664c6a8e6b4e57fb443`, size `6,221,460` bytes. Each archive
+has `57` entries, `43` files, `14` root:root mode-`0755` directories, no `./`
+member, and a `42`-file embedded payload inventory.
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent review approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-independent-review2-fixes-report.md`.

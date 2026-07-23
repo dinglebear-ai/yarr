@@ -1,5 +1,10 @@
 import type { SaveConfigResult } from "./config.service";
-import type { SaveYarrConfigInput, SaveYarrServiceInput, SecretUpdate } from "./config.types";
+import type {
+  SaveYarrConfigInput,
+  SaveYarrServiceInput,
+  SecretUpdate,
+  YarrConfigView,
+} from "./config.types";
 import { parseImportText } from "./import-parser";
 import {
   normalizeCatalogKey,
@@ -16,6 +21,7 @@ export interface ImportMapping {
   hasUsername: boolean;
   hasPassword: boolean;
   hasApiKey: boolean;
+  urlRequired: boolean;
 }
 
 export interface ImportPreview {
@@ -31,6 +37,7 @@ export interface ApplyImportInput {
 }
 
 export interface ConfigWriter {
+  read(): Promise<YarrConfigView>;
   save(input: SaveYarrConfigInput): Promise<SaveConfigResult>;
 }
 
@@ -106,10 +113,11 @@ export class ImportService {
     const ordered = SERVICE_CATALOG
       .map((entry) => services.get(entry.id))
       .filter((entry): entry is ImportedService => entry !== undefined);
+    const current = await this.config.read();
     const previewId = this.sessions.create({ services: new Map(ordered.map((item) => [item.serviceId, item])) });
     return {
       previewId,
-      mappings: ordered.map(publicMapping),
+      mappings: ordered.map((imported) => publicMapping(imported, configuredUrl(current, imported.serviceId))),
       warnings,
     };
   }
@@ -119,12 +127,17 @@ export class ImportService {
     if (!session) throw new Error("invalid or expired import preview");
     const selected = uniqueStrings(input.selectedServiceIds, "selectedServiceIds");
     const updates: SaveYarrServiceInput[] = [];
+    const current = await this.config.read();
 
     for (const serviceId of selected) {
       const imported = session.services.get(serviceId);
       if (!imported) throw new Error(`service ${serviceId} was not present in this import preview`);
       const consent = input.credentialConsent[serviceId] === true;
-      updates.push(toConfigUpdate(imported, consent));
+      const effectiveUrl = imported.baseUrl ?? configuredUrl(current, serviceId);
+      if (!effectiveUrl) {
+        throw new Error(`${serviceId} requires a valid URL before it can be enabled`);
+      }
+      updates.push(toConfigUpdate(imported, consent, effectiveUrl));
     }
     return this.config.save({ services: updates });
   }
@@ -141,25 +154,31 @@ function buildKeyIndex(): ReadonlyMap<string, KeyTarget> {
   return index;
 }
 
-function publicMapping(imported: ImportedService): ImportMapping {
+function publicMapping(imported: ImportedService, existingUrl: string | undefined): ImportMapping {
   return {
     serviceId: imported.serviceId,
     baseUrl: imported.baseUrl ?? null,
     hasUsername: hasValue(imported.username),
     hasPassword: hasValue(imported.password),
     hasApiKey: hasValue(imported.apiKey),
+    urlRequired: imported.baseUrl === undefined && existingUrl === undefined,
   };
 }
 
-function toConfigUpdate(imported: ImportedService, consent: boolean): SaveYarrServiceInput {
+function toConfigUpdate(imported: ImportedService, consent: boolean, effectiveUrl: string): SaveYarrServiceInput {
   return {
     service: imported.serviceId,
     enabled: true,
-    baseUrl: imported.baseUrl,
+    baseUrl: effectiveUrl,
     username: consent ? imported.username : undefined,
     password: secretUpdate(imported.password, consent),
     apiKey: secretUpdate(imported.apiKey, consent),
   };
+}
+
+function configuredUrl(config: YarrConfigView, serviceId: string): string | undefined {
+  const value = config.services.find((service) => service.service === serviceId)?.baseUrl;
+  return value ? normalizeServiceUrl(value) ?? undefined : undefined;
 }
 
 function secretUpdate(value: string | undefined, consent: boolean): SecretUpdate {

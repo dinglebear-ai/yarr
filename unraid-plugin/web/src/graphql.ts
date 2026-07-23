@@ -62,7 +62,7 @@ const UPDATE_FIELDS = `
 const YARR_UPDATE_STATUS_QUERY = `query YarrUpdateStatus { yarrUpdateStatus { ${UPDATE_FIELDS} } }`;
 const PREVIEW_YARR_IMPORT_MUTATION = `mutation PreviewYarrImport($input: PreviewYarrImportInput!) {
   previewYarrImport(input: $input) {
-    previewId mappings { serviceId baseUrl hasUsername hasPassword hasApiKey } warnings
+    previewId mappings { serviceId baseUrl hasUsername hasPassword hasApiKey urlRequired } warnings
   }
 }`;
 const APPLY_YARR_IMPORT_MUTATION = `mutation ApplyYarrImport($input: ApplyYarrImportInput!) {

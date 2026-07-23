@@ -181,6 +181,8 @@ export class YarrImportMapping {
   hasPassword!: boolean;
   @Field(() => Boolean)
   hasApiKey!: boolean;
+  @Field(() => Boolean)
+  urlRequired!: boolean;
 }
 
 @ObjectType()
@@ -502,7 +504,7 @@ export const graphqlSchemaExtension = async () => `
   type YarrConfig { plugin: YarrPluginConfig!, services: [YarrServiceConfig!]! }
   type YarrConfigMutationResult { config: YarrConfig!, changed: Boolean!, restarted: Boolean!, rolledBack: Boolean!, error: String }
   type YarrLogs { lines: [String!]!, truncated: Boolean! }
-  type YarrImportMapping { serviceId: String!, baseUrl: String, hasUsername: Boolean!, hasPassword: Boolean!, hasApiKey: Boolean! }
+  type YarrImportMapping { serviceId: String!, baseUrl: String, hasUsername: Boolean!, hasPassword: Boolean!, hasApiKey: Boolean!, urlRequired: Boolean! }
   type YarrImportPreview { previewId: String!, mappings: [YarrImportMapping!]!, warnings: [String!]! }
   type YarrDiscoveryCandidate { candidateId: String!, source: String!, serviceId: String!, confidence: Int!, reasons: [String!]!, baseUrl: String!, hasCredential: Boolean! }
   type YarrDiscoveryError { code: String!, message: String! }

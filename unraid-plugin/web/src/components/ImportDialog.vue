@@ -14,7 +14,13 @@ const busy = ref(false);
 const error = ref("");
 let controller: AbortController | undefined;
 
-const canApply = computed(() => selected.value.length > 0 && !busy.value);
+const canApply = computed(() =>
+  selected.value.length > 0 &&
+  !busy.value &&
+  selected.value.every((serviceId) =>
+    preview.value?.mappings.some((mapping) => mapping.serviceId === serviceId && !mapping.urlRequired) === true,
+  ),
+);
 
 function reset(): void {
   controller?.abort();
@@ -62,7 +68,7 @@ async function requestPreview(): Promise<void> {
 }
 
 async function apply(): Promise<void> {
-  if (!preview.value || selected.value.length === 0) return;
+  if (!preview.value || !canApply.value) return;
   controller?.abort();
   controller = new AbortController();
   busy.value = true;
@@ -98,8 +104,10 @@ onBeforeUnmount(reset);
       <p>Select at least one service. Credential permission is separate for each selected service.</p>
       <ul v-if="preview.warnings.length" class="yarr-warning-list"><li v-for="warning in preview.warnings" :key="warning">{{ warning }}</li></ul>
       <fieldset v-for="mapping in preview.mappings" :key="mapping.serviceId" class="yarr-choice-row">
-        <label><input v-model="selected" type="checkbox" :name="`import-service-${mapping.serviceId}`" :value="mapping.serviceId" :disabled="busy"> <strong>{{ displayName(mapping.serviceId) }}</strong></label>
-        <span>{{ mapping.baseUrl ?? "No URL mapped" }}</span>
+        <label><input v-model="selected" type="checkbox" :name="`import-service-${mapping.serviceId}`" :value="mapping.serviceId" :disabled="busy || mapping.urlRequired"> <strong>{{ displayName(mapping.serviceId) }}</strong></label>
+        <span v-if="mapping.baseUrl">{{ mapping.baseUrl }}</span>
+        <span v-else-if="mapping.urlRequired" class="yarr-error">URL required before this service can be imported.</span>
+        <span v-else>Uses the existing configured URL.</span>
         <label v-if="selected.includes(mapping.serviceId) && hasCredential(mapping)"><input v-model="consent[mapping.serviceId]" type="checkbox" :disabled="busy"> Import credentials for {{ displayName(mapping.serviceId) }}</label>
       </fieldset>
       <p v-if="error" class="yarr-error" role="alert">{{ error }}</p>

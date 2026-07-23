@@ -94,9 +94,9 @@ onBeforeUnmount(() => { generation += 1; controller?.abort(); emit("busy", false
         <div><dt>Available</dt><dd>{{ status.availableVersion }}</dd></div>
         <div><dt>Source</dt><dd>{{ status.usingOverlay ? "Update overlay" : "Plugin package" }}</dd></div>
       </dl>
-      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack || status.message.startsWith('Rollback failed') || status.message.endsWith('cleanup pending') }" role="status">
+      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack || status.message.includes('restoration incomplete') || status.message.startsWith('Rollback failed') || status.message.endsWith('cleanup pending') }" role="status">
         {{ status.message }}
-        <strong v-if="status.message === 'Rollback failed; restoration incomplete; recovery snapshots retained'"> The current version was not confirmed restored. Inspect the retained snapshots before retrying.</strong>
+        <strong v-if="status.message.includes('restoration incomplete')"> The prior binary and runtime state were not confirmed restored. Inspect the retained recovery snapshots before retrying.</strong>
         <strong v-else-if="status.rolledBack">{{ status.message.startsWith("Rollback failed") ? " The current version was restored." : " The previous version was restored." }}</strong>
       </p>
       <div class="yarr-actions">

@@ -115,7 +115,8 @@ count=0
 count=\$((count + 1))
 printf '%s\\n' "\$count" > "\$count_file"
 printf '%s %s\\n' "\$name" "\$*" >> "\${YARR_TEST_OPERATION_LOG}"
-if [[ "\${YARR_TEST_FAIL_COMMAND:-}" == "\$name" && "\${YARR_TEST_FAIL_AT:-0}" == "\$count" ]]; then
+if { [[ "\${YARR_TEST_FAIL_COMMAND:-}" == "\$name" && "\${YARR_TEST_FAIL_AT:-0}" == "\$count" ]]; } ||
+    { [[ "\${YARR_TEST_FAIL_COMMAND_2:-}" == "\$name" && "\${YARR_TEST_FAIL_AT_2:-0}" == "\$count" ]]; }; then
     exit 1
 fi
 $real "\$@"
@@ -146,7 +147,8 @@ reset_boundaries() {
     rm -rf "$YARR_TEST_FAKE_COUNTS"
     mkdir -p "$YARR_TEST_FAKE_COUNTS"
     : > "$YARR_TEST_OPERATION_LOG"
-    unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
+    unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
+        YARR_TEST_FAIL_AT_2 YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 }
 
 write_yarr() {
@@ -424,7 +426,9 @@ env YARR_UPDATE_LOCK_WAIT_SECONDS=5 "$updater" apply --version 3.0.0 --json \
 major_pid=$!
 exec 8>&-
 if ! wait "$newer_pid"; then
+    cat "$tmp_dir/race-newer.json" >&2
     cat "$tmp_dir/race-newer.err" >&2
+    cat "$YARR_TEST_OPERATION_LOG" >&2
     fail 'newer candidate failed during lock race'
 fi
 if wait "$older_pid"; then fail 'queued older candidate downgraded the newer install'; fi
@@ -501,9 +505,10 @@ expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'in
 expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" 'predecessor overlay version'
 jq -e '.rollbackAvailable == true' "$tmp_dir/apply.json" >/dev/null ||
     fail 'successful update did not advertise manual rollback'
-install_line=$(grep -n '^install ' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
-data_sync_line=$(grep -n '^sync -f .*\.yarr\.update\.new\.' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
-directory_sync_line=$(grep -n "^sync -f $YARR_OVERLAY_DIR$" "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
+install_line=$(grep -n '^install .*\.yarr\.update\.recovery\..*/active\.next$' \
+    "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
+data_sync_line=$(grep -n '^sync -f .*\.yarr\.update\.recovery\..*/active\.next$' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
+directory_sync_line=$(grep -n "^sync -f $YARR_OVERLAY_DIR$" "$YARR_TEST_OPERATION_LOG" | tail -n1 | cut -d: -f1)
 [[ -n "$install_line" && -n "$data_sync_line" && -n "$directory_sync_line" ]] || fail 'durability commands were not issued'
 ((install_line < data_sync_line && data_sync_line < directory_sync_line)) || fail 'durability command ordering is unsafe'
 if ! "$rc" status > "$tmp_dir/updated-status.out" 2>&1; then
@@ -627,19 +632,19 @@ fi
 
 prepare_running_overlay
 reset_boundaries
-export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=3
+export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=2
 expect_failure 'predecessor rotation fault' "$updater" apply --version 2.1.0 --json
 assert_running_overlay_restored 'predecessor rotation fault'
 
 prepare_running_overlay
 reset_boundaries
-export YARR_TEST_FAIL_COMMAND=install YARR_TEST_FAIL_AT=1
+export YARR_TEST_FAIL_COMMAND=install YARR_TEST_FAIL_AT=3
 expect_failure 'candidate install fault' "$updater" apply --version 2.1.0 --json
 assert_running_overlay_restored 'candidate install fault'
 
 prepare_running_overlay
 reset_boundaries
-export YARR_TEST_FAIL_COMMAND=sync YARR_TEST_FAIL_AT=2
+export YARR_TEST_FAIL_COMMAND=sync YARR_TEST_FAIL_AT=5
 expect_failure 'durable sync fault' "$updater" apply --version 2.1.0 --json
 assert_running_overlay_restored 'durable sync fault'
 
@@ -654,6 +659,71 @@ reset_boundaries
 export YARR_TEST_FAIL_COMMAND=mv YARR_TEST_FAIL_AT=2
 expect_failure 'reset predecessor backup move fault' "$updater" reset --json
 assert_running_overlay_restored 'reset predecessor backup move fault'
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=sync YARR_TEST_FAIL_AT=8
+export YARR_TEST_FAIL_COMMAND_2=mv YARR_TEST_FAIL_AT_2=4
+expect_failure 'update restoration move fault after commit sync' \
+    "$updater" apply --version 2.1.0 --json
+unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 YARR_TEST_FAIL_AT_2
+if ! jq -e '.rolledBack == false and
+    .message == "Update failed; restoration incomplete; recovery snapshots retained"' \
+    "$tmp_dir/command.out" >/dev/null; then
+    cat "$tmp_dir/command.out" >&2
+    cat "$tmp_dir/command.err" >&2
+    fail 'update restoration fault did not return its truthful structured outcome'
+fi
+update_recovery=$(find "$YARR_OVERLAY_DIR" -maxdepth 1 -type d \
+    -name '.yarr.update.recovery.*' -print -quit)
+[[ -n "$update_recovery" && -x "$update_recovery/active.snapshot" &&
+    -x "$update_recovery/previous.snapshot" ]] ||
+    fail 'update restoration fault did not preserve both durable snapshots'
+expect_eq '700' "$(stat -c '%a' "$update_recovery")" \
+    'update recovery transaction mode'
+expect_eq '2.0.0' "$("$update_recovery/active.snapshot" --version | awk '{print $2}')" \
+    'update active recovery snapshot'
+expect_eq '1.9.0' "$("$update_recovery/previous.snapshot" --version | awk '{print $2}')" \
+    'update predecessor recovery snapshot'
+expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" \
+    'update restoration fault surviving active candidate'
+if "$rc" status >/dev/null 2>&1; then
+    fail 'update restoration fault claimed service readiness'
+fi
+/bin/rm -rf -- "$update_recovery"
+
+prepare_running_overlay
+reset_boundaries
+export YARR_TEST_FAIL_COMMAND=sync YARR_TEST_FAIL_AT=5
+export YARR_TEST_FAIL_COMMAND_2=mv YARR_TEST_FAIL_AT_2=3
+expect_failure 'reset restoration move fault after commit sync' "$updater" reset --json
+unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 YARR_TEST_FAIL_AT_2
+if ! jq -e '.rolledBack == false and
+    .message == "Reset failed; restoration incomplete; recovery snapshots retained"' \
+    "$tmp_dir/command.out" >/dev/null; then
+    cat "$tmp_dir/command.out" >&2
+    cat "$tmp_dir/command.err" >&2
+    fail 'reset restoration fault did not return its truthful structured outcome'
+fi
+reset_recovery=$(find "$YARR_OVERLAY_DIR" -maxdepth 1 -type d \
+    -name '.yarr.reset.recovery.*' -print -quit)
+[[ -n "$reset_recovery" && -x "$reset_recovery/active.snapshot" &&
+    -x "$reset_recovery/previous.snapshot" &&
+    -x "$reset_recovery/active.retired" &&
+    -x "$reset_recovery/previous.retired" ]] ||
+    fail 'reset restoration fault did not preserve snapshots and retired binaries'
+expect_eq '700' "$(stat -c '%a' "$reset_recovery")" \
+    'reset recovery transaction mode'
+expect_eq '2.0.0' "$("$reset_recovery/active.snapshot" --version | awk '{print $2}')" \
+    'reset active recovery snapshot'
+expect_eq '1.9.0' "$("$reset_recovery/previous.snapshot" --version | awk '{print $2}')" \
+    'reset predecessor recovery snapshot'
+[[ ! -e "$YARR_OVERLAY_DIR/yarr" && ! -e "$YARR_OVERLAY_DIR/yarr.previous" ]] ||
+    fail 'reset restoration move fault fabricated an active binary'
+if "$rc" status >/dev/null 2>&1; then
+    fail 'reset restoration fault claimed service readiness'
+fi
+/bin/rm -rf -- "$reset_recovery"
 
 prepare_running_overlay
 reset_boundaries
@@ -682,7 +752,8 @@ export YARR_TEST_SIGNAL_COMMAND=rm YARR_TEST_SIGNAL_AT=4
 expect_failure 'signal during apply post-commit cleanup' "$updater" apply --version 2.1.0 --json
 assert_candidate_committed 'signal during apply post-commit cleanup'
 
-unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
+unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
+    YARR_TEST_FAIL_AT_2 YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 "$rc" stop
 
 printf 'update contract: PASS\n'

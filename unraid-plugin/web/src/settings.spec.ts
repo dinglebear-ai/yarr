@@ -284,7 +284,7 @@ describe("Yarr settings", () => {
     await mountSettings();
     api.previewYarrImport.mockResolvedValue({
       previewId: "p".repeat(32),
-      mappings: [{ serviceId: "sonarr", baseUrl: "http://sonarr:8989", hasUsername: false, hasPassword: false, hasApiKey: true }],
+      mappings: [{ serviceId: "sonarr", baseUrl: "http://sonarr:8989", hasUsername: false, hasPassword: false, hasApiKey: true, urlRequired: false }],
       warnings: [],
     });
     api.applyYarrImport.mockRejectedValueOnce(new Error("lost response"));
@@ -342,7 +342,7 @@ describe("Yarr settings", () => {
     await mountSettings();
     api.previewYarrImport.mockResolvedValue({
       previewId: "p".repeat(32),
-      mappings: [{ serviceId: "sonarr", baseUrl: "http://sonarr:8989", hasUsername: false, hasPassword: false, hasApiKey: true }],
+      mappings: [{ serviceId: "sonarr", baseUrl: "http://sonarr:8989", hasUsername: false, hasPassword: false, hasApiKey: true, urlRequired: false }],
       warnings: ["Unmapped key: UNKNOWN_KEY"],
     });
     api.applyYarrImport.mockResolvedValue({ config, changed: true, restarted: true, rolledBack: false, error: null });
@@ -369,10 +369,11 @@ describe("Yarr settings", () => {
       previewId,
       mappings: [{
         serviceId: "qbittorrent",
-        baseUrl: "http://qbittorrent:8080",
+        baseUrl: null,
         hasUsername: true,
         hasPassword: false,
         hasApiKey: false,
+        urlRequired: false,
       }],
       warnings: [],
     });
@@ -389,6 +390,7 @@ describe("Yarr settings", () => {
     await setValue(input("Paste .env or Yarr TOML"), "QBITTORRENT_USERNAME=private-user");
     button("Preview import").click();
     await flush();
+    expect(host.textContent).toContain("Uses the existing configured URL.");
     host.querySelector<HTMLInputElement>('input[name="import-service-qbittorrent"]')!.click();
     await nextTick();
 
@@ -405,6 +407,35 @@ describe("Yarr settings", () => {
       selectedServiceIds: ["qbittorrent"],
       credentialConsent: [{ serviceId: "qbittorrent", consent: true }],
     }, expect.any(AbortSignal));
+  });
+
+  it("blocks credential-only imports when no effective service URL exists", async () => {
+    await mountSettings();
+    api.previewYarrImport.mockResolvedValue({
+      previewId: "u".repeat(32),
+      mappings: [{
+        serviceId: "qbittorrent",
+        baseUrl: null,
+        hasUsername: true,
+        hasPassword: false,
+        hasApiKey: false,
+        urlRequired: true,
+      }],
+      warnings: [],
+    });
+
+    button("Import configuration").click();
+    await nextTick();
+    await setValue(input("Paste .env or Yarr TOML"), "QBITTORRENT_USERNAME=private-user");
+    button("Preview import").click();
+    await flush();
+
+    const selection = host.querySelector<HTMLInputElement>('input[name="import-service-qbittorrent"]')!;
+    expect(selection.disabled).toBe(true);
+    expect(host.textContent).toContain("URL required before this service can be imported.");
+    expect(host.textContent).not.toContain("private-user");
+    expect(button("Apply selected").disabled).toBe(true);
+    expect(api.applyYarrImport).not.toHaveBeenCalled();
   });
 
   it("requires explicit Docker candidate selection and per-service credential consent", async () => {
@@ -498,8 +529,44 @@ describe("Yarr settings", () => {
     button("Roll back Yarr").click();
     await flush();
     expect(host.textContent).toContain("restoration incomplete; recovery snapshots retained");
-    expect(host.textContent).toContain("The current version was not confirmed restored.");
+    expect(host.textContent).toContain("The prior binary and runtime state were not confirmed restored.");
     expect(host.textContent).not.toContain("The current version was restored.");
+  });
+
+  it("never presents incomplete update or reset restoration as successful", async () => {
+    await mountSettings();
+    api.queryYarrUpdateStatus.mockResolvedValue({
+      installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: "Update available: 1.3.0",
+    });
+    api.updateYarrBinary.mockResolvedValue({
+      installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: "Update failed; restoration incomplete; recovery snapshots retained",
+    });
+    api.resetYarrBinary.mockResolvedValue({
+      installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "",
+      updateAvailable: false, usingOverlay: false, rollbackAvailable: false, rolledBack: false,
+      message: "Reset failed; restoration incomplete; recovery snapshots retained",
+    });
+
+    button("Updates").click();
+    await flush();
+    button("Install 1.3.0").click();
+    await nextTick();
+    button("Install update").click();
+    await flush();
+    expect(host.textContent).toContain("Update failed; restoration incomplete");
+    expect(host.textContent).toContain("The prior binary and runtime state were not confirmed restored.");
+    expect(host.textContent).not.toContain("The previous version was restored.");
+
+    button("Reset to packaged version").click();
+    await nextTick();
+    button("Reset Yarr").click();
+    await flush();
+    expect(host.textContent).toContain("Reset failed; restoration incomplete");
+    expect(host.textContent).toContain("The prior binary and runtime state were not confirmed restored.");
   });
 
   it("serializes usernames only for capable services and preserves qBittorrent", async () => {

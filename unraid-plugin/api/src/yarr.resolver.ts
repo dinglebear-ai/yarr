@@ -216,6 +216,7 @@ function mapImportPreview(value: ImportPreview): YarrImportPreview {
       hasUsername: mapping.hasUsername,
       hasPassword: mapping.hasPassword,
       hasApiKey: mapping.hasApiKey,
+      urlRequired: mapping.urlRequired,
     })),
     warnings: [...value.warnings],
   };

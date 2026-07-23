@@ -280,7 +280,18 @@ yarr-update.sh apply --version 2.1.0 --json
 yarr-update.sh reset --json
 ```
 
-Use `curl`, `jq`, `tar`, `sha256sum`, `install`, and `mv`. Download into a directory created by `mktemp -d` under the persistent appdata filesystem. Hold `YARR_LOCK` throughout state-changing operations. Never use `curl | sh`.
+Use `curl`, `jq`, `tar`, `sha256sum`, `install`, and `mv`. Download into a
+private bounded directory created by `mktemp -d` outside appdata without
+holding the lifecycle lock. Acquire `YARR_LOCK` before reading installed state
+or beginning any state-changing operation, then revalidate the staged
+candidate and policy under that lock. Never use `curl | sh`.
+
+Before apply or reset changes a live overlay path, create private durable
+content/mode snapshots outside unconditional temporary cleanup. Stage every
+replacement from a copy and atomically rename it into place. Restoration stops
+after its first failed step, retains snapshots and surviving binaries, and
+reports `rolledBack=true` only after exact binary identity, directory
+durability, and prior runtime-state readiness are all proven.
 
 The JSON result keys are:
 
@@ -861,6 +872,7 @@ clear credential requires an explicit control
 import preview shows unmapped keys and never renders secret text
 Docker candidates require explicit selection
 credential import consent is per service
+credential-only import is selectable only when an imported or existing valid URL is available
 update, preservation-first manual rollback, and reset require confirmation and
 show verified restoration or explicit snapshot-retained recovery failure
 logs support bounded line count and manual refresh
@@ -882,7 +894,13 @@ Use a deliberate operations-console layout rather than generic cards: a compact 
 
 **Step 4: Implement structured import and discovery interactions**
 
-The browser may send pasted import text to preview, but it must discard the text when the dialog closes. Discovery responses contain no credential material. The final apply mutation includes selected candidate IDs and a separate list of service IDs whose credentials may be imported.
+The browser may send pasted import text to preview, but it must discard the text
+when the dialog closes. A preview marks a service URL as required when neither
+the import nor current configuration supplies one; that row is not selectable.
+The backend rechecks the effective URL at apply and refuses to enable a
+credential-only unconfigured service. Discovery responses contain no credential
+material. The final apply mutation includes selected candidate IDs and a
+separate list of service IDs whose credentials may be imported.
 
 **Step 5: Implement the dashboard element**
 

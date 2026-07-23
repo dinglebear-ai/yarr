@@ -1,15 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { SaveYarrConfigInput } from "./config.types";
+import type { SaveYarrConfigInput, YarrConfigView } from "./config.types";
 import * as codec from "./config-codec";
 import { ImportService } from "./import.service";
 import { collectSecretValues } from "./secret-redactor";
 
-function configHarness() {
+function configHarness(services: YarrConfigView["services"] = []) {
   const inputs: SaveYarrConfigInput[] = [];
   return {
     inputs,
     config: {
+      read: vi.fn(async () => ({ plugin: {} as never, services })),
       save: vi.fn(async (input: SaveYarrConfigInput) => {
         inputs.push(input);
         return {
@@ -72,6 +73,7 @@ describe("ImportService", () => {
         hasUsername: false,
         hasPassword: false,
         hasApiKey: true,
+        urlRequired: false,
       },
       {
         serviceId: "qbittorrent",
@@ -79,6 +81,7 @@ describe("ImportService", () => {
         hasUsername: true,
         hasPassword: true,
         hasApiKey: false,
+        urlRequired: true,
       },
     ]);
     expect(preview.warnings).toContain("Unknown structured key was ignored");
@@ -199,6 +202,68 @@ describe("ImportService", () => {
     ).rejects.toThrow("invalid or expired import preview");
   });
 
+  it("requires an imported or existing URL before credential-only enablement", async () => {
+    const unconfigured = configHarness();
+    const unconfiguredService = new ImportService(unconfigured.config);
+    const blocked = await unconfiguredService.preview({
+      QBITTORRENT_USERNAME: "private-user",
+    });
+
+    expect(blocked.mappings).toEqual([
+      expect.objectContaining({
+        serviceId: "qbittorrent",
+        baseUrl: null,
+        hasUsername: true,
+        urlRequired: true,
+      }),
+    ]);
+    await expect(unconfiguredService.apply({
+      previewId: blocked.previewId,
+      selectedServiceIds: ["qbittorrent"],
+      credentialConsent: { qbittorrent: true },
+    })).rejects.toThrow("qbittorrent requires a valid URL before it can be enabled");
+    expect(unconfigured.inputs).toEqual([]);
+
+    const configured = configHarness([{
+      service: "qbittorrent",
+      enabled: false,
+      baseUrl: "http://qbittorrent:8080",
+      username: null,
+      hasPassword: false,
+      hasApiKey: false,
+      extra: {},
+    }]);
+    const configuredService = new ImportService(configured.config);
+    const accepted = await configuredService.preview({
+      QBITTORRENT_USERNAME: "private-user",
+    });
+    expect(accepted.mappings[0]).toMatchObject({ baseUrl: null, urlRequired: false });
+    await configuredService.apply({
+      previewId: accepted.previewId,
+      selectedServiceIds: ["qbittorrent"],
+      credentialConsent: { qbittorrent: true },
+    });
+    expect(configured.inputs[0]?.services).toEqual([
+      expect.objectContaining({
+        service: "qbittorrent",
+        enabled: true,
+        baseUrl: "http://qbittorrent:8080",
+        username: "private-user",
+      }),
+    ]);
+
+    const declined = await configuredService.preview({
+      QBITTORRENT_USERNAME: "declined-user",
+    });
+    await configuredService.apply({
+      previewId: declined.previewId,
+      selectedServiceIds: ["qbittorrent"],
+      credentialConsent: { qbittorrent: false },
+    });
+    expect(configured.inputs[1]?.services?.[0]?.username).toBeUndefined();
+    expect(JSON.stringify(configured.inputs[1])).not.toContain("declined-user");
+  });
+
   it("cannot select a service outside the preview and expires bounded sessions", async () => {
     let now = 100;
     const { config } = configHarness();
@@ -230,6 +295,7 @@ describe("ImportService", () => {
       env: codec.parseYarrEnvironment(""),
     };
     const config = {
+      read: vi.fn(async () => codec.toPublicConfig(state.plugin, state.env)),
       save: vi.fn(async (input: SaveYarrConfigInput) => {
         state = codec.mergeConfigInput(state, input);
         return {

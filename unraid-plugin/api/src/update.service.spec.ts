@@ -135,6 +135,16 @@ describe("UpdateService", () => {
       rolledBack: false,
       message: "Rollback failed; restoration incomplete; recovery snapshots retained",
     };
+    const updateRestorationIncomplete = {
+      ...validStatus,
+      rolledBack: false,
+      message: "Update failed; restoration incomplete; recovery snapshots retained",
+    };
+    const resetRestorationIncomplete = {
+      ...validStatus,
+      rolledBack: false,
+      message: "Reset failed; restoration incomplete; recovery snapshots retained",
+    };
 
     await expect(
       boundaryHarness(JSON.stringify(rolledBack), 1).apply("2.1.0"),
@@ -148,6 +158,12 @@ describe("UpdateService", () => {
     await expect(
       boundaryHarness(JSON.stringify(restorationIncomplete), 1).rollback(),
     ).resolves.toEqual(restorationIncomplete);
+    await expect(
+      boundaryHarness(JSON.stringify(updateRestorationIncomplete), 1).apply("2.1.0"),
+    ).resolves.toEqual(updateRestorationIncomplete);
+    await expect(
+      boundaryHarness(JSON.stringify(resetRestorationIncomplete), 1).reset(),
+    ).resolves.toEqual(resetRestorationIncomplete);
   });
 
   it("keeps malformed and unexpected real-runner nonzero exits as failures", async () => {
@@ -170,6 +186,20 @@ describe("UpdateService", () => {
       }), 1).rollback(),
     ).rejects.toThrow("Yarr update rollback failed");
     await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        rolledBack: true,
+        message: "Update failed; restoration incomplete; recovery snapshots retained",
+      }), 1).apply("2.1.0"),
+    ).rejects.toThrow("Yarr update apply failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        rolledBack: true,
+        message: "Reset failed; restoration incomplete; recovery snapshots retained",
+      }), 1).reset(),
+    ).rejects.toThrow("Yarr update reset failed");
+    await expect(
       boundaryHarness(JSON.stringify(validStatus), 2, "private-output").reset(),
     ).rejects.toThrow("Yarr update reset failed");
   });
@@ -181,6 +211,10 @@ describe("UpdateService", () => {
     "Yarr reset; updater backup cleanup pending",
     "Yarr updated; obsolete backup cleanup pending",
     "Update failed; previous binary restored",
+    "Update failed; restoration incomplete; recovery snapshots retained",
+    "Reset failed; restoration incomplete; recovery snapshots retained",
+    "Update failed before activation",
+    "Reset failed before mutation",
     "Rollback failed; current binary restored",
     "Rollback failed; restoration incomplete; recovery snapshots retained",
     "Manual rollback is unavailable; no previous binary exists",

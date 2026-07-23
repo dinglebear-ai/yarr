@@ -100,6 +100,7 @@ export interface YarrImportMapping {
   hasUsername: boolean;
   hasPassword: boolean;
   hasApiKey: boolean;
+  urlRequired: boolean;
 }
 
 export interface YarrImportPreview {

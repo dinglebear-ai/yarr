@@ -87,11 +87,15 @@ Preserve and clear are explicit operations. Empty browser fields do not
 silently erase existing credentials.
 
 Structured import accepts supported Yarr configuration and reports rejected or
-unmapped fields instead of guessing. Docker discovery connects to the local
-Docker Engine Unix socket with read-only `GET` list/inspect operations, strict
-response limits, and an allowlist of supported labels. Discovery returns
-candidate service URLs and metadata; importing any credential requires
-explicit operator consent. Yarr never mounts or writes Docker configuration.
+unmapped fields instead of guessing. A selected service must have either a
+valid imported URL or a valid URL already stored in the current configuration;
+a credential-only import cannot enable an unconfigured service. Credential
+values remain private while the preview explains that the URL is required.
+Docker discovery connects to the local Docker Engine Unix socket with
+read-only `GET` list/inspect operations, strict response limits, and an
+allowlist of supported labels. Discovery returns candidate service URLs and
+metadata; importing any credential requires explicit operator consent. Yarr
+never mounts or writes Docker configuration.
 
 ## Persistent and runtime paths
 
@@ -127,6 +131,14 @@ removes the classic payload, but intentionally retains both persistent paths.
 Delete them manually only when permanent configuration and credential removal
 is intended.
 
+Daemon and wrapper-logger PID evidence includes process start ticks plus
+executable and argument identity. Every signal revalidates that evidence first;
+stale or reused numeric PIDs are never signaled. Status determines whether an
+owned process exists before parsing configuration, so a stopped installation
+with a malformed manual edit still reports canonical `STOPPED` and remains
+safe to upgrade, stop, or uninstall. Unverified live PID evidence remains
+fail-closed.
+
 ## Binary updater rollback and reset
 
 The updater is independent of the classic package release. On the stable
@@ -137,15 +149,18 @@ an atomic durable swap. Installed-version and policy checks occur while holding
 the stable lifecycle lock. Metadata, checksums, and archives have independent
 connect/total timeouts, retry limits, and maximum byte sizes.
 
-If readiness fails, the updater restores the previous executable and runtime
-state. **Roll back to previous version** first creates durable, private
-content-verified snapshots of both executables, then atomically stages
-`yarr.previous` into the active overlay and retains the replaced executable as
-the next `yarr.previous`. If restart/readiness fails, restoration copies from
-the preserved snapshots and reports success only after exact hash/mode checks
-and runtime recovery. An incomplete restoration fails explicitly and retains
-the snapshots under the overlay for operator recovery. The operation is
-available from the Updates panel or as
+Apply, reset, and **Roll back to previous version** all create durable, private,
+content-verified snapshots before changing either live binary path. Apply
+stages the candidate and predecessor from copies; reset retires overlay
+binaries into the recovery transaction before selecting the package binary;
+manual rollback stages `yarr.previous` as active while retaining the replaced
+executable as the next predecessor. If commit, restart, or readiness fails,
+restoration copies from the non-consumable snapshots and stops at the first
+failed restoration step. `rolledBack=true` is emitted only after exact
+hash/mode checks, durability syncs, and prior runtime-state readiness all pass.
+An incomplete restoration fails explicitly with `rolledBack=false` and retains
+the snapshots and surviving binaries under the overlay for operator recovery.
+Manual rollback is available from the Updates panel or as
 `yarr-update.sh rollback --json`. **Reset to packaged** removes the appdata
 overlay so `/usr/local/yarr/bin/yarr` is selected again. Neither action changes
 plugin configuration or service credentials.
@@ -192,8 +207,9 @@ Common checks:
 - An API module error requires checking the new lines in
   `/var/log/graphql-api.log`; the activation transaction should already have
   restored the prior module.
-- A failed update leaves the prior executable selected. Use rollback or reset
-  only after reviewing the updater result.
+- A failed update with `rolledBack=true` has proven the prior executable and
+  runtime state. A `restoration incomplete` result has not; inspect the retained
+  recovery directory before retrying rollback or reset.
 - Missing discovery candidates usually mean Docker is unavailable or the
   container lacks supported labels; discovery does not scan arbitrary files.
 - A stale Tailscale route should be corrected by stop/start. Cleanup is scoped
@@ -313,14 +329,17 @@ evidence for:
 2. Real `unraid-api` loader discovery, schema fields, authenticated GraphQL
    queries/mutations, restart rollback, settings custom element, and dashboard
    custom element.
-3. Disabled/started/stopped lifecycle, PID ownership, health/readiness, array
-   hooks, reboot persistence, and bounded/redacted logs.
+3. Disabled/started/stopped lifecycle, daemon/logger PID ownership and reuse,
+   malformed-stopped upgrade/uninstall behavior, health/readiness, array hooks,
+   reboot persistence, and bounded/redacted logs.
 4. Loopback reachability, rejection of unauthenticated LAN/custom binding,
    authenticated LAN/custom access, and optional Tailscale Serve setup/cleanup.
-5. Structured import and read-only Docker discovery with no Docker or media
-   mutation and no credential returned to the browser.
-6. Checksummed independent update, forced readiness failure rollback, manual
-   rollback, reset to packaged binary, and preserved configuration.
+5. Structured import, credential-only URL enforcement, and read-only Docker
+   discovery with no Docker or media mutation and no credential returned to the
+   browser.
+6. Checksummed independent update, apply/reset/manual-rollback restoration
+   faults, retained recovery snapshots, reset to packaged binary, and preserved
+   configuration.
 7. MCP initialization plus representative read-only service calls without
    adding, deleting, or changing media.
 

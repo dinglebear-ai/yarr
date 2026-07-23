@@ -67,3 +67,30 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
   canonical entries, `43` files, `14` root:root `0755` directories, no `./`.
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
+
+### 2026-07-23 - Independent review 2 remediation
+
+- Logger lifecycle evidence is now atomic mode `0600` and binds PID to start
+  ticks, executable identity, and argv hash; every signal revalidates it, and a
+  reused unrelated PID is never signaled.
+- Apply and reset now preserve durable non-consumable snapshots before live
+  changes. Restoration halts at the first fault, retains snapshots/surviving
+  binaries, and cannot set `rolledBack=true` before exact binary, durability,
+  and prior runtime readiness checks pass.
+- Credential-only imports require an imported or existing valid URL. The UI
+  blocks unconfigured rows with `URL required`; configured qBittorrent imports
+  preserve explicit consent/decline semantics through the real codec.
+- Stopped status checks ownership before config parsing, allowing malformed
+  no-PID upgrade, event stop, and uninstall while retaining fail-closed
+  unverified-live behavior.
+- Gates: focused API `52/52`, focused web `21/21`, full API `184/184`, full web
+  `55/55`, lifecycle/updater/aggregate/package contracts, both typechecks and
+  builds, browser smoke, zero production audits, ShellCheck `16`, actionlint
+  `2`, Python `2`, secret inventory, and diff hygiene pass.
+- Deterministic umask `022`/`077` package:
+  SHA-256 `0615f59bf6b68fe6a9bf9e490bca9996e3cb598c6c86663d83fd02cb301b0a67`,
+  MD5 `f122fe0b41741664c6a8e6b4e57fb443`, `6,221,460` bytes, `57`
+  entries, `43` files, `14` root:root mode-`0755` directories, no `./`, and
+  `42` embedded payload files.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.

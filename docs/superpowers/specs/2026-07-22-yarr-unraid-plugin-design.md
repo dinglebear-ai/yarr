@@ -348,9 +348,13 @@ The updater:
 6. Requires the tar inventory to contain exactly the expected regular `yarr`
    executable and no links, absolute paths, traversal, or extra payload.
 7. Extracts and verifies `yarr --version` before stopping the service.
-8. Preserves one previous overlay, atomically swaps the new executable, starts
-   Yarr, and requires `/ready`.
-9. Restores the previous overlay and service on any activation failure.
+8. Creates private durable snapshots of every existing overlay path, stages the
+   candidate and predecessor from copies, atomically swaps them, starts Yarr,
+   and requires `/ready`.
+9. Apply, reset, and manual rollback restore from non-consumable snapshots,
+   halt on the first restoration failure, and set `rolledBack=true` only after
+   exact hash/mode, directory-sync, and prior runtime-state readiness checks.
+   Incomplete restoration retains snapshots and surviving binaries.
 
 Update, reset, lifecycle, config writes, package replacement, and uninstall
 share the same never-unlinked lock inode. Network staging never holds that lock.
@@ -377,7 +381,7 @@ The Vue 3 frontend builds two custom-element entrypoints:
 
 The canonical `Yarr.page` settings route and `YarrDashboard.page` only load
 their respective compiled assets and mount the custom elements. Both use the
-packaged Yarr icon and mtime cache busting. The settings shell safely exposes
+content-addressed packaged Yarr icon and content-derived asset tokens. The settings shell safely exposes
 the host CSRF token. The dashboard page is conditioned by the persistent
 `DASHBOARD_WIDGET_ENABLE=true|false` setting and never loads the full settings
 bundle. The frontend inherits Unraid's CSS variables and light/dark behavior;
@@ -413,7 +417,10 @@ Structured import deliberately detects `.env` assignments or Yarr TOML. TOML
 supports the repository's `[yarr]`, `[mcp]`, `[mcp.auth]`, and
 `[[yarr.services]]` structure: importable service fields are mapped without
 guessing, valid non-service fields produce explicit warnings, and malformed or
-unsupported fields are rejected rather than silently dropped.
+unsupported fields are rejected rather than silently dropped. Import apply
+requires a valid imported URL or a currently configured valid URL before a
+service can be enabled; credential-only data for an unconfigured service
+remains unselectable and is never serialized into `YARR_SERVICES`.
 
 ## Packaging and Release
 
@@ -445,7 +452,9 @@ independently.
 - Config activation failure restores known-good files and reports whether the
   prior service recovered.
 - API activation failure restores the previous API package and classic payload.
-- Binary update failure preserves or restores the prior active binary.
+- Binary update/reset failure restores and proves the prior binary pair and
+  runtime state, or reports `rolledBack=false` and retains durable recovery
+  snapshots without claiming success.
 - Missing Tailscale is a clear configuration error when Serve is enabled, not a
   silent success.
 - Docker discovery failure does not affect current configuration or service
@@ -468,11 +477,13 @@ independently.
 - `bash -n` and ShellCheck over every shell source
 - XML parse and entity/checksum validation for `yarr.plg`
 - Complete package inventory and source/archive parity
-- PID reuse and executable/argument identity tests
+- Daemon and logger PID reuse plus start-tick/executable/argument identity tests
+- Malformed-stopped status, pre-install, event-stop, and uninstall tests
 - Config quoting/injection and path validation tests
 - Lock/concurrent-operation tests
-- Archive traversal, extra-entry, symlink, checksum, downgrade, version, failed
-  readiness, and rollback tests
+- Archive traversal, extra-entry, symlink, checksum, downgrade, version,
+  failed-readiness, commit-sync/restoration-move fault, snapshot-retention, and
+  rollback tests
 - Event-hook retry and array lifecycle tests
 
 ### API plugin

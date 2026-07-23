@@ -55,10 +55,11 @@ class ImportService {
         const ordered = service_catalog_1.SERVICE_CATALOG
             .map((entry) => services.get(entry.id))
             .filter((entry) => entry !== undefined);
+        const current = await this.config.read();
         const previewId = this.sessions.create({ services: new Map(ordered.map((item) => [item.serviceId, item])) });
         return {
             previewId,
-            mappings: ordered.map(publicMapping),
+            mappings: ordered.map((imported) => publicMapping(imported, configuredUrl(current, imported.serviceId))),
             warnings,
         };
     }
@@ -68,12 +69,17 @@ class ImportService {
             throw new Error("invalid or expired import preview");
         const selected = uniqueStrings(input.selectedServiceIds, "selectedServiceIds");
         const updates = [];
+        const current = await this.config.read();
         for (const serviceId of selected) {
             const imported = session.services.get(serviceId);
             if (!imported)
                 throw new Error(`service ${serviceId} was not present in this import preview`);
             const consent = input.credentialConsent[serviceId] === true;
-            updates.push(toConfigUpdate(imported, consent));
+            const effectiveUrl = imported.baseUrl ?? configuredUrl(current, serviceId);
+            if (!effectiveUrl) {
+                throw new Error(`${serviceId} requires a valid URL before it can be enabled`);
+            }
+            updates.push(toConfigUpdate(imported, consent, effectiveUrl));
         }
         return this.config.save({ services: updates });
     }
@@ -93,24 +99,29 @@ function buildKeyIndex() {
     }
     return index;
 }
-function publicMapping(imported) {
+function publicMapping(imported, existingUrl) {
     return {
         serviceId: imported.serviceId,
         baseUrl: imported.baseUrl ?? null,
         hasUsername: hasValue(imported.username),
         hasPassword: hasValue(imported.password),
         hasApiKey: hasValue(imported.apiKey),
+        urlRequired: imported.baseUrl === undefined && existingUrl === undefined,
     };
 }
-function toConfigUpdate(imported, consent) {
+function toConfigUpdate(imported, consent, effectiveUrl) {
     return {
         service: imported.serviceId,
         enabled: true,
-        baseUrl: imported.baseUrl,
+        baseUrl: effectiveUrl,
         username: consent ? imported.username : undefined,
         password: secretUpdate(imported.password, consent),
         apiKey: secretUpdate(imported.apiKey, consent),
     };
+}
+function configuredUrl(config, serviceId) {
+    const value = config.services.find((service) => service.service === serviceId)?.baseUrl;
+    return value ? (0, service_catalog_1.normalizeServiceUrl)(value) ?? undefined : undefined;
 }
 function secretUpdate(value, consent) {
     return consent && hasValue(value) ? { kind: "set", value } : { kind: "preserve" };

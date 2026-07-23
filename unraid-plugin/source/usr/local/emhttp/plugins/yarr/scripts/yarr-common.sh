@@ -363,6 +363,8 @@ yarr_valid_tailscale_hostname() {
 }
 
 yarr_validate_config() {
+    local service service_key service_url
+    local -a yarr_enabled_services=()
     [[ "$ENABLED" == yes || "$ENABLED" == no ]] || { yarr_error 'ENABLED must be yes or no'; return 1; }
     [[ "$DASHBOARD_WIDGET_ENABLE" == true || "$DASHBOARD_WIDGET_ENABLE" == false ]] || { yarr_error 'DASHBOARD_WIDGET_ENABLE must be true or false'; return 1; }
     [[ "$BIND_MODE" == loopback || "$BIND_MODE" == lan || "$BIND_MODE" == custom ]] || { yarr_error 'BIND_MODE must be loopback, lan, or custom'; return 1; }
@@ -380,6 +382,15 @@ yarr_validate_config() {
     if [[ "$TAILSCALE_SERVE" == yes ]]; then
         yarr_valid_tailscale_hostname "$TAILSCALE_HOSTNAME" || { yarr_error 'TAILSCALE_HOSTNAME must be a DNS-label service name when Tailscale Serve is enabled'; return 1; }
     fi
+    IFS=',' read -r -a yarr_enabled_services <<< "${YARR_ENV_VALUES[YARR_SERVICES]:-}"
+    for service in "${yarr_enabled_services[@]}"; do
+        service=${service//[[:space:]]/}
+        [[ -n "$service" ]] || continue
+        [[ "$service" =~ ^[a-z0-9]+$ ]] || { yarr_error 'YARR_SERVICES contains an invalid service identifier'; return 1; }
+        service_key="YARR_${service^^}_URL"
+        service_url=${YARR_ENV_VALUES[$service_key]:-}
+        [[ -n "$service_url" ]] || { yarr_error "${service} requires ${service_key} before it can be enabled"; return 1; }
+    done
 
     if [[ "$AUTH_MODE" == trusted-gateway ]]; then
         [[ "$BIND_MODE" == loopback && "$TAILSCALE_SERVE" == no ]] || {
@@ -488,6 +499,94 @@ yarr_record_pid_metadata() {
         "$pid" "$start_ticks" "$binary" "$executable_id" "$argv_sha" > "$tmp" || return 1
     chmod 600 "$tmp" || { rm -f "$tmp"; return 1; }
     mv -f "$tmp" "$YARR_PID_META"
+}
+
+yarr_logger_process_matches() {
+    local pid=$1 expected_start=$2 expected_id=$3 expected_path=$4 expected_argv=$5
+    local actual_start actual_id actual_link actual_path actual_argv
+    kill -0 "$pid" 2>/dev/null || return 1
+    actual_start=$(yarr_process_start_ticks "$pid" 2>/dev/null || true)
+    actual_id=$(stat -Lc '%d:%i' "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
+    actual_link=$(readlink "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
+    actual_path=${actual_link%' (deleted)'}
+    actual_argv=$(sha256sum "${YARR_PROC_ROOT}/${pid}/cmdline" 2>/dev/null | awk '{print $1}')
+    [[ "$actual_start" == "$expected_start" && "$actual_id" == "$expected_id" &&
+        "$actual_path" == "$expected_path" && "$actual_argv" == "$expected_argv" ]]
+}
+
+yarr_record_logger_metadata() {
+    local pid=$1 attempt tmp matched=false
+    YARR_CAPTURED_LOGGER_START=''
+    YARR_CAPTURED_LOGGER_ID=''
+    YARR_CAPTURED_LOGGER_PATH=''
+    YARR_CAPTURED_LOGGER_ARGV=''
+    for ((attempt = 0; attempt < 50; attempt++)); do
+        YARR_CAPTURED_LOGGER_START=$(yarr_process_start_ticks "$pid" 2>/dev/null || true)
+        YARR_CAPTURED_LOGGER_ID=$(stat -Lc '%d:%i' "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
+        YARR_CAPTURED_LOGGER_PATH=$(readlink "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
+        YARR_CAPTURED_LOGGER_PATH=${YARR_CAPTURED_LOGGER_PATH%' (deleted)'}
+        YARR_CAPTURED_LOGGER_ARGV=$(sha256sum "${YARR_PROC_ROOT}/${pid}/cmdline" 2>/dev/null | awk '{print $1}')
+        if [[ "$YARR_CAPTURED_LOGGER_START" =~ ^[0-9]+$ &&
+            "$YARR_CAPTURED_LOGGER_ID" =~ ^[0-9]+:[0-9]+$ &&
+            -n "$YARR_CAPTURED_LOGGER_PATH" &&
+            "$YARR_CAPTURED_LOGGER_ARGV" =~ ^[0-9a-f]{64}$ ]]; then
+            matched=true
+            break
+        fi
+        kill -0 "$pid" 2>/dev/null || return 1
+        sleep 0.02
+    done
+    [[ "$matched" == true ]] || return 1
+    umask 077
+    tmp="${YARR_LOGGER_PID}.$$"
+    printf 'pid=%s\nstart_ticks=%s\nexecutable_id=%s\nexecutable_path=%s\nargv_sha256=%s\n' \
+        "$pid" "$YARR_CAPTURED_LOGGER_START" "$YARR_CAPTURED_LOGGER_ID" \
+        "$YARR_CAPTURED_LOGGER_PATH" "$YARR_CAPTURED_LOGGER_ARGV" > "$tmp" || return 1
+    chmod 600 "$tmp" || { rm -f "$tmp"; return 1; }
+    "$YARR_SYNC_BIN" -f "$tmp" || { rm -f "$tmp"; return 1; }
+    mv -f "$tmp" "$YARR_LOGGER_PID"
+}
+
+yarr_logger_pid_is_owned() {
+    local line key value meta_pid='' meta_start='' meta_id='' meta_path='' meta_argv=''
+    YARR_OWNED_LOGGER_PID=''
+    if [[ ! -f "$YARR_LOGGER_PID" || -L "$YARR_LOGGER_PID" ]]; then
+        [[ ! -e "$YARR_LOGGER_PID" && ! -L "$YARR_LOGGER_PID" ]] || rm -f "$YARR_LOGGER_PID"
+        return 1
+    fi
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" == *=* ]] || {
+            yarr_error 'logger PID evidence is malformed'
+            rm -f "$YARR_LOGGER_PID"
+            return 1
+        }
+        key=${line%%=*}; value=${line#*=}
+        case "$key" in
+            pid) meta_pid=$value ;;
+            start_ticks) meta_start=$value ;;
+            executable_id) meta_id=$value ;;
+            executable_path) meta_path=$value ;;
+            argv_sha256) meta_argv=$value ;;
+            *)
+                yarr_error 'logger PID evidence has an unknown field'
+                rm -f "$YARR_LOGGER_PID"
+                return 1
+                ;;
+        esac
+    done < "$YARR_LOGGER_PID"
+    if [[ ! "$meta_pid" =~ ^[1-9][0-9]*$ || ! "$meta_start" =~ ^[0-9]+$ ||
+        ! "$meta_id" =~ ^[0-9]+:[0-9]+$ || -z "$meta_path" ||
+        ! "$meta_argv" =~ ^[0-9a-f]{64}$ ]]; then
+        yarr_error 'logger PID evidence is incomplete'
+        rm -f "$YARR_LOGGER_PID"
+        return 1
+    fi
+    if ! yarr_logger_process_matches "$meta_pid" "$meta_start" "$meta_id" "$meta_path" "$meta_argv"; then
+        yarr_error "logger PID ${meta_pid} does not match retained ownership evidence; removing stale evidence only"
+        rm -f "$YARR_LOGGER_PID"
+        return 1
+    fi
+    YARR_OWNED_LOGGER_PID=$meta_pid
 }
 
 yarr_pid_is_owned() {
@@ -626,10 +725,14 @@ yarr_stream_log() {
 
 yarr_stop_logger() {
     local logger_pid='' attempt
-    if [[ -f "$YARR_LOGGER_PID" ]]; then logger_pid=$(<"$YARR_LOGGER_PID"); fi
-    if [[ "$logger_pid" =~ ^[1-9][0-9]*$ ]]; then
+    if yarr_logger_pid_is_owned; then
+        logger_pid=$YARR_OWNED_LOGGER_PID
         for ((attempt = 0; attempt < 50; attempt++)); do kill -0 "$logger_pid" 2>/dev/null || break; sleep 0.02; done
-        kill -0 "$logger_pid" 2>/dev/null && kill -TERM "$logger_pid" 2>/dev/null || true
+        if kill -0 "$logger_pid" 2>/dev/null; then
+            if yarr_logger_pid_is_owned && [[ "$YARR_OWNED_LOGGER_PID" == "$logger_pid" ]]; then
+                kill -TERM "$logger_pid" 2>/dev/null || true
+            fi
+        fi
     fi
     rm -f "$YARR_LOGGER_PID"
     [[ ! -e "$YARR_LOG_PIPE" || -p "$YARR_LOG_PIPE" ]] || { yarr_error 'refusing to remove unsafe log pipe path'; return 1; }

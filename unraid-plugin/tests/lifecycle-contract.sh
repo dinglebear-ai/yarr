@@ -353,12 +353,84 @@ chmod 644 "$YARR_OVERLAY_DIR/yarr"
 packaged_pid=$(cat "$YARR_PID")
 yarr_pid_is_owned || fail 'canonical packaged process was not recognized as owned'
 "$rc" status >/dev/null || fail 'status did not recognize canonical packaged process'
+[[ -f "$YARR_LOGGER_PID" && ! -L "$YARR_LOGGER_PID" ]] ||
+    fail 'logger start did not record structured identity evidence'
+expect_eq '600' "$(stat -c '%a' "$YARR_LOGGER_PID")" 'logger identity evidence mode'
+logger_pid=$(sed -n 's/^pid=//p' "$YARR_LOGGER_PID")
+[[ "$logger_pid" =~ ^[1-9][0-9]*$ ]] || fail 'logger identity evidence omitted its PID'
+yarr_logger_pid_is_owned || fail 'genuine logger identity could not be revalidated'
+cp "$YARR_LOGGER_PID" "$test_root/genuine-logger.identity"
 "$rc" stop
 if kill -0 "$packaged_pid" 2>/dev/null; then
     kill "$packaged_pid" 2>/dev/null || true
     fail 'stop did not terminate canonical packaged process'
 fi
+kill -0 "$logger_pid" 2>/dev/null && fail 'stop did not terminate the genuine logger'
+[[ ! -e "$YARR_LOGGER_PID" ]] || fail 'stop retained genuine logger identity evidence'
 kill -0 "$unrelated_pid" 2>/dev/null || fail 'stop signaled an unrelated process'
+
+/bin/sleep 30 &
+reused_logger_pid=$!
+sed "s/^pid=.*/pid=${reused_logger_pid}/" "$test_root/genuine-logger.identity" > "$YARR_LOGGER_PID"
+chmod 0600 "$YARR_LOGGER_PID"
+yarr_stop_logger
+kill -0 "$reused_logger_pid" 2>/dev/null ||
+    fail 'stale logger evidence signaled a reused unrelated PID'
+[[ ! -e "$YARR_LOGGER_PID" ]] || fail 'stale logger identity evidence was not removed'
+kill "$reused_logger_pid"
+wait "$reused_logger_pid" 2>/dev/null || true
+
+# Status and package/event quiescence establish process ownership before
+# parsing configuration. A stopped installation remains removable even when a
+# manually edited dotenv file is malformed; an unverified live PID remains
+# fail-closed and is never signaled.
+printf 'MALFORMED_LINE_WITHOUT_EQUALS\n' > "$YARR_ENV"
+rm -f "$YARR_PID" "$YARR_PID_META" "$YARR_LOGGER_PID"
+set +e
+"$rc" status >/dev/null 2>&1
+stopped_status=$?
+set -e
+expect_eq '3' "$stopped_status" 'malformed stopped status'
+exec 8>"$YARR_LOCK"
+flock -n 8 || fail 'could not acquire malformed pre-install quiescence lock'
+"$rc" --lock-fd 8 stop 8>&8
+set +e
+"$rc" --lock-fd 8 status 8>&8 >/dev/null 2>&1
+preinstall_status=$?
+set -e
+exec 8>&-
+expect_eq '3' "$preinstall_status" 'malformed stopped pre-install quiescence'
+env YARR_RC="$rc" YARR_EVENT_ATTEMPTS=2 YARR_EVENT_LOCK_WAIT_SECONDS=1 \
+    YARR_EVENT_RETRY_SECONDS=0 "$stopping"
+[[ -f "$YARR_ARRAY_STOPPING" && ! -L "$YARR_ARRAY_STOPPING" ]] ||
+    fail 'malformed stopped event omitted the array fence'
+rm -f "$YARR_ARRAY_STOPPING"
+/bin/sleep 30 &
+unverified_status_pid=$!
+printf '%s\n' "$unverified_status_pid" > "$YARR_PID"
+rm -f "$YARR_PID_META"
+set +e
+"$rc" status >/dev/null 2>&1
+unverified_status=$?
+set -e
+expect_eq '4' "$unverified_status" 'malformed unverified-live status'
+kill -0 "$unverified_status_pid" 2>/dev/null ||
+    fail 'malformed status signaled an unverified live PID'
+[[ -e "$YARR_PID" ]] || fail 'malformed status discarded unverified live PID evidence'
+kill "$unverified_status_pid"
+wait "$unverified_status_pid" 2>/dev/null || true
+rm -f "$YARR_PID"
+write_config
+
+cat >> "$YARR_ENV" <<'EOF'
+YARR_SERVICES=qbittorrent
+YARR_QBITTORRENT_USERNAME=credential-only-user
+EOF
+yarr_load_config
+expect_failure 'credential-only enabled service without URL' yarr_validate_config
+expect_failure 'packaged lifecycle accepted enabled service without URL' "$rc" start
+[[ ! -e "$YARR_PID" ]] || fail 'invalid credential-only service started Yarr'
+write_config
 
 # Replacement of a running executable leaves a deleted-inode process. The
 # recorded start time, argv, and binary inode must still prove ownership so it
@@ -407,6 +479,21 @@ if kill -0 "$packaged_pid" 2>/dev/null; then
 fi
 kill -0 "$unrelated_pid" 2>/dev/null || fail 'uninstall signaled an unrelated process'
 [[ -e "$YARR_TEST_UNINSTALL_API_MARKER" ]] || fail 'successful uninstall did not remove API registration'
+mkdir -p "$uninstall_plugin/scripts"
+cat > "$uninstall_plugin/scripts/uninstall-api-plugin.sh" <<'EOF'
+#!/usr/bin/env bash
+: > "$YARR_TEST_UNINSTALL_API_MARKER"
+exit 0
+EOF
+chmod 755 "$uninstall_plugin/scripts/uninstall-api-plugin.sh"
+ln -sf "$common" "$uninstall_plugin/scripts/yarr-common.sh"
+rm -f "$YARR_TEST_UNINSTALL_API_MARKER" "$YARR_PID" "$YARR_PID_META" "$YARR_LOGGER_PID"
+printf 'MALFORMED_LINE_WITHOUT_EQUALS\n' > "$YARR_ENV"
+YARR_TEST_ROOT="$test_root" "$classic_uninstall"
+[[ -e "$YARR_TEST_UNINSTALL_API_MARKER" ]] ||
+    fail 'malformed stopped uninstall did not complete API removal'
+kill -0 "$unrelated_pid" 2>/dev/null ||
+    fail 'malformed stopped uninstall signaled an unrelated process'
 kill "$unrelated_pid"
 wait "$unrelated_pid" 2>/dev/null || true
 

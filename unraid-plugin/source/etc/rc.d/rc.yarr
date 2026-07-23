@@ -132,11 +132,15 @@ yarr_start_locked() {
         yarr_stream_log
     ) < "$YARR_LOG_PIPE" &
     logger_pid=$!
-    printf '%s\n' "$logger_pid" > "${YARR_LOGGER_PID}.$$" && chmod 600 "${YARR_LOGGER_PID}.$$" && mv -f "${YARR_LOGGER_PID}.$$" "$YARR_LOGGER_PID" || {
-        kill -TERM "$logger_pid" 2>/dev/null || true
+    if ! yarr_record_logger_metadata "$logger_pid"; then
+        if [[ -n "$YARR_CAPTURED_LOGGER_START" ]] &&
+            yarr_logger_process_matches "$logger_pid" "$YARR_CAPTURED_LOGGER_START" \
+                "$YARR_CAPTURED_LOGGER_ID" "$YARR_CAPTURED_LOGGER_PATH" "$YARR_CAPTURED_LOGGER_ARGV"; then
+            kill -TERM "$logger_pid" 2>/dev/null || true
+        fi
         rm -f "$YARR_LOG_PIPE" "${YARR_LOGGER_PID}.$$"
         return 1
-    }
+    fi
 
     yarr_log "starting ${YARR_BINARY}"
     (
@@ -190,11 +194,10 @@ yarr_stop_locked() {
 
 yarr_status_locked() {
     local ownership_status pid
-    yarr_load_config || return 1
-    yarr_validate_config || return 1
-
     if yarr_pid_is_owned; then
         pid=$(<"$YARR_PID")
+        yarr_load_config || return 1
+        yarr_validate_config || return 1
         if yarr_pid_owns_listening_port "$pid" "${PORT:-40070}"; then
             printf 'yarr: RUNNING\n'
             return 0

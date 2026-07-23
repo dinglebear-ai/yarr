@@ -287,6 +287,7 @@ let YarrImportMapping = class YarrImportMapping {
     hasUsername;
     hasPassword;
     hasApiKey;
+    urlRequired;
 };
 exports.YarrImportMapping = YarrImportMapping;
 __decorate([
@@ -309,6 +310,10 @@ __decorate([
     (0, graphql_1.Field)(() => Boolean),
     __metadata("design:type", Boolean)
 ], YarrImportMapping.prototype, "hasApiKey", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Boolean),
+    __metadata("design:type", Boolean)
+], YarrImportMapping.prototype, "urlRequired", void 0);
 exports.YarrImportMapping = YarrImportMapping = __decorate([
     (0, graphql_1.ObjectType)()
 ], YarrImportMapping);
@@ -818,7 +823,7 @@ const graphqlSchemaExtension = async () => `
   type YarrConfig { plugin: YarrPluginConfig!, services: [YarrServiceConfig!]! }
   type YarrConfigMutationResult { config: YarrConfig!, changed: Boolean!, restarted: Boolean!, rolledBack: Boolean!, error: String }
   type YarrLogs { lines: [String!]!, truncated: Boolean! }
-  type YarrImportMapping { serviceId: String!, baseUrl: String, hasUsername: Boolean!, hasPassword: Boolean!, hasApiKey: Boolean! }
+  type YarrImportMapping { serviceId: String!, baseUrl: String, hasUsername: Boolean!, hasPassword: Boolean!, hasApiKey: Boolean!, urlRequired: Boolean! }
   type YarrImportPreview { previewId: String!, mappings: [YarrImportMapping!]!, warnings: [String!]! }
   type YarrDiscoveryCandidate { candidateId: String!, source: String!, serviceId: String!, confidence: Int!, reasons: [String!]!, baseUrl: String!, hasCredential: Boolean! }
   type YarrDiscoveryError { code: String!, message: String! }
