@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, useId, watch } from "vue";
 import type { YarrSecretUpdate, YarrSecretUpdateKind } from "../types";
+import ConfirmDialog from "./ConfirmDialog.vue";
 
 const props = withDefaults(defineProps<{
   name: string;
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 
 const selectedIntent = ref<YarrSecretUpdateKind>(props.intent);
 const newValue = ref("");
+const confirmClear = ref(false);
 const inputId = `yarr-secret-${props.name}-${useId()}`;
 
 watch(() => props.intent, (intent) => {
@@ -38,6 +40,11 @@ function updateValue(value: string): void {
   newValue.value = value;
   emit("update", { kind: "SET", value });
 }
+
+function clearValue(): void {
+  confirmClear.value = false;
+  updateIntent("CLEAR");
+}
 </script>
 
 <template>
@@ -58,6 +65,17 @@ function updateValue(value: string): void {
       :value="newValue"
       @input="updateValue(($event.target as HTMLInputElement).value)"
     >
-    <label v-if="configured"><input :name="`${name}-intent`" type="radio" :checked="selectedIntent === 'CLEAR'" @change="updateIntent('CLEAR')"> Clear configured value</label>
+    <p v-if="selectedIntent === 'CLEAR'" class="yarr-secret-field__pending" role="status">This value will be cleared when changes are saved.</p>
+    <button v-if="configured" type="button" class="yarr-button is-danger is-quiet" @click="confirmClear = true">Clear {{ label }}</button>
   </fieldset>
+  <ConfirmDialog
+    :open="confirmClear"
+    :title="`Clear ${label}?`"
+    description="Yarr may lose access until a replacement credential is saved."
+    confirm-label="Clear credential"
+    cancel-label="Keep credential"
+    danger
+    @close="confirmClear = false"
+    @confirm="clearValue"
+  />
 </template>

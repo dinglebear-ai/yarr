@@ -86,3 +86,85 @@ export interface SaveYarrConfigInput {
   trustedGatewayOrigins?: string;
   services?: SaveYarrServiceInput[];
 }
+
+export interface YarrLogs {
+  lines: string[];
+  truncated: boolean;
+}
+
+export interface YarrImportMapping {
+  serviceId: string;
+  baseUrl: string | null;
+  hasUsername: boolean;
+  hasPassword: boolean;
+  hasApiKey: boolean;
+}
+
+export interface YarrImportPreview {
+  previewId: string;
+  mappings: YarrImportMapping[];
+  warnings: string[];
+}
+
+export interface YarrDiscoveryCandidate {
+  candidateId: string;
+  source: string;
+  serviceId: string;
+  confidence: number;
+  reasons: string[];
+  baseUrl: string;
+  hasCredential: boolean;
+}
+
+export interface YarrDiscoveryError {
+  code: string;
+  message: string;
+}
+
+export interface YarrDiscoveryResult {
+  discoveryId: string;
+  candidates: YarrDiscoveryCandidate[];
+  errors: YarrDiscoveryError[];
+}
+
+export interface YarrUpdateStatus {
+  installedVersion: string;
+  packagedVersion: string;
+  availableVersion: string;
+  updateAvailable: boolean;
+  usingOverlay: boolean;
+  rolledBack: boolean;
+  message: string;
+}
+
+export type YarrUpdateResult = YarrUpdateStatus;
+
+export interface YarrCredentialConsentInput {
+  serviceId: string;
+  consent: boolean;
+}
+
+export interface ApplyYarrImportInput {
+  previewId: string;
+  selectedServiceIds: string[];
+  credentialConsent: YarrCredentialConsentInput[];
+}
+
+export interface ApplyYarrDiscoveryInput {
+  discoveryId: string;
+  selectedCandidateIds: string[];
+  credentialConsent: YarrCredentialConsentInput[];
+}
+
+export interface YarrAuthDraft {
+  bearerToken: YarrSecretUpdate;
+  googleClientId: string;
+  googleClientSecret: YarrSecretUpdate;
+  trustedGatewayHosts: string;
+  trustedGatewayOrigins: string;
+}
+
+export interface YarrServiceDraft extends YarrServiceConfig {
+  password: YarrSecretUpdate;
+  apiKey: YarrSecretUpdate;
+}

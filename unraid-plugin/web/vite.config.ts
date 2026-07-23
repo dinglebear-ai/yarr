@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [vue({ customElement: /\.ce\.vue$/ })],
     build: {
-      outDir: dashboard ? "../dist-web-dashboard" : "../dist-web",
+      outDir: dashboard ? "dist/dashboard" : "dist/settings",
       emptyOutDir: true,
       cssCodeSplit: false,
       lib: {

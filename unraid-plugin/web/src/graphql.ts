@@ -1,9 +1,16 @@
 import type {
+  ApplyYarrDiscoveryInput,
+  ApplyYarrImportInput,
   SaveYarrConfigInput,
   YarrConfig,
   YarrConfigMutationResult,
   YarrControlAction,
+  YarrDiscoveryResult,
+  YarrImportPreview,
+  YarrLogs,
   YarrRuntime,
+  YarrUpdateResult,
+  YarrUpdateStatus,
 } from "./types";
 
 declare global {
@@ -38,6 +45,37 @@ const SAVE_YARR_CONFIG_MUTATION = `mutation SaveYarrConfig($input: SaveYarrConfi
 }`;
 const CONTROL_YARR_MUTATION = `mutation ControlYarr($action: YarrControlAction!) {
   controlYarr(action: $action) { ${RUNTIME_FIELDS} }
+}`;
+const YARR_DISCOVERY_QUERY = `query YarrDiscoveredServices {
+  yarrDiscoveredServices {
+    discoveryId
+    candidates { candidateId source serviceId confidence reasons baseUrl hasCredential }
+    errors { code message }
+  }
+}`;
+const YARR_LOGS_QUERY = `query YarrLogs($lines: Int) {
+  yarrLogs(lines: $lines) { lines truncated }
+}`;
+const UPDATE_FIELDS = `
+  installedVersion packagedVersion availableVersion updateAvailable usingOverlay rolledBack message
+`;
+const YARR_UPDATE_STATUS_QUERY = `query YarrUpdateStatus { yarrUpdateStatus { ${UPDATE_FIELDS} } }`;
+const PREVIEW_YARR_IMPORT_MUTATION = `mutation PreviewYarrImport($input: PreviewYarrImportInput!) {
+  previewYarrImport(input: $input) {
+    previewId mappings { serviceId baseUrl hasUsername hasPassword hasApiKey } warnings
+  }
+}`;
+const APPLY_YARR_IMPORT_MUTATION = `mutation ApplyYarrImport($input: ApplyYarrImportInput!) {
+  applyYarrImport(input: $input) { ${MUTATION_FIELDS} }
+}`;
+const APPLY_YARR_DISCOVERY_MUTATION = `mutation ApplyYarrDiscovery($input: ApplyYarrDiscoveryInput!) {
+  applyYarrDiscovery(input: $input) { ${MUTATION_FIELDS} }
+}`;
+const UPDATE_YARR_BINARY_MUTATION = `mutation UpdateYarrBinary($version: String!) {
+  updateYarrBinary(version: $version) { ${UPDATE_FIELDS} }
+}`;
+const RESET_YARR_BINARY_MUTATION = `mutation ResetYarrBinary {
+  resetYarrBinary { ${UPDATE_FIELDS} }
 }`;
 
 type GraphQLBody = { data?: Record<string, unknown>; errors?: unknown };
@@ -214,5 +252,62 @@ export async function controlYarr(action: YarrControlAction, signal?: AbortSigna
   return result<YarrRuntime>(
     await request<Record<string, unknown>>(CONTROL_YARR_MUTATION, { action }, signal),
     "controlYarr",
+  );
+}
+
+export async function queryYarrDiscovery(signal?: AbortSignal): Promise<YarrDiscoveryResult> {
+  return result<YarrDiscoveryResult>(
+    await request<Record<string, unknown>>(YARR_DISCOVERY_QUERY, undefined, signal),
+    "yarrDiscoveredServices",
+  );
+}
+
+export async function queryYarrLogs(lines: number, signal?: AbortSignal): Promise<YarrLogs> {
+  const boundedLines = Math.max(1, Math.min(500, Math.trunc(lines)));
+  return result<YarrLogs>(
+    await request<Record<string, unknown>>(YARR_LOGS_QUERY, { lines: boundedLines }, signal),
+    "yarrLogs",
+  );
+}
+
+export async function queryYarrUpdateStatus(signal?: AbortSignal): Promise<YarrUpdateStatus> {
+  return result<YarrUpdateStatus>(
+    await request<Record<string, unknown>>(YARR_UPDATE_STATUS_QUERY, undefined, signal),
+    "yarrUpdateStatus",
+  );
+}
+
+export async function previewYarrImport(text: string, signal?: AbortSignal): Promise<YarrImportPreview> {
+  return result<YarrImportPreview>(
+    await request<Record<string, unknown>>(PREVIEW_YARR_IMPORT_MUTATION, { input: { text } }, signal),
+    "previewYarrImport",
+  );
+}
+
+export async function applyYarrImport(input: ApplyYarrImportInput, signal?: AbortSignal): Promise<YarrConfigMutationResult> {
+  return result<YarrConfigMutationResult>(
+    await request<Record<string, unknown>>(APPLY_YARR_IMPORT_MUTATION, { input }, signal),
+    "applyYarrImport",
+  );
+}
+
+export async function applyYarrDiscovery(input: ApplyYarrDiscoveryInput, signal?: AbortSignal): Promise<YarrConfigMutationResult> {
+  return result<YarrConfigMutationResult>(
+    await request<Record<string, unknown>>(APPLY_YARR_DISCOVERY_MUTATION, { input }, signal),
+    "applyYarrDiscovery",
+  );
+}
+
+export async function updateYarrBinary(version: string, signal?: AbortSignal): Promise<YarrUpdateResult> {
+  return result<YarrUpdateResult>(
+    await request<Record<string, unknown>>(UPDATE_YARR_BINARY_MUTATION, { version }, signal),
+    "updateYarrBinary",
+  );
+}
+
+export async function resetYarrBinary(signal?: AbortSignal): Promise<YarrUpdateResult> {
+  return result<YarrUpdateResult>(
+    await request<Record<string, unknown>>(RESET_YARR_BINARY_MUTATION, undefined, signal),
+    "resetYarrBinary",
   );
 }
