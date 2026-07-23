@@ -22,11 +22,18 @@ fail() {
     exit 1
 }
 
-expect_failure() {
-    local label=$1
-    shift
+expect_failure_message() {
+    local label=$1 expected=$2
+    shift 2
     if "$@" >"$tmp_dir/failure.out" 2>"$tmp_dir/failure.err"; then
         fail "$label unexpectedly succeeded"
+    fi
+    if ! grep -Fq -- "$expected" "$tmp_dir/failure.err" && ! grep -Fq -- "$expected" "$tmp_dir/failure.out"; then
+        printf '%s\n' "--- $label stdout ---" >&2
+        cat "$tmp_dir/failure.out" >&2
+        printf '%s\n' "--- $label stderr ---" >&2
+        cat "$tmp_dir/failure.err" >&2
+        fail "$label did not report expected diagnostic: $expected"
     fi
 }
 
@@ -57,6 +64,7 @@ bash -n "$remove_inline"
 grep -Fq 'upgradepkg --install-new --reinstall' "$install_inline" || fail 'classic install is not idempotent'
 grep -Fq 'install-classic-plugin.sh' "$install_inline" || fail 'classic install does not delegate coordinated activation'
 grep -Fq 'uninstall-classic-plugin.sh' "$remove_inline" || fail 'classic uninstall does not stop before package removal'
+grep -Fq 'API uninstall failed; refusing to remove classic payload' "$remove_inline" || fail 'classic removal is not gated on API uninstall success'
 if grep -Eq '(/boot/config/plugins/yarr|/mnt/user/appdata/yarr).*(rm|remove)|(rm|remove).*(/boot/config/plugins/yarr|/mnt/user/appdata/yarr)' "$remove_inline"; then
     fail 'classic uninstall removes persistent config or appdata'
 fi
@@ -133,9 +141,19 @@ cat > "$api_root/bin/unraid-api" <<'EOF'
 set -euo pipefail
 printf 'api %s\n' "$1" >> "$YARR_TEST_OPERATIONS"
 case "$1" in
-  stop) exit 0 ;;
+  stop)
+    rm -f "$YARR_TEST_API_RUNNING"
+    exit 0
+    ;;
   start)
-    [[ "${YARR_TEST_API_START_FAIL:-no}" == no ]] || exit 1
+    count=0
+    [[ ! -f "$YARR_TEST_START_COUNT_FILE" ]] || count=$(cat "$YARR_TEST_START_COUNT_FILE")
+    count=$((count + 1))
+    printf '%s\n' "$count" > "$YARR_TEST_START_COUNT_FILE"
+    if [[ "${YARR_TEST_FAIL_START_AT:-0}" == "$count" || "${YARR_TEST_FAIL_ALL_STARTS:-no}" == yes ]]; then
+      exit 1
+    fi
+    : > "$YARR_TEST_API_RUNNING"
     printf '%s\n' "${YARR_TEST_NEW_LOG:-YarrApiModule loaded}" >> "$YARR_TEST_API_LOG"
     ;;
   *) exit 2 ;;
@@ -153,6 +171,24 @@ fi
 EOF
 chmod 755 "$api_root/bin/unraid-api" "$api_root/bin/curl"
 : > "$tmp_dir/api-operations.log"
+: > "$tmp_dir/api-running"
+: > "$tmp_dir/api-start-count"
+
+cat > "$api_root/bin/mv" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+count=0
+[[ ! -f "$YARR_TEST_MV_COUNT_FILE" ]] || count=$(cat "$YARR_TEST_MV_COUNT_FILE")
+count=$((count + 1))
+printf '%s\n' "$count" > "$YARR_TEST_MV_COUNT_FILE"
+if [[ "${YARR_TEST_FAIL_MV_AT:-0}" == "$count" ]]; then
+  printf 'injected mv failure at %s\n' "$count" >&2
+  exit 71
+fi
+exec /bin/mv "$@"
+EOF
+chmod 755 "$api_root/bin/mv"
+: > "$tmp_dir/api-mv-count"
 
 api_env=(
     YARR_API_TEST_ROOT="$api_root"
@@ -163,6 +199,8 @@ api_env=(
     YARR_API_INTERVAL=0
     YARR_TEST_OPERATIONS="$tmp_dir/api-operations.log"
     YARR_TEST_API_LOG="$api_log"
+    YARR_TEST_API_RUNNING="$tmp_dir/api-running"
+    YARR_TEST_START_COUNT_FILE="$tmp_dir/api-start-count"
 )
 env "${api_env[@]}" "$api_install"
 active_target=$(readlink "$api_nodes/unraid-api-plugin-yarr")
@@ -179,16 +217,64 @@ grep -Fqx 'api start' "$tmp_dir/api-operations.log" || fail 'API activation did 
 # A new fatal/load failure must roll back to the exact prior activation while
 # an old fatal line before the recorded offset must not affect success.
 prior_active=$active_target
-sed -i 's/"version":"2.1.0"/"version":"2.1.1"/g' "$payload/package.json" "$payload/package-lock.json"
-printf '\nmodule.exports.build = "failure-candidate";\n' >> "$payload/dist/index.js"
-expect_failure 'failed API activation' env "${api_env[@]}" \
+set_payload_version() {
+    local next=$1
+    jq --arg version "$next" '.version = $version' "$payload/package.json" > "$payload/package.json.new"
+    mv "$payload/package.json.new" "$payload/package.json"
+    jq --arg version "$next" '.version = $version | .packages[""].version = $version' "$payload/package-lock.json" > "$payload/package-lock.json.new"
+    mv "$payload/package-lock.json.new" "$payload/package-lock.json"
+    printf '\nmodule.exports.build = "%s";\n' "$next" >> "$payload/dist/index.js"
+}
+
+set_payload_version 2.1.1
+: > "$tmp_dir/api-start-count"
+expect_failure_message 'fatal-log API activation' 'new fatal/module-load error in graphql-api.log' env "${api_env[@]}" \
     YARR_TEST_NEW_LOG='FATAL Plugin from unraid-api-plugin-yarr is invalid' \
-    YARR_TEST_PROBE_FAIL=yes "$api_install"
+    "$api_install"
 [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'failed activation did not restore prior API target'
 jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' "$api_home/package.json" >/dev/null || fail 'rollback damaged prior package registration'
 jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || fail 'rollback damaged prior config registration'
 
-env "${api_env[@]}" "$api_uninstall"
+set_payload_version 2.1.2
+: > "$tmp_dir/api-start-count"
+expect_failure_message 'probe API activation' 'yarrRuntime probe failed' env "${api_env[@]}" \
+    YARR_TEST_NEW_LOG='YarrApiModule loaded' YARR_TEST_PROBE_FAIL=yes "$api_install"
+[[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'probe failure did not restore prior API target'
+[[ -f "$tmp_dir/api-running" ]] || fail 'probe rollback left unraid-api stopped'
+
+set_payload_version 2.1.3
+: > "$tmp_dir/api-start-count"
+expect_failure_message 'rollback restart retry' 'failed to restart prior unraid-api (attempt 1 of 3)' env "${api_env[@]}" \
+    YARR_TEST_NEW_LOG='YarrApiModule loaded' YARR_TEST_PROBE_FAIL=yes \
+    YARR_TEST_FAIL_START_AT=2 "$api_install"
+[[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'restart-retry rollback did not restore prior API target'
+[[ -f "$tmp_dir/api-running" ]] || fail 'rollback restart retry left unraid-api stopped'
+
+set_payload_version 2.1.4
+: > "$tmp_dir/api-start-count"
+expect_failure_message 'rollback restart exhaustion' 'rollback could not restart prior unraid-api' env "${api_env[@]}" \
+    YARR_TEST_FAIL_ALL_STARTS=yes "$api_install"
+[[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'restart-exhaustion rollback did not restore prior API target'
+jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' "$api_home/package.json" >/dev/null || fail 'restart-exhaustion rollback damaged package registration'
+jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || fail 'restart-exhaustion rollback damaged config registration'
+[[ ! -e "$tmp_dir/api-running" ]] || fail 'restart-exhaustion contract did not inject a stopped API'
+: > "$tmp_dir/api-start-count"
+env "${api_env[@]}" "$api_root/bin/unraid-api" start
+[[ -f "$tmp_dir/api-running" ]] || fail 'test recovery could not restart unraid-api after restart exhaustion'
+
+uninstall_env=("${api_env[@]}" YARR_API_MV="$api_root/bin/mv" YARR_TEST_MV_COUNT_FILE="$tmp_dir/api-mv-count")
+: > "$tmp_dir/api-mv-count"
+: > "$tmp_dir/api-start-count"
+expect_failure_message 'mid-uninstall recovery' 'API uninstall failed; restoring prior activation' env "${uninstall_env[@]}" \
+    YARR_TEST_FAIL_MV_AT=4 YARR_TEST_FAIL_START_AT=1 "$api_uninstall"
+[[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] || fail 'mid-uninstall failure did not restore prior API target'
+[[ -f "$tmp_dir/api-running" ]] || fail 'mid-uninstall recovery left unraid-api stopped'
+jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' "$api_home/package.json" >/dev/null || fail 'mid-uninstall recovery damaged package registration'
+jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || fail 'mid-uninstall recovery damaged config registration'
+
+: > "$tmp_dir/api-mv-count"
+: > "$tmp_dir/api-start-count"
+env "${uninstall_env[@]}" "$api_uninstall"
 [[ ! -e "$api_nodes/unraid-api-plugin-yarr" && ! -L "$api_nodes/unraid-api-plugin-yarr" ]] || fail 'API uninstall retained active target'
 [[ ! -e "$api_nodes/.unraid-api-plugin-yarr" ]] || fail 'API uninstall retained activation store'
 jq -e '.peerDependencies.existing == "*" and (.peerDependencies["unraid-api-plugin-yarr"] == null)' "$api_home/package.json" >/dev/null || fail 'API uninstall damaged package registration'
@@ -229,12 +315,15 @@ for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_u
 done
 
 grep -Fq '/usr/local/yarr/bin/yarr' "$build_script" || fail 'build does not stage the binary at the runtime path'
+grep -Fq 'install -d -m 0755' "$build_script" || fail 'build does not fix packaged directory modes'
 grep -Fq 'yarr-dashboard.js' "$build_script" || fail 'build does not stage the dashboard bundle'
 grep -Fq 'yarr-settings.js' "$build_script" || fail 'build does not stage the settings bundle'
 grep -Fq 'package-manifest.sha256' "$build_script" || fail 'build does not embed a SHA-256/mode inventory'
 grep -Fq 'package-manifest.sha256' "$verify_script" || fail 'verifier does not enforce embedded inventory'
 grep -Fq 'git ls-files' "$verify_script" || fail 'verifier does not enforce tracked source parity'
 grep -Fq 'xmllint' "$verify_script" || fail 'verifier does not validate plugin XML'
+grep -Fq 'packaged /usr/local/yarr directory mode is not 0755' "$verify_script" || fail 'verifier does not check /usr/local/yarr mode'
+grep -Fq 'packaged /usr/local/yarr/bin directory mode is not 0755' "$verify_script" || fail 'verifier does not check /usr/local/yarr/bin mode'
 
 # A traversal-shaped upstream release archive must be rejected before builds
 # or release metadata swaps. This is intentionally stopped at archive intake.
@@ -246,7 +335,7 @@ chmod 0755 "$bad_payload/yarr"
 tar -C "$bad_payload" --transform='s|^yarr$|../yarr|' -czf "$bad_assets/yarr-x86_64.tar.gz" yarr
 (cd "$bad_assets" && sha256sum -- yarr-x86_64.tar.gz > yarr-x86_64.tar.gz.sha256)
 metadata_before=$(sha256sum "$plugin_root/release-manifest.json" "$classic")
-expect_failure 'upstream archive traversal' env YARR_RELEASE_ASSET_DIR="$bad_assets" \
+expect_failure_message 'upstream archive traversal' 'upstream archive must contain exactly yarr' env YARR_RELEASE_ASSET_DIR="$bad_assets" \
     "$build_script" 2.1.0 1
 metadata_after=$(sha256sum "$plugin_root/release-manifest.json" "$classic")
 [[ "$metadata_after" == "$metadata_before" ]] || fail 'failed build changed tracked release metadata'

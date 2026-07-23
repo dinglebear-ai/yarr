@@ -21,6 +21,7 @@ if [[ "$YARR_COMMON_INSTALLED" == true ]]; then
     YARR_ENV=/boot/config/plugins/yarr/.env
     YARR_APPDATA=/mnt/user/appdata/yarr
     YARR_OVERLAY_DIR=/mnt/user/appdata/yarr/bin
+    YARR_PACKAGED_BINARY=/usr/local/yarr/bin/yarr
     YARR_PID=/var/run/yarr.pid
     YARR_LOCK=/var/lock/yarr-plugin.lock
     YARR_LOG=/var/log/yarr/yarr.log
@@ -38,6 +39,7 @@ else
     YARR_ENV=${YARR_ENV:-"${YARR_BOOT_ROOT}/config/plugins/yarr/.env"}
     YARR_APPDATA=${YARR_APPDATA:-"${YARR_APPDATA_ROOT}/yarr"}
     YARR_OVERLAY_DIR=${YARR_OVERLAY_DIR:-"${YARR_APPDATA}/bin"}
+    YARR_PACKAGED_BINARY=${YARR_PACKAGED_BINARY:-"${YARR_PLUGIN_ROOT}/bin/yarr"}
     YARR_PID=${YARR_PID:-"${YARR_RUN_ROOT}/yarr.pid"}
     YARR_LOCK="${YARR_LOCK_ROOT}/yarr-plugin.lock"
     YARR_LOG=${YARR_LOG:-"${YARR_LOG_ROOT}/yarr/yarr.log"}
@@ -253,16 +255,10 @@ yarr_effective_host() {
 
 yarr_select_binary() {
     local overlay="${YARR_OVERLAY_DIR}/yarr"
-    local packaged
-    if [[ "$YARR_COMMON_INSTALLED" == true ]]; then
-        packaged=/usr/local/yarr/bin/yarr
-    else
-        packaged=${YARR_PACKAGED_BINARY:-"${YARR_PLUGIN_ROOT}/bin/yarr"}
-    fi
     if [[ -x "$overlay" ]]; then
         YARR_BINARY=$overlay
-    elif [[ -x "$packaged" ]]; then
-        YARR_BINARY=$packaged
+    elif [[ -x "$YARR_PACKAGED_BINARY" ]]; then
+        YARR_BINARY=$YARR_PACKAGED_BINARY
     else
         yarr_error 'no executable Yarr binary found'
         return 1
@@ -326,7 +322,7 @@ yarr_pid_is_owned() {
         return 1
     }
     actual=$(readlink -f "${YARR_PROC_ROOT}/${pid}/exe" 2>/dev/null || true)
-    for candidate in "${YARR_OVERLAY_DIR}/yarr" "${YARR_PLUGIN_ROOT}/bin/yarr"; do
+    for candidate in "${YARR_OVERLAY_DIR}/yarr" "$YARR_PACKAGED_BINARY"; do
         expected=$(readlink -f "$candidate" 2>/dev/null || true)
         [[ -n "$actual" && "$actual" == "$expected" ]] && return 0
     done

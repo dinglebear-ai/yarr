@@ -6,8 +6,8 @@
   <!ENTITY launch     "Settings/yarr">
   <!ENTITY txz        "yarr-2.1.0-x86_64-1.txz">
   <!ENTITY txzURL     "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz">
-  <!ENTITY md5        "94a7e187d11128105d7b8de1b8cf1ae8">
-  <!ENTITY sha256     "5d24e1f88f2e4b55899960689ed4b9c2899c0e12d31777f74b3518ef9614d30c">
+  <!ENTITY md5        "bc6d735038900ca1b95eebb6a04fc573">
+  <!ENTITY sha256     "62fd224556ea54a19b037a7fbf93342a2129c441774de75c56b76a2f19d76a95">
   <!ENTITY plugin     "/boot/config/plugins/&name;">
   <!ENTITY emhttp     "/usr/local/emhttp/plugins/&name;">
 ]>
@@ -67,10 +67,13 @@ printf '\nYarr &version; installed. Configure it at Settings -&gt; Yarr.\n'
 <FILE Run="/bin/bash" Method="remove">
 <INLINE>
 set -u
-if [ -x "&emhttp;/scripts/uninstall-classic-plugin.sh" ]; then
-  "&emhttp;/scripts/uninstall-classic-plugin.sh" || logger -t yarr "uninstall cleanup reported an error"
-else
-  /etc/rc.d/rc.yarr stop 2&gt;/dev/null || true
+if [ ! -x "&emhttp;/scripts/uninstall-classic-plugin.sh" ]; then
+  logger -t yarr "API uninstall failed; refusing to remove classic payload"
+  exit 1
+fi
+if ! "&emhttp;/scripts/uninstall-classic-plugin.sh"; then
+  logger -t yarr "API uninstall failed; refusing to remove classic payload"
+  exit 1
 fi
 removepkg yarr 2&gt;/dev/null || true
 rm -rf -- "&emhttp;" /usr/local/yarr

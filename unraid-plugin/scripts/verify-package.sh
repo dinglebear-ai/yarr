@@ -108,6 +108,8 @@ fi
 plugin_version=$(jq -er '.pluginVersion' "$manifest")
 [[ $("$temporary/root/usr/local/yarr/bin/yarr" --version) == "yarr ${plugin_version}" ]] || fail 'packaged binary version differs from manifest'
 [[ $(stat -c %a "$temporary/root/usr/local/yarr/bin/yarr") == 755 ]] || fail 'packaged binary mode is not 0755'
+[[ $(stat -c %a "$temporary/root/usr/local/yarr") == 755 ]] || fail 'packaged /usr/local/yarr directory mode is not 0755'
+[[ $(stat -c %a "$temporary/root/usr/local/yarr/bin") == 755 ]] || fail 'packaged /usr/local/yarr/bin directory mode is not 0755'
 [[ $(stat -c %a "$temporary/root/usr/local/emhttp/plugins/yarr/default.cfg") == 600 ]] || fail 'packaged default.cfg mode is not 0600'
 [[ $(stat -c %a "$temporary/root/usr/local/emhttp/plugins/yarr/default.env") == 600 ]] || fail 'packaged default.env mode is not 0600'
 

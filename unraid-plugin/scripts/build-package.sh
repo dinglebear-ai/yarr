@@ -89,7 +89,9 @@ fi
 stage="$temporary/root"
 mkdir -p "$stage"
 cp -a -- "$candidate_source/." "$stage/"
-install -D -m 0755 -- "$temporary/upstream/yarr" "$stage/usr/local/yarr/bin/yarr"
+install -d -m 0755 "$stage/usr/local/yarr" "$stage/usr/local/yarr/bin"
+chmod 0755 "$stage/usr/local/yarr" "$stage/usr/local/yarr/bin"
+install -m 0755 -- "$temporary/upstream/yarr" "$stage/usr/local/yarr/bin/yarr"
 
 embedded="$stage/usr/local/emhttp/plugins/yarr/package-manifest.sha256"
 (

@@ -18,10 +18,11 @@ node_command=${YARR_API_NODE:-/usr/bin/node}
 probe_url=${YARR_API_GRAPHQL_URL:-http://127.0.0.1/graphql}
 attempts=${YARR_API_ATTEMPTS:-30}
 interval=${YARR_API_INTERVAL:-1}
+restart_attempts=${YARR_API_RESTART_ATTEMPTS:-3}
 
 log_message() {
     if [[ -n "$root" ]]; then
-        printf 'yarr-api: %s\n' "$*"
+        printf 'yarr-api: %s\n' "$*" >&2
     else
         logger -t yarr "$*"
     fi
@@ -126,6 +127,9 @@ created_activation=false
 prior_kind=missing
 prior_link=''
 prior_saved="$store/.prior-target.$$"
+prior_detached=false
+target_swapped=false
+transaction_active=false
 before_inode=$(stat -c %i "$api_log" 2>/dev/null || printf missing)
 before_size=$(stat -c %s "$api_log" 2>/dev/null || printf 0)
 
@@ -133,7 +137,62 @@ cleanup() {
     rm -rf -- "$stage" "$state_backup"
     rm -f -- "$temporary_link"
 }
-trap cleanup EXIT
+
+restart_prior_api() {
+    local attempt
+    for ((attempt = 1; attempt <= restart_attempts; attempt++)); do
+        if "$api_command" start; then
+            return 0
+        fi
+        log_message "failed to restart prior unraid-api (attempt ${attempt} of ${restart_attempts})"
+        ((attempt == restart_attempts)) || sleep "$interval"
+    done
+    log_message 'rollback could not restart prior unraid-api'
+    return 1
+}
+
+rollback_activation() {
+    local failed=false
+    transaction_active=false
+    "$api_command" stop >/dev/null 2>&1 || failed=true
+    if "$target_swapped"; then
+        rm -f -- "$target" || failed=true
+    fi
+    case "$prior_kind" in
+        link)
+            if "$target_swapped"; then
+                ln -s -- "$prior_link" "$temporary_link" || failed=true
+                if [[ -L "$temporary_link" ]]; then
+                    mv -Tf -- "$temporary_link" "$target" || failed=true
+                fi
+            fi
+            ;;
+        path)
+            if "$prior_detached"; then
+                mv -- "$prior_saved" "$target" || failed=true
+            fi
+            ;;
+    esac
+    restore_file "$state_backup/package.json" "$api_package_json" || failed=true
+    restore_file "$state_backup/api.json" "$api_config_json" || failed=true
+    restart_prior_api || failed=true
+    if "$created_activation" && [[ "$activation" != "$prior_link" ]]; then
+        rm -rf -- "$activation" || failed=true
+    fi
+    "$failed" && return 1
+    return 0
+}
+
+on_exit() {
+    local status=$?
+    trap - EXIT
+    if "$transaction_active"; then
+        rollback_activation || status=1
+    fi
+    cleanup || status=1
+    exit "$status"
+}
+trap on_exit EXIT
 
 mkdir -p "$store"
 if [[ ! -d "$activation" ]]; then
@@ -151,8 +210,10 @@ cp -p -- "$api_config_json" "$state_backup/api.json"
 if ! "$api_command" stop; then
     "$created_activation" && rm -rf -- "$activation"
     log_message 'could not stop unraid-api before activation'
+    restart_prior_api || log_message 'unraid-api state could not be recovered after stop failure'
     exit 1
 fi
+transaction_active=true
 
 if [[ -L "$target" ]]; then
     prior_kind='link'
@@ -160,18 +221,32 @@ if [[ -L "$target" ]]; then
 elif [[ -e "$target" ]]; then
     prior_kind=path
     mv -- "$target" "$prior_saved"
+    prior_detached=true
 fi
 
 activation_started=false
-if register_plugin && mv -Tf -- "$temporary_link" "$target" && "$api_command" start; then
-    activation_started=true
+failure_reason=''
+if ! register_plugin; then
+    failure_reason='loader state update failed'
+elif ! mv -Tf -- "$temporary_link" "$target"; then
+    failure_reason='atomic module switch failed'
+else
+    target_swapped=true
+    if "$api_command" start; then
+        activation_started=true
+    else
+        failure_reason='candidate unraid-api start failed'
+    fi
 fi
 
 verified=false
+fatal_log=false
 if "$activation_started"; then
     for ((attempt = 1; attempt <= attempts; attempt++)); do
         new_log=$(read_new_log "$before_inode" "$before_size")
         if has_new_loader_failure <<< "$new_log"; then
+            fatal_log=true
+            failure_reason='new fatal/module-load error in graphql-api.log'
             break
         fi
         if probe_runtime; then
@@ -180,31 +255,26 @@ if "$activation_started"; then
                 verified=true
                 break
             fi
+            fatal_log=true
+            failure_reason='new fatal/module-load error in graphql-api.log'
+            break
         fi
         sleep "$interval"
     done
+    if ! "$verified" && ! "$fatal_log" && [[ -z "$failure_reason" ]]; then
+        failure_reason='yarrRuntime probe failed'
+    fi
 fi
 
 if "$verified"; then
-    [[ "$prior_kind" != path ]] || rm -rf -- "$prior_saved"
+    transaction_active=false
+    if [[ "$prior_kind" == path ]] && ! rm -rf -- "$prior_saved"; then
+        log_message "could not remove detached prior API target: ${prior_saved}"
+    fi
     log_message "API plugin ${version} activated and yarrRuntime verified"
     exit 0
 fi
 
-log_message 'API activation failed; restoring prior loader state'
-"$api_command" stop >/dev/null 2>&1 || true
-rm -f -- "$target"
-case "$prior_kind" in
-    link)
-        ln -s -- "$prior_link" "$temporary_link"
-        mv -Tf -- "$temporary_link" "$target"
-        ;;
-    path) mv -- "$prior_saved" "$target" ;;
-esac
-restore_file "$state_backup/package.json" "$api_package_json"
-restore_file "$state_backup/api.json" "$api_config_json"
-"$api_command" start >/dev/null 2>&1 || true
-if "$created_activation" && [[ "$activation" != "$prior_link" ]]; then
-    rm -rf -- "$activation"
-fi
+[[ -n "$failure_reason" ]] || failure_reason='unknown activation failure'
+log_message "API activation failed: ${failure_reason}; restoring prior loader state"
 exit 1

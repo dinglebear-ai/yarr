@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 common="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh"
 rc="$repo_root/unraid-plugin/source/etc/rc.d/rc.yarr"
+classic_uninstall="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/uninstall-classic-plugin.sh"
 started="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/started"
 stopping="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/stopping_svcs"
 unmounting="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/unmounting_disks"
@@ -245,6 +246,54 @@ expect_failure "foreign process ownership" yarr_pid_is_owned
 kill -0 "$foreign_pid" 2>/dev/null || fail "stop signaled a foreign PID"
 kill "$foreign_pid"
 wait "$foreign_pid" 2>/dev/null || true
+
+# The canonical packaged binary is outside the emhttp plugin tree. It must be
+# recognized as owned without broadening ownership to an unrelated executable.
+export YARR_PACKAGED_BINARY="$test_root/usr/local/yarr/bin/yarr"
+mkdir -p "$(dirname "$YARR_PACKAGED_BINARY")"
+cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_PACKAGED_BINARY"
+"$YARR_PACKAGED_BINARY" &
+packaged_pid=$!
+/bin/sleep 30 &
+unrelated_pid=$!
+printf '%s\n' "$packaged_pid" > "$YARR_PID"
+if ! yarr_pid_is_owned; then
+    kill "$packaged_pid" "$unrelated_pid" 2>/dev/null || true
+    wait "$packaged_pid" "$unrelated_pid" 2>/dev/null || true
+    fail 'canonical packaged process was not recognized as owned'
+fi
+"$rc" status >/dev/null || fail 'status did not recognize canonical packaged process'
+"$rc" stop
+if kill -0 "$packaged_pid" 2>/dev/null; then
+    kill "$packaged_pid" 2>/dev/null || true
+    fail 'stop did not terminate canonical packaged process'
+fi
+kill -0 "$unrelated_pid" 2>/dev/null || fail 'stop signaled an unrelated process'
+
+# Classic uninstall delegates to the same ownership-safe stop path.
+uninstall_plugin="$test_root/usr/local/emhttp/plugins/yarr"
+mkdir -p "$test_root/etc/rc.d" "$uninstall_plugin/scripts"
+cat > "$test_root/etc/rc.d/rc.yarr" <<'EOF'
+#!/usr/bin/env bash
+exec "$YARR_REAL_RC" "$@"
+EOF
+cat > "$uninstall_plugin/scripts/uninstall-api-plugin.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod 755 "$test_root/etc/rc.d/rc.yarr" "$uninstall_plugin/scripts/uninstall-api-plugin.sh"
+export YARR_REAL_RC="$rc"
+"$YARR_PACKAGED_BINARY" &
+packaged_pid=$!
+printf '%s\n' "$packaged_pid" > "$YARR_PID"
+YARR_TEST_ROOT="$test_root" "$classic_uninstall"
+if kill -0 "$packaged_pid" 2>/dev/null; then
+    kill "$packaged_pid" 2>/dev/null || true
+    fail 'uninstall did not terminate canonical packaged process'
+fi
+kill -0 "$unrelated_pid" 2>/dev/null || fail 'uninstall signaled an unrelated process'
+kill "$unrelated_pid"
+wait "$unrelated_pid" 2>/dev/null || true
 
 write_config
 sed -i 's/^TAILSCALE_SERVE=no$/TAILSCALE_SERVE=yes/' "$YARR_CFG"
