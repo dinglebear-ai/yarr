@@ -17,6 +17,7 @@ expect_rejection() {
 bash "$test_dir/release-contract.sh"
 bash "$test_dir/lifecycle-contract.sh"
 bash "$test_dir/update-contract.sh"
+bash "$test_dir/classic-contract.sh"
 bash "$test_dir/release-contract.sh" \
     --manifest "$test_dir/fixtures/release-manifest.valid.json"
 

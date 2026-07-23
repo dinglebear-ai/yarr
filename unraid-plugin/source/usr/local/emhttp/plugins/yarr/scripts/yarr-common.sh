@@ -253,7 +253,12 @@ yarr_effective_host() {
 
 yarr_select_binary() {
     local overlay="${YARR_OVERLAY_DIR}/yarr"
-    local packaged="${YARR_PLUGIN_ROOT}/bin/yarr"
+    local packaged
+    if [[ "$YARR_COMMON_INSTALLED" == true ]]; then
+        packaged=/usr/local/yarr/bin/yarr
+    else
+        packaged=${YARR_PACKAGED_BINARY:-"${YARR_PLUGIN_ROOT}/bin/yarr"}
+    fi
     if [[ -x "$overlay" ]]; then
         YARR_BINARY=$overlay
     elif [[ -x "$packaged" ]]; then

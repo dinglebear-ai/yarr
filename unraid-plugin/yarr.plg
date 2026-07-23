@@ -1,0 +1,81 @@
+<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE PLUGIN [
+  <!ENTITY name       "yarr">
+  <!ENTITY author     "dinglebear-ai">
+  <!ENTITY version    "2.1.0-1">
+  <!ENTITY launch     "Settings/yarr">
+  <!ENTITY txz        "yarr-2.1.0-x86_64-1.txz">
+  <!ENTITY txzURL     "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz">
+  <!ENTITY md5        "94a7e187d11128105d7b8de1b8cf1ae8">
+  <!ENTITY sha256     "5d24e1f88f2e4b55899960689ed4b9c2899c0e12d31777f74b3518ef9614d30c">
+  <!ENTITY plugin     "/boot/config/plugins/&name;">
+  <!ENTITY emhttp     "/usr/local/emhttp/plugins/&name;">
+]>
+
+<PLUGIN name="&name;" author="&author;" version="&version;" launch="&launch;" pluginURL="https://raw.githubusercontent.com/dinglebear-ai/yarr/main/unraid-plugin/yarr.plg" min="7.0.0">
+
+<CHANGES>
+###2.1.0-1
+- Package Yarr 2.1.0 with the classic service, external API plugin, settings
+  application, and dashboard bundle.
+- Preserve boot configuration and appdata across install, upgrade, rollback,
+  and uninstall.
+</CHANGES>
+
+<FILE Name="&plugin;/&txz;">
+<URL>&txzURL;</URL>
+<MD5>&md5;</MD5>
+</FILE>
+
+<FILE Run="/bin/bash">
+<INLINE>
+set -euo pipefail
+package_path="&plugin;/&txz;"
+expected_sha="&sha256;"
+printf '%s  %s\n' "$expected_sha" "$package_path" | sha256sum -c -
+
+mapfile -d '' previous_packages &lt; &lt;(find "&plugin;" -maxdepth 1 -type f -name 'yarr-*.txz' ! -name '&txz;' -print0 | sort -zV)
+previous=""
+if [ "${#previous_packages[@]}" -gt 0 ]; then
+  previous="${previous_packages[${#previous_packages[@]}-1]}"
+fi
+
+upgradepkg --install-new --reinstall "$package_path"
+if ! "&emhttp;/scripts/install-classic-plugin.sh"; then
+  if [ -n "$previous" ] &amp;&amp; [ -f "$previous" ]; then
+    logger -t yarr "activation failed; restoring $previous"
+    upgradepkg --install-new --reinstall "$previous" || logger -t yarr "ERROR: classic package rollback failed"
+    "&emhttp;/scripts/install-classic-plugin.sh" || logger -t yarr "ERROR: restored package activation failed"
+  else
+    logger -t yarr "activation failed on fresh install; removing unpaired package"
+    removepkg "yarr-2.1.0-x86_64-1" || logger -t yarr "ERROR: fresh package cleanup failed"
+  fi
+  exit 1
+fi
+
+kept=0
+while IFS= read -r -d '' old; do
+  [ "$old" = "$package_path" ] &amp;&amp; continue
+  kept=$((kept + 1))
+  [ "$kept" -le 1 ] || rm -f -- "$old"
+done &lt; &lt;(find "&plugin;" -maxdepth 1 -type f -name 'yarr-*.txz' -print0 | sort -zVr)
+
+printf '\nYarr &version; installed. Configure it at Settings -&gt; Yarr.\n'
+</INLINE>
+</FILE>
+
+<FILE Run="/bin/bash" Method="remove">
+<INLINE>
+set -u
+if [ -x "&emhttp;/scripts/uninstall-classic-plugin.sh" ]; then
+  "&emhttp;/scripts/uninstall-classic-plugin.sh" || logger -t yarr "uninstall cleanup reported an error"
+else
+  /etc/rc.d/rc.yarr stop 2&gt;/dev/null || true
+fi
+removepkg yarr 2&gt;/dev/null || true
+rm -rf -- "&emhttp;" /usr/local/yarr
+printf '%s\n' 'Yarr removed. Configuration under /boot and appdata were retained.'
+</INLINE>
+</FILE>
+
+</PLUGIN>
