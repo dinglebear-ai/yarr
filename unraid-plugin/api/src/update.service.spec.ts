@@ -130,6 +130,11 @@ describe("UpdateService", () => {
       rolledBack: true,
       message: "Rollback failed; current binary restored",
     };
+    const restorationIncomplete = {
+      ...validStatus,
+      rolledBack: false,
+      message: "Rollback failed; restoration incomplete; recovery snapshots retained",
+    };
 
     await expect(
       boundaryHarness(JSON.stringify(rolledBack), 1).apply("2.1.0"),
@@ -140,6 +145,9 @@ describe("UpdateService", () => {
     await expect(
       boundaryHarness(JSON.stringify(manualRollbackFailed), 1).rollback(),
     ).resolves.toEqual(manualRollbackFailed);
+    await expect(
+      boundaryHarness(JSON.stringify(restorationIncomplete), 1).rollback(),
+    ).resolves.toEqual(restorationIncomplete);
   });
 
   it("keeps malformed and unexpected real-runner nonzero exits as failures", async () => {
@@ -155,6 +163,13 @@ describe("UpdateService", () => {
       }), 1).rollback(),
     ).rejects.toThrow("Yarr update rollback failed");
     await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        rolledBack: true,
+        message: "Rollback failed; restoration incomplete; recovery snapshots retained",
+      }), 1).rollback(),
+    ).rejects.toThrow("Yarr update rollback failed");
+    await expect(
       boundaryHarness(JSON.stringify(validStatus), 2, "private-output").reset(),
     ).rejects.toThrow("Yarr update reset failed");
   });
@@ -167,7 +182,9 @@ describe("UpdateService", () => {
     "Yarr updated; obsolete backup cleanup pending",
     "Update failed; previous binary restored",
     "Rollback failed; current binary restored",
+    "Rollback failed; restoration incomplete; recovery snapshots retained",
     "Manual rollback is unavailable; no previous binary exists",
+    "Yarr rolled back; recovery snapshot cleanup pending",
     "Yarr updated to 2.1.0",
     "Reset failed; previous binary restored",
     "Yarr reset to packaged binary",

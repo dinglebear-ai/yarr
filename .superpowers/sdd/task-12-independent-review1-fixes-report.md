@@ -97,3 +97,68 @@ independent-review approval.
 - The TOML importer intentionally supports the documented Yarr scalar,
   single-line array, and service array-table contract. Unsupported TOML syntax
   fails closed with an explicit error.
+
+## 2026-07-23 independent review 1 follow-up
+
+Base: `a800519af4ca2be8b335e36714c327e1c7e8fbfa`.
+
+### Rollback restoration safety
+
+- Manual rollback creates a private mode-`0700` transaction directory and
+  durable content-verified snapshots of both the active and previous
+  executable before stopping Yarr or replacing either live path.
+- The selected active and predecessor files are copied from those snapshots
+  into same-filesystem staging files and atomically renamed. The snapshots
+  themselves are never moved or consumed.
+- Recovery copies each snapshot into a separate staged restore file, fsyncs
+  and verifies its SHA-256 and executable mode, atomically replaces one live
+  path, fsyncs the overlay, and verifies again. Recovery returns immediately
+  after the first failed step; it never attempts a later destructive move
+  after an earlier restoration failure.
+- `rolledBack=true` is emitted only after both pre-rollback binaries match
+  their original hashes and modes and the original running/stopped state is
+  restored. A running service must pass lifecycle readiness.
+- Incomplete restoration emits exactly
+  `Rollback failed; restoration incomplete; recovery snapshots retained`
+  with `rolledBack=false`. The command-runner/API boundary accepts that
+  structured exit-1 outcome only with the false flag, and the settings UI
+  explicitly says the current version was not confirmed restored.
+- Direct fault injection fails the first restoration copy after a failed
+  activation. It proves the active binary, predecessor, both recovery
+  snapshots, mode-`0700` transaction directory, and truthful JSON survive,
+  and proves no restoration move runs after the failed copy.
+
+### Username-only qBittorrent import
+
+- `hasUsername` now participates in the Import dialog's credential-bearing
+  decision. A username-only preview displays per-service consent and sends the
+  real GraphQL input shape with `consent:true` when accepted.
+- The backend boundary runs accepted and declined username-only previews
+  through the real config codec. Acceptance persists the qBittorrent username;
+  decline preserves the existing username and does not import the declined
+  replacement.
+
+### Rebuilt payload and gates
+
+- Package: `yarr-2.1.0-x86_64-1.txz`
+- SHA-256:
+  `dab032149ea8d3682dc41b94d58d62f7906a39a383705fd7ef0c9b8c38f98957`
+- MD5: `1ae9cdd127b855f24bc178a57ada09e1`
+- Size: `6,221,988` bytes
+- Inventory: `57` entries, `43` regular files, `14` root:root mode-`0755`
+  directories, no `./` member, and `42` verifier-declared payload files
+- Reproducibility: umask `022` and `077` package, manifest, and PLG bytes are
+  identical
+- Focused API: `42/42`; focused web settings: `19/19`; updater contract: pass
+- Full API: `179/179`, typecheck and build pass
+- Full web: `53/53`, typecheck, both builds, and browser registration smoke
+  pass
+- Aggregate plugin/package harness: pass, including lifecycle recovery,
+  updater faults/races/resources, real packaged API activation/removal,
+  classic, workflow, release, package, and negative-mutation contracts
+- Package verifier, all plugin ShellCheck at error severity, actionlint, two
+  Python workflow files, workflow mutation contract, and both production
+  audits pass; audits report zero vulnerabilities
+
+No deployment, workflow dispatch, release publication, or upstream draft-asset
+mutation occurred. Independent reviewer approval is not claimed.

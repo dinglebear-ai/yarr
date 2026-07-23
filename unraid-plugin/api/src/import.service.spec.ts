@@ -225,15 +225,15 @@ describe("ImportService", () => {
   });
 
   it("returns supported non-password usernames while retaining defense-in-depth log redaction", async () => {
-    const state = {
+    let state = {
       plugin: codec.parsePluginConfig("ENABLED=yes\nBIND_MODE=loopback\n"),
       env: codec.parseYarrEnvironment(""),
     };
     const config = {
       save: vi.fn(async (input: SaveYarrConfigInput) => {
-        const merged = codec.mergeConfigInput(state, input);
+        state = codec.mergeConfigInput(state, input);
         return {
-          config: codec.toPublicConfig(merged.plugin, merged.env),
+          config: codec.toPublicConfig(state.plugin, state.env),
           changed: true,
           restarted: true,
           rolledBack: false,
@@ -258,5 +258,19 @@ describe("ImportService", () => {
     expect(collectSecretValues({ YARR_QBITTORRENT_USERNAME: "private-user" })).toEqual([
       "private-user",
     ]);
+
+    const declinedPreview = await service.preview({
+      QBITTORRENT_USERNAME: "declined-user",
+    });
+    const declined = await service.apply({
+      previewId: declinedPreview.previewId,
+      selectedServiceIds: ["qbittorrent"],
+      credentialConsent: { qbittorrent: false },
+    });
+    expect(declined.config.services.find((item) => item.service === "qbittorrent")?.username).toBe(
+      "private-user",
+    );
+    expect(codec.toPublicConfig(state.plugin, state.env).services
+      .find((item) => item.service === "qbittorrent")?.username).toBe("private-user");
   });
 });

@@ -138,10 +138,14 @@ the stable lifecycle lock. Metadata, checksums, and archives have independent
 connect/total timeouts, retry limits, and maximum byte sizes.
 
 If readiness fails, the updater restores the previous executable and runtime
-state. **Roll back to previous version** atomically swaps `yarr.previous` into
-the active overlay, retains the replaced executable as the next
-`yarr.previous`, and restores the current binary if restart/readiness fails.
-It is available from the Updates panel or as
+state. **Roll back to previous version** first creates durable, private
+content-verified snapshots of both executables, then atomically stages
+`yarr.previous` into the active overlay and retains the replaced executable as
+the next `yarr.previous`. If restart/readiness fails, restoration copies from
+the preserved snapshots and reports success only after exact hash/mode checks
+and runtime recovery. An incomplete restoration fails explicitly and retains
+the snapshots under the overlay for operator recovery. The operation is
+available from the Updates panel or as
 `yarr-update.sh rollback --json`. **Reset to packaged** removes the appdata
 overlay so `/usr/local/yarr/bin/yarr` is selected again. Neither action changes
 plugin configuration or service credentials.

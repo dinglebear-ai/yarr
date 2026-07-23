@@ -36,7 +36,7 @@ function displayName(id: string): string {
 }
 
 function hasCredential(mapping: YarrImportMapping): boolean {
-  return mapping.hasPassword || mapping.hasApiKey;
+  return mapping.hasUsername || mapping.hasPassword || mapping.hasApiKey;
 }
 
 async function requestPreview(): Promise<void> {

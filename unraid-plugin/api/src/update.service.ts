@@ -126,7 +126,9 @@ function isSafeMessage(value: unknown): value is string {
     /^Update failed; previous binary restored$/,
     /^Reset failed; previous binary restored$/,
     /^Rollback failed; current binary restored$/,
+    /^Rollback failed; restoration incomplete; recovery snapshots retained$/,
     /^Manual rollback is unavailable; no previous binary exists$/,
+    /^Yarr rolled back; recovery snapshot cleanup pending$/,
     /^Yarr updated; obsolete backup cleanup pending$/,
   ].some((pattern) => pattern.test(value));
 }
@@ -146,11 +148,16 @@ function isExpectedNonzeroOutcome(
       : value.message === "Yarr reset; updater backup cleanup pending" && !value.rolledBack;
   }
   if (operation === "rollback") {
-    return value.message === "Rollback failed; current binary restored"
-      ? value.rolledBack
-      : value.message === "Manual rollback is unavailable; no previous binary exists" &&
-        !value.rolledBack &&
-        !value.rollbackAvailable;
+    if (value.message === "Rollback failed; current binary restored") return value.rolledBack;
+    if (value.message === "Rollback failed; restoration incomplete; recovery snapshots retained") {
+      return !value.rolledBack;
+    }
+    if (value.message === "Yarr rolled back; recovery snapshot cleanup pending") {
+      return !value.rolledBack;
+    }
+    return value.message === "Manual rollback is unavailable; no previous binary exists" &&
+      !value.rolledBack &&
+      !value.rollbackAvailable;
   }
   return false;
 }

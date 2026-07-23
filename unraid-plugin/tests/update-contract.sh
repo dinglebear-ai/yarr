@@ -585,6 +585,45 @@ fi
 expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'manual rollback activation fault active restoration'
 expect_eq '2.0.1' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" 'manual rollback activation fault predecessor restoration'
 "$rc" status >/dev/null || fail 'manual rollback activation fault did not restore service readiness'
+if find "$YARR_OVERLAY_DIR" -maxdepth 1 -type d -name '.yarr.rollback.*' -print -quit | grep -q .; then
+    fail 'successful manual rollback restoration retained a transaction snapshot'
+fi
+
+prepare_running_overlay
+write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
+reset_boundaries
+export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-manual-rollback-restore-readiness-once"
+export YARR_TEST_FAIL_COMMAND=install
+export YARR_TEST_FAIL_AT=5
+expect_failure 'manual rollback restoration helper fault' "$updater" rollback --json
+unset YARR_TEST_READY_FAIL_ONCE YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT
+if ! jq -e '.rolledBack == false and .rollbackAvailable == true and
+    .message == "Rollback failed; restoration incomplete; recovery snapshots retained"' \
+    "$tmp_dir/command.out" >/dev/null; then
+    cat "$tmp_dir/command.out" >&2
+    cat "$tmp_dir/command.err" >&2
+    fail 'manual rollback restoration fault did not return its truthful structured outcome'
+fi
+expect_eq '2.0.1' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" \
+    'manual rollback restoration fault surviving active binary'
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" \
+    'manual rollback restoration fault surviving predecessor binary'
+rollback_snapshot=$(find "$YARR_OVERLAY_DIR" -maxdepth 1 -type d -name '.yarr.rollback.*' -print -quit)
+[[ -n "$rollback_snapshot" && -x "$rollback_snapshot/active.snapshot" &&
+    -x "$rollback_snapshot/previous.snapshot" ]] ||
+    fail 'manual rollback restoration fault did not preserve both recovery snapshots'
+expect_eq '700' "$(stat -c '%a' "$rollback_snapshot")" \
+    'manual rollback recovery transaction mode'
+expect_eq '2.0.0' "$("$rollback_snapshot/active.snapshot" --version | awk '{print $2}')" \
+    'manual rollback active recovery snapshot'
+expect_eq '2.0.1' "$("$rollback_snapshot/previous.snapshot" --version | awk '{print $2}')" \
+    'manual rollback predecessor recovery snapshot'
+expect_eq '2' "$(<"$YARR_TEST_FAKE_COUNTS/mv")" \
+    'manual rollback restoration stopped before a destructive move'
+if "$rc" status >/dev/null 2>&1; then
+    fail 'manual rollback restoration fault claimed readiness without a restored service'
+fi
+/bin/rm -rf -- "$rollback_snapshot"
 
 prepare_running_overlay
 reset_boundaries

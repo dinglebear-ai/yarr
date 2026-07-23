@@ -44,3 +44,26 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - Final gates: API `177/177`, web `52/52`, typechecks/builds, browser smoke, updater and aggregate contracts, package verifier, ShellCheck `16` at CI severity, actionlint, Python `6` plus workflow mutation, and API/web production audits with zero findings.
 - Umask `022` and `077` packages are byte-identical at SHA-256 `56ba2886eff4c9e08bd18fbce41b3767b9174b356fa28d4d3ee6c870a3c0f06c`, MD5 `268005b4629da4b49a707d83c55207a4`, size `6,218,032` bytes; both contain `57` canonical entries, `14` root:root `0755` directories, and no `./` member.
 - No deployment, workflow dispatch, release publication, or upstream draft mutation occurred. Independent review approval remains pending.
+
+### 2026-07-23 - Independent review 1 follow-up
+
+- Fixed preservation safety for manual rollback from base `a800519`: private
+  durable snapshots now precede all live replacements; staged atomic copies
+  preserve the only active/previous binaries; recovery stops on its first
+  failed step and reports incomplete restoration with `rolledBack=false`.
+- Added direct restoration-helper fault injection proving active,
+  `yarr.previous`, both snapshots, and truthful structured output survive, with
+  no later restoration move after the injected failure.
+- Username-only qBittorrent previews now require an explicit credential
+  consent decision in the UI; acceptance persists through the real codec and
+  decline preserves the current username.
+- Gates: focused API `42/42`, focused web `19/19`, full API `179/179`, full web
+  `53/53`, updater and aggregate package/plugin contracts, browser smoke,
+  verifier, ShellCheck, actionlint, Python workflow contracts, deterministic
+  umask `022`/`077` builds, and zero-vulnerability production audits pass.
+- Package SHA-256
+  `dab032149ea8d3682dc41b94d58d62f7906a39a383705fd7ef0c9b8c38f98957`,
+  MD5 `1ae9cdd127b855f24bc178a57ada09e1`, size `6,221,988` bytes; `57`
+  canonical entries, `43` files, `14` root:root `0755` directories, no `./`.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.

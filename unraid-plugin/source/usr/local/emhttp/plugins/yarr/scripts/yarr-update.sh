@@ -44,6 +44,13 @@ YARR_UPDATE_TMP=''
 YARR_UPDATE_STAGED=''
 YARR_UPDATE_ROLLBACK=''
 YARR_ROLLED_BACK=false
+YARR_ROLLBACK_TRANSACTION=''
+YARR_ROLLBACK_ACTIVE_SNAPSHOT=''
+YARR_ROLLBACK_PREVIOUS_SNAPSHOT=''
+YARR_ROLLBACK_ACTIVE_SHA=''
+YARR_ROLLBACK_PREVIOUS_SHA=''
+YARR_ROLLBACK_ACTIVE_MODE=''
+YARR_ROLLBACK_PREVIOUS_MODE=''
 YARR_RESET_CLEANUP_PENDING=false
 YARR_APPLY_CLEANUP_PENDING=false
 YARR_UPDATE_CONNECT_TIMEOUT=${YARR_UPDATE_CONNECT_TIMEOUT:-10}
@@ -536,43 +543,116 @@ yarr_update_reset_locked() {
     fi
 }
 
+yarr_update_binary_sha() {
+    sha256sum "$1" | awk '{print tolower($1)}'
+}
+
+yarr_update_binary_matches() {
+    local path=$1 expected_sha=$2 expected_mode=$3 actual_sha actual_mode
+    [[ -f "$path" && ! -L "$path" && -x "$path" ]] || return 1
+    actual_sha=$(yarr_update_binary_sha "$path") || return 1
+    actual_mode=$(stat -c '%a' "$path") || return 1
+    [[ "$actual_sha" == "$expected_sha" && "$actual_mode" == "$expected_mode" ]]
+}
+
+yarr_update_copy_binary() {
+    local source=$1 destination=$2 mode=$3
+    [[ -f "$source" && ! -L "$source" && -x "$source" ]] || return 1
+    "$YARR_INSTALL_BIN" -m "$mode" -- "$source" "$destination" || return 1
+    "$YARR_SYNC_BIN" -f "$destination"
+}
+
+yarr_update_prepare_manual_rollback() {
+    local transaction
+    YARR_ROLLBACK_ACTIVE_SHA=$(yarr_update_binary_sha "$YARR_TXN_ACTIVE") || return 1
+    YARR_ROLLBACK_PREVIOUS_SHA=$(yarr_update_binary_sha "$YARR_TXN_PREVIOUS") || return 1
+    YARR_ROLLBACK_ACTIVE_MODE=$(stat -c '%a' "$YARR_TXN_ACTIVE") || return 1
+    YARR_ROLLBACK_PREVIOUS_MODE=$(stat -c '%a' "$YARR_TXN_PREVIOUS") || return 1
+    [[ "$YARR_ROLLBACK_ACTIVE_MODE" =~ ^[0-7]{3,4}$ &&
+        "$YARR_ROLLBACK_PREVIOUS_MODE" =~ ^[0-7]{3,4}$ ]] || return 1
+
+    transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.rollback.XXXXXXXX") || return 1
+    chmod 700 "$transaction" || return 1
+    YARR_ROLLBACK_TRANSACTION=$transaction
+    YARR_ROLLBACK_ACTIVE_SNAPSHOT="${transaction}/active.snapshot"
+    YARR_ROLLBACK_PREVIOUS_SNAPSHOT="${transaction}/previous.snapshot"
+    YARR_TXN_NEXT_ACTIVE="${transaction}/active.next"
+    YARR_TXN_NEXT_PREVIOUS="${transaction}/previous.next"
+
+    yarr_update_copy_binary "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
+        "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
+    yarr_update_copy_binary "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
+    yarr_update_binary_matches "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
+        "$YARR_ROLLBACK_ACTIVE_SHA" "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
+    yarr_update_binary_matches "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
+        "$YARR_ROLLBACK_PREVIOUS_SHA" "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
+
+    yarr_update_copy_binary "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" "$YARR_TXN_NEXT_ACTIVE" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
+    yarr_update_copy_binary "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" "$YARR_TXN_NEXT_PREVIOUS" \
+        "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
+    "$YARR_SYNC_BIN" -f "$transaction"
+}
+
+yarr_update_restore_snapshot() {
+    local snapshot=$1 expected_sha=$2 expected_mode=$3 destination=$4 staged=$5
+    yarr_update_copy_binary "$snapshot" "$staged" "$expected_mode" || return 1
+    yarr_update_binary_matches "$staged" "$expected_sha" "$expected_mode" || return 1
+    "$YARR_MV_BIN" -f -- "$staged" "$destination" || return 1
+    "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" || return 1
+    yarr_update_binary_matches "$destination" "$expected_sha" "$expected_mode"
+}
+
 yarr_update_restore_manual_rollback() {
-    local was_running=$1 active=$2 previous=$3 active_backup=$4
-    local active_location=$5 previous_location=$6 result=0
-    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle stop; then result=1; fi
-    if [[ "$active_location" == previous && -e "$previous" ]]; then
-        if "$YARR_MV_BIN" "$previous" "$active_backup"; then
-            active_location=backup
-        else
-            result=1
-        fi
+    local ownership_status
+    YARR_ROLLED_BACK=false
+    if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle stop; then
+        return 1
     fi
-    if [[ "$previous_location" == active && -e "$active" ]]; then
-        if "$YARR_MV_BIN" "$active" "$previous"; then
-            previous_location=previous
-        else
-            result=1
-        fi
+    yarr_update_restore_snapshot "$YARR_ROLLBACK_ACTIVE_SNAPSHOT" \
+        "$YARR_ROLLBACK_ACTIVE_SHA" "$YARR_ROLLBACK_ACTIVE_MODE" "$YARR_TXN_ACTIVE" \
+        "${YARR_ROLLBACK_TRANSACTION}/active.restore" || return 1
+    yarr_update_restore_snapshot "$YARR_ROLLBACK_PREVIOUS_SNAPSHOT" \
+        "$YARR_ROLLBACK_PREVIOUS_SHA" "$YARR_ROLLBACK_PREVIOUS_MODE" "$YARR_TXN_PREVIOUS" \
+        "${YARR_ROLLBACK_TRANSACTION}/previous.restore" || return 1
+    yarr_update_binary_matches "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_ACTIVE_SHA" \
+        "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
+    yarr_update_binary_matches "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_PREVIOUS_SHA" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
+    if [[ "$YARR_TXN_WAS_RUNNING" == true ]]; then
+        yarr_update_lifecycle start || return 1
+    elif yarr_pid_is_owned; then
+        return 1
+    else
+        ownership_status=$?
+        (( ownership_status == 1 )) || return 1
     fi
-    if [[ "$active_location" == backup && -e "$active_backup" ]]; then
-        if "$YARR_MV_BIN" "$active_backup" "$active"; then
-            active_location=active
-        else
-            result=1
-        fi
-    fi
-    "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" || result=1
-    if [[ "$was_running" == true ]]; then
-        yarr_update_lifecycle start || result=1
-    fi
+    yarr_update_binary_matches "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_ACTIVE_SHA" \
+        "$YARR_ROLLBACK_ACTIVE_MODE" || return 1
+    yarr_update_binary_matches "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_PREVIOUS_SHA" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" || return 1
     YARR_ROLLED_BACK=true
-    return "$result"
 }
 
 yarr_update_rollback_manual_current() {
-    yarr_update_restore_manual_rollback "$YARR_TXN_WAS_RUNNING" "$YARR_TXN_ACTIVE" \
-        "$YARR_TXN_PREVIOUS" "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_ACTIVE_LOCATION" \
-        "$YARR_TXN_PREVIOUS_LOCATION"
+    yarr_update_restore_manual_rollback
+}
+
+yarr_update_fail_manual_rollback() {
+    local message
+    if yarr_update_rollback_manual_current; then
+        message='Rollback failed; current binary restored'
+        if ! "$YARR_RM_BIN" -rf -- "$YARR_ROLLBACK_TRANSACTION"; then
+            yarr_update_error 'current binary restored but recovery snapshots could not be removed'
+        fi
+    else
+        YARR_ROLLED_BACK=false
+        message='Rollback failed; restoration incomplete; recovery snapshots retained'
+    fi
+    YARR_UPDATE_ROLLBACK=''
+    yarr_update_emit '' "$YARR_ROLLED_BACK" "$message" || true
+    return 1
 }
 
 yarr_update_manual_rollback_locked() {
@@ -580,6 +660,7 @@ yarr_update_manual_rollback_locked() {
     yarr_update_require_array_active || return 1
     yarr_load_config && yarr_validate_config || return 1
     yarr_update_ensure_overlay_dir || return 1
+    YARR_ROLLED_BACK=false
     YARR_TXN_ACTIVE="${YARR_OVERLAY_DIR}/yarr"
     YARR_TXN_PREVIOUS="${YARR_OVERLAY_DIR}/yarr.previous"
     if [[ ! -f "$YARR_TXN_ACTIVE" || -L "$YARR_TXN_ACTIVE" || ! -x "$YARR_TXN_ACTIVE" ||
@@ -594,13 +675,17 @@ yarr_update_manual_rollback_locked() {
     yarr_update_validate_supported_state "$previous_version" "$supported" || return 1
 
     YARR_TXN_WAS_RUNNING=false
-    YARR_TXN_ACTIVE_BACKUP="${YARR_OVERLAY_DIR}/.yarr.rollback.active.$$"
-    YARR_TXN_ACTIVE_LOCATION=active
-    YARR_TXN_PREVIOUS_LOCATION=previous
+    yarr_update_prepare_manual_rollback || {
+        yarr_update_error 'could not create durable manual rollback snapshots'
+        return 1
+    }
     YARR_UPDATE_ROLLBACK=yarr_update_rollback_manual_current
     if yarr_pid_is_owned; then
         YARR_TXN_WAS_RUNNING=true
-        yarr_update_lifecycle stop || return 1
+        if ! yarr_update_lifecycle stop; then
+            yarr_update_fail_manual_rollback
+            return 1
+        fi
     else
         ownership_status=$?
         if (( ownership_status != 1 )); then
@@ -608,35 +693,42 @@ yarr_update_manual_rollback_locked() {
             return 1
         fi
     fi
-    if ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE" "$YARR_TXN_ACTIVE_BACKUP"; then
-        yarr_update_rollback_manual_current || true
-        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+    if ! "$YARR_MV_BIN" -f -- "$YARR_TXN_NEXT_ACTIVE" "$YARR_TXN_ACTIVE"; then
+        yarr_update_fail_manual_rollback
         return 1
     fi
-    YARR_TXN_ACTIVE_LOCATION=backup
-    if ! "$YARR_MV_BIN" "$YARR_TXN_PREVIOUS" "$YARR_TXN_ACTIVE"; then
-        yarr_update_rollback_manual_current || true
-        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+    if ! "$YARR_MV_BIN" -f -- "$YARR_TXN_NEXT_PREVIOUS" "$YARR_TXN_PREVIOUS"; then
+        yarr_update_fail_manual_rollback
         return 1
     fi
-    YARR_TXN_PREVIOUS_LOCATION=active
-    if ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_PREVIOUS"; then
-        yarr_update_rollback_manual_current || true
-        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
-        return 1
-    fi
-    YARR_TXN_ACTIVE_LOCATION=previous
     if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
-        yarr_update_rollback_manual_current || true
-        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        yarr_update_fail_manual_rollback
+        return 1
+    fi
+    if ! yarr_update_binary_matches "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_PREVIOUS_SHA" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" ||
+        ! yarr_update_binary_matches "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_ACTIVE_SHA" \
+            "$YARR_ROLLBACK_ACTIVE_MODE"; then
+        yarr_update_fail_manual_rollback
         return 1
     fi
     if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle start; then
-        yarr_update_rollback_manual_current || true
-        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        yarr_update_fail_manual_rollback
+        return 1
+    fi
+    if ! yarr_update_binary_matches "$YARR_TXN_ACTIVE" "$YARR_ROLLBACK_PREVIOUS_SHA" \
+        "$YARR_ROLLBACK_PREVIOUS_MODE" ||
+        ! yarr_update_binary_matches "$YARR_TXN_PREVIOUS" "$YARR_ROLLBACK_ACTIVE_SHA" \
+            "$YARR_ROLLBACK_ACTIVE_MODE"; then
+        yarr_update_fail_manual_rollback
         return 1
     fi
     YARR_UPDATE_ROLLBACK=''
+    if ! "$YARR_RM_BIN" -rf -- "$YARR_ROLLBACK_TRANSACTION"; then
+        yarr_update_emit '' false 'Yarr rolled back; recovery snapshot cleanup pending'
+        return 1
+    fi
+    YARR_ROLLBACK_TRANSACTION=''
     yarr_update_emit '' false 'Yarr rolled back to previous binary'
 }
 

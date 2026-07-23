@@ -362,6 +362,51 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain("Import credentials for Sonarr");
   });
 
+  it("requires consent for a username-only qBittorrent import and applies it explicitly", async () => {
+    await mountSettings();
+    const previewId = "q".repeat(32);
+    api.previewYarrImport.mockResolvedValue({
+      previewId,
+      mappings: [{
+        serviceId: "qbittorrent",
+        baseUrl: "http://qbittorrent:8080",
+        hasUsername: true,
+        hasPassword: false,
+        hasApiKey: false,
+      }],
+      warnings: [],
+    });
+    api.applyYarrImport.mockResolvedValue({
+      config,
+      changed: true,
+      restarted: true,
+      rolledBack: false,
+      error: null,
+    });
+
+    button("Import configuration").click();
+    await nextTick();
+    await setValue(input("Paste .env or Yarr TOML"), "QBITTORRENT_USERNAME=private-user");
+    button("Preview import").click();
+    await flush();
+    host.querySelector<HTMLInputElement>('input[name="import-service-qbittorrent"]')!.click();
+    await nextTick();
+
+    const consentLabel = Array.from(host.querySelectorAll("label"))
+      .find((label) => label.textContent?.includes("Import credentials for qBittorrent"));
+    expect(consentLabel).toBeTruthy();
+    consentLabel!.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+    await nextTick();
+    button("Apply selected").click();
+    await flush();
+
+    expect(api.applyYarrImport).toHaveBeenLastCalledWith({
+      previewId,
+      selectedServiceIds: ["qbittorrent"],
+      credentialConsent: [{ serviceId: "qbittorrent", consent: true }],
+    }, expect.any(AbortSignal));
+  });
+
   it("requires explicit Docker candidate selection and per-service credential consent", async () => {
     await mountSettings();
     api.queryYarrDiscovery.mockResolvedValue({
@@ -419,18 +464,24 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain("Reset to packaged Yarr?");
   });
 
-  it("renders a confirmed failed manual rollback without claiming the previous binary activated", async () => {
+  it("distinguishes confirmed restoration from incomplete manual rollback recovery", async () => {
     await mountSettings();
     api.queryYarrUpdateStatus.mockResolvedValue({
       installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
       updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
       message: "Yarr is current",
     });
-    api.rollbackYarrBinary.mockResolvedValue({
-      installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "",
-      updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: true,
-      message: "Rollback failed; current binary restored",
-    });
+    api.rollbackYarrBinary
+      .mockResolvedValueOnce({
+        installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "",
+        updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: true,
+        message: "Rollback failed; current binary restored",
+      })
+      .mockResolvedValueOnce({
+        installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "",
+        updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+        message: "Rollback failed; restoration incomplete; recovery snapshots retained",
+      });
     button("Updates").click();
     await flush();
     button("Roll back to previous version").click();
@@ -441,6 +492,14 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain("Rollback failed; current binary restored");
     expect(host.textContent).toContain("The current version was restored.");
     expect(host.textContent).not.toContain("The previous version was restored.");
+
+    button("Roll back to previous version").click();
+    await nextTick();
+    button("Roll back Yarr").click();
+    await flush();
+    expect(host.textContent).toContain("restoration incomplete; recovery snapshots retained");
+    expect(host.textContent).toContain("The current version was not confirmed restored.");
+    expect(host.textContent).not.toContain("The current version was restored.");
   });
 
   it("serializes usernames only for capable services and preserves qBittorrent", async () => {

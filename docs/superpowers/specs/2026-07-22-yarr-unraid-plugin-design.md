@@ -395,9 +395,12 @@ Settings sections:
    validation guidance.
 4. **Updates:** bundled/active/latest versions, update/manual rollback/reset
    operations, compatibility warnings, progress, and rollback outcome. Manual
-   rollback atomically selects `yarr.previous`, retains the replaced active
-   overlay as the next predecessor, and restores the current binary if
-   activation readiness fails.
+   rollback preserves private durable snapshots of both binaries before
+   atomically selecting `yarr.previous`, retains the replaced active overlay
+   as the next predecessor, and restores from snapshots if activation
+   readiness fails. Restoration is successful only after exact binary and
+   runtime-state verification; incomplete recovery is reported as failure and
+   retains both snapshots.
 5. **Logs:** bounded redacted Yarr/service logs with refresh and download of the
    visible redacted range only.
 

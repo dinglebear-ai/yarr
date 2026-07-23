@@ -313,3 +313,25 @@ and no review approval is claimed.
 
 Detailed evidence is in
 `.superpowers/sdd/task-12-independent-review1-fixes-report.md`.
+
+## 2026-07-23 independent review 1 follow-up
+
+The two follow-up findings are remediated from
+`a800519af4ca2be8b335e36714c327e1c7e8fbfa`. Manual rollback is now
+preservation-first: immutable durable snapshots precede any live-path change,
+all activation/restoration replacements are staged and atomic, restoration
+halts at its first failed step, and `rolledBack=true` requires exact hash/mode
+and runtime-state recovery. An incomplete restoration retains both snapshots
+and emits a structured false result through shell, API, and UI.
+
+Username-only qBittorrent imports now display credential consent. The real UI
+payload sends `consent:true`, the real backend codec persists acceptance, and
+decline preserves the existing username.
+
+Full gates pass with API `179/179`, web `53/53`, updater and aggregate
+contracts, deterministic umask `022`/`077` package bytes, package verification,
+ShellCheck, actionlint, Python workflow validation, browser smoke, and zero
+production audit findings. The rebuilt package is SHA-256
+`dab032149ea8d3682dc41b94d58d62f7906a39a383705fd7ef0c9b8c38f98957`,
+MD5 `1ae9cdd127b855f24bc178a57ada09e1`, size `6,221,988` bytes. No live or
+release mutation occurred, and no review approval is claimed.

@@ -861,7 +861,8 @@ clear credential requires an explicit control
 import preview shows unmapped keys and never renders secret text
 Docker candidates require explicit selection
 credential import consent is per service
-update, manual rollback, and reset require confirmation and show rollback result
+update, preservation-first manual rollback, and reset require confirmation and
+show verified restoration or explicit snapshot-retained recovery failure
 logs support bounded line count and manual refresh
 dashboard displays state, readiness, version, endpoint, and one safe control action
 ```
