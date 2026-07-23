@@ -34,16 +34,37 @@ function harness() {
       updateChannel: "stable" as const,
       bearerToken: "plugin-private",
     },
-    services: [{
-      service: "sonarr",
-      enabled: true,
-      baseUrl: "http://sonarr:8989",
-      username: null,
-      hasPassword: false,
-      hasApiKey: true,
-      extra: { YARR_SONARR_PATH: "/api", YARR_SONARR_API_KEY: "service-private" },
-      apiKey: "service-private",
-    }],
+    services: [
+      {
+        service: "yarr",
+        enabled: true,
+        baseUrl: "http://127.0.0.1:40070",
+        username: null,
+        hasPassword: false,
+        hasApiKey: true,
+        extra: {
+          YARR_MCP_ALLOWED_HOSTS: "yarr.example.test",
+          PRIVATE_KEY: "private-key-value",
+          SESSION_COOKIE: "session-cookie-value",
+          FUTURE_ARBITRARY_VALUE: "future-private-value",
+        },
+      },
+      {
+        service: "sonarr",
+        enabled: true,
+        baseUrl: "http://sonarr:8989",
+        username: null,
+        hasPassword: false,
+        hasApiKey: true,
+        extra: {
+          YARR_SONARR_PATH: "/api",
+          PRIVATE_KEY: "private-key-value",
+          SESSION_COOKIE: "session-cookie-value",
+          FUTURE_ARBITRARY_VALUE: "future-private-value",
+        },
+        apiKey: "service-private",
+      },
+    ],
   };
   const mutationResult = {
     config: configView,
@@ -156,10 +177,11 @@ describe("YarrResolver", () => {
 
     expect(result.logs).toEqual({ lines: ["two", "three"], truncated: true });
     expect(result.config.services[0].extra).toEqual([
-      { key: "YARR_SONARR_PATH", value: "/api" },
+      { key: "YARR_MCP_ALLOWED_HOSTS", value: "yarr.example.test" },
     ]);
+    expect(result.config.services[1].extra).toEqual([]);
     expect(JSON.stringify(result)).not.toMatch(
-      /runtime-private|plugin-private|service-private|import-private|discovery-private|update-private/,
+      /runtime-private|plugin-private|service-private|import-private|discovery-private|update-private|private-key-value|session-cookie-value|future-private-value/,
     );
   });
 

@@ -5,19 +5,20 @@ export interface ServiceCatalogEntry {
   usernameKeys: readonly string[];
   passwordKeys: readonly string[];
   apiKeyKeys: readonly string[];
+  publicExtraKeys: readonly string[];
   defaultPort: number | null;
   containerHints: readonly string[];
 }
 
 export const SERVICE_CATALOG: readonly ServiceCatalogEntry[] = [
-  service("sonarr", "Sonarr", 8989, ["sonarr"], [], [], ["SONARR_API_KEY", "SONARR_APIKEY"]),
-  service("radarr", "Radarr", 7878, ["radarr"], [], [], ["RADARR_API_KEY", "RADARR_APIKEY"]),
-  service("prowlarr", "Prowlarr", 9696, ["prowlarr"], [], [], ["PROWLARR_API_KEY", "PROWLARR_APIKEY"]),
-  service("tautulli", "Tautulli", 8181, ["tautulli"], [], [], ["TAUTULLI_API_KEY", "TAUTULLI_APIKEY"]),
-  service("overseerr", "Overseerr", 5055, ["overseerr"], [], [], ["OVERSEERR_API_KEY", "OVERSEERR_APIKEY"]),
-  service("bazarr", "Bazarr", 6767, ["bazarr"], [], [], ["BAZARR_API_KEY", "BAZARR_APIKEY"]),
-  service("tracearr", "Tracearr", 3000, ["tracearr"], [], [], []),
-  service("sabnzbd", "SABnzbd", 8080, ["sabnzbd", "sab"], [], [], ["SABNZBD_API_KEY", "SABNZBD_APIKEY"]),
+  service("sonarr", "Sonarr", 8989, ["sonarr"], [], [], ["SONARR_API_KEY", "SONARR_APIKEY"], []),
+  service("radarr", "Radarr", 7878, ["radarr"], [], [], ["RADARR_API_KEY", "RADARR_APIKEY"], []),
+  service("prowlarr", "Prowlarr", 9696, ["prowlarr"], [], [], ["PROWLARR_API_KEY", "PROWLARR_APIKEY"], []),
+  service("tautulli", "Tautulli", 8181, ["tautulli"], [], [], ["TAUTULLI_API_KEY", "TAUTULLI_APIKEY"], []),
+  service("overseerr", "Overseerr", 5055, ["overseerr"], [], [], ["OVERSEERR_API_KEY", "OVERSEERR_APIKEY"], []),
+  service("bazarr", "Bazarr", 6767, ["bazarr"], [], [], ["BAZARR_API_KEY", "BAZARR_APIKEY"], []),
+  service("tracearr", "Tracearr", 3000, ["tracearr"], [], [], [], []),
+  service("sabnzbd", "SABnzbd", 8080, ["sabnzbd", "sab"], [], [], ["SABNZBD_API_KEY", "SABNZBD_APIKEY"], []),
   service(
     "qbittorrent",
     "qBittorrent",
@@ -26,10 +27,21 @@ export const SERVICE_CATALOG: readonly ServiceCatalogEntry[] = [
     ["QBITTORRENT_USERNAME", "QBIT_USERNAME"],
     ["QBITTORRENT_PASSWORD", "QBIT_PASSWORD"],
     [],
+    [],
   ),
-  service("plex", "Plex", 32400, ["plex", "plexmediaserver"], [], [], ["PLEX_TOKEN"]),
-  service("jellyfin", "Jellyfin", 8096, ["jellyfin"], [], [], ["JELLYFIN_API_KEY", "JELLYFIN_APIKEY"]),
+  service("plex", "Plex", 32400, ["plex", "plexmediaserver"], [], [], ["PLEX_TOKEN"], []),
+  service("jellyfin", "Jellyfin", 8096, ["jellyfin"], [], [], ["JELLYFIN_API_KEY", "JELLYFIN_APIKEY"], []),
 ] as const;
+
+export const YARR_CONTROL_PUBLIC_EXTRA_KEYS = [
+  "YARR_MCP_ALLOWED_HOSTS",
+  "YARR_MCP_ALLOWED_ORIGINS",
+] as const;
+
+export const PUBLIC_EXTRA_KEYS_BY_SERVICE: ReadonlyMap<string, readonly string[]> = new Map([
+  ["yarr", YARR_CONTROL_PUBLIC_EXTRA_KEYS],
+  ...SERVICE_CATALOG.map((entry) => [entry.id, entry.publicExtraKeys] as const),
+]);
 
 export const SERVICE_CATALOG_BY_ID: ReadonlyMap<string, ServiceCatalogEntry> = new Map(
   SERVICE_CATALOG.map((entry) => [entry.id, entry]),
@@ -97,6 +109,7 @@ function service(
   usernameAliases: readonly string[],
   passwordAliases: readonly string[],
   apiKeyAliases: readonly string[],
+  publicExtraKeys: readonly string[],
 ): ServiceCatalogEntry {
   const prefix = id.toUpperCase();
   return {
@@ -112,6 +125,7 @@ function service(
     apiKeyKeys: apiKeyAliases.length > 0
       ? [id === "plex" ? "YARR_PLEX_TOKEN" : `YARR_${prefix}_API_KEY`, ...apiKeyAliases]
       : [],
+    publicExtraKeys,
     defaultPort,
     containerHints,
   };

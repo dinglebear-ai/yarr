@@ -29,10 +29,10 @@ import {
 import { ImportService, type ImportPreview } from "./import.service";
 import { LogService } from "./log.service";
 import { RuntimeService, type RuntimeState } from "./runtime.service";
+import { PUBLIC_EXTRA_KEYS_BY_SERVICE } from "./service-catalog";
 import { UpdateService, type UpdateStatus } from "./update.service";
 
 const MAX_LOG_LINES = 500;
-const SECRET_EXTRA_KEY = /(?:PASSWORD|TOKEN|API[_-]?KEY|SECRET|CREDENTIAL|AUTH)/i;
 
 @Resolver()
 export class YarrResolver {
@@ -65,7 +65,9 @@ export class YarrResolver {
 
   @Query(() => YarrLogs)
   @UsePermissions({ action: AuthAction.READ_ANY, resource: Resource.SERVICES })
-  async yarrLogs(@Args("lines", { type: () => Int, defaultValue: 200 }) lines = 200): Promise<YarrLogs> {
+  async yarrLogs(
+    @Args("lines", { type: () => Int, nullable: true, defaultValue: 200 }) lines = 200,
+  ): Promise<YarrLogs> {
     if (!Number.isInteger(lines) || lines < 1 || lines > MAX_LOG_LINES) {
       throw new Error("lines must be an integer from 1 to 500");
     }
@@ -84,7 +86,9 @@ export class YarrResolver {
 
   @Mutation(() => YarrConfigMutationResult)
   @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
-  async saveYarrConfig(@Args("input") input: SaveYarrConfigInput): Promise<YarrConfigMutationResult> {
+  async saveYarrConfig(
+    @Args("input", { type: () => SaveYarrConfigInput }) input: SaveYarrConfigInput,
+  ): Promise<YarrConfigMutationResult> {
     return mapMutation(await this.config.save(toConfigInput(input)));
   }
 
@@ -99,13 +103,17 @@ export class YarrResolver {
 
   @Mutation(() => YarrImportPreview)
   @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
-  async previewYarrImport(@Args("input") input: PreviewYarrImportInput): Promise<YarrImportPreview> {
+  async previewYarrImport(
+    @Args("input", { type: () => PreviewYarrImportInput }) input: PreviewYarrImportInput,
+  ): Promise<YarrImportPreview> {
     return mapImportPreview(await this.imports.preview(parseImportText(input.text)));
   }
 
   @Mutation(() => YarrConfigMutationResult)
   @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
-  async applyYarrImport(@Args("input") input: ApplyYarrImportInput): Promise<YarrConfigMutationResult> {
+  async applyYarrImport(
+    @Args("input", { type: () => ApplyYarrImportInput }) input: ApplyYarrImportInput,
+  ): Promise<YarrConfigMutationResult> {
     return mapMutation(await this.imports.apply({
       previewId: input.previewId,
       selectedServiceIds: [...input.selectedServiceIds],
@@ -115,7 +123,9 @@ export class YarrResolver {
 
   @Mutation(() => YarrConfigMutationResult)
   @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
-  async applyYarrDiscovery(@Args("input") input: ApplyYarrDiscoveryInput): Promise<YarrConfigMutationResult> {
+  async applyYarrDiscovery(
+    @Args("input", { type: () => ApplyYarrDiscoveryInput }) input: ApplyYarrDiscoveryInput,
+  ): Promise<YarrConfigMutationResult> {
     return mapMutation(await this.discovery.apply({
       discoveryId: input.discoveryId,
       selectedCandidateIds: [...input.selectedCandidateIds],
@@ -125,7 +135,7 @@ export class YarrResolver {
 
   @Mutation(() => YarrUpdateResult)
   @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
-  async updateYarrBinary(@Args("version") version: string): Promise<YarrUpdateResult> {
+  async updateYarrBinary(@Args("version", { type: () => String }) version: string): Promise<YarrUpdateResult> {
     return mapUpdate(await this.updates.apply(version));
   }
 
@@ -169,9 +179,10 @@ function mapConfig(value: YarrConfigView): YarrConfig {
       username: service.username,
       hasPassword: service.hasPassword,
       hasApiKey: service.hasApiKey,
-      extra: Object.entries(service.extra)
-        .filter(([key]) => !SECRET_EXTRA_KEY.test(key))
-        .map(([key, entryValue]) => ({ key, value: entryValue })),
+      extra: (PUBLIC_EXTRA_KEYS_BY_SERVICE.get(service.service) ?? []).flatMap((key) => {
+        const entryValue = service.extra[key];
+        return entryValue === undefined ? [] : [{ key, value: entryValue }];
+      }),
     })),
   };
 }

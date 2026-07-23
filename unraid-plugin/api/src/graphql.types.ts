@@ -25,6 +25,10 @@ const SERVICE_IDS = [
   "sonarr", "radarr", "prowlarr", "tautulli", "overseerr", "bazarr", "tracearr",
   "sabnzbd", "qbittorrent", "plex", "jellyfin",
 ] as const;
+const OPAQUE_ID_LENGTH = 32;
+const SERVICE_ID_MIN_LENGTH = 4;
+const SERVICE_ID_MAX_LENGTH = 12;
+const SERVICE_ID_PATTERN = /^[a-z][a-z0-9]*$/;
 
 export enum YarrControlAction {
   START = 'START',
@@ -66,28 +70,28 @@ registerEnumType(YarrSecretUpdateKind, { name: "YarrSecretUpdateKind" });
 
 @ObjectType()
 export class YarrKeyValue {
-  @Field()
+  @Field(() => String)
   key!: string;
 
-  @Field()
+  @Field(() => String)
   value!: string;
 }
 
 @ObjectType()
 export class YarrRuntime {
-  @Field()
+  @Field(() => String)
   state!: string;
   @Field(() => Int, { nullable: true })
   pid!: number | null;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   version!: string | null;
-  @Field()
+  @Field(() => String)
   bindAddress!: string;
   @Field(() => Int)
   port!: number;
-  @Field()
+  @Field(() => Boolean)
   ready!: boolean;
-  @Field()
+  @Field(() => String)
   healthMessage!: string;
   @Field(() => Int, { nullable: true })
   uptimeSeconds!: number | null;
@@ -95,39 +99,39 @@ export class YarrRuntime {
 
 @ObjectType()
 export class YarrPluginConfig {
-  @Field()
+  @Field(() => Boolean)
   enabled!: boolean;
   @Field(() => YarrBindMode)
   bindMode!: YarrBindMode;
-  @Field()
+  @Field(() => String)
   customHost!: string;
   @Field(() => Int)
   port!: number;
   @Field(() => YarrAuthMode)
   authMode!: YarrAuthMode;
-  @Field()
+  @Field(() => Boolean)
   tailscaleServe!: boolean;
-  @Field()
+  @Field(() => String)
   tailscaleHostname!: string;
   @Field(() => YarrLogLevel)
   logLevel!: YarrLogLevel;
-  @Field()
+  @Field(() => String)
   updateChannel!: string;
 }
 
 @ObjectType()
 export class YarrServiceConfig {
-  @Field()
+  @Field(() => String)
   service!: string;
-  @Field()
+  @Field(() => Boolean)
   enabled!: boolean;
-  @Field()
+  @Field(() => String)
   baseUrl!: string;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   username!: string | null;
-  @Field()
+  @Field(() => Boolean)
   hasPassword!: boolean;
-  @Field()
+  @Field(() => Boolean)
   hasApiKey!: boolean;
   @Field(() => [YarrKeyValue])
   extra!: YarrKeyValue[];
@@ -145,13 +149,13 @@ export class YarrConfig {
 export class YarrConfigMutationResult {
   @Field(() => YarrConfig)
   config!: YarrConfig;
-  @Field()
+  @Field(() => Boolean)
   changed!: boolean;
-  @Field()
+  @Field(() => Boolean)
   restarted!: boolean;
-  @Field()
+  @Field(() => Boolean)
   rolledBack!: boolean;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   error!: string | null;
 }
 
@@ -159,27 +163,27 @@ export class YarrConfigMutationResult {
 export class YarrLogs {
   @Field(() => [String])
   lines!: string[];
-  @Field()
+  @Field(() => Boolean)
   truncated!: boolean;
 }
 
 @ObjectType()
 export class YarrImportMapping {
-  @Field()
+  @Field(() => String)
   serviceId!: string;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   baseUrl!: string | null;
-  @Field()
+  @Field(() => Boolean)
   hasUsername!: boolean;
-  @Field()
+  @Field(() => Boolean)
   hasPassword!: boolean;
-  @Field()
+  @Field(() => Boolean)
   hasApiKey!: boolean;
 }
 
 @ObjectType()
 export class YarrImportPreview {
-  @Field()
+  @Field(() => String)
   previewId!: string;
   @Field(() => [YarrImportMapping])
   mappings!: YarrImportMapping[];
@@ -189,33 +193,33 @@ export class YarrImportPreview {
 
 @ObjectType()
 export class YarrDiscoveryCandidate {
-  @Field()
+  @Field(() => String)
   candidateId!: string;
-  @Field()
+  @Field(() => String)
   source!: string;
-  @Field()
+  @Field(() => String)
   serviceId!: string;
   @Field(() => Int)
   confidence!: number;
   @Field(() => [String])
   reasons!: string[];
-  @Field()
+  @Field(() => String)
   baseUrl!: string;
-  @Field()
+  @Field(() => Boolean)
   hasCredential!: boolean;
 }
 
 @ObjectType()
 export class YarrDiscoveryError {
-  @Field()
+  @Field(() => String)
   code!: string;
-  @Field()
+  @Field(() => String)
   message!: string;
 }
 
 @ObjectType()
 export class YarrDiscoveryResult {
-  @Field()
+  @Field(() => String)
   discoveryId!: string;
   @Field(() => [YarrDiscoveryCandidate])
   candidates!: YarrDiscoveryCandidate[];
@@ -225,19 +229,19 @@ export class YarrDiscoveryResult {
 
 @ObjectType()
 export class YarrUpdateStatus {
-  @Field()
+  @Field(() => String)
   installedVersion!: string;
-  @Field()
+  @Field(() => String)
   packagedVersion!: string;
-  @Field()
+  @Field(() => String)
   availableVersion!: string;
-  @Field()
+  @Field(() => Boolean)
   updateAvailable!: boolean;
-  @Field()
+  @Field(() => Boolean)
   usingOverlay!: boolean;
-  @Field()
+  @Field(() => Boolean)
   rolledBack!: boolean;
-  @Field()
+  @Field(() => String)
   message!: string;
 }
 
@@ -250,7 +254,7 @@ export class YarrSecretUpdateInput {
   @IsEnum(YarrSecretUpdateKind)
   kind!: YarrSecretUpdateKind;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @ValidateIf((input: YarrSecretUpdateInput) => input.kind === YarrSecretUpdateKind.SET)
   @IsString()
   @MinLength(1)
@@ -260,23 +264,26 @@ export class YarrSecretUpdateInput {
 
 @InputType()
 export class SaveYarrServiceInput {
-  @Field()
+  @Field(() => String)
   @IsString()
+  @MinLength(SERVICE_ID_MIN_LENGTH)
+  @MaxLength(SERVICE_ID_MAX_LENGTH)
+  @Matches(SERVICE_ID_PATTERN)
   @IsIn(SERVICE_IDS)
   service!: string;
 
-  @Field({ nullable: true })
+  @Field(() => Boolean, { nullable: true })
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(2048)
   baseUrl?: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(1024)
@@ -297,7 +304,7 @@ export class SaveYarrServiceInput {
 
 @InputType()
 export class SaveYarrConfigInput {
-  @Field({ nullable: true })
+  @Field(() => Boolean, { nullable: true })
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
@@ -305,7 +312,7 @@ export class SaveYarrConfigInput {
   @IsOptional()
   @IsEnum(YarrBindMode)
   bindMode?: YarrBindMode;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(253)
@@ -320,11 +327,11 @@ export class SaveYarrConfigInput {
   @IsOptional()
   @IsEnum(YarrAuthMode)
   authMode?: YarrAuthMode;
-  @Field({ nullable: true })
+  @Field(() => Boolean, { nullable: true })
   @IsOptional()
   @IsBoolean()
   tailscaleServe?: boolean;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(253)
@@ -333,7 +340,7 @@ export class SaveYarrConfigInput {
   @IsOptional()
   @IsEnum(YarrLogLevel)
   logLevel?: YarrLogLevel;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsIn(["stable"])
   updateChannel?: "stable";
@@ -342,7 +349,7 @@ export class SaveYarrConfigInput {
   @ValidateNested()
   @Type(() => YarrSecretUpdateInput)
   bearerToken?: YarrSecretUpdateInput;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(1024)
@@ -352,12 +359,12 @@ export class SaveYarrConfigInput {
   @ValidateNested()
   @Type(() => YarrSecretUpdateInput)
   googleClientSecret?: YarrSecretUpdateInput;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(8192)
   trustedGatewayHosts?: string;
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(8192)
@@ -374,7 +381,7 @@ export class SaveYarrConfigInput {
 
 @InputType()
 export class PreviewYarrImportInput {
-  @Field()
+  @Field(() => String)
   @IsString()
   @MaxLength(MAX_IMPORT_TEXT_LENGTH)
   text!: string;
@@ -382,21 +389,24 @@ export class PreviewYarrImportInput {
 
 @InputType()
 export class YarrCredentialConsentInput {
-  @Field()
+  @Field(() => String)
   @IsString()
+  @MinLength(SERVICE_ID_MIN_LENGTH)
+  @MaxLength(SERVICE_ID_MAX_LENGTH)
+  @Matches(SERVICE_ID_PATTERN)
   @IsIn(SERVICE_IDS)
   serviceId!: string;
-  @Field()
+  @Field(() => Boolean)
   @IsBoolean()
   consent!: boolean;
 }
 
 @InputType()
 export class ApplyYarrImportInput {
-  @Field()
+  @Field(() => String)
   @IsString()
-  @MinLength(32)
-  @MaxLength(128)
+  @MinLength(OPAQUE_ID_LENGTH)
+  @MaxLength(OPAQUE_ID_LENGTH)
   @Matches(/^[A-Za-z0-9_-]+$/)
   previewId!: string;
   @Field(() => [String])
@@ -405,6 +415,9 @@ export class ApplyYarrImportInput {
   @ArrayMaxSize(SERVICE_IDS.length)
   @ArrayUnique()
   @IsString({ each: true })
+  @MinLength(SERVICE_ID_MIN_LENGTH, { each: true })
+  @MaxLength(SERVICE_ID_MAX_LENGTH, { each: true })
+  @Matches(SERVICE_ID_PATTERN, { each: true })
   @IsIn(SERVICE_IDS, { each: true })
   selectedServiceIds!: string[];
   @Field(() => [YarrCredentialConsentInput])
@@ -418,10 +431,10 @@ export class ApplyYarrImportInput {
 
 @InputType()
 export class ApplyYarrDiscoveryInput {
-  @Field()
+  @Field(() => String)
   @IsString()
-  @MinLength(32)
-  @MaxLength(128)
+  @MinLength(OPAQUE_ID_LENGTH)
+  @MaxLength(OPAQUE_ID_LENGTH)
   @Matches(/^[A-Za-z0-9_-]+$/)
   discoveryId!: string;
   @Field(() => [String])
@@ -430,6 +443,8 @@ export class ApplyYarrDiscoveryInput {
   @ArrayMaxSize(256)
   @ArrayUnique()
   @IsString({ each: true })
+  @MinLength(OPAQUE_ID_LENGTH, { each: true })
+  @MaxLength(OPAQUE_ID_LENGTH, { each: true })
   @Matches(/^[A-Za-z0-9_-]+$/, { each: true })
   selectedCandidateIds!: string[];
   @Field(() => [YarrCredentialConsentInput])
