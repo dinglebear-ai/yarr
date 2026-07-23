@@ -3,7 +3,7 @@
   "pluginVersion": "2.1.0",
   "packageBuild": 1,
   "packageFile": "yarr-2.1.0-x86_64-1.txz",
-  "packageSha256": "18ea78e57e146d6cdad3c12b7cad549d7c5e011bae6ad826670c6258cb4ab942",
+  "packageSha256": "b0058122376173921b8df75fd2ab8500afffbfb4e565ecba7e67931e02f43562",
   "packageUrl": "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz",
   "sourceRepository": "dinglebear-ai/yarr",
   "packageRepository": "dinglebear-ai/yarr",

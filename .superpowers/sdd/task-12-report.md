@@ -193,6 +193,15 @@ lifecycle lock, journals known-good config rollback across every crash point,
 and enforces the immutable packaged binary's supported major under lock. The
 full matrix below includes those changes; reviewer approval remains pending.
 
+The reviewer rechecked follow-up commit
+`1b7803aa4f9b9ee64e0542c51517fcb74f16788b`, accepted three gaps, and found one
+remaining High-severity race: a staged updater could write appdata after the
+array-stop hook returned. The final remediation establishes a private
+array-stopping fence under the lifecycle lock before quiescence, aborts updater
+check/apply/reset before appdata access, and clears the fence only through the
+mounted-array start hook under the same lock. Final reviewer approval remains
+pending.
+
 Key contract changes:
 
 - Trusted-gateway authentication is loopback-only; every non-loopback bind
@@ -208,7 +217,9 @@ Key contract changes:
 - The cfg/JSON pair has durable crash recovery before every read/startup path.
 - Updater network staging does not hold the lifecycle lock; activation
   revalidates policy, candidate identity, and packaged-major support under the
-  lock. Hooks have bounded retries; wrapper logs have safe bounded rotation.
+  lock. Array stop fences all later appdata access until mounted-array start
+  clears the fence. Hooks have bounded retries; wrapper logs have safe bounded
+  rotation.
 - `YarrDashboard.page` ships and mounts the actual dashboard bundle.
 - Secret alias redaction derives from the service catalog.
 - Updater network and resource consumption is bounded.
@@ -226,8 +237,8 @@ Final local evidence:
   workflows; Python compilation passes 6 files.
 - Deterministic `umask 022` and `077` package, manifest, and PLG bytes agree.
 - Final package SHA-256 is
-  `18ea78e57e146d6cdad3c12b7cad549d7c5e011bae6ad826670c6258cb4ab942`;
-  MD5 is `eced952d41b2179cd199e59a2b57ea78`; size is 6,198,560 bytes.
+  `b0058122376173921b8df75fd2ab8500afffbfb4e565ecba7e67931e02f43562`;
+  MD5 is `81c1ff67a3b6d3a2d11c666c9a7d1b99`; size is 6,201,496 bytes.
 - The package verifier passes 40 manifest-declared payload files. The archive
   has 41 regular files and 55 total entries.
 - Read-only upstream draft evidence remains unchanged: archive SHA-256

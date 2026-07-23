@@ -15,7 +15,8 @@ report_failure() {
 
 attempt=1
 while (( attempt <= YARR_EVENT_ATTEMPTS )); do
-    if YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" stop; then
+    if YARR_ARRAY_STOPPING_REQUEST=yes \
+        YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" stop; then
         if YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" status >/dev/null 2>&1; then
             report_failure "stop returned success but the daemon is still running"
         else

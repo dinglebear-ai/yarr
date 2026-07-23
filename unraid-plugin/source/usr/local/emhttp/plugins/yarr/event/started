@@ -14,7 +14,8 @@ report_failure() {
 
 attempt=1
 while (( attempt <= YARR_EVENT_ATTEMPTS )); do
-    if YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" start; then
+    if YARR_ARRAY_MOUNTED_REQUEST=yes \
+        YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" start; then
         exit 0
     fi
     if (( attempt < YARR_EVENT_ATTEMPTS )); then

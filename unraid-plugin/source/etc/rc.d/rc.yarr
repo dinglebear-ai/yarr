@@ -106,6 +106,10 @@ yarr_close_active_lock_fd() {
 
 yarr_start_locked() {
     local ownership_status logger_pid pid host
+    if yarr_array_is_stopping; then
+        yarr_error 'array shutdown is in progress; refusing to access appdata'
+        return 1
+    fi
     yarr_load_config && yarr_validate_config && yarr_select_binary || return 1
     if yarr_pid_is_owned; then
         yarr_log 'already running'
@@ -215,6 +219,23 @@ yarr_restart_locked() {
 yarr_dispatch_locked() {
     local action=$1
     yarr_recover_config_transaction || return 1
+    if [[ "${YARR_ARRAY_STOPPING_REQUEST:-no}" == yes && "${YARR_ARRAY_MOUNTED_REQUEST:-no}" == yes ]]; then
+        yarr_error 'conflicting array-state transition'
+        return 1
+    fi
+    if [[ "${YARR_ARRAY_STOPPING_REQUEST:-no}" == yes ]]; then
+        [[ "$action" == yarr_stop_locked ]] || {
+            yarr_error 'array-stopping transition requires stop'
+            return 1
+        }
+        yarr_mark_array_stopping || return 1
+    elif [[ "${YARR_ARRAY_MOUNTED_REQUEST:-no}" == yes ]]; then
+        [[ "$action" == yarr_start_locked ]] || {
+            yarr_error 'array-mounted transition requires start'
+            return 1
+        }
+        yarr_clear_array_stopping || return 1
+    fi
     "$action"
 }
 

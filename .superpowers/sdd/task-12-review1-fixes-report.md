@@ -10,8 +10,15 @@ The first remediation commit was
 `4119e97c3ed88db617616df3c4894c630c1e7da2`. Independent re-review found four
 remaining gaps in release-identity scanning, updater lock duration, rollback
 journaling, and packaged-major enforcement. Those gaps are remediated and the
-complete local matrix passes. Re-review of the follow-up commit remains
-pending.
+complete local matrix passes.
+
+The first follow-up commit
+`1b7803aa4f9b9ee64e0542c51517fcb74f16788b` was not approved: the reviewer
+accepted three gaps but found that an updater could still write appdata after
+the array-stop hook returned. The subsequent remediation establishes an
+array-stopping fence under the lifecycle lock, aborts updater check/apply/reset
+before appdata access, and clears the fence only from the mounted-array start
+hook. Final re-review remains pending.
 
 This report records remediation evidence, not review approval. The original
 reviewer remains responsible for re-review.
@@ -63,8 +70,9 @@ Safety boundaries observed:
    Activation then re-reads installed state, current version, the package's
    supported major, candidate hash/version, and update policy under the stable
    lock. Concurrent older/newer candidates cannot downgrade or redefine the
-   package-supported major, and array stop can quiesce Yarr while a download is
-   stalled.
+   package-supported major. Array stop establishes a private runtime fence
+   before quiescing Yarr; a staged updater then aborts before appdata access.
+   Only the mounted-array start hook clears that fence under the same lock.
 9. **Array hooks:** Start and stop hooks use bounded lock retries. Stop requires
    confirmed quiescence before unmount and reports failure visibly; start
    retries and reports failure. Lock-contention contracts pass.
@@ -106,8 +114,11 @@ URL.
    retry, checksum, archive validation, and candidate hashing happen in a
    private RAM-backed temporary directory before the lock. The short locked
    phase revalidates all state-dependent invariants immediately before
-   activation. A real stop-hook contract proves a stalled download does not
-   block quiescence or restart Yarr after stop wins.
+   activation. The stop hook writes and fsyncs an array-stopping fence under the
+   same lock before quiescence. A staged updater then fails before selecting,
+   creating, or mutating appdata. Check, apply, reset, and manual start remain
+   fenced until the mounted-array start hook clears the private marker under
+   lock.
 3. **Rollback-journal finding:** Readiness-failure restoration now writes and
    fsyncs a versioned rollback marker before changing either current config
    member. Shell and API startup recovery understand install and rollback
@@ -186,10 +197,10 @@ The package was rebuilt from those cached, verified assets under both
 - Package:
   `unraid-plugin/packages/yarr-2.1.0-x86_64-1.txz`.
 - SHA-256:
-  `18ea78e57e146d6cdad3c12b7cad549d7c5e011bae6ad826670c6258cb4ab942`.
+  `b0058122376173921b8df75fd2ab8500afffbfb4e565ecba7e67931e02f43562`.
 - MD5:
-  `eced952d41b2179cd199e59a2b57ea78`.
-- Size: 6,198,560 bytes.
+  `81c1ff67a3b6d3a2d11c666c9a7d1b99`.
+- Size: 6,201,496 bytes.
 - Inventory: 40 manifest-declared payload files, 41 regular archive files, and
   55 total archive entries.
 - `release-manifest.json`, `yarr.plg`, committed package bytes, embedded
@@ -212,8 +223,8 @@ The package was rebuilt from those cached, verified assets under both
 
 ## Residual Concerns
 
-- Original reviewer follow-up re-review is pending; this report does not claim
-  approval.
+- Original reviewer final re-review is pending after the array-stop fence
+  remediation; this report does not claim approval.
 - GitHub-hosted workflow execution remains unverified because dispatch was
   prohibited.
 - Disposable-Unraid loader/schema/runtime, browser rendering, lifecycle,

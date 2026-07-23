@@ -6,6 +6,7 @@ updater="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/y
 common="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh"
 rc="$repo_root/unraid-plugin/source/etc/rc.d/rc.yarr"
 fixture="$repo_root/unraid-plugin/tests/fixtures/releases.json"
+started="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/started"
 stopping="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/stopping_svcs"
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -42,6 +43,7 @@ export YARR_LOG_ROOT="$test_root/log"
 export YARR_APPDATA="$YARR_APPDATA_ROOT/yarr"
 export YARR_OVERLAY_DIR="$YARR_APPDATA/bin"
 export YARR_PID="$YARR_RUN_ROOT/yarr.pid"
+export YARR_ARRAY_STOPPING="$YARR_RUN_ROOT/yarr-array-stopping"
 export YARR_LOCK="$YARR_LOCK_ROOT/yarr-plugin.lock"
 export YARR_CURL_BIN="$test_root/bin/curl"
 export YARR_RC_YARR="$rc"
@@ -68,7 +70,7 @@ env \
     YARR_RUN_ROOT="$test_root/attacker/run" \
     YARR_LOCK_ROOT="$test_root/attacker/lock" \
     YARR_LOCK="$test_root/attacker/lock/alternate.lock" \
-    bash -c 'source "$1"; [[ "$YARR_PLUGIN_ROOT" == /usr/local/emhttp/plugins/yarr && "$YARR_BOOT_ROOT" == /boot && "$YARR_APPDATA_ROOT" == /mnt/user/appdata && "$YARR_LOCK" == /var/lock/yarr-plugin.lock ]]' _ "$installed_common" || \
+    bash -c 'source "$1"; [[ "$YARR_PLUGIN_ROOT" == /usr/local/emhttp/plugins/yarr && "$YARR_BOOT_ROOT" == /boot && "$YARR_APPDATA_ROOT" == /mnt/user/appdata && "$YARR_ARRAY_STOPPING" == /var/run/yarr-array-stopping && "$YARR_LOCK" == /var/lock/yarr-plugin.lock ]]' _ "$installed_common" || \
     fail 'installed common script accepted caller-controlled roots'
 
 installed_updater="$test_root/installed/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh"
@@ -365,7 +367,7 @@ fi
 
 # Network staging must not hold the lifecycle lock. A real array-stop hook must
 # quiesce Yarr while an apply is stalled, and the later short activation must
-# preserve that stopped state rather than restarting after unmount begins.
+# fence every later appdata access until the mounted-array start hook clears it.
 "$rc" start
 stop_wins_hold="$tmp_dir/stop-wins-hold"
 touch "$stop_wins_hold"
@@ -382,10 +384,23 @@ env YARR_RC="$rc" YARR_EVENT_ATTEMPTS=2 YARR_EVENT_LOCK_WAIT_SECONDS=1 \
     YARR_EVENT_RETRY_SECONDS=0 "$stopping"
 [[ ! -e "$YARR_PID" ]] || fail 'array-stop hook did not quiesce Yarr during updater staging'
 rm -f "$stop_wins_hold"
-wait "$stop_wins_pid" || fail 'updater did not finish after array stop won'
+if wait "$stop_wins_pid"; then
+    fail 'updater activated after array-stop fence was established'
+fi
 [[ ! -e "$YARR_PID" ]] || fail 'updater restarted Yarr after array-stop quiescence'
-expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'post-stop staged update'
-"$updater" reset --json > "$tmp_dir/stop-wins-reset.json"
+[[ -f "$YARR_ARRAY_STOPPING" && ! -L "$YARR_ARRAY_STOPPING" ]] || fail 'array-stop hook omitted the activation fence'
+[[ $(stat -c %a "$YARR_ARRAY_STOPPING") == 600 ]] || fail 'array-stop fence is not private'
+[[ ! -e "$YARR_OVERLAY_DIR/yarr" ]] || fail 'updater wrote appdata after array stop won'
+if find "$YARR_OVERLAY_DIR" -maxdepth 1 -name '.yarr.update.*' -print -quit | grep -q .; then
+    fail 'updater retained appdata staging after array stop won'
+fi
+expect_failure 'manual start during array stop' "$rc" start
+expect_failure 'update check during array stop' "$updater" check --json
+expect_failure 'update reset during array stop' "$updater" reset --json
+env YARR_RC="$rc" YARR_EVENT_ATTEMPTS=2 YARR_EVENT_LOCK_WAIT_SECONDS=1 \
+    YARR_EVENT_RETRY_SECONDS=0 "$started"
+[[ ! -e "$YARR_ARRAY_STOPPING" ]] || fail 'mounted-array start hook retained the activation fence'
+"$rc" stop
 
 # All installed-state and policy checks occur after acquiring the stable lock.
 # An older and a cross-major candidate queued behind a newer candidate must

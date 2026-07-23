@@ -506,8 +506,16 @@ yarr_update_validate_supported_state() {
     }
 }
 
+yarr_update_require_array_active() {
+    if yarr_array_is_stopping; then
+        yarr_update_error 'array shutdown is in progress; refusing to access appdata'
+        return 1
+    fi
+}
+
 yarr_update_check_locked() {
     local releases=$1 installed supported available
+    yarr_update_require_array_active || return 1
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
@@ -522,6 +530,7 @@ yarr_update_check_locked() {
 yarr_update_apply_prepared_locked() {
     local version=$1 releases=$2 candidate=$3 expected_candidate_sha=$4
     local installed supported actual_candidate_sha
+    yarr_update_require_array_active || return 1
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
@@ -564,6 +573,7 @@ yarr_update_apply_prepared_locked() {
 }
 
 yarr_update_reset_request_locked() {
+    yarr_update_require_array_active || return 1
     if ! yarr_update_reset_locked; then
         [[ "$YARR_RESET_CLEANUP_PENDING" == true ]] && return 1
         yarr_update_emit '' "$YARR_ROLLED_BACK" 'Reset failed; previous binary restored' || true

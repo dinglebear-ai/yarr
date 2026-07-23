@@ -26,6 +26,7 @@ if [[ "$YARR_COMMON_INSTALLED" == true ]]; then
     YARR_PID_META=/var/run/yarr.pid.meta
     YARR_LOGGER_PID=/var/run/yarr-logger.pid
     YARR_LOG_PIPE=/var/run/yarr-log.pipe
+    YARR_ARRAY_STOPPING=/var/run/yarr-array-stopping
     YARR_LOCK=/var/lock/yarr-plugin.lock
     YARR_LOG=/var/log/yarr/yarr.log
     YARR_RUNTIME_ENV=/var/run/yarr.env
@@ -48,6 +49,7 @@ else
     YARR_PID_META=${YARR_PID_META:-"${YARR_RUN_ROOT}/yarr.pid.meta"}
     YARR_LOGGER_PID=${YARR_LOGGER_PID:-"${YARR_RUN_ROOT}/yarr-logger.pid"}
     YARR_LOG_PIPE=${YARR_LOG_PIPE:-"${YARR_RUN_ROOT}/yarr-log.pipe"}
+    YARR_ARRAY_STOPPING=${YARR_ARRAY_STOPPING:-"${YARR_RUN_ROOT}/yarr-array-stopping"}
     YARR_LOCK="${YARR_LOCK_ROOT}/yarr-plugin.lock"
     YARR_LOG=${YARR_LOG:-"${YARR_LOG_ROOT}/yarr/yarr.log"}
     YARR_RUNTIME_ENV=${YARR_RUNTIME_ENV:-"${YARR_RUN_ROOT}/yarr.env"}
@@ -90,6 +92,58 @@ yarr_has_control_characters() {
 
 yarr_regular_file_no_link() {
     [[ -f "$1" && ! -L "$1" ]]
+}
+
+yarr_require_active_lock() {
+    yarr_validate_inherited_lock_fd "${YARR_ACTIVE_LOCK_FD:-}" || {
+        yarr_error 'array-state transition requires the lifecycle lock'
+        return 1
+    }
+}
+
+yarr_array_is_stopping() {
+    [[ -e "$YARR_ARRAY_STOPPING" || -L "$YARR_ARRAY_STOPPING" ]]
+}
+
+yarr_mark_array_stopping() {
+    local directory tmp
+    yarr_require_active_lock || return 1
+    directory=$(dirname "$YARR_ARRAY_STOPPING")
+    [[ -d "$directory" && ! -L "$directory" ]] || {
+        yarr_error 'array-state directory is missing or unsafe'
+        return 1
+    }
+    if yarr_array_is_stopping; then
+        yarr_regular_file_no_link "$YARR_ARRAY_STOPPING" || {
+            yarr_error 'array-stopping fence is unsafe'
+            return 1
+        }
+        chmod 0600 "$YARR_ARRAY_STOPPING" && "$YARR_SYNC_BIN" -f "$YARR_ARRAY_STOPPING"
+        return
+    fi
+    umask 077
+    tmp=$(mktemp "${YARR_ARRAY_STOPPING}.new.XXXXXX") || return 1
+    if ! printf 'array-stopping\n' > "$tmp" ||
+        ! chmod 0600 "$tmp" ||
+        ! "$YARR_SYNC_BIN" -f "$tmp" ||
+        ! mv -f -- "$tmp" "$YARR_ARRAY_STOPPING" ||
+        ! "$YARR_SYNC_BIN" -f "$directory"; then
+        rm -f -- "$tmp"
+        yarr_error 'could not establish array-stopping fence'
+        return 1
+    fi
+}
+
+yarr_clear_array_stopping() {
+    local directory
+    yarr_require_active_lock || return 1
+    yarr_array_is_stopping || return 0
+    yarr_regular_file_no_link "$YARR_ARRAY_STOPPING" || {
+        yarr_error 'refusing to clear unsafe array-stopping fence'
+        return 1
+    }
+    directory=$(dirname "$YARR_ARRAY_STOPPING")
+    rm -f -- "$YARR_ARRAY_STOPPING" && "$YARR_SYNC_BIN" -f "$directory"
 }
 
 yarr_sync_config_dir() {
@@ -600,11 +654,11 @@ yarr_wait_ready() {
 }
 
 yarr_validate_inherited_lock_fd() {
-    local lock_fd=$1 actual expected
+    local lock_fd=$1 actual expected process_id=${BASHPID:-$$}
     [[ "$lock_fd" =~ ^[0-9]{1,3}$ ]] || return 1
     ((10#$lock_fd >= 3 && 10#$lock_fd <= 255)) || return 1
-    [[ -e "/proc/$$/fd/${lock_fd}" ]] || return 1
-    actual=$(readlink -f "/proc/$$/fd/${lock_fd}" 2>/dev/null) || return 1
+    [[ -e "/proc/${process_id}/fd/${lock_fd}" ]] || return 1
+    actual=$(readlink -f "/proc/${process_id}/fd/${lock_fd}" 2>/dev/null) || return 1
     expected=$(readlink -f "$YARR_LOCK" 2>/dev/null) || return 1
     [[ "$actual" == "$expected" ]] || return 1
     "$YARR_FLOCK_BIN" -n "$lock_fd"
