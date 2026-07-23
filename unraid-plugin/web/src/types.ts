@@ -135,6 +135,7 @@ export interface YarrUpdateStatus {
   availableVersion: string;
   updateAvailable: boolean;
   usingOverlay: boolean;
+  rollbackAvailable: boolean;
   rolledBack: boolean;
   message: string;
 }

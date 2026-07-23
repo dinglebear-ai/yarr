@@ -86,7 +86,7 @@ for required in \
     usr/local/emhttp/plugins/yarr/default.env \
     usr/local/emhttp/plugins/yarr/Yarr.page \
     usr/local/emhttp/plugins/yarr/YarrDashboard.page \
-    usr/local/emhttp/plugins/yarr/yarr.png \
+    usr/local/emhttp/plugins/yarr/yarr-2b068b08366b.png \
     usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh \
     usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh \
     usr/local/emhttp/plugins/yarr/api/package.json \
@@ -115,11 +115,15 @@ plugin_version=$(jq -er '.pluginVersion' "$manifest")
 [[ $(stat -c %a "$temporary/root/usr/local/yarr/bin") == 755 ]] || fail 'packaged /usr/local/yarr/bin directory mode is not 0755'
 [[ $(stat -c %a "$temporary/root/usr/local/emhttp/plugins/yarr/default.cfg") == 600 ]] || fail 'packaged default.cfg mode is not 0600'
 [[ $(stat -c %a "$temporary/root/usr/local/emhttp/plugins/yarr/default.env") == 600 ]] || fail 'packaged default.env mode is not 0600'
-icon="$temporary/root/usr/local/emhttp/plugins/yarr/yarr.png"
-[[ $(stat -c %a "$icon") == 644 ]] || fail 'packaged yarr.png mode is not 0644'
+icon="$temporary/root/usr/local/emhttp/plugins/yarr/yarr-2b068b08366b.png"
+[[ $(stat -c %a "$icon") == 644 ]] || fail 'packaged immutable Yarr icon mode is not 0644'
+icon_sha=$(sha256sum "$icon" | awk '{print $1}')
+[[ "${icon_sha:0:12}" == 2b068b08366b ]] || fail 'packaged icon filename does not match its SHA-256 prefix'
 icon_header=$(od -An -tx1 -N26 "$icon" | tr -d ' \n')
 [[ "$icon_header" == 89504e470d0a1a0a0000000d4948445200000100000001000806 ]] ||
-    fail 'packaged yarr.png must be a 256x256 8-bit RGBA PNG'
+    fail 'packaged immutable Yarr icon must be a 256x256 8-bit RGBA PNG'
+[[ ! -e "$temporary/root/usr/local/emhttp/plugins/yarr/yarr.png" ]] ||
+    fail 'package retains the stale mutable Yarr icon path'
 
 api_name=$(jq -er '.apiPackage' "$manifest")
 api_version=$(jq -er '.apiVersion' "$manifest")

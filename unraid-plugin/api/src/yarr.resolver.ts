@@ -106,7 +106,10 @@ export class YarrResolver {
   async previewYarrImport(
     @Args("input", { type: () => PreviewYarrImportInput }) input: PreviewYarrImportInput,
   ): Promise<YarrImportPreview> {
-    return mapImportPreview(await this.imports.preview(parseImportText(input.text)));
+    if (Buffer.byteLength(input.text, "utf8") > MAX_IMPORT_TEXT_LENGTH) {
+      throw new Error("import text must not exceed 256 KiB");
+    }
+    return mapImportPreview(await this.imports.previewText(input.text));
   }
 
   @Mutation(() => YarrConfigMutationResult)
@@ -143,6 +146,12 @@ export class YarrResolver {
   @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
   async resetYarrBinary(): Promise<YarrUpdateResult> {
     return mapUpdate(await this.updates.reset());
+  }
+
+  @Mutation(() => YarrUpdateResult)
+  @UsePermissions({ action: AuthAction.UPDATE_ANY, resource: Resource.SERVICES })
+  async rollbackYarrBinary(): Promise<YarrUpdateResult> {
+    return mapUpdate(await this.updates.rollback());
   }
 }
 
@@ -235,6 +244,7 @@ function mapUpdate(value: UpdateStatus): YarrUpdateStatus {
     availableVersion: value.availableVersion,
     updateAvailable: value.updateAvailable,
     usingOverlay: value.usingOverlay,
+    rollbackAvailable: value.rollbackAvailable,
     rolledBack: value.rolledBack,
     message: value.message,
   };
@@ -281,31 +291,6 @@ function consentMap(entries: readonly { serviceId: string; consent: boolean }[])
   for (const entry of entries) {
     if (Object.hasOwn(result, entry.serviceId)) throw new Error("duplicate credential consent service");
     result[entry.serviceId] = entry.consent;
-  }
-  return result;
-}
-
-function parseImportText(text: string): Record<string, string> {
-  if (Buffer.byteLength(text, "utf8") > MAX_IMPORT_TEXT_LENGTH) {
-    throw new Error("import text must not exceed 256 KiB");
-  }
-  const result: Record<string, string> = Object.create(null) as Record<string, string>;
-  const lines = text.replaceAll("\r\n", "\n").split("\n");
-  for (let index = 0; index < lines.length; index += 1) {
-    let line = lines[index].trim();
-    if (line === "" || line.startsWith("#")) continue;
-    if (line.startsWith("export ")) line = line.slice(7).trimStart();
-    const separator = line.indexOf("=");
-    const key = separator === -1 ? "" : line.slice(0, separator).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_.-]{0,127}$/.test(key) || Object.hasOwn(result, key)) {
-      throw new Error(`invalid import entry on line ${index + 1}`);
-    }
-    let value = line.slice(separator + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (value.includes("\u0000")) throw new Error(`invalid import entry on line ${index + 1}`);
-    result[key] = value;
   }
   return result;
 }

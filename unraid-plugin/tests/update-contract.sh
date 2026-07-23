@@ -499,6 +499,8 @@ reset_boundaries
 "$updater" apply --version 2.1.0 --json > "$tmp_dir/apply.json"
 expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'installed overlay version'
 expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" 'predecessor overlay version'
+jq -e '.rollbackAvailable == true' "$tmp_dir/apply.json" >/dev/null ||
+    fail 'successful update did not advertise manual rollback'
 install_line=$(grep -n '^install ' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
 data_sync_line=$(grep -n '^sync -f .*\.yarr\.update\.new\.' "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
 directory_sync_line=$(grep -n "^sync -f $YARR_OVERLAY_DIR$" "$YARR_TEST_OPERATION_LOG" | head -n1 | cut -d: -f1)
@@ -508,6 +510,12 @@ if ! "$rc" status > "$tmp_dir/updated-status.out" 2>&1; then
     cat "$tmp_dir/updated-status.out" >&2
     fail 'updated service is not ready'
 fi
+"$updater" rollback --json > "$tmp_dir/rollback.json"
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'manual rollback selected predecessor'
+expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" 'manual rollback retained replaced binary'
+"$rc" status >/dev/null || fail 'manual rollback service is not ready'
+"$updater" rollback --json > "$tmp_dir/rollback-again.json"
+expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'second manual rollback restored update'
 expect_failure 'downgrade update' "$updater" apply --version 2.0.0 --json
 
 cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_OVERLAY_DIR/.yarr.test"
@@ -520,7 +528,12 @@ unset YARR_TEST_READY_FAIL_ONCE
 expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'rollback overlay restoration'
 "$rc" status >/dev/null || fail 'rollback service is not ready'
 
+rm -rf "$YARR_OVERLAY_DIR"
 "$updater" reset --json > "$tmp_dir/reset.json"
+[[ -d "$YARR_OVERLAY_DIR" ]] || fail 'fresh reset did not create the absent overlay directory'
+[[ $(stat -c %a "$YARR_OVERLAY_DIR") == 755 ]] || fail 'fresh reset overlay directory mode is not 0755'
+[[ $(stat -c '%u:%g' "$YARR_OVERLAY_DIR") == "$(id -u):$(id -g)" ]] ||
+    fail 'fresh reset overlay directory ownership is unsafe'
 [[ ! -e "$YARR_OVERLAY_DIR/yarr" && ! -e "$YARR_OVERLAY_DIR/yarr.previous" ]] || fail 'reset retained an overlay'
 expect_eq '2.0.0' "$("$YARR_PLUGIN_ROOT/bin/yarr" --version | awk '{print $2}')" 'packaged binary after reset'
 "$rc" status >/dev/null || fail 'reset did not restart the packaged binary'
@@ -530,6 +543,11 @@ expect_eq '2.0.0' "$("$YARR_PLUGIN_ROOT/bin/yarr" --version | awk '{print $2}')"
 [[ ! -e "$YARR_PID" ]] || fail 'stopped service was started by apply'
 "$updater" reset --json > "$tmp_dir/stopped-reset.json"
 [[ ! -e "$YARR_PID" ]] || fail 'stopped service was started by reset'
+if "$updater" rollback --json > "$tmp_dir/no-previous.json"; then
+    fail 'manual rollback without a previous binary unexpectedly succeeded'
+fi
+jq -e '.rollbackAvailable == false and .message == "Manual rollback is unavailable; no previous binary exists"' \
+    "$tmp_dir/no-previous.json" >/dev/null || fail 'no-previous rollback outcome is not structured'
 
 prepare_running_overlay() {
     "$rc" stop || true
@@ -551,6 +569,22 @@ assert_candidate_committed() {
     expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" "$1 predecessor preservation"
     "$rc" status >/dev/null || fail "$1 did not retain candidate readiness"
 }
+
+prepare_running_overlay
+write_yarr "$YARR_OVERLAY_DIR/yarr.previous" 2.0.1
+reset_boundaries
+export YARR_TEST_READY_FAIL_ONCE="$tmp_dir/fail-manual-rollback-readiness-once"
+expect_failure 'manual rollback activation fault' "$updater" rollback --json
+unset YARR_TEST_READY_FAIL_ONCE
+if ! jq -e '.rolledBack == true and .message == "Rollback failed; current binary restored"' \
+    "$tmp_dir/command.out" >/dev/null; then
+    cat "$tmp_dir/command.out" >&2
+    cat "$tmp_dir/command.err" >&2
+    fail 'failed manual rollback did not return its structured outcome'
+fi
+expect_eq '2.0.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'manual rollback activation fault active restoration'
+expect_eq '2.0.1' "$("$YARR_OVERLAY_DIR/yarr.previous" --version | awk '{print $2}')" 'manual rollback activation fault predecessor restoration'
+"$rc" status >/dev/null || fail 'manual rollback activation fault did not restore service readiness'
 
 prepare_running_overlay
 reset_boundaries

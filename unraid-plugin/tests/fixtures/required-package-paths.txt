@@ -11,6 +11,6 @@ unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/install-api-plugin.sh
 unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/uninstall-api-plugin.sh
 unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
 unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh
-unraid-plugin/source/usr/local/emhttp/plugins/yarr/yarr.png
+unraid-plugin/source/usr/local/emhttp/plugins/yarr/yarr-2b068b08366b.png
 unraid-plugin/web/package.json
 unraid-plugin/yarr.plg

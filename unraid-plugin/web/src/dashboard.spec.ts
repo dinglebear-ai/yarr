@@ -66,7 +66,7 @@ describe("Yarr dashboard", () => {
     expect(host.textContent).toContain("Ready");
     expect(host.textContent).toContain("127.0.0.1:40070");
     expect(host.textContent).toContain("1.2.3");
-    expect(host.querySelector("img")?.getAttribute("src")).toBe("/plugins/yarr/yarr.png");
+    expect(host.querySelector("img")?.getAttribute("src")).toBe("/plugins/yarr/yarr-2b068b08366b.png");
     expect(host.querySelector(".yarr-dashboard__status")?.getAttribute("role")).toBe("status");
     expect(host.querySelectorAll("button")).toHaveLength(1);
     expect(host.querySelector("button")?.textContent).toContain("Stop Yarr");

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImportService = void 0;
+const import_parser_1 = require("./import-parser");
 const service_catalog_1 = require("./service-catalog");
 const session_store_1 = require("./session-store");
 const MAX_IMPORT_KEYS = 512;
@@ -13,6 +14,14 @@ class ImportService {
     constructor(config, options = {}) {
         this.config = config;
         this.sessions = new session_store_1.ExpiringSessionStore(options);
+    }
+    async previewText(text) {
+        const parsed = (0, import_parser_1.parseImportText)(text);
+        const preview = await this.preview(parsed.values);
+        return {
+            ...preview,
+            warnings: [...parsed.warnings, ...preview.warnings],
+        };
     }
     async preview(input) {
         assertStructuredInput(input);

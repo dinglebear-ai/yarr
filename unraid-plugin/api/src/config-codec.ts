@@ -101,7 +101,9 @@ export function toPublicConfig(
         service: entry.id,
         enabled: enabledServices.has(entry.id),
         baseUrl: safePublicServiceUrl(firstValue(env.values, entry.urlKeys)),
-        username: null,
+        username: entry.usernameKeys.length === 0
+          ? null
+          : firstValue(env.values, entry.usernameKeys) ?? "",
         hasPassword: hasValue(firstValue(env.values, entry.passwordKeys)),
         hasApiKey: hasValue(firstValue(env.values, entry.apiKeyKeys)),
         extra: {},

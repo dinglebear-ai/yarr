@@ -11,6 +11,7 @@ const UPDATE_KEYS = [
     "availableVersion",
     "updateAvailable",
     "usingOverlay",
+    "rollbackAvailable",
     "rolledBack",
     "message",
 ];
@@ -31,19 +32,26 @@ class UpdateService {
     async reset() {
         return this.run("reset", ["reset", "--json"], MUTATION_TIMEOUT_MS);
     }
+    async rollback() {
+        return this.run("rollback", ["rollback", "--json"], MUTATION_TIMEOUT_MS);
+    }
     async run(operation, args, timeoutMs) {
-        let stdout;
+        let result;
         try {
-            const result = await this.commands.run(paths_1.YARR_UPDATE_PATH, args, {
+            result = await this.commands.run(paths_1.YARR_UPDATE_PATH, args, {
                 timeoutMs,
                 maxOutputBytes: MAX_UPDATE_OUTPUT_BYTES,
+                allowedExitCodes: operation === "check" ? [0] : [0, 1],
             });
-            stdout = result.stdout;
         }
         catch {
             throw new Error(`Yarr update ${operation} failed`);
         }
-        return parseUpdateResponse(stdout);
+        const parsed = parseUpdateResponse(result.stdout);
+        if (result.exitCode !== 0 && !isExpectedNonzeroOutcome(operation, parsed)) {
+            throw new Error(`Yarr update ${operation} failed`);
+        }
+        return parsed;
     }
 }
 exports.UpdateService = UpdateService;
@@ -66,6 +74,7 @@ function parseUpdateResponse(text) {
         !isOptionalVersion(candidate.availableVersion) ||
         typeof candidate.updateAvailable !== "boolean" ||
         typeof candidate.usingOverlay !== "boolean" ||
+        typeof candidate.rollbackAvailable !== "boolean" ||
         typeof candidate.rolledBack !== "boolean" ||
         !isSafeMessage(candidate.message)) {
         invalidResponse();
@@ -76,6 +85,7 @@ function parseUpdateResponse(text) {
         availableVersion: candidate.availableVersion,
         updateAvailable: candidate.updateAvailable,
         usingOverlay: candidate.usingOverlay,
+        rollbackAvailable: candidate.rollbackAvailable,
         rolledBack: candidate.rolledBack,
         message: candidate.message,
     };
@@ -92,11 +102,34 @@ function isSafeMessage(value) {
         /^Yarr is current$/,
         /^Yarr updated to \d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/,
         /^Yarr reset to packaged binary$/,
+        /^Yarr rolled back to previous binary$/,
         /^Yarr reset; updater backup cleanup pending$/,
         /^Update failed; previous binary restored$/,
         /^Reset failed; previous binary restored$/,
+        /^Rollback failed; current binary restored$/,
+        /^Manual rollback is unavailable; no previous binary exists$/,
         /^Yarr updated; obsolete backup cleanup pending$/,
     ].some((pattern) => pattern.test(value));
+}
+function isExpectedNonzeroOutcome(operation, value) {
+    if (operation === "apply") {
+        return value.message === "Update failed; previous binary restored"
+            ? value.rolledBack
+            : value.message === "Yarr updated; obsolete backup cleanup pending" && !value.rolledBack;
+    }
+    if (operation === "reset") {
+        return value.message === "Reset failed; previous binary restored"
+            ? value.rolledBack
+            : value.message === "Yarr reset; updater backup cleanup pending" && !value.rolledBack;
+    }
+    if (operation === "rollback") {
+        return value.message === "Rollback failed; current binary restored"
+            ? value.rolledBack
+            : value.message === "Manual rollback is unavailable; no previous binary exists" &&
+                !value.rolledBack &&
+                !value.rollbackAvailable;
+    }
+    return false;
 }
 function isBoundedSemVer(value) {
     if (value.length === 0 || value.length > 128)

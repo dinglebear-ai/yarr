@@ -284,4 +284,39 @@ describe("Yarr configuration codec", () => {
     expect(view.services.find((service) => service.service === "radarr")?.baseUrl).toBe("");
     expect(JSON.stringify(view)).not.toMatch(/private-query|private-password/);
   });
+
+  it("round trips the real UI-shaped service payload without erasing supported usernames", () => {
+    const current = {
+      plugin: codec.parsePluginConfig(pluginConfig),
+      env: codec.parseYarrEnvironment(
+        "YARR_SERVICES=sonarr,qbittorrent\n" +
+        "YARR_SONARR_URL=http://sonarr:8989\n" +
+        "YARR_SONARR_API_KEY=sonarr-private\n" +
+        "YARR_QBITTORRENT_URL=http://qbittorrent:8080\n" +
+        "YARR_QBITTORRENT_USERNAME=jacob\n" +
+        "YARR_QBITTORRENT_PASSWORD=qbit-private\n",
+      ),
+    };
+    const view = codec.toPublicConfig(current.plugin, current.env);
+    const services = view.services
+      .filter((service) => service.service !== "yarr")
+      .map((service) => ({
+        service: service.service,
+        enabled: service.enabled,
+        ...(service.baseUrl === "" ? {} : { baseUrl: service.baseUrl }),
+        ...(service.username === null ? {} : { username: service.username }),
+        password: { kind: "preserve" as const },
+        apiKey: { kind: "preserve" as const },
+      }));
+
+    expect(services.find((service) => service.service === "sonarr")).not.toHaveProperty("username");
+    expect(services.find((service) => service.service === "qbittorrent")).toMatchObject({
+      username: "jacob",
+    });
+
+    const merged = codec.mergeConfigInput(current, { services });
+    expect(merged.env.values.YARR_QBITTORRENT_USERNAME).toBe("jacob");
+    expect(merged.env.values.YARR_QBITTORRENT_PASSWORD).toBe("qbit-private");
+    expect(merged.env.values.YARR_SONARR_API_KEY).toBe("sonarr-private");
+  });
 });

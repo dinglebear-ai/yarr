@@ -24,6 +24,35 @@ function configHarness() {
 }
 
 describe("ImportService", () => {
+  it("previews both real .env and Yarr TOML through the service boundary", async () => {
+    const { config } = configHarness();
+    const service = new ImportService(config);
+
+    const env = await service.previewText(
+      "SONARR_URL=http://sonarr:8989\nSONARR_API_KEY=private-env\n",
+    );
+    const toml = await service.previewText(`
+      [[yarr.services]]
+      kind = "qbittorrent"
+      base_url = "http://qbittorrent:8080"
+      username = "jacob"
+      password = "private-toml"
+    `);
+
+    expect(env.mappings).toEqual([
+      expect.objectContaining({ serviceId: "sonarr", hasApiKey: true }),
+    ]);
+    expect(toml.mappings).toEqual([
+      expect.objectContaining({
+        serviceId: "qbittorrent",
+        baseUrl: "http://qbittorrent:8080",
+        hasUsername: true,
+        hasPassword: true,
+      }),
+    ]);
+    expect(JSON.stringify({ env, toml })).not.toMatch(/private-env|private-toml|jacob/);
+  });
+
   it("normalizes known aliases and reports unknown keys without returning secrets", async () => {
     const { config } = configHarness();
     const service = new ImportService(config);
@@ -195,7 +224,7 @@ describe("ImportService", () => {
     ).rejects.toThrow("invalid or expired import preview");
   });
 
-  it("never returns imported usernames and includes them in stored credential redaction", async () => {
+  it("returns supported non-password usernames while retaining defense-in-depth log redaction", async () => {
     const state = {
       plugin: codec.parsePluginConfig("ENABLED=yes\nBIND_MODE=loopback\n"),
       env: codec.parseYarrEnvironment(""),
@@ -223,7 +252,9 @@ describe("ImportService", () => {
       credentialConsent: { qbittorrent: true },
     });
 
-    expect(JSON.stringify(result)).not.toContain("private-user");
+    expect(result.config.services.find((service) => service.service === "qbittorrent")?.username).toBe(
+      "private-user",
+    );
     expect(collectSecretValues({ YARR_QBITTORRENT_USERNAME: "private-user" })).toEqual([
       "private-user",
     ]);

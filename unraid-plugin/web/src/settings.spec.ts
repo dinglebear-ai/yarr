@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
   queryYarrRuntime: vi.fn(),
   queryYarrUpdateStatus: vi.fn(),
   resetYarrBinary: vi.fn(),
+  rollbackYarrBinary: vi.fn(),
   updateYarrBinary: vi.fn(),
 }));
 
@@ -65,6 +66,15 @@ const config: YarrConfig = {
       username: null,
       hasPassword: false,
       hasApiKey: true,
+      extra: [],
+    },
+    {
+      service: "qbittorrent",
+      enabled: true,
+      baseUrl: "http://qbittorrent:8080",
+      username: "jacob",
+      hasPassword: true,
+      hasApiKey: false,
       extra: [],
     },
   ],
@@ -280,7 +290,7 @@ describe("Yarr settings", () => {
     api.applyYarrImport.mockRejectedValueOnce(new Error("lost response"));
     button("Import configuration").click();
     await nextTick();
-    await setValue(input("Paste environment settings"), "SONARR_URL=http://sonarr:8989");
+    await setValue(input("Paste .env or Yarr TOML"), "SONARR_URL=http://sonarr:8989");
     button("Preview import").click();
     await flush();
     host.querySelector<HTMLInputElement>('input[name="import-service-sonarr"]')!.click();
@@ -339,7 +349,7 @@ describe("Yarr settings", () => {
     button("Import configuration").click();
     await nextTick();
     const rawSecret = "SONARR_API_KEY=never-render-this";
-    await setValue(input("Paste environment settings"), rawSecret);
+    await setValue(input("Paste .env or Yarr TOML"), rawSecret);
     button("Preview import").click();
     await flush();
 
@@ -378,11 +388,11 @@ describe("Yarr settings", () => {
     await mountSettings();
     api.queryYarrUpdateStatus.mockResolvedValue({
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
-      updateAvailable: true, usingOverlay: true, rolledBack: false, message: "Update available",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false, message: "Update available",
     });
     api.updateYarrBinary.mockResolvedValue({
       installedVersion: "1.2.3", packagedVersion: "1.2.0", availableVersion: "1.3.0",
-      updateAvailable: true, usingOverlay: true, rolledBack: true, message: "Update failed; previous version restored",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: true, message: "Update failed; previous version restored",
     });
     button("Updates").click();
     await flush();
@@ -392,9 +402,91 @@ describe("Yarr settings", () => {
     button("Install update").click();
     await flush();
     expect(host.textContent).toContain("previous version restored");
+    api.rollbackYarrBinary.mockResolvedValue({
+      installedVersion: "1.2.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: true, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: "Yarr rolled back to previous binary",
+    });
+    button("Roll back to previous version").click();
+    await nextTick();
+    expect(host.textContent).toContain("Roll back to the previous Yarr binary?");
+    button("Roll back Yarr").click();
+    await flush();
+    expect(api.rollbackYarrBinary).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("Yarr rolled back to previous binary");
     button("Reset to packaged version").click();
     await nextTick();
     expect(host.textContent).toContain("Reset to packaged Yarr?");
+  });
+
+  it("renders a confirmed failed manual rollback without claiming the previous binary activated", async () => {
+    await mountSettings();
+    api.queryYarrUpdateStatus.mockResolvedValue({
+      installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "1.3.0",
+      updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: false,
+      message: "Yarr is current",
+    });
+    api.rollbackYarrBinary.mockResolvedValue({
+      installedVersion: "1.3.0", packagedVersion: "1.2.0", availableVersion: "",
+      updateAvailable: false, usingOverlay: true, rollbackAvailable: true, rolledBack: true,
+      message: "Rollback failed; current binary restored",
+    });
+    button("Updates").click();
+    await flush();
+    button("Roll back to previous version").click();
+    await nextTick();
+    button("Roll back Yarr").click();
+    await flush();
+
+    expect(host.textContent).toContain("Rollback failed; current binary restored");
+    expect(host.textContent).toContain("The current version was restored.");
+    expect(host.textContent).not.toContain("The previous version was restored.");
+  });
+
+  it("serializes usernames only for capable services and preserves qBittorrent", async () => {
+    await mountSettings();
+    api.mutateYarrConfig.mockResolvedValue({
+      config,
+      changed: false,
+      restarted: false,
+      rolledBack: false,
+      error: null,
+    });
+
+    button("Save changes").click();
+    await flush();
+
+    const payload = api.mutateYarrConfig.mock.calls.at(-1)?.[0];
+    const sonarr = payload.services.find((service: { service: string }) => service.service === "sonarr");
+    const qbittorrent = payload.services.find((service: { service: string }) => service.service === "qbittorrent");
+    expect(sonarr).not.toHaveProperty("username");
+    expect(qbittorrent).toMatchObject({ username: "jacob" });
+  });
+
+  it("sends real Yarr TOML and .env text unchanged for deliberate backend detection", async () => {
+    await mountSettings();
+    api.previewYarrImport.mockResolvedValue({
+      previewId: "p".repeat(32),
+      mappings: [],
+      warnings: ["No service mappings"],
+    });
+    button("Import configuration").click();
+    await nextTick();
+    const toml = '[[yarr.services]]\nkind = "sonarr"\nbase_url = "http://sonarr:8989"\n';
+    await setValue(input("Paste .env or Yarr TOML"), toml);
+    button("Preview import").click();
+    await flush();
+    expect(api.previewYarrImport).toHaveBeenCalledWith(toml, expect.any(AbortSignal));
+    button("Cancel").click();
+    await nextTick();
+
+    button("Import configuration").click();
+    await nextTick();
+    const env = "SONARR_URL=http://sonarr:8989\n";
+    await setValue(input("Paste .env or Yarr TOML"), env);
+    button("Preview import").click();
+    await flush();
+    expect(api.previewYarrImport).toHaveBeenCalledWith(env, expect.any(AbortSignal));
   });
 
   it("bounds log requests and supports manual refresh without HTML rendering", async () => {

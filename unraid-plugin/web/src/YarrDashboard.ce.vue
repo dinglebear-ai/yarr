@@ -6,7 +6,7 @@ import type { YarrControlAction, YarrRuntime } from "./types";
 const POLL_INTERVAL_MS = 30_000;
 const STALE_AFTER_MS = 75_000;
 const FRESHNESS_TICK_MS = 5_000;
-const iconPath = "/plugins/yarr/yarr.png";
+const iconPath = "/plugins/yarr/yarr-2b068b08366b.png";
 
 const root = ref<HTMLElement>();
 const runtime = ref<YarrRuntime>();

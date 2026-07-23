@@ -57,7 +57,7 @@ const YARR_LOGS_QUERY = `query YarrLogs($lines: Int) {
   yarrLogs(lines: $lines) { lines truncated }
 }`;
 const UPDATE_FIELDS = `
-  installedVersion packagedVersion availableVersion updateAvailable usingOverlay rolledBack message
+  installedVersion packagedVersion availableVersion updateAvailable usingOverlay rollbackAvailable rolledBack message
 `;
 const YARR_UPDATE_STATUS_QUERY = `query YarrUpdateStatus { yarrUpdateStatus { ${UPDATE_FIELDS} } }`;
 const PREVIEW_YARR_IMPORT_MUTATION = `mutation PreviewYarrImport($input: PreviewYarrImportInput!) {
@@ -76,6 +76,9 @@ const UPDATE_YARR_BINARY_MUTATION = `mutation UpdateYarrBinary($version: String!
 }`;
 const RESET_YARR_BINARY_MUTATION = `mutation ResetYarrBinary {
   resetYarrBinary { ${UPDATE_FIELDS} }
+}`;
+const ROLLBACK_YARR_BINARY_MUTATION = `mutation RollbackYarrBinary {
+  rollbackYarrBinary { ${UPDATE_FIELDS} }
 }`;
 
 type GraphQLBody = { data?: Record<string, unknown>; errors?: unknown };
@@ -309,5 +312,12 @@ export async function resetYarrBinary(signal?: AbortSignal): Promise<YarrUpdateR
   return result<YarrUpdateResult>(
     await request<Record<string, unknown>>(RESET_YARR_BINARY_MUTATION, undefined, signal),
     "resetYarrBinary",
+  );
+}
+
+export async function rollbackYarrBinary(signal?: AbortSignal): Promise<YarrUpdateResult> {
+  return result<YarrUpdateResult>(
+    await request<Record<string, unknown>>(ROLLBACK_YARR_BINARY_MUTATION, undefined, signal),
+    "rollbackYarrBinary",
   );
 }

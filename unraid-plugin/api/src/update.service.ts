@@ -1,4 +1,4 @@
-import type { CommandRunner } from "./command-runner";
+import type { CommandResult, CommandRunner } from "./command-runner";
 import { YARR_UPDATE_PATH } from "./paths";
 
 export interface UpdateStatus {
@@ -7,6 +7,7 @@ export interface UpdateStatus {
   availableVersion: string;
   updateAvailable: boolean;
   usingOverlay: boolean;
+  rollbackAvailable: boolean;
   rolledBack: boolean;
   message: string;
 }
@@ -22,6 +23,7 @@ const UPDATE_KEYS = [
   "availableVersion",
   "updateAvailable",
   "usingOverlay",
+  "rollbackAvailable",
   "rolledBack",
   "message",
 ] as const;
@@ -44,22 +46,30 @@ export class UpdateService {
     return this.run("reset", ["reset", "--json"], MUTATION_TIMEOUT_MS);
   }
 
+  async rollback(): Promise<UpdateResult> {
+    return this.run("rollback", ["rollback", "--json"], MUTATION_TIMEOUT_MS);
+  }
+
   private async run(
-    operation: "check" | "apply" | "reset",
+    operation: "check" | "apply" | "reset" | "rollback",
     args: readonly string[],
     timeoutMs: number,
   ): Promise<UpdateStatus> {
-    let stdout: string;
+    let result: CommandResult;
     try {
-      const result = await this.commands.run(YARR_UPDATE_PATH, args, {
+      result = await this.commands.run(YARR_UPDATE_PATH, args, {
         timeoutMs,
         maxOutputBytes: MAX_UPDATE_OUTPUT_BYTES,
+        allowedExitCodes: operation === "check" ? [0] : [0, 1],
       });
-      stdout = result.stdout;
     } catch {
       throw new Error(`Yarr update ${operation} failed`);
     }
-    return parseUpdateResponse(stdout);
+    const parsed = parseUpdateResponse(result.stdout);
+    if (result.exitCode !== 0 && !isExpectedNonzeroOutcome(operation, parsed)) {
+      throw new Error(`Yarr update ${operation} failed`);
+    }
+    return parsed;
   }
 }
 
@@ -81,6 +91,7 @@ function parseUpdateResponse(text: string): UpdateStatus {
     !isOptionalVersion(candidate.availableVersion) ||
     typeof candidate.updateAvailable !== "boolean" ||
     typeof candidate.usingOverlay !== "boolean" ||
+    typeof candidate.rollbackAvailable !== "boolean" ||
     typeof candidate.rolledBack !== "boolean" ||
     !isSafeMessage(candidate.message)
   ) {
@@ -92,6 +103,7 @@ function parseUpdateResponse(text: string): UpdateStatus {
     availableVersion: candidate.availableVersion,
     updateAvailable: candidate.updateAvailable,
     usingOverlay: candidate.usingOverlay,
+    rollbackAvailable: candidate.rollbackAvailable,
     rolledBack: candidate.rolledBack,
     message: candidate.message,
   };
@@ -109,11 +121,38 @@ function isSafeMessage(value: unknown): value is string {
     /^Yarr is current$/,
     /^Yarr updated to \d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/,
     /^Yarr reset to packaged binary$/,
+    /^Yarr rolled back to previous binary$/,
     /^Yarr reset; updater backup cleanup pending$/,
     /^Update failed; previous binary restored$/,
     /^Reset failed; previous binary restored$/,
+    /^Rollback failed; current binary restored$/,
+    /^Manual rollback is unavailable; no previous binary exists$/,
     /^Yarr updated; obsolete backup cleanup pending$/,
   ].some((pattern) => pattern.test(value));
+}
+
+function isExpectedNonzeroOutcome(
+  operation: "check" | "apply" | "reset" | "rollback",
+  value: UpdateStatus,
+): boolean {
+  if (operation === "apply") {
+    return value.message === "Update failed; previous binary restored"
+      ? value.rolledBack
+      : value.message === "Yarr updated; obsolete backup cleanup pending" && !value.rolledBack;
+  }
+  if (operation === "reset") {
+    return value.message === "Reset failed; previous binary restored"
+      ? value.rolledBack
+      : value.message === "Yarr reset; updater backup cleanup pending" && !value.rolledBack;
+  }
+  if (operation === "rollback") {
+    return value.message === "Rollback failed; current binary restored"
+      ? value.rolledBack
+      : value.message === "Manual rollback is unavailable; no previous binary exists" &&
+        !value.rolledBack &&
+        !value.rollbackAvailable;
+  }
+  return false;
 }
 
 function isBoundedSemVer(value: string): boolean {

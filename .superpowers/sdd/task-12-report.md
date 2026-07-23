@@ -290,3 +290,26 @@ Archive construction now normalizes the complete staged directory tree and valid
 - Deterministic CairoSVG 2.7.1 rendering matched the committed PNG byte-for-byte. The 32x32 RGBA render retained 84 rose pixels for the hub, links, and three endpoints; 20 cyan play pixels; 572 dark surface pixels; and 736 opaque pixels.
 
 No deployment, workflow dispatch, release publication, or upstream `v2.1.0` draft-asset mutation occurred. The earlier review decision predates this added integration scope; the parent will run sequential independent reviews, so this report does not claim approval.
+
+## 2026-07-23 independent review 1 remediation
+
+All seven findings from independent review 1 were implemented from
+`1e4bc61552eb40b898268bce444fac8dac2466fd`: capability-aware username
+round trips, content-derived page tokens and immutable icon naming, structured
+nonzero updater results, deliberate `.env`/Yarr TOML import, safe absent-overlay
+reset, end-to-end manual binary rollback, and corrected operator/design
+documentation.
+
+Final gates pass with API `177/177`, web `52/52`, both typechecks/builds,
+browser bundle smoke, updater and aggregate plugin contracts, package
+verification, canonical ShellCheck for `16` plugin scripts, actionlint, Python
+compilation/workflow mutation, and zero production audit findings. Umask `022`
+and `077` packages are byte-identical at SHA-256
+`56ba2886eff4c9e08bd18fbce41b3767b9174b356fa28d4d3ee6c870a3c0f06c`,
+MD5 `268005b4629da4b49a707d83c55207a4`, size `6,218,032` bytes. Each archive
+has `57` entries and `14` root:root mode-`0755` directories with no `./`
+member. No live host, workflow, release, or upstream draft mutation occurred,
+and no review approval is claimed.
+
+Detailed evidence is in
+`.superpowers/sdd/task-12-independent-review1-fixes-report.md`.

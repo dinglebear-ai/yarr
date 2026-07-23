@@ -174,7 +174,7 @@ function assertCommand(command, args, inheritedLockFd) {
         throw new Error("command arguments are not permitted");
 }
 function isUpdaterArgs(args) {
-    if ((args.length === 1 || args.length === 2) && ["check", "reset"].includes(args[0])) {
+    if ((args.length === 1 || args.length === 2) && ["check", "reset", "rollback"].includes(args[0])) {
         return args.length === 1 || args[1] === "--json";
     }
     if (args[0] !== "apply" || args[1] !== "--version" || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(args[2] ?? "")) {

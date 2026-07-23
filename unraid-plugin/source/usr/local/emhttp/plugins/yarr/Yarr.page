@@ -1,6 +1,6 @@
 Menu="Utilities"
 Title="Yarr"
-Icon="yarr.png"
+Icon="yarr-2b068b08366b.png"
 Tag="plug"
 ---
 <?php
@@ -13,8 +13,14 @@ if ($yarr_csrf === '') {
     $yarr_csrf = @parse_ini_file('/usr/local/emhttp/state/var.ini')['csrf_token'] ?? '';
 }
 $yarr_web = '/usr/local/emhttp/plugins/yarr/web';
-$yarr_settings_css_v = @filemtime("$yarr_web/yarr-settings.css") ?: '0';
-$yarr_settings_js_v = @filemtime("$yarr_web/yarr-settings.js") ?: '0';
+$yarr_content_token = static function ($path) {
+    $digest = @hash_file('sha256', $path);
+    return is_string($digest) && preg_match('/\A[0-9a-f]{64}\z/D', $digest) === 1
+        ? substr($digest, 0, 12)
+        : 'missing';
+};
+$yarr_settings_css_v = $yarr_content_token("$yarr_web/yarr-settings.css");
+$yarr_settings_js_v = $yarr_content_token("$yarr_web/yarr-settings.js");
 ?>
 <script>window.csrf_token = <?= json_encode((string) $yarr_csrf, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
 <link rel="stylesheet" href="/plugins/yarr/web/yarr-settings.css?v=<?= $yarr_settings_css_v ?>">

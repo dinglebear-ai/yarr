@@ -7,7 +7,7 @@ source_root="$plugin_root/source"
 classic="$plugin_root/yarr.plg"
 page="$source_root/usr/local/emhttp/plugins/yarr/Yarr.page"
 dashboard_page="$source_root/usr/local/emhttp/plugins/yarr/YarrDashboard.page"
-icon="$source_root/usr/local/emhttp/plugins/yarr/yarr.png"
+icon="$source_root/usr/local/emhttp/plugins/yarr/yarr-2b068b08366b.png"
 icon_source="$plugin_root/assets/yarr.svg"
 default_cfg="$source_root/usr/local/emhttp/plugins/yarr/default.cfg"
 default_env="$source_root/usr/local/emhttp/plugins/yarr/default.env"
@@ -79,11 +79,17 @@ fi
 
 [[ ! -e "$source_root/usr/local/emhttp/plugins/yarr/yarr.page" ]] || fail 'lowercase settings page route still exists'
 grep -Fq 'Menu="Utilities"' "$page" || fail 'settings page is not in Utilities'
-grep -Fq 'Icon="yarr.png"' "$page" || fail 'settings page does not use the packaged Yarr icon'
+grep -Fq 'Icon="yarr-2b068b08366b.png"' "$page" || fail 'settings page does not use the immutable packaged Yarr icon'
 grep -Fq 'Tag="plug"' "$page" || fail 'settings page tag drifted'
-grep -Fq '/plugins/yarr/web/yarr-settings.css?v=' "$page" || fail 'settings page CSS is not cache-busted'
+grep -Fq '$yarr_settings_css_v = $yarr_content_token("$yarr_web/yarr-settings.css");' "$page" ||
+    fail 'settings page CSS token is not derived from its content'
+grep -Fq '$yarr_settings_js_v = $yarr_content_token("$yarr_web/yarr-settings.js");' "$page" ||
+    fail 'settings page JS token is not derived from its content'
+grep -Fq '/plugins/yarr/web/yarr-settings.css?v=<?= $yarr_settings_css_v ?>' "$page" ||
+    fail 'settings page CSS does not use its exact content token'
 grep -Fq '<yarr-settings-app></yarr-settings-app>' "$page" || fail 'settings custom element is not mounted'
-grep -Fq '/plugins/yarr/web/yarr-settings.js?v=' "$page" || fail 'settings page JS is not cache-busted'
+grep -Fq '/plugins/yarr/web/yarr-settings.js?v=<?= $yarr_settings_js_v ?>' "$page" ||
+    fail 'settings page JS does not use its exact content token'
 grep -Fq "\$var['csrf_token']" "$page" || fail 'settings page does not use the host CSRF token'
 grep -Fq '/usr/local/emhttp/state/var.ini' "$page" || fail 'settings page lacks the safe host CSRF fallback'
 grep -Fq 'json_encode((string) $yarr_csrf' "$page" || fail 'settings page does not encode CSRF data for JavaScript'
@@ -92,21 +98,41 @@ if grep -Eqi '(\$_(POST|GET)|file_put_contents|fopen|/boot/config/plugins/yarr)'
 fi
 grep -Fq 'Menu="Dashboard"' "$dashboard_page" || fail 'dashboard page is not in Dashboard'
 grep -Fq 'Title="Yarr"' "$dashboard_page" || fail 'dashboard title drifted'
-grep -Fq 'Icon="yarr.png"' "$dashboard_page" || fail 'dashboard page does not use the packaged Yarr icon'
+grep -Fq 'Icon="yarr-2b068b08366b.png"' "$dashboard_page" || fail 'dashboard page does not use the immutable packaged Yarr icon'
 grep -Fq 'Tag="plug"' "$dashboard_page" || fail 'dashboard tag drifted'
 grep -Fq 'DASHBOARD_WIDGET_ENABLE' "$dashboard_page" || fail 'dashboard page has no config-backed condition'
 grep -Fq '/boot/config/plugins/yarr/yarr.cfg' "$dashboard_page" || fail 'dashboard condition does not read persistent config'
 grep -Fq '<yarr-dashboard></yarr-dashboard>' "$dashboard_page" || fail 'dashboard custom element is not mounted'
-grep -Fq '/plugins/yarr/web/yarr-dashboard.css?v=' "$dashboard_page" || fail 'dashboard CSS is not cache-busted'
-grep -Fq '/plugins/yarr/web/yarr-dashboard.js?v=' "$dashboard_page" || fail 'dashboard JS is not cache-busted'
+grep -Fq '$yarr_dashboard_css_v = $yarr_content_token("$yarr_dashboard_web/yarr-dashboard.css");' "$dashboard_page" ||
+    fail 'dashboard CSS token is not derived from its content'
+grep -Fq '$yarr_dashboard_js_v = $yarr_content_token("$yarr_dashboard_web/yarr-dashboard.js");' "$dashboard_page" ||
+    fail 'dashboard JS token is not derived from its content'
+grep -Fq '/plugins/yarr/web/yarr-dashboard.css?v=<?= $yarr_dashboard_css_v ?>' "$dashboard_page" ||
+    fail 'dashboard CSS does not use its exact content token'
+grep -Fq '/plugins/yarr/web/yarr-dashboard.js?v=<?= $yarr_dashboard_js_v ?>' "$dashboard_page" ||
+    fail 'dashboard JS does not use its exact content token'
+for cache_page in "$page" "$dashboard_page"; do
+    grep -Fq "hash_file('sha256', \$path)" "$cache_page" ||
+        fail "$(basename "$cache_page") does not hash asset content"
+    grep -Fq 'substr($digest, 0, 12)' "$cache_page" ||
+        fail "$(basename "$cache_page") does not use the exact 12-character SHA-256 token"
+    if grep -Fq 'filemtime' "$cache_page"; then
+        fail "$(basename "$cache_page") still uses epoch-mtime cache tokens"
+    fi
+done
 if grep -Fq 'yarr-settings.' "$dashboard_page"; then
     fail 'dashboard page loads the full settings bundle'
 fi
 
-[[ $(stat -c %a "$icon") == 644 ]] || fail 'source yarr.png must be mode 0644'
+[[ $(stat -c %a "$icon") == 644 ]] || fail 'source immutable Yarr icon must be mode 0644'
+icon_sha=$(sha256sum "$icon" | awk '{print $1}')
+[[ "$icon_sha" == 2b068b08366b3c425c1aa47c0bfd1357f90221d544d23f91e6387b39893ae743 ]] ||
+    fail 'source immutable Yarr icon digest drifted from its filename'
+[[ ! -e "$source_root/usr/local/emhttp/plugins/yarr/yarr.png" ]] ||
+    fail 'stale mutable Yarr icon path still exists'
 icon_header=$(od -An -tx1 -N26 "$icon" | tr -d ' \n')
 [[ "$icon_header" == 89504e470d0a1a0a0000000d4948445200000100000001000806 ]] ||
-    fail 'source yarr.png must be a 256x256 8-bit RGBA PNG'
+    fail 'source immutable Yarr icon must be a 256x256 8-bit RGBA PNG'
 grep -Fq 'viewBox="0 0 256 256"' "$icon_source" || fail 'Yarr icon source has the wrong canvas'
 grep -Fq 'viewBox="0 0 24 24"' "$icon_source" || fail 'Yarr icon source lacks the Aurora 24x24 glyph grid'
 grep -Fq 'fill="none"' "$icon_source" || fail 'Yarr icon source is not an outline glyph'
@@ -447,7 +473,7 @@ grep -Fq '/usr/local/yarr/bin/yarr' "$build_script" || fail 'build does not stag
 grep -Fq 'install -d -m 0755' "$build_script" || fail 'build does not fix packaged directory modes'
 grep -Fq 'yarr-dashboard.js' "$build_script" || fail 'build does not stage the dashboard bundle'
 grep -Fq 'yarr-settings.js' "$build_script" || fail 'build does not stage the settings bundle'
-grep -Fq 'yarr.png' "$build_script" || fail 'build does not validate and stage the shared Yarr icon'
+grep -Fq 'yarr-2b068b08366b.png' "$build_script" || fail 'build does not validate and stage the immutable Yarr icon'
 grep -Fq 'package-manifest.sha256' "$build_script" || fail 'build does not embed a SHA-256/mode inventory'
 grep -Fq 'package-manifest.sha256' "$verify_script" || fail 'verifier does not enforce embedded inventory'
 grep -Fq 'git ls-files' "$verify_script" || fail 'verifier does not enforce tracked source parity'

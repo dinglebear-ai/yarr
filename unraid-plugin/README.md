@@ -20,7 +20,8 @@ without changing Yarr's normal Rust, npm, Docker, or MCP distributions.
   custom elements. The classic settings page loads the settings bundle; the
   Unraid dashboard loader consumes the dashboard bundle.
 - `assets/yarr.svg` is the original icon artwork; the package carries its
-  256x256 RGBA `yarr.png` rendering for both Unraid page entries and the widget.
+  256x256 RGBA `yarr-2b068b08366b.png` content-addressed rendering for both
+  Unraid page entries and the widget.
 - `scripts/` builds and verifies the deterministic `.txz`.
 - `tests/` enforces lifecycle, updater, classic/API activation, workflow,
   release, path, inventory, mode, and secret contracts without requiring
@@ -77,7 +78,7 @@ Each Sonarr, Radarr, Prowlarr, Tautulli, Overseerr, Bazarr, Tracearr, SABnzbd,
 qBittorrent, Plex, and Jellyfin credential is stored independently in:
 
 ```text
-/boot/config/plugins/yarr/yarr.env
+/boot/config/plugins/yarr/.env
 ```
 
 Credentials are server-side only. GraphQL returns presence/status booleans,
@@ -98,7 +99,7 @@ Persistent operator state:
 
 ```text
 /boot/config/plugins/yarr/yarr.cfg
-/boot/config/plugins/yarr/yarr.env
+/boot/config/plugins/yarr/.env
 /mnt/user/appdata/yarr/
 ```
 
@@ -137,9 +138,13 @@ the stable lifecycle lock. Metadata, checksums, and archives have independent
 connect/total timeouts, retry limits, and maximum byte sizes.
 
 If readiness fails, the updater restores the previous executable and runtime
-state. **Rollback** selects `yarr.previous`. **Reset to packaged** removes the
-appdata overlay so `/usr/local/yarr/bin/yarr` is selected again. Neither action
-changes plugin configuration or service credentials.
+state. **Roll back to previous version** atomically swaps `yarr.previous` into
+the active overlay, retains the replaced executable as the next
+`yarr.previous`, and restores the current binary if restart/readiness fails.
+It is available from the Updates panel or as
+`yarr-update.sh rollback --json`. **Reset to packaged** removes the appdata
+overlay so `/usr/local/yarr/bin/yarr` is selected again. Neither action changes
+plugin configuration or service credentials.
 
 ## API and web loader behavior
 

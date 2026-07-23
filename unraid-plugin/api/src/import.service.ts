@@ -1,5 +1,6 @@
 import type { SaveConfigResult } from "./config.service";
 import type { SaveYarrConfigInput, SaveYarrServiceInput, SecretUpdate } from "./config.types";
+import { parseImportText } from "./import-parser";
 import {
   normalizeCatalogKey,
   normalizeServiceUrl,
@@ -61,6 +62,15 @@ export class ImportService {
 
   constructor(private readonly config: ConfigWriter, options: SessionStoreOptions = {}) {
     this.sessions = new ExpiringSessionStore(options);
+  }
+
+  async previewText(text: string): Promise<ImportPreview> {
+    const parsed = parseImportText(text);
+    const preview = await this.preview(parsed.values);
+    return {
+      ...preview,
+      warnings: [...parsed.warnings, ...preview.warnings],
+    };
   }
 
   async preview(input: Record<string, string>): Promise<ImportPreview> {

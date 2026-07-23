@@ -36,7 +36,7 @@ function secret(index: number, key: "password" | "apiKey", value: YarrSecretUpda
       </div>
       <div class="yarr-form-grid">
         <label>{{ name(service.service) }} base URL<input type="url" :value="service.baseUrl" :disabled="disabled" @input="patch(index, { baseUrl: ($event.target as HTMLInputElement).value })"></label>
-        <label>{{ name(service.service) }} username<input type="text" :value="service.username ?? ''" :disabled="disabled" autocomplete="off" @input="patch(index, { username: ($event.target as HTMLInputElement).value })"></label>
+        <label v-if="service.username !== null">{{ name(service.service) }} username<input type="text" :value="service.username" :disabled="disabled" autocomplete="off" @input="patch(index, { username: ($event.target as HTMLInputElement).value })"></label>
       </div>
       <div class="yarr-secret-grid">
         <SecretField :name="`${service.service}-password`" :label="`${name(service.service)} password`" :configured="service.hasPassword" :intent="service.password.kind" :disabled="disabled" @update="secret(index, 'password', $event)" />

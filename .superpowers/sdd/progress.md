@@ -36,3 +36,11 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - Deterministic CairoSVG 2.7.1 rendering produced a 256x256 RGBA PNG; its 32px raster preserves 84 rose pixels, 20 cyan pixels, 572 dark surface pixels, and 736 opaque pixels.
 - Rebuilt the coordinated package twice under umask `022` and `077`; both outputs are byte-identical at SHA-256 `511335b80133dcbfe9b15a2c65c3063e2a9cfad0adc4b24c96fb9ad2d3058b66`, MD5 `143216710e10604e47b7b0be6e0017f6`, 6,216,908 bytes.
 - Focused classic/icon/package contracts and the complete aggregate Yarr plugin harness pass. No deployment, workflow dispatch, release publication, or upstream draft mutation was performed.
+
+### 2026-07-23 - Independent review 1 remediation
+
+- Fixed all seven findings from base `1e4bc61552eb40b898268bce444fac8dac2466fd`: safe username round trips, immutable content-addressed cache/icon behavior, structured nonzero updater results, `.env` plus Yarr TOML import, absent-overlay reset, full manual rollback, and corrected docs.
+- Manual rollback now spans shell transaction/recovery, command allowlisting, API service, resolver and exact SDL parity, Vue GraphQL, and a guarded Updates-panel flow, with no-previous and activation-failure coverage.
+- Final gates: API `177/177`, web `52/52`, typechecks/builds, browser smoke, updater and aggregate contracts, package verifier, ShellCheck `16` at CI severity, actionlint, Python `6` plus workflow mutation, and API/web production audits with zero findings.
+- Umask `022` and `077` packages are byte-identical at SHA-256 `56ba2886eff4c9e08bd18fbce41b3767b9174b356fa28d4d3ee6c870a3c0f06c`, MD5 `268005b4629da4b49a707d83c55207a4`, size `6,218,032` bytes; both contain `57` canonical entries, `14` root:root `0755` directories, and no `./` member.
+- No deployment, workflow dispatch, release publication, or upstream draft mutation occurred. Independent review approval remains pending.

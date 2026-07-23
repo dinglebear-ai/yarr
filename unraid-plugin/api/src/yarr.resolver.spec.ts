@@ -88,6 +88,19 @@ function harness() {
     read: vi.fn(async () => ({ lines: ["one", "two", "three"], truncated: false })),
   };
   const imports = {
+    previewText: vi.fn(async () => ({
+      previewId: "p".repeat(32),
+      mappings: [{
+        serviceId: "sonarr",
+        baseUrl: "http://sonarr:8989",
+        hasUsername: false,
+        hasPassword: false,
+        hasApiKey: true,
+        apiKey: "import-private",
+      }],
+      warnings: [],
+      secret: "import-private",
+    })),
     preview: vi.fn(async () => ({
       previewId: "p".repeat(32),
       mappings: [{
@@ -128,6 +141,7 @@ function harness() {
       availableVersion: "2.1.0",
       updateAvailable: true,
       usingOverlay: false,
+      rollbackAvailable: false,
       rolledBack: false,
       message: "Yarr update 2.1.0 is available",
       secret: "update-private",
@@ -138,6 +152,7 @@ function harness() {
       availableVersion: "2.1.0",
       updateAvailable: false,
       usingOverlay: true,
+      rollbackAvailable: true,
       rolledBack: false,
       message: "Yarr updated to 2.1.0",
       secret: "update-private",
@@ -148,8 +163,20 @@ function harness() {
       availableVersion: "2.1.0",
       updateAvailable: true,
       usingOverlay: false,
+      rollbackAvailable: false,
       rolledBack: false,
       message: "Yarr reset to packaged binary",
+      secret: "update-private",
+    })),
+    rollback: vi.fn(async () => ({
+      installedVersion: "2.0.0",
+      packagedVersion: "2.0.0",
+      availableVersion: "2.1.0",
+      updateAvailable: true,
+      usingOverlay: true,
+      rollbackAvailable: true,
+      rolledBack: false,
+      message: "Yarr rolled back to previous binary",
       secret: "update-private",
     })),
   };
@@ -213,10 +240,9 @@ describe("YarrResolver", () => {
     });
 
     const preview = await resolver.previewYarrImport(previewInput);
-    expect(imports.preview).toHaveBeenCalledWith({
-      SONARR_URL: "http://sonarr:8989",
-      SONARR_API_KEY: "private-value",
-    });
+    expect(imports.previewText).toHaveBeenCalledWith(
+      "SONARR_URL=http://sonarr:8989\nSONARR_API_KEY=private-value\n",
+    );
     expect(JSON.stringify(preview)).not.toContain("private-value");
 
     const importInput = Object.assign(new ApplyYarrImportInput(), {
@@ -251,7 +277,7 @@ describe("YarrResolver", () => {
     }))).rejects.toThrow("256 KiB");
     await expect(resolver.yarrLogs(0)).rejects.toThrow("1 to 500");
     await expect(resolver.yarrLogs(501)).rejects.toThrow("1 to 500");
-    expect(imports.preview).not.toHaveBeenCalled();
+    expect(imports.previewText).not.toHaveBeenCalled();
     expect(logs.read).not.toHaveBeenCalled();
   });
 
@@ -259,8 +285,10 @@ describe("YarrResolver", () => {
     const { resolver, updates } = harness();
     const applied = await resolver.updateYarrBinary("2.1.0");
     const reset = await resolver.resetYarrBinary();
+    const rolledBack = await resolver.rollbackYarrBinary();
     expect(updates.apply).toHaveBeenCalledWith("2.1.0");
     expect(updates.reset).toHaveBeenCalledOnce();
-    expect(JSON.stringify({ applied, reset })).not.toContain("update-private");
+    expect(updates.rollback).toHaveBeenCalledOnce();
+    expect(JSON.stringify({ applied, reset, rolledBack })).not.toContain("update-private");
   });
 });

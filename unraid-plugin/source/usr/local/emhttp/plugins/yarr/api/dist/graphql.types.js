@@ -417,6 +417,7 @@ let YarrUpdateStatus = class YarrUpdateStatus {
     availableVersion;
     updateAvailable;
     usingOverlay;
+    rollbackAvailable;
     rolledBack;
     message;
 };
@@ -441,6 +442,10 @@ __decorate([
     (0, graphql_1.Field)(() => Boolean),
     __metadata("design:type", Boolean)
 ], YarrUpdateStatus.prototype, "usingOverlay", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Boolean),
+    __metadata("design:type", Boolean)
+], YarrUpdateStatus.prototype, "rollbackAvailable", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Boolean),
     __metadata("design:type", Boolean)
@@ -818,8 +823,8 @@ const graphqlSchemaExtension = async () => `
   type YarrDiscoveryCandidate { candidateId: String!, source: String!, serviceId: String!, confidence: Int!, reasons: [String!]!, baseUrl: String!, hasCredential: Boolean! }
   type YarrDiscoveryError { code: String!, message: String! }
   type YarrDiscoveryResult { discoveryId: String!, candidates: [YarrDiscoveryCandidate!]!, errors: [YarrDiscoveryError!]! }
-  type YarrUpdateStatus { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rolledBack: Boolean!, message: String! }
-  type YarrUpdateResult { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rolledBack: Boolean!, message: String! }
+  type YarrUpdateStatus { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, message: String! }
+  type YarrUpdateResult { installedVersion: String!, packagedVersion: String!, availableVersion: String!, updateAvailable: Boolean!, usingOverlay: Boolean!, rollbackAvailable: Boolean!, rolledBack: Boolean!, message: String! }
 
   input YarrSecretUpdateInput { kind: YarrSecretUpdateKind!, value: String }
   input SaveYarrServiceInput { service: String!, enabled: Boolean, baseUrl: String, username: String, password: YarrSecretUpdateInput, apiKey: YarrSecretUpdateInput }
@@ -845,6 +850,7 @@ const graphqlSchemaExtension = async () => `
     applyYarrDiscovery(input: ApplyYarrDiscoveryInput!): YarrConfigMutationResult!
     updateYarrBinary(version: String!): YarrUpdateResult!
     resetYarrBinary: YarrUpdateResult!
+    rollbackYarrBinary: YarrUpdateResult!
   }
 `;
 exports.graphqlSchemaExtension = graphqlSchemaExtension;

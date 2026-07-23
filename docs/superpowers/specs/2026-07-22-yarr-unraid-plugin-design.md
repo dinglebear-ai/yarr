@@ -393,8 +393,11 @@ Settings sections:
 3. **Server & Auth:** bind mode, port, bearer/OAuth/trusted-gateway settings,
    Tailscale Serve, dashboard visibility, data path, effective URLs, and
    validation guidance.
-4. **Updates:** bundled/active/latest versions, update/reset operations,
-   compatibility warnings, progress, and rollback outcome.
+4. **Updates:** bundled/active/latest versions, update/manual rollback/reset
+   operations, compatibility warnings, progress, and rollback outcome. Manual
+   rollback atomically selects `yarr.previous`, retains the replaced active
+   overlay as the next predecessor, and restores the current binary if
+   activation readiness fails.
 5. **Logs:** bounded redacted Yarr/service logs with refresh and download of the
    visible redacted range only.
 
@@ -402,6 +405,12 @@ Secrets use replace/remove controls and never populate an input with the stored
 value. Destructive-looking operations such as reset or credential removal use
 explicit confirmation. Controls disable while the shared operation lock is
 held, and errors identify the failed layer and rollback result.
+
+Structured import deliberately detects `.env` assignments or Yarr TOML. TOML
+supports the repository's `[yarr]`, `[mcp]`, `[mcp.auth]`, and
+`[[yarr.services]]` structure: importable service fields are mapped without
+guessing, valid non-service fields produce explicit warnings, and malformed or
+unsupported fields are rejected rather than silently dropped.
 
 ## Packaging and Release
 
@@ -494,8 +503,9 @@ independently.
 8. Verify Yarr's read-only doctor/status and MCP connectivity.
 9. Verify Tailscale Serve only when enabled, without changing unrelated Serve
    mappings.
-10. Exercise update/reset or a controlled equivalent that proves checksum,
-    activation, and rollback paths without leaving the service degraded.
+10. Exercise update/manual rollback/reset or a controlled equivalent that
+    proves checksum, activation, and rollback paths without leaving the service
+    degraded.
 11. Verify uninstall stops runtime/API surfaces while preserving configuration
     and appdata, then reinstall to prove recovery if safe.
 

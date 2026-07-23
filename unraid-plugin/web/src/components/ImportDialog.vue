@@ -41,7 +41,7 @@ function hasCredential(mapping: YarrImportMapping): boolean {
 
 async function requestPreview(): Promise<void> {
   if (rawText.value.trim() === "") {
-    error.value = "Paste environment settings before requesting a preview.";
+    error.value = "Paste .env assignments or Yarr TOML before requesting a preview.";
     return;
   }
   controller?.abort();
@@ -90,8 +90,8 @@ onBeforeUnmount(reset);
 <template>
   <AccessibleDialog :open="open" title="Import configuration" :busy="busy" @close="close">
     <div v-if="!preview" class="yarr-dialog-flow">
-      <p>Paste environment assignments. Yarr returns only mapped service metadata and warnings, never values.</p>
-      <label>Paste environment settings<textarea v-model="rawText" rows="9" :disabled="busy" autocomplete="off" spellcheck="false" /></label>
+      <p>Paste .env assignments or Yarr TOML. Yarr returns only mapped service metadata and warnings, never values.</p>
+      <label>Paste .env or Yarr TOML<textarea v-model="rawText" rows="9" :disabled="busy" autocomplete="off" spellcheck="false" /></label>
       <p v-if="error" class="yarr-error" role="alert">{{ error }}</p>
     </div>
     <div v-else class="yarr-dialog-flow">

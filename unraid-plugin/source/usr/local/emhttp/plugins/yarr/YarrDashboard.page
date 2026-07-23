@@ -1,6 +1,6 @@
 Menu="Dashboard"
 Title="Yarr"
-Icon="yarr.png"
+Icon="yarr-2b068b08366b.png"
 Tag="plug"
 Cond="(preg_match('/^DASHBOARD_WIDGET_ENABLE\s*=\s*[\x22\x27]?false[\x22\x27]?\s*$/m', @file_get_contents('/boot/config/plugins/yarr/yarr.cfg') ?: '') !== 1)"
 ---
@@ -10,8 +10,14 @@ Cond="(preg_match('/^DASHBOARD_WIDGET_ENABLE\s*=\s*[\x22\x27]?false[\x22\x27]?\s
  * does not load the full settings application.
  */
 $yarr_dashboard_web = '/usr/local/emhttp/plugins/yarr/web';
-$yarr_dashboard_css_v = @filemtime("$yarr_dashboard_web/yarr-dashboard.css") ?: '0';
-$yarr_dashboard_js_v = @filemtime("$yarr_dashboard_web/yarr-dashboard.js") ?: '0';
+$yarr_content_token = static function ($path) {
+    $digest = @hash_file('sha256', $path);
+    return is_string($digest) && preg_match('/\A[0-9a-f]{64}\z/D', $digest) === 1
+        ? substr($digest, 0, 12)
+        : 'missing';
+};
+$yarr_dashboard_css_v = $yarr_content_token("$yarr_dashboard_web/yarr-dashboard.css");
+$yarr_dashboard_js_v = $yarr_content_token("$yarr_dashboard_web/yarr-dashboard.js");
 ?>
 <link rel="stylesheet" href="/plugins/yarr/web/yarr-dashboard.css?v=<?= $yarr_dashboard_css_v ?>">
 <noscript><p>The Yarr dashboard widget requires JavaScript.</p></noscript>

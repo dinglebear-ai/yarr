@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { controlYarr, mutateYarrConfig, queryYarrConfig, queryYarrRuntime } from "./graphql";
 import type {
-  SaveYarrConfigInput, YarrAuthDraft, YarrConfig, YarrConfigMutationResult, YarrControlAction,
+  SaveYarrConfigInput, SaveYarrServiceInput, YarrAuthDraft, YarrConfig, YarrConfigMutationResult, YarrControlAction,
   YarrPluginConfig, YarrRuntime, YarrSecretUpdate, YarrServiceDraft,
 } from "./types";
 import DiscoveryDialog from "./components/DiscoveryDialog.vue";
@@ -138,14 +138,17 @@ function saveInput(): SaveYarrConfigInput {
     googleClientSecret: normalizedSecret(currentAuth.googleClientSecret),
     trustedGatewayHosts: currentAuth.trustedGatewayHosts,
     trustedGatewayOrigins: currentAuth.trustedGatewayOrigins,
-    services: services.value.map((service) => ({
-      service: service.service,
-      enabled: service.enabled,
-      baseUrl: service.baseUrl,
-      username: service.username ?? "",
-      password: normalizedSecret(service.password),
-      apiKey: normalizedSecret(service.apiKey),
-    })),
+    services: services.value.map((service) => {
+      const input: SaveYarrServiceInput = {
+        service: service.service,
+        enabled: service.enabled,
+        password: normalizedSecret(service.password),
+        apiKey: normalizedSecret(service.apiKey),
+      };
+      if (service.baseUrl.trim() !== "") input.baseUrl = service.baseUrl;
+      if (service.username !== null) input.username = service.username;
+      return input;
+    }),
   };
 }
 

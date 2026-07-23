@@ -285,11 +285,16 @@ yarr_update_validate_archive() {
 }
 
 yarr_update_emit() {
-    local available=$1 rolled_back=$2 message=$3 installed packaged using_overlay update_available
+    local available=$1 rolled_back=$2 message=$3 installed packaged using_overlay update_available rollback_available=false
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
     packaged=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
     [[ "$YARR_BINARY" == "${YARR_OVERLAY_DIR}/yarr" ]] && using_overlay=true || using_overlay=false
+    if [[ -f "${YARR_OVERLAY_DIR}/yarr" && ! -L "${YARR_OVERLAY_DIR}/yarr" &&
+        -x "${YARR_OVERLAY_DIR}/yarr" && -f "${YARR_OVERLAY_DIR}/yarr.previous" &&
+        ! -L "${YARR_OVERLAY_DIR}/yarr.previous" && -x "${YARR_OVERLAY_DIR}/yarr.previous" ]]; then
+        rollback_available=true
+    fi
     if [[ -n "$available" ]] && yarr_update_version_gt "$available" "$installed"; then
         update_available=true
     else
@@ -298,8 +303,8 @@ yarr_update_emit() {
     jq -cn --arg installedVersion "$installed" --arg packagedVersion "$packaged" \
         --arg availableVersion "$available" --arg message "$message" \
         --argjson updateAvailable "$update_available" --argjson usingOverlay "$using_overlay" \
-        --argjson rolledBack "$rolled_back" \
-        '{installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rolledBack: $rolledBack, message: $message}'
+        --argjson rollbackAvailable "$rollback_available" --argjson rolledBack "$rolled_back" \
+        '{installedVersion: $installedVersion, packagedVersion: $packagedVersion, availableVersion: $availableVersion, updateAvailable: $updateAvailable, usingOverlay: $usingOverlay, rollbackAvailable: $rollbackAvailable, rolledBack: $rolledBack, message: $message}'
 }
 
 yarr_update_lifecycle() {
@@ -308,6 +313,38 @@ yarr_update_lifecycle() {
         stop) yarr_stop_locked ;;
         *) yarr_update_error 'invalid internal lifecycle action'; return 2 ;;
     esac
+}
+
+yarr_update_ensure_overlay_dir() {
+    local expected_owner appdata_owner appdata_mode overlay_state
+    expected_owner="$(id -u):$(id -g)"
+    [[ ! -L "$YARR_APPDATA" && ( ! -e "$YARR_APPDATA" || -d "$YARR_APPDATA" ) ]] || {
+        yarr_update_error 'refusing unsafe Yarr appdata directory'
+        return 1
+    }
+    mkdir -p -- "$YARR_APPDATA" || return 1
+    chmod go-w -- "$YARR_APPDATA" || return 1
+    appdata_owner=$(stat -c '%u:%g' "$YARR_APPDATA") || return 1
+    appdata_mode=$(stat -c '%a' "$YARR_APPDATA") || return 1
+    [[ "$appdata_owner" == "$expected_owner" ]] || {
+        yarr_update_error 'Yarr appdata directory has unexpected ownership'
+        return 1
+    }
+    (( (8#$appdata_mode & 022) == 0 )) || {
+        yarr_update_error 'Yarr appdata directory is group/world-writable'
+        return 1
+    }
+    [[ ! -L "$YARR_OVERLAY_DIR" && ( ! -e "$YARR_OVERLAY_DIR" || -d "$YARR_OVERLAY_DIR" ) ]] || {
+        yarr_update_error 'refusing unsafe Yarr overlay directory'
+        return 1
+    }
+    mkdir -p -- "$YARR_OVERLAY_DIR" || return 1
+    chmod 0755 -- "$YARR_OVERLAY_DIR" || return 1
+    overlay_state=$(stat -c '%u:%g:%a' "$YARR_OVERLAY_DIR") || return 1
+    [[ "$overlay_state" == "${expected_owner}:755" ]] || {
+        yarr_update_error 'Yarr overlay directory ownership or mode is unsafe'
+        return 1
+    }
 }
 
 yarr_update_with_lock() {
@@ -377,7 +414,7 @@ yarr_update_apply_locked() {
     YARR_TXN_PREVIOUS_LOCATION=none
     YARR_TXN_NEW_ACTIVE=false
     YARR_UPDATE_ROLLBACK=yarr_update_rollback_apply_current
-    mkdir -p "$YARR_OVERLAY_DIR" || return 1
+    yarr_update_ensure_overlay_dir || return 1
     [[ -e "$YARR_TXN_ACTIVE" ]] && { YARR_TXN_HAD_ACTIVE=true; YARR_TXN_ACTIVE_LOCATION=active; }
     [[ -e "$YARR_TXN_PREVIOUS" ]] && { YARR_TXN_HAD_PREVIOUS=true; YARR_TXN_PREVIOUS_LOCATION=previous; }
     if yarr_pid_is_owned; then
@@ -456,6 +493,7 @@ yarr_update_rollback_reset_current() {
 
 yarr_update_reset_locked() {
     local transaction ownership_status
+    yarr_update_ensure_overlay_dir || return 1
     transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.reset.XXXXXX") || return 1
     yarr_update_track_tempdir "$transaction"
     YARR_TXN_WAS_RUNNING=false
@@ -496,6 +534,110 @@ yarr_update_reset_locked() {
         yarr_update_emit '' false 'Yarr reset; updater backup cleanup pending'
         return 1
     fi
+}
+
+yarr_update_restore_manual_rollback() {
+    local was_running=$1 active=$2 previous=$3 active_backup=$4
+    local active_location=$5 previous_location=$6 result=0
+    if [[ "$was_running" == true ]] && ! yarr_update_lifecycle stop; then result=1; fi
+    if [[ "$active_location" == previous && -e "$previous" ]]; then
+        if "$YARR_MV_BIN" "$previous" "$active_backup"; then
+            active_location=backup
+        else
+            result=1
+        fi
+    fi
+    if [[ "$previous_location" == active && -e "$active" ]]; then
+        if "$YARR_MV_BIN" "$active" "$previous"; then
+            previous_location=previous
+        else
+            result=1
+        fi
+    fi
+    if [[ "$active_location" == backup && -e "$active_backup" ]]; then
+        if "$YARR_MV_BIN" "$active_backup" "$active"; then
+            active_location=active
+        else
+            result=1
+        fi
+    fi
+    "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR" || result=1
+    if [[ "$was_running" == true ]]; then
+        yarr_update_lifecycle start || result=1
+    fi
+    YARR_ROLLED_BACK=true
+    return "$result"
+}
+
+yarr_update_rollback_manual_current() {
+    yarr_update_restore_manual_rollback "$YARR_TXN_WAS_RUNNING" "$YARR_TXN_ACTIVE" \
+        "$YARR_TXN_PREVIOUS" "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_ACTIVE_LOCATION" \
+        "$YARR_TXN_PREVIOUS_LOCATION"
+}
+
+yarr_update_manual_rollback_locked() {
+    local ownership_status installed supported previous_version
+    yarr_update_require_array_active || return 1
+    yarr_load_config && yarr_validate_config || return 1
+    yarr_update_ensure_overlay_dir || return 1
+    YARR_TXN_ACTIVE="${YARR_OVERLAY_DIR}/yarr"
+    YARR_TXN_PREVIOUS="${YARR_OVERLAY_DIR}/yarr.previous"
+    if [[ ! -f "$YARR_TXN_ACTIVE" || -L "$YARR_TXN_ACTIVE" || ! -x "$YARR_TXN_ACTIVE" ||
+        ! -f "$YARR_TXN_PREVIOUS" || -L "$YARR_TXN_PREVIOUS" || ! -x "$YARR_TXN_PREVIOUS" ]]; then
+        yarr_update_emit '' false 'Manual rollback is unavailable; no previous binary exists'
+        return 1
+    fi
+    installed=$(yarr_update_version_from_binary "$YARR_TXN_ACTIVE") || return 1
+    previous_version=$(yarr_update_version_from_binary "$YARR_TXN_PREVIOUS") || return 1
+    supported=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
+    yarr_update_validate_supported_state "$installed" "$supported" || return 1
+    yarr_update_validate_supported_state "$previous_version" "$supported" || return 1
+
+    YARR_TXN_WAS_RUNNING=false
+    YARR_TXN_ACTIVE_BACKUP="${YARR_OVERLAY_DIR}/.yarr.rollback.active.$$"
+    YARR_TXN_ACTIVE_LOCATION=active
+    YARR_TXN_PREVIOUS_LOCATION=previous
+    YARR_UPDATE_ROLLBACK=yarr_update_rollback_manual_current
+    if yarr_pid_is_owned; then
+        YARR_TXN_WAS_RUNNING=true
+        yarr_update_lifecycle stop || return 1
+    else
+        ownership_status=$?
+        if (( ownership_status != 1 )); then
+            yarr_update_error 'live daemon ownership is indeterminate; retaining evidence'
+            return 1
+        fi
+    fi
+    if ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE" "$YARR_TXN_ACTIVE_BACKUP"; then
+        yarr_update_rollback_manual_current || true
+        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        return 1
+    fi
+    YARR_TXN_ACTIVE_LOCATION=backup
+    if ! "$YARR_MV_BIN" "$YARR_TXN_PREVIOUS" "$YARR_TXN_ACTIVE"; then
+        yarr_update_rollback_manual_current || true
+        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        return 1
+    fi
+    YARR_TXN_PREVIOUS_LOCATION=active
+    if ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE_BACKUP" "$YARR_TXN_PREVIOUS"; then
+        yarr_update_rollback_manual_current || true
+        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        return 1
+    fi
+    YARR_TXN_ACTIVE_LOCATION=previous
+    if ! "$YARR_SYNC_BIN" -f "$YARR_OVERLAY_DIR"; then
+        yarr_update_rollback_manual_current || true
+        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        return 1
+    fi
+    if [[ "$YARR_TXN_WAS_RUNNING" == true ]] && ! yarr_update_lifecycle start; then
+        yarr_update_rollback_manual_current || true
+        yarr_update_emit '' "$YARR_ROLLED_BACK" 'Rollback failed; current binary restored' || true
+        return 1
+    fi
+    YARR_UPDATE_ROLLBACK=''
+    yarr_update_emit '' false 'Yarr rolled back to previous binary'
 }
 
 yarr_update_validate_supported_state() {
@@ -560,7 +702,7 @@ yarr_update_apply_prepared_locked() {
         yarr_update_emit "$version" false 'Yarr is current'
         return 0
     fi
-    mkdir -p "$YARR_APPDATA" "$YARR_OVERLAY_DIR" || return 1
+    yarr_update_ensure_overlay_dir || return 1
     if ! yarr_update_apply_locked "$candidate"; then
         if [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
             yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending'
@@ -630,12 +772,17 @@ yarr_update_reset() {
     yarr_update_with_lock yarr_update_reset_request_locked
 }
 
+yarr_update_rollback() {
+    yarr_update_with_lock yarr_update_manual_rollback_locked
+}
+
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     command=${1:-}; shift || true
     case "$command" in
         check) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh check --json'; exit 2; }; yarr_update_check ;;
         apply) [[ "${1:-}" == --version && -n "${2:-}" && "${3:-}" == --json && $# == 3 ]] || { yarr_update_error 'usage: yarr-update.sh apply --version MAJOR.MINOR.PATCH --json'; exit 2; }; yarr_update_apply "$2" ;;
         reset) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh reset --json'; exit 2; }; yarr_update_reset ;;
-        *) yarr_update_error 'usage: yarr-update.sh {check --json|apply --version MAJOR.MINOR.PATCH --json|reset --json}'; exit 2 ;;
+        rollback) [[ "${1:-}" == --json && $# == 1 ]] || { yarr_update_error 'usage: yarr-update.sh rollback --json'; exit 2; }; yarr_update_rollback ;;
+        *) yarr_update_error 'usage: yarr-update.sh {check --json|apply --version MAJOR.MINOR.PATCH --json|reset --json|rollback --json}'; exit 2 ;;
     esac
 fi

@@ -53,6 +53,7 @@ const EXPECTED_MUTATIONS = [
   "applyYarrDiscovery",
   "updateYarrBinary",
   "resetYarrBinary",
+  "rollbackYarrBinary",
 ] as const;
 
 function extensionFields(document: DocumentNode, typeName: "Query" | "Mutation"): FieldDefinitionNode[] {
@@ -200,6 +201,7 @@ function installVitestParameterMetadata(): void {
     "applyYarrImport",
     "applyYarrDiscovery",
     "updateYarrBinary",
+    "rollbackYarrBinary",
   ]) {
     Reflect.defineMetadata("design:paramtypes", [Object], YarrResolver.prototype, method);
   }
@@ -243,6 +245,7 @@ describe("GraphQL extension contract", () => {
     expect(schema).toContain("applyYarrDiscovery(input: ApplyYarrDiscoveryInput!): YarrConfigMutationResult!");
     expect(schema).toContain("updateYarrBinary(version: String!): YarrUpdateResult!");
     expect(schema).toContain("resetYarrBinary: YarrUpdateResult!");
+    expect(schema).toContain("rollbackYarrBinary: YarrUpdateResult!");
   });
 
   it("matches every reachable decorated and hand-maintained schema contract bidirectionally", () => {

@@ -1,6 +1,14 @@
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+
 import { describe, expect, it, vi } from "vitest";
 
-import type { CommandRunner } from "./command-runner";
+import {
+  SafeCommandRunner,
+  type CommandProcess,
+  type CommandRunner,
+  type CommandSpawn,
+} from "./command-runner";
 import { YARR_UPDATE_PATH } from "./paths";
 import { UpdateService } from "./update.service";
 
@@ -10,6 +18,7 @@ const validStatus = {
   availableVersion: "2.1.0",
   updateAvailable: true,
   usingOverlay: false,
+  rollbackAvailable: true,
   rolledBack: false,
   message: "Update available: 2.1.0",
 };
@@ -22,6 +31,27 @@ function harness(stdout = JSON.stringify(validStatus)) {
   };
 }
 
+function boundaryHarness(stdout: string, exitCode: number, stderr = ""): UpdateService {
+  const spawnCommand: CommandSpawn = () => {
+    const events = new EventEmitter();
+    const stdoutStream = new PassThrough();
+    const stderrStream = new PassThrough();
+    const child = Object.assign(events, {
+      pid: 4242,
+      stdout: stdoutStream,
+      stderr: stderrStream,
+      kill: () => true,
+    }) as unknown as CommandProcess;
+    queueMicrotask(() => {
+      stdoutStream.end(stdout);
+      stderrStream.end(stderr);
+      events.emit("close", exitCode, null);
+    });
+    return child;
+  };
+  return new UpdateService(new SafeCommandRunner(spawnCommand, vi.fn()));
+}
+
 describe("UpdateService", () => {
   it("uses only the allowlisted updater JSON commands and returns typed results", async () => {
     const { service, run } = harness();
@@ -29,13 +59,21 @@ describe("UpdateService", () => {
     await expect(service.status()).resolves.toEqual(validStatus);
     await expect(service.apply("2.1.0")).resolves.toEqual(validStatus);
     await expect(service.reset()).resolves.toEqual(validStatus);
+    await expect(service.rollback()).resolves.toEqual(validStatus);
 
     expect(run.mock.calls.map(([command, args]) => [command, args])).toEqual([
       [YARR_UPDATE_PATH, ["check", "--json"]],
       [YARR_UPDATE_PATH, ["apply", "--version", "2.1.0", "--json"]],
       [YARR_UPDATE_PATH, ["reset", "--json"]],
+      [YARR_UPDATE_PATH, ["rollback", "--json"]],
     ]);
     expect(run.mock.calls.every(([, , options]) => options?.maxOutputBytes === 64 * 1024)).toBe(true);
+    expect(run.mock.calls.map(([, , options]) => options?.allowedExitCodes)).toEqual([
+      [0],
+      [0, 1],
+      [0, 1],
+      [0, 1],
+    ]);
   });
 
   it.each([
@@ -76,6 +114,51 @@ describe("UpdateService", () => {
     await expect(service.status()).rejects.not.toThrow("private-output");
   });
 
+  it("preserves structured nonzero rollback and cleanup outcomes through the real command runner", async () => {
+    const rolledBack = {
+      ...validStatus,
+      rolledBack: true,
+      message: "Update failed; previous binary restored",
+    };
+    const cleanupPending = {
+      ...validStatus,
+      usingOverlay: true,
+      message: "Yarr updated; obsolete backup cleanup pending",
+    };
+    const manualRollbackFailed = {
+      ...validStatus,
+      rolledBack: true,
+      message: "Rollback failed; current binary restored",
+    };
+
+    await expect(
+      boundaryHarness(JSON.stringify(rolledBack), 1).apply("2.1.0"),
+    ).resolves.toEqual(rolledBack);
+    await expect(
+      boundaryHarness(JSON.stringify(cleanupPending), 1).apply("2.1.0"),
+    ).resolves.toEqual(cleanupPending);
+    await expect(
+      boundaryHarness(JSON.stringify(manualRollbackFailed), 1).rollback(),
+    ).resolves.toEqual(manualRollbackFailed);
+  });
+
+  it("keeps malformed and unexpected real-runner nonzero exits as failures", async () => {
+    await expect(boundaryHarness("not-json", 1).reset()).rejects.toThrow("invalid update response");
+    await expect(
+      boundaryHarness(JSON.stringify(validStatus), 1).reset(),
+    ).rejects.toThrow("Yarr update reset failed");
+    await expect(
+      boundaryHarness(JSON.stringify({
+        ...validStatus,
+        rolledBack: false,
+        message: "Rollback failed; current binary restored",
+      }), 1).rollback(),
+    ).rejects.toThrow("Yarr update rollback failed");
+    await expect(
+      boundaryHarness(JSON.stringify(validStatus), 2, "private-output").reset(),
+    ).rejects.toThrow("Yarr update reset failed");
+  });
+
   it.each([
     "No compatible release is available",
     "Update available: 2.1.0",
@@ -83,9 +166,12 @@ describe("UpdateService", () => {
     "Yarr reset; updater backup cleanup pending",
     "Yarr updated; obsolete backup cleanup pending",
     "Update failed; previous binary restored",
+    "Rollback failed; current binary restored",
+    "Manual rollback is unavailable; no previous binary exists",
     "Yarr updated to 2.1.0",
     "Reset failed; previous binary restored",
     "Yarr reset to packaged binary",
+    "Yarr rolled back to previous binary",
   ])("accepts the shell updater's exact bounded message contract: %s", async (message) => {
     const { service } = harness(JSON.stringify({ ...validStatus, message }));
     await expect(service.status()).resolves.toMatchObject({ message });

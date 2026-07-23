@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { queryYarrUpdateStatus, resetYarrBinary, updateYarrBinary } from "../graphql";
+import { queryYarrUpdateStatus, resetYarrBinary, rollbackYarrBinary, updateYarrBinary } from "../graphql";
 import type { YarrUpdateStatus } from "../types";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
@@ -11,6 +11,7 @@ const error = ref("");
 const busy = ref(false);
 const confirmUpdate = ref(false);
 const confirmReset = ref(false);
+const confirmRollback = ref(false);
 let controller: AbortController | undefined;
 let generation = 0;
 
@@ -61,6 +62,21 @@ async function reset(): Promise<void> {
   }
 }
 
+async function rollback(): Promise<void> {
+  controller?.abort();
+  controller = new AbortController();
+  busy.value = true;
+  error.value = "";
+  try {
+    status.value = await rollbackYarrBinary(controller.signal);
+    confirmRollback.value = false;
+  } catch {
+    if (!controller.signal.aborted) error.value = "Rollback result was not confirmed. Refresh update status before retrying.";
+  } finally {
+    busy.value = false;
+  }
+}
+
 onMounted(load);
 watch(busy, (value) => emit("busy", value));
 onBeforeUnmount(() => { generation += 1; controller?.abort(); emit("busy", false); });
@@ -78,13 +94,15 @@ onBeforeUnmount(() => { generation += 1; controller?.abort(); emit("busy", false
         <div><dt>Available</dt><dd>{{ status.availableVersion }}</dd></div>
         <div><dt>Source</dt><dd>{{ status.usingOverlay ? "Update overlay" : "Plugin package" }}</dd></div>
       </dl>
-      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack }" role="status">{{ status.message }}<strong v-if="status.rolledBack"> The previous version was restored.</strong></p>
+      <p class="yarr-result" :class="{ 'is-warning': status.rolledBack }" role="status">{{ status.message }}<strong v-if="status.rolledBack">{{ status.message.startsWith("Rollback failed") ? " The current version was restored." : " The previous version was restored." }}</strong></p>
       <div class="yarr-actions">
         <button v-if="status.updateAvailable" type="button" class="yarr-button" :disabled="busy" @click="confirmUpdate = true">Install {{ status.availableVersion }}</button>
+        <button v-if="status.rollbackAvailable" type="button" class="yarr-button is-quiet" :disabled="busy" @click="confirmRollback = true">Roll back to previous version</button>
         <button type="button" class="yarr-button is-danger is-quiet" :disabled="busy" @click="confirmReset = true">Reset to packaged version</button>
       </div>
     </template>
     <ConfirmDialog :open="confirmUpdate" :title="`Install Yarr ${status?.availableVersion}?`" description="Yarr will restart. If readiness fails, the updater will attempt to restore the previous binary." confirm-label="Install update" :busy="busy" @close="confirmUpdate = false" @confirm="install" />
+    <ConfirmDialog :open="confirmRollback" title="Roll back to the previous Yarr binary?" description="Yarr will swap the active update with yarr.previous, restart if it is running, and restore the current binary if readiness fails." confirm-label="Roll back Yarr" :busy="busy" @close="confirmRollback = false" @confirm="rollback" />
     <ConfirmDialog :open="confirmReset" title="Reset to packaged Yarr?" description="This removes the update overlay and restarts the binary shipped by the plugin package." confirm-label="Reset Yarr" :busy="busy" danger @close="confirmReset = false" @confirm="reset" />
   </section>
 </template>
