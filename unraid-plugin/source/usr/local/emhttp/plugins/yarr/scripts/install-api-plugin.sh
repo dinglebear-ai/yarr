@@ -80,7 +80,7 @@ has_new_loader_failure() {
 }
 
 probe_runtime() {
-    local api_key='' response
+    local api_key='' response header_file='' curl_status
     if [[ -n "${YARR_API_PROBE_KEY:-}" ]]; then
         api_key=$YARR_API_PROBE_KEY
     elif [[ -f "$api_credentials" ]]; then
@@ -89,8 +89,20 @@ probe_runtime() {
     local -a args=(--fail --silent --show-error --max-time 5 \
         --header 'Content-Type: application/json' \
         --data '{"query":"query YarrActivationProbe { yarrRuntime { __typename } }"}')
-    [[ -z "$api_key" ]] || args+=(--header "x-api-key: ${api_key}")
-    response=$("$curl_command" "${args[@]}" "$probe_url") || return 1
+    if [[ -n "$api_key" ]]; then
+        umask 077
+        header_file=$(mktemp "${TMPDIR:-/tmp}/yarr-api-probe.XXXXXX")
+        chmod 0600 "$header_file"
+        printf 'x-api-key: %s\n' "$api_key" > "$header_file"
+        args+=(--header "@${header_file}")
+    fi
+    if response=$("$curl_command" "${args[@]}" "$probe_url"); then
+        curl_status=0
+    else
+        curl_status=$?
+    fi
+    [[ -z "$header_file" ]] || rm -f -- "$header_file"
+    (( curl_status == 0 )) || return "$curl_status"
     jq -e '((.errors // []) | length) == 0 and .data.yarrRuntime.__typename == "YarrRuntime"' \
         <<< "$response" >/dev/null
 }
@@ -109,13 +121,31 @@ lock_version=$(jq -er '.packages[""].version // .version' "$payload/package-lock
 
 NODE_PATH="$api_nodes" "$node_command" - "$payload" <<'NODE'
 const path = require('node:path');
-const plugin = require(path.resolve(process.argv[2]));
-if (plugin.adapter !== 'nestjs' || typeof plugin.ApiModule !== 'function') {
-  throw new Error('invalid NestJS plugin exports');
-}
-if (typeof plugin.graphqlSchemaExtension !== 'string' || !/\byarrRuntime\b/.test(plugin.graphqlSchemaExtension)) {
-  throw new Error('missing yarrRuntime schema contract');
-}
+const { parse } = require('graphql');
+
+(async () => {
+  const payload = path.resolve(process.argv[2]);
+  const metadata = require(path.join(payload, 'package.json'));
+  const loaderEntry = path.resolve(payload, metadata.main);
+  const plugin = require(payload);
+  if (loaderEntry !== require.resolve(payload)) {
+    throw new Error('package main does not resolve to the loader entry');
+  }
+  if (plugin.adapter !== 'nestjs' || typeof plugin.ApiModule !== 'function') {
+    throw new Error('invalid NestJS plugin exports');
+  }
+  if (typeof plugin.graphqlSchemaExtension !== 'function') {
+    throw new Error('graphqlSchemaExtension must export the packaged async function');
+  }
+  const schema = await plugin.graphqlSchemaExtension();
+  if (typeof schema !== 'string' || !/\byarrRuntime\b/.test(schema) || !/\byarrConfig\b/.test(schema)) {
+    throw new Error('resolved GraphQL SDL is missing the Yarr schema contract');
+  }
+  parse(schema);
+})().catch((error) => {
+  console.error(error && error.stack ? error.stack : error);
+  process.exit(1);
+});
 NODE
 
 hash=$(payload_hash "$payload")

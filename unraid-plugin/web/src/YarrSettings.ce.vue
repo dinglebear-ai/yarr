@@ -102,7 +102,17 @@ function effectiveSecret(configured: boolean, update: YarrSecretUpdate): boolean
 }
 
 function exposureError(): string {
-  if (!plugin.value || !auth.value || plugin.value.bindMode === "LOOPBACK") return "";
+  if (!plugin.value || !auth.value) return "";
+  if (plugin.value.authMode === "TRUSTED_GATEWAY") {
+    if (plugin.value.bindMode !== "LOOPBACK" || plugin.value.tailscaleServe) {
+      return "Trusted gateway is limited to a same-host proxy with loopback binding and Tailscale Serve disabled. Use bearer or Google OAuth for network exposure.";
+    }
+    if (auth.value.trustedGatewayHosts.trim() === "" && auth.value.trustedGatewayOrigins.trim() === "") {
+      return "Trusted gateway authentication requires at least one allowed host or origin.";
+    }
+    return "";
+  }
+  if (plugin.value.bindMode === "LOOPBACK" && !plugin.value.tailscaleServe) return "";
   if (plugin.value.authMode === "BEARER" && !effectiveSecret(bearerConfigured.value, auth.value.bearerToken)) {
     return "Bearer authentication requires a configured token before Yarr can bind beyond loopback.";
   }
@@ -110,9 +120,6 @@ function exposureError(): string {
     auth.value.googleClientId.trim() === "" || !effectiveSecret(googleSecretConfigured.value, auth.value.googleClientSecret)
   )) {
     return "Google OAuth requires a client ID and configured client secret before Yarr can bind beyond loopback.";
-  }
-  if (plugin.value.authMode === "TRUSTED_GATEWAY" && auth.value.trustedGatewayHosts.trim() === "" && auth.value.trustedGatewayOrigins.trim() === "") {
-    return "Trusted gateway authentication requires at least one allowed host or origin before Yarr can bind beyond loopback.";
   }
   return "";
 }

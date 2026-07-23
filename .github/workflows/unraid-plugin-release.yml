@@ -85,6 +85,7 @@ jobs:
           upstream_sha256="$(jq -er '.upstreamBinarySha256 | select(test("^[0-9a-f]{64}$"))' unraid-plugin/release-manifest.json)"
           jq -e --arg version "$plugin_version" --argjson build "$package_build" \
             --arg file "$package_file" --arg tag "$PACKAGE_TAG" \
+            --arg repository "$GITHUB_REPOSITORY" \
             --arg packageSha "$package_sha256" --arg upstreamSha "$upstream_sha256" '
               .pluginVersion == $version and
               .apiVersion == $version and
@@ -93,7 +94,9 @@ jobs:
               .packageSha256 == $packageSha and
               .upstreamBinarySha256 == $upstreamSha and
               .packageUrl ==
-                ("https://github.com/dinglebear-ai/yarr/releases/download/" + $tag + "/" + $file) and
+                ("https://github.com/" + $repository + "/releases/download/" + $tag + "/" + $file) and
+              .sourceRepository == $repository and
+              .packageRepository == $repository and
               .binaryRepository == "dinglebear-ai/yarr" and
               .binaryAsset == "yarr-x86_64.tar.gz"
             ' unraid-plugin/release-manifest.json >/dev/null

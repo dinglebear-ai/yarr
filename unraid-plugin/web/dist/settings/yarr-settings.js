@@ -14,22 +14,22 @@ const Z = {}, It = [], Ge = () => {
 (e.charCodeAt(2) > 122 || e.charCodeAt(2) < 97), In = (e) => e.startsWith("onUpdate:"), ie = Object.assign, hs = (e, t) => {
   const n = e.indexOf(t);
   n > -1 && e.splice(n, 1);
-}, Ui = Object.prototype.hasOwnProperty, W = (e, t) => Ui.call(e, t), Y = Array.isArray, Ot = (e) => an(e) === "[object Map]", Yt = (e) => an(e) === "[object Set]", Vs = (e) => an(e) === "[object Date]", H = (e) => typeof e == "function", re = (e) => typeof e == "string", De = (e) => typeof e == "symbol", Q = (e) => e !== null && typeof e == "object", Er = (e) => (Q(e) || H(e)) && H(e.then) && H(e.catch), Ar = Object.prototype.toString, an = (e) => Ar.call(e), Di = (e) => an(e).slice(8, -1), On = (e) => an(e) === "[object Object]", ps = (e) => re(e) && e !== "NaN" && e[0] !== "-" && "" + parseInt(e, 10) === e, Gt = /* @__PURE__ */ ds(
+}, Ui = Object.prototype.hasOwnProperty, W = (e, t) => Ui.call(e, t), Y = Array.isArray, Ot = (e) => an(e) === "[object Map]", Yt = (e) => an(e) === "[object Set]", Vs = (e) => an(e) === "[object Date]", H = (e) => typeof e == "function", re = (e) => typeof e == "string", De = (e) => typeof e == "symbol", Q = (e) => e !== null && typeof e == "object", Ar = (e) => (Q(e) || H(e)) && H(e.then) && H(e.catch), Er = Object.prototype.toString, an = (e) => Er.call(e), Di = (e) => an(e).slice(8, -1), On = (e) => an(e) === "[object Object]", ps = (e) => re(e) && e !== "NaN" && e[0] !== "-" && "" + parseInt(e, 10) === e, Gt = /* @__PURE__ */ ds(
   // the leading comma is intentional so empty string "" is also included
   ",key,ref,ref_for,ref_key,onVnodeBeforeMount,onVnodeMounted,onVnodeBeforeUpdate,onVnodeUpdated,onVnodeBeforeUnmount,onVnodeUnmounted"
 ), Pn = (e) => {
   const t = /* @__PURE__ */ Object.create(null);
   return ((n) => t[n] || (t[n] = e(n)));
-}, Ni = /-\w/g, Ce = Pn(
-  (e) => e.replace(Ni, (t) => t.slice(1).toUpperCase())
-), Li = /\B([A-Z])/g, Ie = Pn(
-  (e) => e.replace(Li, "-$1").toLowerCase()
-), Rr = Pn((e) => e.charAt(0).toUpperCase() + e.slice(1)), Hn = Pn(
-  (e) => e ? `on${Rr(e)}` : ""
+}, Li = /-\w/g, Ce = Pn(
+  (e) => e.replace(Li, (t) => t.slice(1).toUpperCase())
+), Ni = /\B([A-Z])/g, Ie = Pn(
+  (e) => e.replace(Ni, "-$1").toLowerCase()
+), Tr = Pn((e) => e.charAt(0).toUpperCase() + e.slice(1)), Hn = Pn(
+  (e) => e ? `on${Tr(e)}` : ""
 ), We = (e, t) => !Object.is(e, t), bn = (e, ...t) => {
   for (let n = 0; n < e.length; n++)
     e[n](...t);
-}, Tr = (e, t, n, s = !1) => {
+}, Rr = (e, t, n, s = !1) => {
   Object.defineProperty(e, t, {
     configurable: !0,
     enumerable: !1,
@@ -68,13 +68,13 @@ function Bi(e) {
     }
   }), t;
 }
-function Et(e) {
+function At(e) {
   let t = "";
   if (re(e))
     t = e;
   else if (Y(e))
     for (let n = 0; n < e.length; n++) {
-      const s = Et(e[n]);
+      const s = At(e[n]);
       s && (t += s + " ");
     }
   else if (Q(e))
@@ -119,7 +119,7 @@ function Vt(e, t) {
 function bs(e, t) {
   return e.findIndex((n) => Vt(n, t));
 }
-const Ir = (e) => !!(e && e.__v_isRef === !0), M = (e) => re(e) ? e : e == null ? "" : Y(e) || Q(e) && (e.toString === Ar || !H(e.toString)) ? Ir(e) ? M(e.value) : JSON.stringify(e, Or, 2) : String(e), Or = (e, t) => Ir(t) ? Or(e, t.value) : Ot(t) ? {
+const Ir = (e) => !!(e && e.__v_isRef === !0), M = (e) => re(e) ? e : e == null ? "" : Y(e) || Q(e) && (e.toString === Er || !H(e.toString)) ? Ir(e) ? M(e.value) : JSON.stringify(e, Or, 2) : String(e), Or = (e, t) => Ir(t) ? Or(e, t.value) : Ot(t) ? {
   [`Map(${t.size})`]: [...t.entries()].reduce(
     (n, [s, r], i) => (n[jn(s, i) + " =>"] = r, n),
     {}
@@ -344,11 +344,11 @@ function Dr(e) {
 }
 function es(e) {
   for (let t = e.deps; t; t = t.nextDep)
-    if (t.dep.version !== t.version || t.dep.computed && (Nr(t.dep.computed) || t.dep.version !== t.version))
+    if (t.dep.version !== t.version || t.dep.computed && (Lr(t.dep.computed) || t.dep.version !== t.version))
       return !0;
   return !!e._dirty;
 }
-function Nr(e) {
+function Lr(e) {
   if (e.flags & 4 && !(e.flags & 16) || (e.flags &= -17, e.globalVersion === tn) || (e.globalVersion = tn, !e.isSSR && e.flags & 128 && (!e.deps && !e._dirty || !es(e))))
     return;
   e.flags |= 2;
@@ -378,12 +378,12 @@ function Gi(e) {
   t && (t.nextDep = n, e.prevDep = void 0), n && (n.prevDep = t, e.nextDep = void 0);
 }
 let Ue = !0;
-const Lr = [];
+const Nr = [];
 function ot() {
-  Lr.push(Ue), Ue = !1;
+  Nr.push(Ue), Ue = !1;
 }
 function lt() {
-  const e = Lr.pop();
+  const e = Nr.pop();
   Ue = e === void 0 ? !0 : e;
 }
 function Hs(e) {
@@ -494,15 +494,15 @@ function tt(e, t, n, s, r, i) {
   }
   ys();
 }
-function Tt(e) {
+function Rt(e) {
   const t = /* @__PURE__ */ G(e);
-  return t === e ? t : (he(t, "iterate", nn), /* @__PURE__ */ Oe(e) ? t : t.map(Ne));
+  return t === e ? t : (he(t, "iterate", nn), /* @__PURE__ */ Oe(e) ? t : t.map(Le));
 }
 function Un(e) {
   return he(e = /* @__PURE__ */ G(e), "iterate", nn), e;
 }
 function Ke(e, t) {
-  return /* @__PURE__ */ at(e) ? Ut(/* @__PURE__ */ St(e) ? Ne(t) : t) : Ne(t);
+  return /* @__PURE__ */ at(e) ? Ut(/* @__PURE__ */ St(e) ? Le(t) : t) : Le(t);
 }
 const zi = {
   __proto__: null,
@@ -510,8 +510,8 @@ const zi = {
     return qn(this, Symbol.iterator, (e) => Ke(this, e));
   },
   concat(...e) {
-    return Tt(this).concat(
-      ...e.map((t) => Y(t) ? Tt(t) : t)
+    return Rt(this).concat(
+      ...e.map((t) => Y(t) ? Rt(t) : t)
     );
   },
   entries() {
@@ -567,7 +567,7 @@ const zi = {
     return Wn(this, "indexOf", e);
   },
   join(e) {
-    return Tt(this).join(e);
+    return Rt(this).join(e);
   },
   // keys() iterator only reads `length`, no optimization required
   lastIndexOf(...e) {
@@ -599,13 +599,13 @@ const zi = {
     return Ht(this, "splice", e);
   },
   toReversed() {
-    return Tt(this).toReversed();
+    return Rt(this).toReversed();
   },
   toSorted(e) {
-    return Tt(this).toSorted(e);
+    return Rt(this).toSorted(e);
   },
   toSpliced(...e) {
-    return Tt(this).toSpliced(...e);
+    return Rt(this).toSpliced(...e);
   },
   unshift(...e) {
     return Ht(this, "unshift", e);
@@ -626,7 +626,7 @@ function Xe(e, t, n, s, r, i) {
   const l = Un(e), a = l !== e && !/* @__PURE__ */ Oe(e), o = l[t];
   if (o !== Qi[t]) {
     const p = o.apply(e, i);
-    return a ? Ne(p) : p;
+    return a ? Le(p) : p;
   }
   let u = n;
   l !== e && (a ? u = function(p, v) {
@@ -762,7 +762,7 @@ const to = /* @__PURE__ */ new Br(), no = /* @__PURE__ */ new eo(), so = /* @__P
 const ss = (e) => e, hn = (e) => Reflect.getPrototypeOf(e);
 function ro(e, t, n) {
   return function(...s) {
-    const r = this.__v_raw, i = /* @__PURE__ */ G(r), l = Ot(i), a = e === "entries" || e === Symbol.iterator && l, o = e === "keys" && l, u = r[e](...s), c = n ? ss : t ? Ut : Ne;
+    const r = this.__v_raw, i = /* @__PURE__ */ G(r), l = Ot(i), a = e === "entries" || e === Symbol.iterator && l, o = e === "keys" && l, u = r[e](...s), c = n ? ss : t ? Ut : Le;
     return !t && he(
       i,
       "iterate",
@@ -793,7 +793,7 @@ function io(e, t) {
     get(r) {
       const i = this.__v_raw, l = /* @__PURE__ */ G(i), a = /* @__PURE__ */ G(r);
       e || (We(r, a) && he(l, "get", r), he(l, "get", a));
-      const { has: o } = hn(l), u = t ? ss : e ? Ut : Ne;
+      const { has: o } = hn(l), u = t ? ss : e ? Ut : Le;
       if (o.call(l, r))
         return u(i.get(r));
       if (o.call(l, a))
@@ -809,7 +809,7 @@ function io(e, t) {
       return e || (We(r, a) && he(l, "has", r), he(l, "has", a)), r === a ? i.has(r) : i.has(r) || i.has(a);
     },
     forEach(r, i) {
-      const l = this, a = l.__v_raw, o = /* @__PURE__ */ G(a), u = t ? ss : e ? Ut : Ne;
+      const l = this, a = l.__v_raw, o = /* @__PURE__ */ G(a), u = t ? ss : e ? Ut : Le;
       return !e && he(o, "iterate", wt), a.forEach((c, p) => r.call(i, u(c), u(p), l));
     }
   };
@@ -956,9 +956,9 @@ function G(e) {
   return t ? /* @__PURE__ */ G(t) : e;
 }
 function ho(e) {
-  return !W(e, "__v_skip") && Object.isExtensible(e) && Tr(e, "__v_skip", !0), e;
+  return !W(e, "__v_skip") && Object.isExtensible(e) && Rr(e, "__v_skip", !0), e;
 }
-const Ne = (e) => Q(e) ? /* @__PURE__ */ Ss(e) : e, Ut = (e) => Q(e) ? /* @__PURE__ */ rs(e) : e;
+const Le = (e) => Q(e) ? /* @__PURE__ */ Ss(e) : e, Ut = (e) => Q(e) ? /* @__PURE__ */ rs(e) : e;
 // @__NO_SIDE_EFFECTS__
 function ge(e) {
   return e ? e.__v_isRef === !0 : !1;
@@ -972,14 +972,14 @@ function po(e, t) {
 }
 class go {
   constructor(t, n) {
-    this.dep = new _s(), this.__v_isRef = !0, this.__v_isShallow = !1, this._rawValue = n ? t : /* @__PURE__ */ G(t), this._value = n ? t : Ne(t), this.__v_isShallow = n;
+    this.dep = new _s(), this.__v_isRef = !0, this.__v_isShallow = !1, this._rawValue = n ? t : /* @__PURE__ */ G(t), this._value = n ? t : Le(t), this.__v_isShallow = n;
   }
   get value() {
     return this.dep.track(), this._value;
   }
   set value(t) {
     const n = this._rawValue, s = this.__v_isShallow || /* @__PURE__ */ Oe(t) || /* @__PURE__ */ at(t);
-    t = s ? t : /* @__PURE__ */ G(t), We(t, n) && (this._rawValue = t, this._value = s ? t : Ne(t), this.dep.trigger());
+    t = s ? t : /* @__PURE__ */ G(t), We(t, n) && (this._rawValue = t, this._value = s ? t : Le(t), this.dep.trigger());
   }
 }
 function qr(e) {
@@ -1009,7 +1009,7 @@ class vo {
   }
   get value() {
     const t = this.dep.track();
-    return Nr(this), t && (t.version = this.dep.version), this._value;
+    return Lr(this), t && (t.version = this.dep.version), this._value;
   }
   set value(t) {
     this.setter && this.setter(t);
@@ -1073,20 +1073,20 @@ function _o(e, t, n = Z) {
     if (!(!(c.flags & 1) || !c.dirty && !y))
       if (t) {
         const V = c.run();
-        if (y || r || C || (P ? V.some((de, Te) => We(de, $[Te])) : We(V, $))) {
+        if (y || r || C || (P ? V.some((de, Re) => We(de, $[Re])) : We(V, $))) {
           v && v();
           const de = _t;
           _t = c;
           try {
-            const Te = [
+            const Re = [
               V,
               // pass undefined as the old value when it's changed for the first time
               $ === gn ? void 0 : P && $[0] === gn ? [] : $,
               b
             ];
-            $ = V, o ? o(t, 3, Te) : (
+            $ = V, o ? o(t, 3, Re) : (
               // @ts-expect-error
-              t(...Te)
+              t(...Re)
             );
           } finally {
             _t = de;
@@ -1138,17 +1138,17 @@ function un(e, t, n, s) {
     Dn(r, t, n);
   }
 }
-function Le(e, t, n, s) {
+function Ne(e, t, n, s) {
   if (H(e)) {
     const r = un(e, t, n, s);
-    return r && Er(r) && r.catch((i) => {
+    return r && Ar(r) && r.catch((i) => {
       Dn(i, t, n);
     }), r;
   }
   if (Y(e)) {
     const r = [];
     for (let i = 0; i < e.length; i++)
-      r.push(Le(e[i], t, n, s));
+      r.push(Ne(e[i], t, n, s));
     return r;
   }
 }
@@ -1200,7 +1200,7 @@ function So(e) {
   }
   return t;
 }
-function Es(e) {
+function As(e) {
   if (!(e.flags & 1)) {
     const t = sn(e), n = ve[ve.length - 1];
     !n || // fast path when the job id is larger than the tail
@@ -1306,7 +1306,7 @@ function yt(e, t, n, s) {
     const a = r[l];
     i && (a.oldValue = i[l].value);
     let o = a.dir[s];
-    o && (ot(), Le(o, n, 8, [
+    o && (ot(), Ne(o, n, 8, [
       e.el,
       a,
       e,
@@ -1322,7 +1322,7 @@ function xo(e, t) {
   }
 }
 function vn(e, t, n = !1) {
-  const s = Ai();
+  const s = Ei();
   if (s || Mt) {
     let r = Mt ? Mt._context.provides : s ? s.parent == null || s.ce ? s.vnode.appContext && s.vnode.appContext.provides : s.parent.provides : void 0;
     if (r && e in r)
@@ -1331,7 +1331,7 @@ function vn(e, t, n = !1) {
       return n && H(t) ? t.call(s && s.proxy) : t;
   }
 }
-const Eo = /* @__PURE__ */ Symbol.for("v-scx"), Ao = () => vn(Eo);
+const Ao = /* @__PURE__ */ Symbol.for("v-scx"), Eo = () => vn(Ao);
 function Je(e, t, n) {
   return Zr(e, t, n);
 }
@@ -1340,7 +1340,7 @@ function Zr(e, t, n = Z) {
   let u;
   if (on) {
     if (i === "sync") {
-      const b = Ao();
+      const b = Eo();
       u = b.__watcherHandles || (b.__watcherHandles = []);
     } else if (!o) {
       const b = () => {
@@ -1349,19 +1349,19 @@ function Zr(e, t, n = Z) {
     }
   }
   const c = ye;
-  a.call = (b, C, P) => Le(b, c, C, P);
+  a.call = (b, C, P) => Ne(b, c, C, P);
   let p = !1;
   i === "post" ? a.scheduler = (b) => {
     we(b, c && c.suspense);
   } : i !== "sync" && (p = !0, a.scheduler = (b, C) => {
-    C ? b() : Es(b);
+    C ? b() : As(b);
   }), a.augmentJob = (b) => {
     t && (b.flags |= 4), p && (b.flags |= 2, c && (b.id = c.uid, b.i = c));
   };
   const v = _o(e, t, a);
   return on && (u ? u.push(v) : o && v()), v;
 }
-function Ro(e, t, n) {
+function To(e, t, n) {
   const s = this.proxy, r = re(e) ? e.includes(".") ? ei(s, e) : () => s[e] : e.bind(s, s);
   let i;
   H(t) ? i = t : (i = t.handler, n = t);
@@ -1377,12 +1377,12 @@ function ei(e, t) {
     return s;
   };
 }
-const To = /* @__PURE__ */ Symbol("_vte"), $o = (e) => e.__isTeleport, Gn = /* @__PURE__ */ Symbol("_leaveCb");
-function As(e, t) {
-  e.shapeFlag & 6 && e.component ? (e.transition = t, As(e.component.subTree, t)) : e.shapeFlag & 128 ? (e.ssContent.transition = t.clone(e.ssContent), e.ssFallback.transition = t.clone(e.ssFallback)) : e.transition = t;
+const Ro = /* @__PURE__ */ Symbol("_vte"), $o = (e) => e.__isTeleport, Gn = /* @__PURE__ */ Symbol("_leaveCb");
+function Es(e, t) {
+  e.shapeFlag & 6 && e.component ? (e.transition = t, Es(e.component.subTree, t)) : e.shapeFlag & 128 ? (e.ssContent.transition = t.clone(e.ssContent), e.ssFallback.transition = t.clone(e.ssFallback)) : e.transition = t;
 }
 // @__NO_SIDE_EFFECTS__
-function Re(e, t) {
+function Te(e, t) {
   return H(e) ? (
     // #8236: extend call and options.name access are considered side-effects
     // by Rollup, so we have to wrap it in a pure-annotated IIFE.
@@ -1390,7 +1390,7 @@ function Re(e, t) {
   ) : e;
 }
 function ti() {
-  const e = Ai();
+  const e = Ei();
   return e ? (e.appContext.config.idPrefix || "v") + "-" + e.ids[0] + e.ids[1]++ : "";
 }
 function ni(e) {
@@ -1480,14 +1480,14 @@ function ri(e, t, n = ye) {
     }
     return e();
   });
-  if (Nn(t, s, n), n) {
+  if (Ln(t, s, n), n) {
     let r = n.parent;
     for (; r && r.parent; )
       si(r.parent.vnode) && Po(s, t, n, r), r = r.parent;
   }
 }
 function Po(e, t, n, s) {
-  const r = Nn(
+  const r = Ln(
     t,
     e,
     s,
@@ -1498,27 +1498,27 @@ function Po(e, t, n, s) {
     hs(s[t], r);
   }, n);
 }
-function Nn(e, t, n = ye, s = !1) {
+function Ln(e, t, n = ye, s = !1) {
   if (n) {
     const r = n[e] || (n[e] = []), i = t.__weh || (t.__weh = (...l) => {
       ot();
-      const a = fn(n), o = Le(t, n, e, l);
+      const a = fn(n), o = Ne(t, n, e, l);
       return a(), lt(), o;
     });
     return s ? r.unshift(i) : r.push(i), i;
   }
 }
 const ct = (e) => (t, n = ye) => {
-  (!on || e === "sp") && Nn(e, (...s) => t(...s), n);
-}, ko = ct("bm"), Ln = ct("m"), Mo = ct(
+  (!on || e === "sp") && Ln(e, (...s) => t(...s), n);
+}, ko = ct("bm"), Nn = ct("m"), Mo = ct(
   "bu"
-), Uo = ct("u"), At = ct(
+), Uo = ct("u"), Et = ct(
   "bum"
 ), ii = ct("um"), Do = ct(
   "sp"
-), No = ct("rtg"), Lo = ct("rtc");
+), Lo = ct("rtg"), No = ct("rtc");
 function Yo(e, t = ye) {
-  Nn("ec", e, t);
+  Ln("ec", e, t);
 }
 const Vo = /* @__PURE__ */ Symbol.for("v-ndc");
 function st(e, t, n, s) {
@@ -1530,7 +1530,7 @@ function st(e, t, n, s) {
     a && (o = !/* @__PURE__ */ Oe(e), u = /* @__PURE__ */ at(e), e = Un(e)), r = new Array(e.length);
     for (let c = 0, p = e.length; c < p; c++)
       r[c] = t(
-        o ? u ? Ut(Ne(e[c])) : Ne(e[c]) : e[c],
+        o ? u ? Ut(Le(e[c])) : Le(e[c]) : e[c],
         c,
         void 0,
         i
@@ -1560,7 +1560,7 @@ function st(e, t, n, s) {
 function Gs(e, t, n = {}, s, r, i) {
   if (pe.ce || pe.parent && kt(pe.parent) && pe.parent.ce) {
     const u = n, c = Object.keys(u).length > 0;
-    return t !== "default" && (u.name = t), E(), Ee(
+    return t !== "default" && (u.name = t), A(), Ae(
       ee,
       null,
       [le("slot", u, s)],
@@ -1570,13 +1570,13 @@ function Gs(e, t, n = {}, s, r, i) {
   let l = e[t];
   l && l._c && (l._d = !1);
   const a = rt.length;
-  E();
+  A();
   let o;
   try {
     const u = l && oi(l(n)), c = n.key || i || // slot content array of a dynamic conditional slot may have a branch
     // key attached in the `createSlots` helper, respect that
     u && u.key;
-    o = Ee(
+    o = Ae(
       ee,
       {
         key: (c && !De(c) ? c : `_${t}`) + // #7256 force differentiate fallback content from actual content
@@ -1596,7 +1596,7 @@ function Gs(e, t, n = {}, s, r, i) {
 function oi(e) {
   return e.some((t) => Is(t) ? !(t.type === ut || t.type === ee && !oi(t.children)) : !0) ? e : null;
 }
-const is = (e) => e ? Ri(e) ? Fn(e) : is(e.parent) : null, Xt = (
+const is = (e) => e ? Ti(e) ? Fn(e) : is(e.parent) : null, Xt = (
   // Move PURE marker to new line to workaround compiler discarding it
   // due to type annotation
   /* @__PURE__ */ ie(/* @__PURE__ */ Object.create(null), {
@@ -1613,10 +1613,10 @@ const is = (e) => e ? Ri(e) ? Fn(e) : is(e.parent) : null, Xt = (
     $emit: (e) => e.emit,
     $options: (e) => ai(e),
     $forceUpdate: (e) => e.f || (e.f = () => {
-      Es(e.update);
+      As(e.update);
     }),
     $nextTick: (e) => e.n || (e.n = cn.bind(e.proxy)),
-    $watch: (e) => Ro.bind(e)
+    $watch: (e) => To.bind(e)
   })
 ), Jn = (e, t) => e !== Z && !e.__isScriptSetup && W(e, t), Fo = {
   get({ _: e }, t) {
@@ -1711,7 +1711,7 @@ function Bo(e) {
     unmounted: y,
     render: V,
     renderTracked: de,
-    renderTriggered: Te,
+    renderTriggered: Re,
     errorCaptured: me,
     serverPrefetch: gt,
     // public API
@@ -1719,7 +1719,7 @@ function Bo(e) {
     inheritAttrs: ft,
     // assets
     components: bt,
-    directives: Rt,
+    directives: Tt,
     filters: dt
   } = t;
   if (u && Ho(u, s, null), l)
@@ -1733,7 +1733,7 @@ function Bo(e) {
   }
   if (os = !0, i)
     for (const se in i) {
-      const J = i[se], Ye = H(J) ? J.bind(n, n) : H(J.get) ? J.get.bind(n, n) : Ge, vt = !H(J) && H(J.set) ? J.set.bind(n) : Ge, ze = Nt({
+      const J = i[se], Ye = H(J) ? J.bind(n, n) : H(J.get) ? J.get.bind(n, n) : Ge, vt = !H(J) && H(J.set) ? J.set.bind(n) : Ge, ze = Lt({
         get: Ye,
         set: vt
       });
@@ -1757,7 +1757,7 @@ function Bo(e) {
   function ae(se, J) {
     Y(J) ? J.forEach((Ye) => se(Ye.bind(n))) : J && se(J.bind(n));
   }
-  if (ae(ko, p), ae(Ln, v), ae(Mo, b), ae(Uo, C), ae(Io, P), ae(Oo, j), ae(Yo, me), ae(Lo, de), ae(No, Te), ae(At, $), ae(ii, y), ae(Do, gt), Y(Me))
+  if (ae(ko, p), ae(Nn, v), ae(Mo, b), ae(Uo, C), ae(Io, P), ae(Oo, j), ae(Yo, me), ae(No, de), ae(Lo, Re), ae(Et, $), ae(ii, y), ae(Do, gt), Y(Me))
     if (Me.length) {
       const se = e.exposed || (e.exposed = {});
       Me.forEach((J) => {
@@ -1768,7 +1768,7 @@ function Bo(e) {
         });
       });
     } else e.exposed || (e.exposed = {});
-  V && e.render === Ge && (e.render = V), ft != null && (e.inheritAttrs = ft), bt && (e.components = bt), Rt && (e.directives = Rt), gt && ni(e);
+  V && e.render === Ge && (e.render = V), ft != null && (e.inheritAttrs = ft), bt && (e.components = bt), Tt && (e.directives = Tt), gt && ni(e);
 }
 function Ho(e, t, n = Ge) {
   Y(e) && (e = ls(e));
@@ -1788,7 +1788,7 @@ function Ho(e, t, n = Ge) {
   }
 }
 function zs(e, t, n) {
-  Le(
+  Ne(
     Y(e) ? e.map((s) => s.bind(t.proxy)) : e.bind(t.proxy),
     t,
     n
@@ -1966,7 +1966,7 @@ function Go(e, t) {
         a.push(c);
       },
       unmount() {
-        o && (Le(
+        o && (Ne(
           a,
           u._instance,
           16
@@ -1998,7 +1998,7 @@ function zo(e, t, ...n) {
   l && (l.trim && (r = n.map((c) => re(c) ? c.trim() : c)), l.number && (r = n.map(kn)));
   let a, o = s[a = Hn(t)] || // also try camelCase event handler (#2249)
   s[a = Hn(Ce(t))];
-  !o && i && (o = s[a = Hn(Ie(t))]), o && Le(
+  !o && i && (o = s[a = Hn(Ie(t))]), o && Ne(
     o,
     e,
     6,
@@ -2010,7 +2010,7 @@ function zo(e, t, ...n) {
       e.emitted = {};
     else if (e.emitted[a])
       return;
-    e.emitted[a] = !0, Le(
+    e.emitted[a] = !0, Ne(
       u,
       e,
       6,
@@ -2093,7 +2093,7 @@ function Zs(e) {
       i
     )), k = Dt(k, $, !1, !0));
   }
-  return n.dirs && (k = Dt(k, null, !1, !0), k.dirs = k.dirs ? k.dirs.concat(n.dirs) : n.dirs), n.transition && As(k, n.transition), K = k, wn(j), K;
+  return n.dirs && (k = Dt(k, null, !1, !0), k.dirs = k.dirs ? k.dirs.concat(n.dirs) : n.dirs), n.transition && Es(k, n.transition), K = k, wn(j), K;
 }
 const Xo = (e) => {
   let t;
@@ -2332,34 +2332,34 @@ function bi(e, t, n = !1) {
 function tr(e) {
   return e[0] !== "$" && !Gt(e);
 }
-const Rs = (e) => e === "_" || e === "_ctx" || e === "$stable", Ts = (e) => Y(e) ? e.map(qe) : [qe(e)], il = (e, t, n) => {
+const Ts = (e) => e === "_" || e === "_ctx" || e === "$stable", Rs = (e) => Y(e) ? e.map(qe) : [qe(e)], il = (e, t, n) => {
   if (t._n)
     return t;
-  const s = xt((...r) => Ts(t(...r)), n);
+  const s = xt((...r) => Rs(t(...r)), n);
   return s._c = !1, s;
 }, vi = (e, t, n) => {
   const s = e._ctx;
   for (const r in e) {
-    if (Rs(r)) continue;
+    if (Ts(r)) continue;
     const i = e[r];
     if (H(i))
       t[r] = il(r, i, s);
     else if (i != null) {
-      const l = Ts(i);
+      const l = Rs(i);
       t[r] = () => l;
     }
   }
 }, yi = (e, t) => {
-  const n = Ts(t);
+  const n = Rs(t);
   e.slots.default = () => n;
 }, mi = (e, t, n) => {
   for (const s in t)
-    (n || !Rs(s)) && (e[s] = t[s]);
+    (n || !Ts(s)) && (e[s] = t[s]);
 }, ol = (e, t, n) => {
   const s = e.slots = hi();
   if (e.vnode.shapeFlag & 32) {
     const r = t._;
-    r ? (mi(s, t, n), n && Tr(s, "_", r, !0)) : vi(t, s);
+    r ? (mi(s, t, n), n && Rr(s, "_", r, !0)) : vi(t, s);
   } else t && yi(e, t);
 }, ll = (e, t, n) => {
   const { vnode: s, slots: r } = e;
@@ -2370,7 +2370,7 @@ const Rs = (e) => e === "_" || e === "_ctx" || e === "$stable", Ts = (e) => Y(e)
   } else t && (yi(e, t), l = { default: 1 });
   if (i)
     for (const a in r)
-      !Rs(a) && l[a] == null && delete r[a];
+      !Ts(a) && l[a] == null && delete r[a];
 }, we = dl;
 function al(e) {
   return ul(e);
@@ -2391,11 +2391,11 @@ function ul(e, t) {
     nextSibling: v,
     setScopeId: b = Ge,
     insertStaticContent: C
-  } = e, P = (f, h, g, S = null, w = null, m = null, R = void 0, A = null, x = !!h.dynamicChildren) => {
+  } = e, P = (f, h, g, S = null, w = null, m = null, T = void 0, E = null, x = !!h.dynamicChildren) => {
     if (f === h)
       return;
     f && !jt(f, h) && (S = Qe(f), $e(f, w, m, !0), f = null), h.patchFlag === -2 && (x = !1, h.dynamicChildren = null);
-    const { type: _, ref: L, shapeFlag: I } = h;
+    const { type: _, ref: N, shapeFlag: I } = h;
     switch (_) {
       case Vn:
         j(f, h, g, S);
@@ -2404,7 +2404,7 @@ function ul(e, t) {
         K(f, h, g, S);
         break;
       case Qn:
-        f == null && $(h, g, S, R);
+        f == null && $(h, g, S, T);
         break;
       case ee:
         bt(
@@ -2414,8 +2414,8 @@ function ul(e, t) {
           S,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         );
         break;
@@ -2427,18 +2427,18 @@ function ul(e, t) {
           S,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
-        ) : I & 6 ? Rt(
+        ) : I & 6 ? Tt(
           f,
           h,
           g,
           S,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         ) : (I & 64 || I & 128) && _.process(
           f,
@@ -2447,13 +2447,13 @@ function ul(e, t) {
           S,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x,
           Ft
         );
     }
-    L != null && w ? Qt(L, f && f.ref, m, h || f, !h) : L == null && f && f.ref != null && Qt(f.ref, null, m, f, !0);
+    N != null && w ? Qt(N, f && f.ref, m, h || f, !h) : N == null && f && f.ref != null && Qt(f.ref, null, m, f, !0);
   }, j = (f, h, g, S) => {
     if (f == null)
       s(
@@ -2490,16 +2490,16 @@ function ul(e, t) {
     for (; f && f !== h; )
       g = v(f), r(f), f = g;
     r(h);
-  }, V = (f, h, g, S, w, m, R, A, x) => {
-    if (h.type === "svg" ? R = "svg" : h.type === "math" && (R = "mathml"), f == null)
+  }, V = (f, h, g, S, w, m, T, E, x) => {
+    if (h.type === "svg" ? T = "svg" : h.type === "math" && (T = "mathml"), f == null)
       de(
         h,
         g,
         S,
         w,
         m,
-        R,
-        A,
+        T,
+        E,
         x
       );
     else {
@@ -2510,22 +2510,22 @@ function ul(e, t) {
           h,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         );
       } finally {
         _ && _._endPatch();
       }
     }
-  }, de = (f, h, g, S, w, m, R, A) => {
+  }, de = (f, h, g, S, w, m, T, E) => {
     let x, _;
-    const { props: L, shapeFlag: I, transition: D, dirs: F } = f;
+    const { props: N, shapeFlag: I, transition: D, dirs: F } = f;
     if (x = f.el = l(
       f.type,
       m,
-      L && L.is,
-      L
+      N && N.is,
+      N
     ), I & 8 ? c(x, f.children) : I & 16 && me(
       f.children,
       x,
@@ -2533,73 +2533,73 @@ function ul(e, t) {
       S,
       w,
       zn(f, m),
-      R,
-      A
-    ), F && yt(f, null, S, "created"), Te(x, f, f.scopeId, R, S), L) {
-      for (const X in L)
-        X !== "value" && !Gt(X) && i(x, X, null, L[X], m, S);
-      "value" in L && i(x, "value", null, L.value, m), (_ = L.onVnodeBeforeMount) && He(_, S, f);
+      T,
+      E
+    ), F && yt(f, null, S, "created"), Re(x, f, f.scopeId, T, S), N) {
+      for (const X in N)
+        X !== "value" && !Gt(X) && i(x, X, null, N[X], m, S);
+      "value" in N && i(x, "value", null, N.value, m), (_ = N.onVnodeBeforeMount) && He(_, S, f);
     }
     F && yt(f, null, S, "beforeMount");
     const q = cl(w, D);
-    q && D.beforeEnter(x), s(x, h, g), ((_ = L && L.onVnodeMounted) || q || F) && we(() => {
+    q && D.beforeEnter(x), s(x, h, g), ((_ = N && N.onVnodeMounted) || q || F) && we(() => {
       try {
         _ && He(_, S, f), q && D.enter(x), F && yt(f, null, S, "mounted");
       } finally {
       }
     }, w);
-  }, Te = (f, h, g, S, w) => {
+  }, Re = (f, h, g, S, w) => {
     if (g && b(f, g), S)
       for (let m = 0; m < S.length; m++)
         b(f, S[m]);
     if (w) {
       let m = w.subTree;
       if (h === m || Ci(m.type) && (m.ssContent === h || m.ssFallback === h)) {
-        const R = w.vnode;
-        Te(
+        const T = w.vnode;
+        Re(
           f,
-          R,
-          R.scopeId,
-          R.slotScopeIds,
+          T,
+          T.scopeId,
+          T.slotScopeIds,
           w.parent
         );
       }
     }
-  }, me = (f, h, g, S, w, m, R, A, x = 0) => {
+  }, me = (f, h, g, S, w, m, T, E, x = 0) => {
     for (let _ = x; _ < f.length; _++) {
-      const L = f[_] = A ? et(f[_]) : qe(f[_]);
+      const N = f[_] = E ? et(f[_]) : qe(f[_]);
       P(
         null,
-        L,
+        N,
         h,
         g,
         S,
         w,
         m,
-        R,
-        A
+        T,
+        E
       );
     }
-  }, gt = (f, h, g, S, w, m, R) => {
-    const A = h.el = f.el;
-    let { patchFlag: x, dynamicChildren: _, dirs: L } = h;
+  }, gt = (f, h, g, S, w, m, T) => {
+    const E = h.el = f.el;
+    let { patchFlag: x, dynamicChildren: _, dirs: N } = h;
     x |= f.patchFlag & 16;
     const I = f.props || Z, D = h.props || Z;
     let F;
-    if (g && mt(g, !1), (F = D.onVnodeBeforeUpdate) && He(F, g, h, f), L && yt(h, f, g, "beforeUpdate"), g && mt(g, !0), // #6385 the old vnode may be a user-wrapped non-isomorphic block
+    if (g && mt(g, !1), (F = D.onVnodeBeforeUpdate) && He(F, g, h, f), N && yt(h, f, g, "beforeUpdate"), g && mt(g, !0), // #6385 the old vnode may be a user-wrapped non-isomorphic block
     // Force full diff when block metadata is unstable.
-    _ && (!f.dynamicChildren || f.dynamicChildren.length !== _.length) && (x = 0, R = !1, _ = null), (I.innerHTML && D.innerHTML == null || I.textContent && D.textContent == null) && c(A, ""), _ ? Me(
+    _ && (!f.dynamicChildren || f.dynamicChildren.length !== _.length) && (x = 0, T = !1, _ = null), (I.innerHTML && D.innerHTML == null || I.textContent && D.textContent == null) && c(E, ""), _ ? Me(
       f.dynamicChildren,
       _,
-      A,
+      E,
       g,
       S,
       zn(h, w),
       m
-    ) : R || J(
+    ) : T || J(
       f,
       h,
-      A,
+      E,
       null,
       g,
       S,
@@ -2608,22 +2608,22 @@ function ul(e, t) {
       !1
     ), x > 0) {
       if (x & 16)
-        ft(A, I, D, g, w);
-      else if (x & 2 && I.class !== D.class && i(A, "class", null, D.class, w), x & 4 && i(A, "style", I.style, D.style, w), x & 8) {
+        ft(E, I, D, g, w);
+      else if (x & 2 && I.class !== D.class && i(E, "class", null, D.class, w), x & 4 && i(E, "style", I.style, D.style, w), x & 8) {
         const q = h.dynamicProps;
         for (let X = 0; X < q.length; X++) {
           const z = q[X], oe = I[z], ue = D[z];
-          (ue !== oe || z === "value") && i(A, z, oe, ue, w, g);
+          (ue !== oe || z === "value") && i(E, z, oe, ue, w, g);
         }
       }
-      x & 1 && f.children !== h.children && c(A, h.children);
-    } else !R && _ == null && ft(A, I, D, g, w);
-    ((F = D.onVnodeUpdated) || L) && we(() => {
-      F && He(F, g, h, f), L && yt(h, f, g, "updated");
+      x & 1 && f.children !== h.children && c(E, h.children);
+    } else !T && _ == null && ft(E, I, D, g, w);
+    ((F = D.onVnodeUpdated) || N) && we(() => {
+      F && He(F, g, h, f), N && yt(h, f, g, "updated");
     }, S);
-  }, Me = (f, h, g, S, w, m, R) => {
-    for (let A = 0; A < h.length; A++) {
-      const x = f[A], _ = h[A], L = (
+  }, Me = (f, h, g, S, w, m, T) => {
+    for (let E = 0; E < h.length; E++) {
+      const x = f[E], _ = h[E], N = (
         // oldVNode may be an errored async setup() component inside Suspense
         // which will not have a mounted element
         x.el && // - In the case of a Fragment, we need to provide the actual parent
@@ -2640,12 +2640,12 @@ function ul(e, t) {
       P(
         x,
         _,
-        L,
+        N,
         null,
         S,
         w,
         m,
-        R,
+        T,
         !0
       );
     }
@@ -2663,26 +2663,26 @@ function ul(e, t) {
           );
       for (const m in g) {
         if (Gt(m)) continue;
-        const R = g[m], A = h[m];
-        R !== A && m !== "value" && i(f, m, A, R, w, S);
+        const T = g[m], E = h[m];
+        T !== E && m !== "value" && i(f, m, E, T, w, S);
       }
       "value" in g && i(f, "value", h.value, g.value, w);
     }
-  }, bt = (f, h, g, S, w, m, R, A, x) => {
-    const _ = h.el = f ? f.el : a(""), L = h.anchor = f ? f.anchor : a("");
+  }, bt = (f, h, g, S, w, m, T, E, x) => {
+    const _ = h.el = f ? f.el : a(""), N = h.anchor = f ? f.anchor : a("");
     let { patchFlag: I, dynamicChildren: D, slotScopeIds: F } = h;
-    F && (A = A ? A.concat(F) : F), f == null ? (s(_, g, S), s(L, g, S), me(
+    F && (E = E ? E.concat(F) : F), f == null ? (s(_, g, S), s(N, g, S), me(
       // #10007
       // such fragment like `<></>` will be compiled into
       // a fragment which doesn't have a children.
       // In this case fallback to an empty array
       h.children || [],
       g,
-      L,
+      N,
       w,
       m,
-      R,
-      A,
+      T,
+      E,
       x
     )) : I > 0 && I & 64 && D && // #2715 the previous fragment could've been a BAILed one as a result
     // of renderSlot() with no valid children
@@ -2692,8 +2692,8 @@ function ul(e, t) {
       g,
       w,
       m,
-      R,
-      A
+      T,
+      E
     ), // #2080 if the stable fragment has a key, it's a <template v-for> that may
     //  get moved around. Make sure all root level vnodes inherit el.
     // #2134 or if it's a component root, it may also get moved around
@@ -2707,19 +2707,19 @@ function ul(e, t) {
       f,
       h,
       g,
-      L,
+      N,
       w,
       m,
-      R,
-      A,
+      T,
+      E,
       x
     );
-  }, Rt = (f, h, g, S, w, m, R, A, x) => {
-    h.slotScopeIds = A, f == null ? h.shapeFlag & 512 ? w.ctx.activate(
+  }, Tt = (f, h, g, S, w, m, T, E, x) => {
+    h.slotScopeIds = E, f == null ? h.shapeFlag & 512 ? w.ctx.activate(
       h,
       g,
       S,
-      R,
+      T,
       x
     ) : dt(
       h,
@@ -2727,29 +2727,29 @@ function ul(e, t) {
       S,
       w,
       m,
-      R,
+      T,
       x
     ) : dn(f, h, x);
-  }, dt = (f, h, g, S, w, m, R) => {
-    const A = f.component = yl(
+  }, dt = (f, h, g, S, w, m, T) => {
+    const E = f.component = yl(
       f,
       S,
       w
     );
-    if (si(f) && (A.ctx.renderer = Ft), ml(A, !1, R), A.asyncDep) {
-      if (w && w.registerDep(A, ae, R), !f.el) {
-        const x = A.subTree = le(ut);
+    if (si(f) && (E.ctx.renderer = Ft), ml(E, !1, T), E.asyncDep) {
+      if (w && w.registerDep(E, ae, T), !f.el) {
+        const x = E.subTree = le(ut);
         K(null, x, h, g), f.placeholder = x.el;
       }
     } else
       ae(
-        A,
+        E,
         f,
         h,
         g,
         w,
         m,
-        R
+        T
       );
   }, dn = (f, h, g) => {
     const S = h.component = f.component;
@@ -2761,14 +2761,14 @@ function ul(e, t) {
         S.next = h, S.update();
     else
       h.el = f.el, S.vnode = h;
-  }, ae = (f, h, g, S, w, m, R) => {
-    const A = () => {
+  }, ae = (f, h, g, S, w, m, T) => {
+    const E = () => {
       if (f.isMounted) {
         let { next: I, bu: D, u: F, parent: q, vnode: X } = f;
         {
           const Fe = wi(f);
           if (Fe) {
-            I && (I.el = X.el, se(f, I, R)), Fe.asyncDep.then(() => {
+            I && (I.el = X.el, se(f, I, T)), Fe.asyncDep.then(() => {
               we(() => {
                 f.isUnmounted || _();
               }, w);
@@ -2777,7 +2777,7 @@ function ul(e, t) {
           }
         }
         let z = I, oe;
-        mt(f, !1), I ? (I.el = X.el, se(f, I, R)) : I = X, D && bn(D), (oe = I.props && I.props.onVnodeBeforeUpdate) && He(oe, q, I, X), mt(f, !0);
+        mt(f, !1), I ? (I.el = X.el, se(f, I, T)) : I = X, D && bn(D), (oe = I.props && I.props.onVnodeBeforeUpdate) && He(oe, q, I, X), mt(f, !0);
         const ue = Zs(f), Ve = f.subTree;
         f.subTree = ue, P(
           Ve,
@@ -2824,16 +2824,16 @@ function ul(e, t) {
       }
     };
     f.scope.on();
-    const x = f.effect = new Pr(A);
+    const x = f.effect = new Pr(E);
     f.scope.off();
-    const _ = f.update = x.run.bind(x), L = f.job = x.runIfDirty.bind(x);
-    L.i = f, L.id = f.uid, x.scheduler = () => Es(L), mt(f, !0), _();
+    const _ = f.update = x.run.bind(x), N = f.job = x.runIfDirty.bind(x);
+    N.i = f, N.id = f.uid, x.scheduler = () => As(N), mt(f, !0), _();
   }, se = (f, h, g) => {
     h.component = f;
     const S = f.vnode.props;
     f.vnode = h, f.next = null, sl(f, h.props, S, g), ll(f, h.children, g), ot(), Ks(f), lt();
-  }, J = (f, h, g, S, w, m, R, A, x = !1) => {
-    const _ = f && f.children, L = f ? f.shapeFlag : 0, I = h.children, { patchFlag: D, shapeFlag: F } = h;
+  }, J = (f, h, g, S, w, m, T, E, x = !1) => {
+    const _ = f && f.children, N = f ? f.shapeFlag : 0, I = h.children, { patchFlag: D, shapeFlag: F } = h;
     if (D > 0) {
       if (D & 128) {
         vt(
@@ -2843,8 +2843,8 @@ function ul(e, t) {
           S,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         );
         return;
@@ -2856,36 +2856,36 @@ function ul(e, t) {
           S,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         );
         return;
       }
     }
-    F & 8 ? (L & 16 && _e(_, w, m), I !== _ && c(g, I)) : L & 16 ? F & 16 ? vt(
+    F & 8 ? (N & 16 && _e(_, w, m), I !== _ && c(g, I)) : N & 16 ? F & 16 ? vt(
       _,
       I,
       g,
       S,
       w,
       m,
-      R,
-      A,
+      T,
+      E,
       x
-    ) : _e(_, w, m, !0) : (L & 8 && c(g, ""), F & 16 && me(
+    ) : _e(_, w, m, !0) : (N & 8 && c(g, ""), F & 16 && me(
       I,
       g,
       S,
       w,
       m,
-      R,
-      A,
+      T,
+      E,
       x
     ));
-  }, Ye = (f, h, g, S, w, m, R, A, x) => {
+  }, Ye = (f, h, g, S, w, m, T, E, x) => {
     f = f || It, h = h || It;
-    const _ = f.length, L = h.length, I = Math.min(_, L);
+    const _ = f.length, N = h.length, I = Math.min(_, N);
     let D;
     for (D = 0; D < I; D++) {
       const F = h[D] = x ? et(h[D]) : qe(h[D]);
@@ -2896,12 +2896,12 @@ function ul(e, t) {
         null,
         w,
         m,
-        R,
-        A,
+        T,
+        E,
         x
       );
     }
-    _ > L ? _e(
+    _ > N ? _e(
       f,
       w,
       m,
@@ -2914,15 +2914,15 @@ function ul(e, t) {
       S,
       w,
       m,
-      R,
-      A,
+      T,
+      E,
       x,
       I
     );
-  }, vt = (f, h, g, S, w, m, R, A, x) => {
+  }, vt = (f, h, g, S, w, m, T, E, x) => {
     let _ = 0;
-    const L = h.length;
-    let I = f.length - 1, D = L - 1;
+    const N = h.length;
+    let I = f.length - 1, D = N - 1;
     for (; _ <= I && _ <= D; ) {
       const F = f[_], q = h[_] = x ? et(h[_]) : qe(h[_]);
       if (jt(F, q))
@@ -2933,8 +2933,8 @@ function ul(e, t) {
           null,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         );
       else
@@ -2951,8 +2951,8 @@ function ul(e, t) {
           null,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         );
       else
@@ -2961,7 +2961,7 @@ function ul(e, t) {
     }
     if (_ > I) {
       if (_ <= D) {
-        const F = D + 1, q = F < L ? h[F].el : S;
+        const F = D + 1, q = F < N ? h[F].el : S;
         for (; _ <= D; )
           P(
             null,
@@ -2970,8 +2970,8 @@ function ul(e, t) {
             q,
             w,
             m,
-            R,
-            A,
+            T,
+            E,
             x
           ), _++;
       }
@@ -3011,16 +3011,16 @@ function ul(e, t) {
           null,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
         ), oe++);
       }
-      const Ns = Ve ? fl(Bt) : It;
-      for (z = Ns.length - 1, _ = ue - 1; _ >= 0; _--) {
-        const xe = q + _, Be = h[xe], Ls = h[xe + 1], Ys = xe + 1 < L ? (
+      const Ls = Ve ? fl(Bt) : It;
+      for (z = Ls.length - 1, _ = ue - 1; _ >= 0; _--) {
+        const xe = q + _, Be = h[xe], Ns = h[xe + 1], Ys = xe + 1 < N ? (
           // #13559, #14173 fallback to el placeholder for unresolved async component
-          Ls.el || Si(Ls)
+          Ns.el || Si(Ns)
         ) : S;
         Bt[_] === 0 ? P(
           null,
@@ -3029,14 +3029,14 @@ function ul(e, t) {
           Ys,
           w,
           m,
-          R,
-          A,
+          T,
+          E,
           x
-        ) : Ve && (z < 0 || _ !== Ns[z] ? ze(Be, g, Ys, 2) : z--);
+        ) : Ve && (z < 0 || _ !== Ls[z] ? ze(Be, g, Ys, 2) : z--);
       }
     }
   }, ze = (f, h, g, S, w = null) => {
-    const { el: m, type: R, transition: A, children: x, shapeFlag: _ } = f;
+    const { el: m, type: T, transition: E, children: x, shapeFlag: _ } = f;
     if (_ & 6) {
       ze(f.component.subTree, h, g, S);
       return;
@@ -3046,32 +3046,32 @@ function ul(e, t) {
       return;
     }
     if (_ & 64) {
-      R.move(f, h, g, Ft);
+      T.move(f, h, g, Ft);
       return;
     }
-    if (R === ee) {
+    if (T === ee) {
       s(m, h, g);
       for (let I = 0; I < x.length; I++)
         ze(x[I], h, g, S);
       s(f.anchor, h, g);
       return;
     }
-    if (R === Qn) {
+    if (T === Qn) {
       k(f, h, g);
       return;
     }
-    if (S !== 2 && _ & 1 && A)
+    if (S !== 2 && _ & 1 && E)
       if (S === 0)
-        A.persisted && !m[Gn] ? s(m, h, g) : (A.beforeEnter(m), s(m, h, g), we(() => A.enter(m), w));
+        E.persisted && !m[Gn] ? s(m, h, g) : (E.beforeEnter(m), s(m, h, g), we(() => E.enter(m), w));
       else {
-        const { leave: I, delayLeave: D, afterLeave: F } = A, q = () => {
+        const { leave: I, delayLeave: D, afterLeave: F } = E, q = () => {
           f.ctx.isUnmounted ? r(m) : s(m, h, g);
         }, X = () => {
           const z = m._isLeaving || !!m[Gn];
           m._isLeaving && m[Gn](
             !0
             /* cancelled */
-          ), A.persisted && !z ? q() : I(m, () => {
+          ), E.persisted && !z ? q() : I(m, () => {
             q(), F && F();
           });
         };
@@ -3082,30 +3082,30 @@ function ul(e, t) {
   }, $e = (f, h, g, S = !1, w = !1) => {
     const {
       type: m,
-      props: R,
-      ref: A,
+      props: T,
+      ref: E,
       children: x,
       dynamicChildren: _,
-      shapeFlag: L,
+      shapeFlag: N,
       patchFlag: I,
       dirs: D,
       cacheIndex: F,
       memo: q
     } = f;
-    if (I === -2 && (w = !1), A != null && (ot(), Qt(A, null, g, f, !0), lt()), F != null && (h.renderCache[F] = void 0), L & 256) {
+    if (I === -2 && (w = !1), E != null && (ot(), Qt(E, null, g, f, !0), lt()), F != null && (h.renderCache[F] = void 0), N & 256) {
       h.ctx.deactivate(f);
       return;
     }
-    const X = L & 1 && D, z = !kt(f);
+    const X = N & 1 && D, z = !kt(f);
     let oe;
-    if (z && (oe = R && R.onVnodeBeforeUnmount) && He(oe, h, f), L & 6)
-      N(f.component, g, S);
+    if (z && (oe = T && T.onVnodeBeforeUnmount) && He(oe, h, f), N & 6)
+      L(f.component, g, S);
     else {
-      if (L & 128) {
+      if (N & 128) {
         f.suspense.unmount(g, S);
         return;
       }
-      X && yt(f, null, h, "beforeUnmount"), L & 64 ? f.type.remove(
+      X && yt(f, null, h, "beforeUnmount"), N & 64 ? f.type.remove(
         f,
         h,
         g,
@@ -3123,16 +3123,16 @@ function ul(e, t) {
         g,
         !1,
         !0
-      ) : (m === ee && I & 384 || !w && L & 16) && _e(x, h, g), S && U(f);
+      ) : (m === ee && I & 384 || !w && N & 16) && _e(x, h, g), S && U(f);
     }
     const ue = q != null && F == null;
-    (z && (oe = R && R.onVnodeUnmounted) || X || ue) && we(() => {
+    (z && (oe = T && T.onVnodeUnmounted) || X || ue) && we(() => {
       oe && He(oe, h, f), X && yt(f, null, h, "unmounted"), ue && (f.el = null);
     }, g);
   }, U = (f) => {
     const { type: h, el: g, anchor: S, transition: w } = f;
     if (h === ee) {
-      T(g, S);
+      R(g, S);
       return;
     }
     if (h === Qn) {
@@ -3143,29 +3143,29 @@ function ul(e, t) {
       r(g), w && !w.persisted && w.afterLeave && w.afterLeave();
     };
     if (f.shapeFlag & 1 && w && !w.persisted) {
-      const { leave: R, delayLeave: A } = w, x = () => R(g, m);
-      A ? A(f.el, m, x) : x();
+      const { leave: T, delayLeave: E } = w, x = () => T(g, m);
+      E ? E(f.el, m, x) : x();
     } else
       m();
-  }, T = (f, h) => {
+  }, R = (f, h) => {
     let g;
     for (; f !== h; )
       g = v(f), r(f), f = g;
     r(h);
-  }, N = (f, h, g) => {
-    const { bum: S, scope: w, job: m, subTree: R, um: A, m: x, a: _ } = f;
-    nr(x), nr(_), S && bn(S), w.stop(), m && (m.flags |= 8, $e(R, f, h, g)), A && we(A, h), we(() => {
+  }, L = (f, h, g) => {
+    const { bum: S, scope: w, job: m, subTree: T, um: E, m: x, a: _ } = f;
+    nr(x), nr(_), S && bn(S), w.stop(), m && (m.flags |= 8, $e(T, f, h, g)), E && we(E, h), we(() => {
       f.isUnmounted = !0;
     }, h);
   }, _e = (f, h, g, S = !1, w = !1, m = 0) => {
-    for (let R = m; R < f.length; R++)
-      $e(f[R], h, g, S, w);
+    for (let T = m; T < f.length; T++)
+      $e(f[T], h, g, S, w);
   }, Qe = (f) => {
     if (f.shapeFlag & 6)
       return Qe(f.component.subTree);
     if (f.shapeFlag & 128)
       return f.suspense.next();
-    const h = v(f.anchor || f.el), g = h && h[To];
+    const h = v(f.anchor || f.el), g = h && h[Ro];
     return g ? v(g) : h;
   };
   let Bn = !1;
@@ -3257,19 +3257,19 @@ function dl(e, t) {
   t && t.pendingBranch ? Y(e) ? t.effects.push(...e) : t.effects.push(e) : Co(e);
 }
 const ee = /* @__PURE__ */ Symbol.for("v-fgt"), Vn = /* @__PURE__ */ Symbol.for("v-txt"), ut = /* @__PURE__ */ Symbol.for("v-cmt"), Qn = /* @__PURE__ */ Symbol.for("v-stc"), rt = [];
-let Ae = null;
-function E(e = !1) {
-  rt.push(Ae = e ? null : []);
+let Ee = null;
+function A(e = !1) {
+  rt.push(Ee = e ? null : []);
 }
 function $s() {
-  rt.pop(), Ae = rt[rt.length - 1] || null;
+  rt.pop(), Ee = rt[rt.length - 1] || null;
 }
 let rn = 1;
 function sr(e, t = !1) {
-  rn += e, e < 0 && Ae && t && (Ae.hasOnce = !0);
+  rn += e, e < 0 && Ee && t && (Ee.hasOnce = !0);
 }
 function xi(e) {
-  return e.dynamicChildren = rn > 0 ? Ae || It : null, $s(), rn > 0 && Ae && Ae.push(e), e;
+  return e.dynamicChildren = rn > 0 ? Ee || It : null, $s(), rn > 0 && Ee && Ee.push(e), e;
 }
 function O(e, t, n, s, r, i) {
   return xi(
@@ -3284,7 +3284,7 @@ function O(e, t, n, s, r, i) {
     )
   );
 }
-function Ee(e, t, n, s, r) {
+function Ae(e, t, n, s, r) {
   return xi(
     le(
       e,
@@ -3302,7 +3302,7 @@ function Is(e) {
 function jt(e, t) {
   return e.type === t.type && e.key === t.key;
 }
-const Ei = ({ key: e }) => e ?? null, yn = ({
+const Ai = ({ key: e }) => e ?? null, yn = ({
   ref: e,
   ref_key: t,
   ref_for: n
@@ -3313,7 +3313,7 @@ function d(e, t = null, n = null, s = 0, r = null, i = e === ee ? 0 : 1, l = !1,
     __v_skip: !0,
     type: e,
     props: t,
-    key: t && Ei(t),
+    key: t && Ai(t),
     ref: t && yn(t),
     scopeId: Xr,
     slotScopeIds: null,
@@ -3339,13 +3339,13 @@ function d(e, t = null, n = null, s = 0, r = null, i = e === ee ? 0 : 1, l = !1,
   };
   return a ? (xn(o, n), i & 128 && e.normalize(o)) : n && (o.shapeFlag |= re(n) ? 8 : 16), rn > 0 && // avoid a block node from tracking itself
   !l && // has current parent block
-  Ae && // presence of a patch flag indicates this node needs patching on updates.
+  Ee && // presence of a patch flag indicates this node needs patching on updates.
   // component nodes also should always be patched, because even if the
   // component doesn't need to update, it needs to persist the instance on to
   // the next vnode so that it can be properly unmounted later.
   (o.patchFlag > 0 || i & 6) && // the EVENTS flag is only for hydration and if it is the only flag, the
   // vnode should not be considered dynamic due to handler caching.
-  o.patchFlag !== 32 && Ae.push(o), o;
+  o.patchFlag !== 32 && Ee.push(o), o;
 }
 const le = hl;
 function hl(e, t = null, n = null, s = 0, r = null, i = !1) {
@@ -3356,12 +3356,12 @@ function hl(e, t = null, n = null, s = 0, r = null, i = !1) {
       !0
       /* mergeRef: true */
     );
-    return n && xn(a, n), rn > 0 && !i && Ae && (a.shapeFlag & 6 ? Ae[Ae.indexOf(e)] = a : Ae.push(a)), a.patchFlag = -2, a;
+    return n && xn(a, n), rn > 0 && !i && Ee && (a.shapeFlag & 6 ? Ee[Ee.indexOf(e)] = a : Ee.push(a)), a.patchFlag = -2, a;
   }
   if (Cl(e) && (e = e.__vccOpts), t) {
     t = pl(t);
     let { class: a, style: o } = t;
-    a && !re(a) && (t.class = Et(a)), Q(o) && (/* @__PURE__ */ xs(o) && !Y(o) && (o = ie({}, o)), t.style = gs(o));
+    a && !re(a) && (t.class = At(a)), Q(o) && (/* @__PURE__ */ xs(o) && !Y(o) && (o = ie({}, o)), t.style = gs(o));
   }
   const l = re(e) ? 1 : Ci(e) ? 128 : $o(e) ? 64 : Q(e) ? 4 : H(e) ? 2 : 0;
   return d(
@@ -3384,7 +3384,7 @@ function Dt(e, t, n = !1, s = !1) {
     __v_skip: !0,
     type: e.type,
     props: u,
-    key: u && Ei(u),
+    key: u && Ai(u),
     ref: t && t.ref ? (
       // #2078 in the case of <component :is="vnode" ref="extra"/>
       // if the vnode itself already has a ref, cloneVNode will need to merge
@@ -3423,7 +3423,7 @@ function Dt(e, t, n = !1, s = !1) {
     ctx: e.ctx,
     ce: e.ce
   };
-  return o && s && As(
+  return o && s && Es(
     c,
     o.clone(c)
   ), c;
@@ -3432,7 +3432,7 @@ function fe(e = " ", t = 0) {
   return le(Vn, null, e, t);
 }
 function te(e = "", t = !1) {
-  return t ? (E(), Ee(ut, null, e)) : le(ut, null, e);
+  return t ? (A(), Ae(ut, null, e)) : le(ut, null, e);
 }
 function qe(e) {
   return e == null || typeof e == "boolean" ? le(ut) : Y(e) ? le(
@@ -3478,7 +3478,7 @@ function gl(...e) {
     const s = e[n];
     for (const r in s)
       if (r === "class")
-        t.class !== s.class && (t.class = Et([t.class, s.class]));
+        t.class !== s.class && (t.class = At([t.class, s.class]));
       else if (r === "style")
         t.style = gs([t.style, s.style]);
       else if ($n(r)) {
@@ -3491,7 +3491,7 @@ function gl(...e) {
   return t;
 }
 function He(e, t, n, s = null) {
-  Le(e, t, 7, [
+  Ne(e, t, 7, [
     n,
     s
   ]);
@@ -3578,8 +3578,8 @@ function yl(e, t, n) {
   return i.ctx = { _: i }, i.root = t ? t.root : i, i.emit = zo.bind(null, i), e.ce && e.ce(i), i;
 }
 let ye = null;
-const Ai = () => ye || pe;
-let En, us;
+const Ei = () => ye || pe;
+let An, us;
 {
   const e = Mn(), t = (n, s) => {
     let r;
@@ -3587,7 +3587,7 @@ let En, us;
       r.length > 1 ? r.forEach((l) => l(i)) : r[0](i);
     };
   };
-  En = t(
+  An = t(
     "__VUE_INSTANCE_SETTERS__",
     (n) => ye = n
   ), us = t(
@@ -3597,19 +3597,19 @@ let En, us;
 }
 const fn = (e) => {
   const t = ye;
-  return En(e), e.scope.on(), () => {
-    e.scope.off(), En(t);
+  return An(e), e.scope.on(), () => {
+    e.scope.off(), An(t);
   };
 }, rr = () => {
-  ye && ye.scope.off(), En(null);
+  ye && ye.scope.off(), An(null);
 };
-function Ri(e) {
+function Ti(e) {
   return e.vnode.shapeFlag & 4;
 }
 let on = !1;
 function ml(e, t = !1, n = !1) {
   t && us(t);
-  const { props: s, children: r } = e.vnode, i = Ri(e);
+  const { props: s, children: r } = e.vnode, i = Ti(e);
   nl(e, s, i, t), ol(e, r, n || t);
   const l = i ? _l(e, t) : void 0;
   return t && us(!1), l;
@@ -3628,7 +3628,7 @@ function _l(e, t) {
         e.props,
         r
       ]
-    ), a = Er(l);
+    ), a = Ar(l);
     if (lt(), i(), (a || e.sp) && !kt(e) && ni(e), a) {
       if (l.then(rr, rr), t)
         return l.then((o) => {
@@ -3640,12 +3640,12 @@ function _l(e, t) {
     } else
       ir(e, l);
   } else
-    Ti(e);
+    Ri(e);
 }
 function ir(e, t, n) {
-  H(t) ? e.type.__ssrInlineRender ? e.ssrRender = t : e.render = t : Q(t) && (e.setupState = Wr(t)), Ti(e);
+  H(t) ? e.type.__ssrInlineRender ? e.ssrRender = t : e.render = t : Q(t) && (e.setupState = Wr(t)), Ri(e);
 }
-function Ti(e, t, n) {
+function Ri(e, t, n) {
   const s = e.type;
   e.render || (e.render = s.render || Ge);
   {
@@ -3690,7 +3690,7 @@ function Fn(e) {
 function Cl(e) {
   return H(e) && "__vccOpts" in e;
 }
-const Nt = (e, t) => /* @__PURE__ */ yo(e, t, on), xl = "3.5.40";
+const Lt = (e, t) => /* @__PURE__ */ yo(e, t, on), xl = "3.5.40";
 /**
 * @vue/runtime-dom v3.5.40
 * (c) 2018-present Yuxi (Evan) You and Vue contributors
@@ -3705,7 +3705,7 @@ if (or)
     });
   } catch {
   }
-const $i = cs ? (e) => cs.createHTML(e) : (e) => e, El = "http://www.w3.org/2000/svg", Al = "http://www.w3.org/1998/Math/MathML", Ze = typeof document < "u" ? document : null, lr = Ze && /* @__PURE__ */ Ze.createElement("template"), Rl = {
+const $i = cs ? (e) => cs.createHTML(e) : (e) => e, Al = "http://www.w3.org/2000/svg", El = "http://www.w3.org/1998/Math/MathML", Ze = typeof document < "u" ? document : null, lr = Ze && /* @__PURE__ */ Ze.createElement("template"), Tl = {
   insert: (e, t, n) => {
     t.insertBefore(e, n || null);
   },
@@ -3714,7 +3714,7 @@ const $i = cs ? (e) => cs.createHTML(e) : (e) => e, El = "http://www.w3.org/2000
     t && t.removeChild(e);
   },
   createElement: (e, t, n, s) => {
-    const r = t === "svg" ? Ze.createElementNS(El, e) : t === "mathml" ? Ze.createElementNS(Al, e) : n ? Ze.createElement(e, { is: n }) : Ze.createElement(e);
+    const r = t === "svg" ? Ze.createElementNS(Al, e) : t === "mathml" ? Ze.createElementNS(El, e) : n ? Ze.createElement(e, { is: n }) : Ze.createElement(e);
     return e === "select" && s && s.multiple != null && r.setAttribute("multiple", s.multiple), r;
   },
   createText: (e) => Ze.createTextNode(e),
@@ -3760,16 +3760,16 @@ const $i = cs ? (e) => cs.createHTML(e) : (e) => e, El = "http://www.w3.org/2000
       n ? n.previousSibling : t.lastChild
     ];
   }
-}, Tl = /* @__PURE__ */ Symbol("_vtc");
+}, Rl = /* @__PURE__ */ Symbol("_vtc");
 function $l(e, t, n) {
-  const s = e[Tl];
+  const s = e[Rl];
   s && (t = (t ? [t, ...s] : [...s]).join(" ")), t == null ? e.removeAttribute("class") : n ? e.setAttribute("class", t) : e.className = t;
 }
-const An = /* @__PURE__ */ Symbol("_vod"), Ii = /* @__PURE__ */ Symbol("_vsh"), Il = {
+const En = /* @__PURE__ */ Symbol("_vod"), Ii = /* @__PURE__ */ Symbol("_vsh"), Il = {
   // used for prop mismatch check during hydration
   name: "show",
   beforeMount(e, { value: t }, { transition: n }) {
-    e[An] = e.style.display === "none" ? "" : e.style.display, n && t ? n.beforeEnter(e) : Kt(e, t);
+    e[En] = e.style.display === "none" ? "" : e.style.display, n && t ? n.beforeEnter(e) : Kt(e, t);
   },
   mounted(e, { value: t }, { transition: n }) {
     n && t && n.enter(e);
@@ -3784,7 +3784,7 @@ const An = /* @__PURE__ */ Symbol("_vod"), Ii = /* @__PURE__ */ Symbol("_vsh"), 
   }
 };
 function Kt(e, t) {
-  e.style.display = t ? e[An] : "none", e[Ii] = !t;
+  e.style.display = t ? e[En] : "none", e[Ii] = !t;
 }
 const Ol = /* @__PURE__ */ Symbol(""), Pl = /(?:^|;)\s*display\s*:/;
 function kl(e, t, n) {
@@ -3816,7 +3816,7 @@ function kl(e, t, n) {
       l && (n += ";" + l), s.cssText = n, i = Pl.test(n);
     }
   } else t && e.removeAttribute("style");
-  An in e && (e[An] = i ? s.display : "", e[Ii] && (s.display = "none"));
+  En in e && (e[En] = i ? s.display : "", e[Ii] && (s.display = "none"));
 }
 const ar = /\s*!important$/;
 function Wt(e, t, n) {
@@ -3841,7 +3841,7 @@ function Ml(e, t) {
   let s = Ce(t);
   if (s !== "filter" && s in e)
     return Xn[t] = s;
-  s = Rr(s);
+  s = Tr(s);
   for (let r = 0; r < ur.length; r++) {
     const i = ur[r] + s;
     if (i in e)
@@ -3893,7 +3893,7 @@ function Dl(e, t, n, s) {
   e.removeEventListener(t, n, s);
 }
 const hr = /* @__PURE__ */ Symbol("_vei");
-function Nl(e, t, n, s, r = null) {
+function Ll(e, t, n, s, r = null) {
   const i = e[hr] || (e[hr] = {}), l = i[t];
   if (s && l)
     l.value = s;
@@ -3908,10 +3908,10 @@ function Nl(e, t, n, s, r = null) {
     } else l && (Dl(e, a, l, o), i[t] = void 0);
   }
 }
-const Ll = /(Once|Passive|Capture)$/, Yl = /^on:?(?:Once|Passive|Capture)$/;
+const Nl = /(Once|Passive|Capture)$/, Yl = /^on:?(?:Once|Passive|Capture)$/;
 function Vl(e) {
   let t, n;
-  for (; (n = e.match(Ll)) && !Yl.test(e); )
+  for (; (n = e.match(Nl)) && !Yl.test(e); )
     t || (t = {}), e = e.slice(0, e.length - n[1].length), t[n[1].toLowerCase()] = !0;
   return [e[2] === ":" ? e.slice(3) : Ie(e.slice(2)), t];
 }
@@ -3932,7 +3932,7 @@ function Hl(e, t) {
       const l = r.slice(), a = [s];
       for (let o = 0; o < l.length && !s._stopped; o++) {
         const u = l[o];
-        u && Le(
+        u && Ne(
           u,
           t,
           5,
@@ -3940,7 +3940,7 @@ function Hl(e, t) {
         );
       }
     } else
-      Le(
+      Ne(
         r,
         t,
         5,
@@ -3952,7 +3952,7 @@ function Hl(e, t) {
 const pr = (e) => e.charCodeAt(0) === 111 && e.charCodeAt(1) === 110 && // lowercase letter
 e.charCodeAt(2) > 96 && e.charCodeAt(2) < 123, jl = (e, t, n, s, r, i) => {
   const l = r === "svg";
-  t === "class" ? $l(e, s, l) : t === "style" ? kl(e, n, s) : $n(t) ? In(t) || Nl(e, t, n, s, i) : (t[0] === "." ? (t = t.slice(1), !0) : t[0] === "^" ? (t = t.slice(1), !1) : Kl(e, t, s, l)) ? (dr(e, t, s), !e.tagName.includes("-") && (t === "value" || t === "checked" || t === "selected") && fr(e, t, s, l, i, t !== "value")) : /* #11081 force set props for possible async custom element */ e._isVueCE && // #12408 check if it's declared prop or it's async custom element
+  t === "class" ? $l(e, s, l) : t === "style" ? kl(e, n, s) : $n(t) ? In(t) || Ll(e, t, n, s, i) : (t[0] === "." ? (t = t.slice(1), !0) : t[0] === "^" ? (t = t.slice(1), !1) : Kl(e, t, s, l)) ? (dr(e, t, s), !e.tagName.includes("-") && (t === "value" || t === "checked" || t === "selected") && fr(e, t, s, l, i, t !== "value")) : /* #11081 force set props for possible async custom element */ e._isVueCE && // #12408 check if it's declared prop or it's async custom element
   (ql(e, t) || // @ts-expect-error _def is private
   e._def.__asyncLoader && (/[A-Z]/.test(t) || !re(s))) ? dr(e, Ce(t), s, i, t) : (t === "true-value" ? e._trueValue = s : t === "false-value" && (e._falseValue = s), fr(e, t, s, l));
 };
@@ -3981,7 +3981,7 @@ function ql(e, t) {
 const gr = {};
 // @__NO_SIDE_EFFECTS__
 function Wl(e, t, n) {
-  let s = /* @__PURE__ */ Re(e, t);
+  let s = /* @__PURE__ */ Te(e, t);
   On(s) && (s = ie({}, s, t));
   class r extends Os {
     constructor(l) {
@@ -4231,7 +4231,7 @@ class Os extends Gl {
   _removeChildStyle(t) {
   }
 }
-const Lt = (e) => {
+const Nt = (e) => {
   const t = e.props["onUpdate:modelValue"] || !1;
   return Y(t) ? (n) => bn(t, n) : t;
 };
@@ -4248,7 +4248,7 @@ function vr(e, t, n) {
 }
 const zl = {
   created(e, { modifiers: { lazy: t, trim: n, number: s } }, r) {
-    e[it] = Lt(r);
+    e[it] = Nt(r);
     const i = s || r.props && r.props.type === "number";
     pt(e, t ? "change" : "input", (l) => {
       l.target.composing || e[it](vr(e.value, n, i));
@@ -4261,18 +4261,18 @@ const zl = {
     e.value = t ?? "";
   },
   beforeUpdate(e, { value: t, oldValue: n, modifiers: { lazy: s, trim: r, number: i } }, l) {
-    if (e[it] = Lt(l), e.composing) return;
+    if (e[it] = Nt(l), e.composing) return;
     const a = (i || e.type === "number") && !/^0\d/.test(e.value) ? kn(e.value) : e.value, o = t ?? "";
     if (a === o)
       return;
     const u = e.getRootNode();
     (u instanceof Document || u instanceof ShadowRoot) && u.activeElement === e && e.type !== "range" && (s && t === n || r && e.value.trim() === o) || (e.value = o);
   }
-}, Rn = {
+}, Tn = {
   // #4096 array checkboxes need to be deep traversed
   deep: !0,
   created(e, t, n) {
-    e[it] = Lt(n), pt(e, "change", () => {
+    e[it] = Nt(n), pt(e, "change", () => {
       const s = e._modelValue, r = ln(e), i = e.checked, l = e[it];
       if (Y(s)) {
         const a = bs(s, r), o = a !== -1;
@@ -4292,7 +4292,7 @@ const zl = {
   // set initial checked on mount to wait for true-value/false-value
   mounted: yr,
   beforeUpdate(e, t, n) {
-    e[it] = Lt(n), yr(e, t, n);
+    e[it] = Nt(n), yr(e, t, n);
   }
 };
 function yr(e, { value: t, oldValue: n }, s) {
@@ -4321,7 +4321,7 @@ const Ql = {
       ), e._assigning = !0, cn(() => {
         e._assigning = !1;
       });
-    }), e[it] = Lt(s);
+    }), e[it] = Nt(s);
   },
   // set value in mounted & updated because <select> relies on its children
   // <option>s.
@@ -4329,7 +4329,7 @@ const Ql = {
     mr(e, t);
   },
   beforeUpdate(e, { value: t }, n) {
-    e._modelValue = t, e[it] = Lt(n);
+    e._modelValue = t, e[it] = Nt(n);
   },
   updated(e, { value: t }) {
     e._assigning || mr(e, t);
@@ -4361,7 +4361,7 @@ function Oi(e, t) {
   const n = t ? "_trueValue" : "_falseValue";
   return n in e ? e[n] : t;
 }
-const Xl = /* @__PURE__ */ ie({ patchProp: jl }, Rl);
+const Xl = /* @__PURE__ */ ie({ patchProp: jl }, Tl);
 let _r;
 function Pi() {
   return _r || (_r = al(Xl));
@@ -4563,25 +4563,25 @@ async function xa(e, t) {
     "yarrLogs"
   );
 }
-async function Ea(e) {
+async function Aa(e) {
   return ke(
     await Pe(ca, void 0, e),
     "yarrUpdateStatus"
   );
 }
-async function Aa(e, t) {
+async function Ea(e, t) {
   return ke(
     await Pe(fa, { input: { text: e } }, t),
     "previewYarrImport"
   );
 }
-async function Ra(e, t) {
+async function Ta(e, t) {
   return ke(
     await Pe(da, { input: e }, t),
     "applyYarrImport"
   );
 }
-async function Ta(e, t) {
+async function Ra(e, t) {
   return ke(
     await Pe(ha, { input: e }, t),
     "applyYarrDiscovery"
@@ -4605,7 +4605,7 @@ const Oa = {
 }, Pa = ["aria-busy"], ka = { class: "yarr-dialog__header" }, Ma = ["disabled"], Ua = { class: "yarr-dialog__body" }, Da = {
   key: 0,
   class: "yarr-dialog__footer"
-}, Na = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])", Us = /* @__PURE__ */ Re({
+}, La = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])", Us = /* @__PURE__ */ Te({
   __name: "AccessibleDialog",
   props: {
     open: { type: Boolean },
@@ -4623,7 +4623,7 @@ const Oa = {
     }
     function o() {
       var b;
-      return [...((b = r.value) == null ? void 0 : b.querySelectorAll(Na)) ?? []].filter(a);
+      return [...((b = r.value) == null ? void 0 : b.querySelectorAll(La)) ?? []].filter(a);
     }
     function u() {
       var C;
@@ -4659,9 +4659,9 @@ const Oa = {
         return;
       }
       l = document.activeElement instanceof HTMLElement ? document.activeElement : null, document.addEventListener("keydown", c), document.addEventListener("focusin", p), await cn(), (C = u()) == null || C.focus();
-    }, { immediate: !0 }), At(() => {
+    }, { immediate: !0 }), Et(() => {
       v(), l == null || l.focus();
-    }), (b, C) => e.open ? (E(), O("div", Oa, [
+    }), (b, C) => e.open ? (A(), O("div", Oa, [
       d("section", {
         ref_key: "panel",
         ref: r,
@@ -4685,13 +4685,13 @@ const Oa = {
         d("div", Ua, [
           Gs(b.$slots, "default")
         ]),
-        b.$slots.footer ? (E(), O("footer", Da, [
+        b.$slots.footer ? (A(), O("footer", Da, [
           Gs(b.$slots, "footer")
         ])) : te("", !0)
       ], 8, Pa)
     ])) : te("", !0);
   }
-}), La = {
+}), Na = {
   key: 0,
   role: "status"
 }, Ya = {
@@ -4704,7 +4704,7 @@ const Oa = {
 }, Ba = {
   key: 1,
   class: "yarr-empty"
-}, Ha = ["name", "value", "disabled"], ja = ["onUpdate:modelValue", "disabled"], Ka = ["disabled"], qa = ["disabled"], Wa = /* @__PURE__ */ Re({
+}, Ha = ["name", "value", "disabled"], ja = ["onUpdate:modelValue", "disabled"], Ka = ["disabled"], qa = ["disabled"], Wa = /* @__PURE__ */ Te({
   __name: "DiscoveryDialog",
   props: {
     open: { type: Boolean }
@@ -4713,7 +4713,7 @@ const Oa = {
   setup(e, { emit: t }) {
     const n = e, s = t, r = /* @__PURE__ */ B(), i = /* @__PURE__ */ B([]), l = /* @__PURE__ */ B({}), a = /* @__PURE__ */ B(!1), o = /* @__PURE__ */ B("");
     let u, c = 0;
-    const p = Nt(() => i.value.length > 0 && !a.value);
+    const p = Lt(() => i.value.length > 0 && !a.value);
     function v($) {
       return $ === "sabnzbd" ? "SABnzbd" : $ === "qbittorrent" ? "qBittorrent" : $.charAt(0).toUpperCase() + $.slice(1);
     }
@@ -4741,7 +4741,7 @@ const Oa = {
       u == null || u.abort(), u = new AbortController(), a.value = !0, o.value = "";
       const $ = r.value.candidates.filter((y) => i.value.includes(y.candidateId)), k = [...new Set($.map((y) => y.serviceId))];
       try {
-        const y = await Ta({
+        const y = await Ra({
           discoveryId: r.value.discoveryId,
           selectedCandidateIds: [...i.value],
           credentialConsent: k.map((V) => ({ serviceId: V, consent: l.value[V] === !0 }))
@@ -4757,7 +4757,7 @@ const Oa = {
     }
     return Je(() => n.open, ($) => {
       $ ? (b(), P()) : b();
-    }), Je(a, ($) => s("busy", $)), At(b), ($, k) => (E(), Ee(Us, {
+    }), Je(a, ($) => s("busy", $)), Et(b), ($, k) => (A(), Ae(Us, {
       open: e.open,
       title: "Discover Docker services",
       busy: a.value,
@@ -4780,8 +4780,8 @@ const Oa = {
       ]),
       default: xt(() => [
         k[2] || (k[2] = d("p", null, "Yarr reads bounded container identity and endpoint metadata. Select each candidate explicitly.", -1)),
-        a.value && !r.value ? (E(), O("p", La, "Inspecting Docker services...")) : te("", !0),
-        o.value ? (E(), O("div", Ya, [
+        a.value && !r.value ? (A(), O("p", Na, "Inspecting Docker services...")) : te("", !0),
+        o.value ? (A(), O("div", Ya, [
           d("p", null, M(o.value), 1),
           d("button", {
             type: "button",
@@ -4790,17 +4790,17 @@ const Oa = {
             onClick: P
           }, "Retry discovery", 8, Va)
         ])) : te("", !0),
-        r.value ? (E(), O(ee, { key: 2 }, [
-          r.value.errors.length ? (E(), O("ul", Fa, [
-            (E(!0), O(ee, null, st(r.value.errors, (y) => (E(), O("li", {
+        r.value ? (A(), O(ee, { key: 2 }, [
+          r.value.errors.length ? (A(), O("ul", Fa, [
+            (A(!0), O(ee, null, st(r.value.errors, (y) => (A(), O("li", {
               key: y.code
             }, [
               d("strong", null, M(y.code), 1),
               fe(": " + M(y.message), 1)
             ]))), 128))
           ])) : te("", !0),
-          r.value.candidates.length === 0 ? (E(), O("p", Ba, "No supported Docker services were found.")) : te("", !0),
-          (E(!0), O(ee, null, st(r.value.candidates, (y) => (E(), O("fieldset", {
+          r.value.candidates.length === 0 ? (A(), O("p", Ba, "No supported Docker services were found.")) : te("", !0),
+          (A(!0), O(ee, null, st(r.value.candidates, (y) => (A(), O("fieldset", {
             key: y.candidateId,
             class: "yarr-choice-row"
           }, [
@@ -4812,7 +4812,7 @@ const Oa = {
                 value: y.candidateId,
                 disabled: a.value
               }, null, 8, Ha), [
-                [Rn, i.value]
+                [Tn, i.value]
               ]),
               k[1] || (k[1] = fe()),
               d("strong", null, M(v(y.serviceId)), 1)
@@ -4820,7 +4820,7 @@ const Oa = {
             d("span", null, M(y.baseUrl) + " · " + M(y.confidence) + "% confidence", 1),
             d("small", null, M(y.reasons.join("; ")), 1)
           ]))), 128)),
-          (E(!0), O(ee, null, st([...new Set(r.value.candidates.filter((y) => y.hasCredential).map((y) => y.serviceId))], (y) => Ct((E(), O("label", {
+          (A(!0), O(ee, null, st([...new Set(r.value.candidates.filter((y) => y.hasCredential).map((y) => y.serviceId))], (y) => Ct((A(), O("label", {
             key: y,
             class: "yarr-consent-row"
           }, [
@@ -4829,7 +4829,7 @@ const Oa = {
               type: "checkbox",
               disabled: a.value
             }, null, 8, ja), [
-              [Rn, l.value[y]]
+              [Tn, l.value[y]]
             ]),
             fe(" Import credentials for " + M(v(y)), 1)
           ])), [
@@ -4857,7 +4857,7 @@ const Oa = {
   key: 1,
   class: "yarr-error",
   role: "alert"
-}, su = ["disabled"], ru = ["disabled"], iu = ["disabled"], ou = /* @__PURE__ */ Re({
+}, su = ["disabled"], ru = ["disabled"], iu = ["disabled"], ou = /* @__PURE__ */ Te({
   __name: "ImportDialog",
   props: {
     open: { type: Boolean }
@@ -4866,7 +4866,7 @@ const Oa = {
   setup(e, { emit: t }) {
     const n = e, s = t, r = /* @__PURE__ */ B(""), i = /* @__PURE__ */ B(), l = /* @__PURE__ */ B([]), a = /* @__PURE__ */ B({}), o = /* @__PURE__ */ B(!1), u = /* @__PURE__ */ B("");
     let c;
-    const p = Nt(() => l.value.length > 0 && !o.value);
+    const p = Lt(() => l.value.length > 0 && !o.value);
     function v() {
       c == null || c.abort(), r.value = "", i.value = void 0, l.value = [], a.value = {}, o.value = !1, u.value = "";
     }
@@ -4887,7 +4887,7 @@ const Oa = {
       c == null || c.abort(), c = new AbortController(), o.value = !0, u.value = "";
       const $ = r.value;
       try {
-        i.value = await Aa($, c.signal), r.value = "", l.value = [], a.value = {};
+        i.value = await Ea($, c.signal), r.value = "", l.value = [], a.value = {};
       } catch {
         c.signal.aborted || (u.value = "Import preview failed. Check the format and retry; no settings were applied.");
       } finally {
@@ -4898,7 +4898,7 @@ const Oa = {
       if (!(!i.value || l.value.length === 0)) {
         c == null || c.abort(), c = new AbortController(), o.value = !0, u.value = "";
         try {
-          const $ = await Ra({
+          const $ = await Ta({
             previewId: i.value.previewId,
             selectedServiceIds: [...l.value],
             credentialConsent: l.value.map((k) => ({ serviceId: k, consent: a.value[k] === !0 }))
@@ -4911,7 +4911,7 @@ const Oa = {
     }
     return Je(() => n.open, ($) => {
       $ ? v() : r.value = "";
-    }), Je(o, ($) => s("busy", $)), At(v), ($, k) => (E(), Ee(Us, {
+    }), Je(o, ($) => s("busy", $)), Et(v), ($, k) => (A(), Ae(Us, {
       open: e.open,
       title: "Import configuration",
       busy: o.value,
@@ -4925,13 +4925,13 @@ const Oa = {
           disabled: o.value,
           onClick: b
         }, "Cancel", 8, su),
-        i.value ? (E(), O("button", {
+        i.value ? (A(), O("button", {
           key: 1,
           type: "button",
           class: "yarr-button",
           disabled: !p.value,
           onClick: K
-        }, M(o.value ? "Applying..." : "Apply selected"), 9, iu)) : (E(), O("button", {
+        }, M(o.value ? "Applying..." : "Apply selected"), 9, iu)) : (A(), O("button", {
           key: 0,
           type: "button",
           class: "yarr-button",
@@ -4940,12 +4940,12 @@ const Oa = {
         }, M(o.value ? "Previewing..." : "Preview import"), 9, ru))
       ]),
       default: xt(() => [
-        i.value ? (E(), O("div", Qa, [
+        i.value ? (A(), O("div", Qa, [
           k[5] || (k[5] = d("p", null, "Select at least one service. Credential permission is separate for each selected service.", -1)),
-          i.value.warnings.length ? (E(), O("ul", Xa, [
-            (E(!0), O(ee, null, st(i.value.warnings, (y) => (E(), O("li", { key: y }, M(y), 1))), 128))
+          i.value.warnings.length ? (A(), O("ul", Xa, [
+            (A(!0), O(ee, null, st(i.value.warnings, (y) => (A(), O("li", { key: y }, M(y), 1))), 128))
           ])) : te("", !0),
-          (E(!0), O(ee, null, st(i.value.mappings, (y) => (E(), O("fieldset", {
+          (A(!0), O(ee, null, st(i.value.mappings, (y) => (A(), O("fieldset", {
             key: y.serviceId,
             class: "yarr-choice-row"
           }, [
@@ -4957,25 +4957,25 @@ const Oa = {
                 value: y.serviceId,
                 disabled: o.value
               }, null, 8, Za), [
-                [Rn, l.value]
+                [Tn, l.value]
               ]),
               k[4] || (k[4] = fe()),
               d("strong", null, M(C(y.serviceId)), 1)
             ]),
             d("span", null, M(y.baseUrl ?? "No URL mapped"), 1),
-            l.value.includes(y.serviceId) && P(y) ? (E(), O("label", eu, [
+            l.value.includes(y.serviceId) && P(y) ? (A(), O("label", eu, [
               Ct(d("input", {
                 "onUpdate:modelValue": (V) => a.value[y.serviceId] = V,
                 type: "checkbox",
                 disabled: o.value
               }, null, 8, tu), [
-                [Rn, a.value[y.serviceId]]
+                [Tn, a.value[y.serviceId]]
               ]),
               fe(" Import credentials for " + M(C(y.serviceId)), 1)
             ])) : te("", !0)
           ]))), 128)),
-          u.value ? (E(), O("p", nu, M(u.value), 1)) : te("", !0)
-        ])) : (E(), O("div", Ga, [
+          u.value ? (A(), O("p", nu, M(u.value), 1)) : te("", !0)
+        ])) : (A(), O("div", Ga, [
           k[3] || (k[3] = d("p", null, "Paste environment assignments. Yarr returns only mapped service metadata and warnings, never values.", -1)),
           d("label", null, [
             k[2] || (k[2] = fe("Paste environment settings", -1)),
@@ -4989,7 +4989,7 @@ const Oa = {
               [zl, r.value]
             ])
           ]),
-          u.value ? (E(), O("p", za, M(u.value), 1)) : te("", !0)
+          u.value ? (A(), O("p", za, M(u.value), 1)) : te("", !0)
         ]))
       ]),
       _: 1
@@ -5008,7 +5008,7 @@ const Oa = {
 }, bu = {
   class: "yarr-log",
   "aria-label": "Yarr log output"
-}, vu = /* @__PURE__ */ Re({
+}, vu = /* @__PURE__ */ Te({
   __name: "LogsPanel",
   setup(e) {
     const t = /* @__PURE__ */ B(200), n = /* @__PURE__ */ B(), s = /* @__PURE__ */ B(!1), r = /* @__PURE__ */ B("");
@@ -5026,9 +5026,9 @@ const Oa = {
         o === l && (s.value = !1);
       }
     }
-    return Ln(a), At(() => {
+    return Nn(a), Et(() => {
       l += 1, i == null || i.abort();
-    }), (o, u) => (E(), O("section", {
+    }), (o, u) => (A(), O("section", {
       class: "yarr-panel",
       "aria-labelledby": "logs-heading",
       "aria-busy": s.value
@@ -5065,7 +5065,7 @@ const Oa = {
           }, "Refresh logs", 8, fu)
         ])
       ]),
-      r.value ? (E(), O("div", du, [
+      r.value ? (A(), O("div", du, [
         d("p", null, M(r.value), 1),
         d("button", {
           type: "button",
@@ -5073,19 +5073,19 @@ const Oa = {
           disabled: s.value,
           onClick: a
         }, "Retry log request", 8, hu)
-      ])) : n.value ? (E(), O(ee, { key: 2 }, [
-        n.value.truncated ? (E(), O("p", gu, "Older lines were omitted. Increase the bounded line count if needed.")) : te("", !0),
+      ])) : n.value ? (A(), O(ee, { key: 2 }, [
+        n.value.truncated ? (A(), O("p", gu, "Older lines were omitted. Increase the bounded line count if needed.")) : te("", !0),
         d("pre", bu, [
-          (E(!0), O(ee, null, st(n.value.lines, (c, p) => (E(), O("span", { key: p }, M(c) + M(`
+          (A(!0), O(ee, null, st(n.value.lines, (c, p) => (A(), O("span", { key: p }, M(c) + M(`
 `), 1))), 128))
         ])
-      ], 64)) : (E(), O("p", pu, "Loading logs..."))
+      ], 64)) : (A(), O("p", pu, "Loading logs..."))
     ], 8, lu));
   }
 }), yu = {
   class: "yarr-panel",
   "aria-labelledby": "overview-heading"
-}, mu = { class: "yarr-section-heading" }, _u = { class: "yarr-actions" }, wu = ["disabled"], Su = ["disabled"], Cu = ["disabled"], xu = { class: "yarr-detail-list" }, Eu = { class: "yarr-operation-row" }, Au = { class: "yarr-actions" }, Ru = ["disabled"], Tu = ["disabled"], $u = /* @__PURE__ */ Re({
+}, mu = { class: "yarr-section-heading" }, _u = { class: "yarr-actions" }, wu = ["disabled"], Su = ["disabled"], Cu = ["disabled"], xu = { class: "yarr-detail-list" }, Au = { class: "yarr-operation-row" }, Eu = { class: "yarr-actions" }, Tu = ["disabled"], Ru = ["disabled"], $u = /* @__PURE__ */ Te({
   __name: "OverviewPanel",
   props: {
     runtime: {},
@@ -5095,27 +5095,27 @@ const Oa = {
   emits: ["control", "import", "discover"],
   setup(e, { emit: t }) {
     const n = t;
-    return (s, r) => (E(), O("section", yu, [
+    return (s, r) => (A(), O("section", yu, [
       d("div", mu, [
         d("div", null, [
           r[5] || (r[5] = d("h2", { id: "overview-heading" }, "Current operation", -1)),
           d("p", null, M(e.runtime.healthMessage), 1)
         ]),
         d("div", _u, [
-          e.runtime.state !== "running" ? (E(), O("button", {
+          e.runtime.state !== "running" ? (A(), O("button", {
             key: 0,
             type: "button",
             class: "yarr-button",
             disabled: e.busy,
             onClick: r[0] || (r[0] = (i) => n("control", "START"))
-          }, "Start Yarr", 8, wu)) : (E(), O("button", {
+          }, "Start Yarr", 8, wu)) : (A(), O("button", {
             key: 1,
             type: "button",
             class: "yarr-button",
             disabled: e.busy,
             onClick: r[1] || (r[1] = (i) => n("control", "RESTART"))
           }, "Restart Yarr", 8, Su)),
-          e.runtime.state === "running" ? (E(), O("button", {
+          e.runtime.state === "running" ? (A(), O("button", {
             key: 2,
             type: "button",
             class: "yarr-button is-quiet",
@@ -5142,29 +5142,29 @@ const Oa = {
           d("dd", null, M(e.config.plugin.tailscaleServe ? e.config.plugin.tailscaleHostname : "Off"), 1)
         ])
       ]),
-      d("div", Eu, [
+      d("div", Au, [
         r[10] || (r[10] = d("div", null, [
           d("h3", null, "Bring in existing services"),
           d("p", null, "Preview environment settings or inspect Docker metadata before choosing what Yarr may apply.")
         ], -1)),
-        d("div", Au, [
+        d("div", Eu, [
           d("button", {
             type: "button",
             class: "yarr-button is-quiet",
             disabled: e.busy,
             onClick: r[3] || (r[3] = (i) => n("import"))
-          }, "Import configuration", 8, Ru),
+          }, "Import configuration", 8, Tu),
           d("button", {
             type: "button",
             class: "yarr-button is-quiet",
             disabled: e.busy,
             onClick: r[4] || (r[4] = (i) => n("discover"))
-          }, "Discover Docker services", 8, Tu)
+          }, "Discover Docker services", 8, Ru)
         ])
       ])
     ]));
   }
-}), Iu = ["disabled"], Ou = ["disabled"], fs = /* @__PURE__ */ Re({
+}), Iu = ["disabled"], Ou = ["disabled"], fs = /* @__PURE__ */ Te({
   __name: "ConfirmDialog",
   props: {
     open: { type: Boolean },
@@ -5178,7 +5178,7 @@ const Oa = {
   emits: ["close", "confirm"],
   setup(e, { emit: t }) {
     const n = t;
-    return (s, r) => (E(), Ee(Us, {
+    return (s, r) => (A(), Ae(Us, {
       open: e.open,
       title: e.title,
       busy: e.busy,
@@ -5194,7 +5194,7 @@ const Oa = {
         }, M(e.cancelLabel), 9, Iu),
         d("button", {
           type: "button",
-          class: Et(["yarr-button", { "is-danger": e.danger }]),
+          class: At(["yarr-button", { "is-danger": e.danger }]),
           disabled: e.busy,
           onClick: r[1] || (r[1] = (i) => n("confirm"))
         }, M(e.busy ? "Working..." : e.confirmLabel), 11, Ou)
@@ -5205,11 +5205,11 @@ const Oa = {
       _: 1
     }, 8, ["open", "title", "busy"]));
   }
-}), Pu = { class: "yarr-secret-field" }, ku = { class: "yarr-secret-field__status" }, Mu = ["name", "checked", "disabled"], Uu = ["name", "checked", "disabled"], Du = ["name", "aria-label", "disabled", "value"], Nu = {
+}), Pu = { class: "yarr-secret-field" }, ku = { class: "yarr-secret-field__status" }, Mu = ["name", "checked", "disabled"], Uu = ["name", "checked", "disabled"], Du = ["name", "aria-label", "disabled", "value"], Lu = {
   key: 2,
   class: "yarr-secret-field__pending",
   role: "status"
-}, Lu = ["disabled"], Tn = /* @__PURE__ */ Re({
+}, Nu = ["disabled"], Rn = /* @__PURE__ */ Te({
   __name: "SecretField",
   props: {
     name: {},
@@ -5237,7 +5237,7 @@ const Oa = {
     function c() {
       l.value = !1, o("CLEAR");
     }
-    return (p, v) => (E(), O(ee, null, [
+    return (p, v) => (A(), O(ee, null, [
       d("fieldset", Pu, [
         d("legend", null, M(e.label), 1),
         d("p", ku, M(e.configured ? "Configured" : "Not configured"), 1),
@@ -5261,11 +5261,11 @@ const Oa = {
           }, null, 40, Uu),
           v[6] || (v[6] = fe(" Set a new value", -1))
         ]),
-        r.value === "SET" ? (E(), O("label", {
+        r.value === "SET" ? (A(), O("label", {
           key: 0,
           for: a
         }, "New " + M(e.label), 1)) : te("", !0),
-        r.value === "SET" ? (E(), O("input", {
+        r.value === "SET" ? (A(), O("input", {
           key: 1,
           id: a,
           name: `${e.name}-new-value`,
@@ -5277,14 +5277,14 @@ const Oa = {
           value: i.value,
           onInput: v[2] || (v[2] = (b) => u(b.target.value))
         }, null, 40, Du)) : te("", !0),
-        r.value === "CLEAR" ? (E(), O("p", Nu, "This value will be cleared when changes are saved.")) : te("", !0),
-        e.configured ? (E(), O("button", {
+        r.value === "CLEAR" ? (A(), O("p", Lu, "This value will be cleared when changes are saved.")) : te("", !0),
+        e.configured ? (A(), O("button", {
           key: 3,
           type: "button",
           class: "yarr-button is-danger is-quiet",
           disabled: e.disabled,
           onClick: v[3] || (v[3] = (b) => l.value = !0)
-        }, "Clear " + M(e.label), 9, Lu)) : te("", !0)
+        }, "Clear " + M(e.label), 9, Nu)) : te("", !0)
       ]),
       le(fs, {
         open: l.value,
@@ -5305,13 +5305,13 @@ const Oa = {
 }, Vu = { class: "yarr-form-rows" }, Fu = { class: "yarr-setting-row" }, Bu = ["checked", "disabled"], Hu = { class: "yarr-setting-row" }, ju = ["value", "disabled"], Ku = {
   key: 0,
   class: "yarr-setting-row"
-}, qu = ["value", "disabled"], Wu = { class: "yarr-setting-row" }, Gu = ["value", "disabled"], Ju = { class: "yarr-setting-row" }, zu = ["value", "disabled"], Qu = { class: "yarr-auth-section" }, Xu = ["value", "disabled"], Zu = {
+}, qu = ["value", "disabled"], Wu = { class: "yarr-setting-row" }, Gu = ["value", "disabled"], Ju = { class: "yarr-setting-row" }, zu = ["value", "disabled"], Qu = ["disabled"], Xu = { class: "yarr-auth-section" }, Zu = ["value", "disabled"], ec = {
   key: 2,
   class: "yarr-form-grid"
-}, ec = ["value", "disabled"], tc = ["value", "disabled"], nc = { class: "yarr-form-rows" }, sc = { class: "yarr-setting-row" }, rc = ["checked", "disabled"], ic = {
+}, tc = ["value", "disabled"], nc = ["value", "disabled"], sc = { class: "yarr-form-rows" }, rc = { class: "yarr-setting-row" }, ic = ["checked", "disabled"], oc = {
   key: 0,
   class: "yarr-setting-row"
-}, oc = ["value", "disabled"], lc = { class: "yarr-setting-row" }, ac = ["value", "disabled"], uc = ["value"], cc = /* @__PURE__ */ Re({
+}, lc = ["value", "disabled"], ac = { class: "yarr-setting-row" }, uc = ["value", "disabled"], cc = ["value"], fc = /* @__PURE__ */ Te({
   __name: "ServerAuthPanel",
   props: {
     plugin: {},
@@ -5332,8 +5332,8 @@ const Oa = {
     function l(a, o) {
       i({ [a]: o });
     }
-    return (a, o) => (E(), O("section", Yu, [
-      o[26] || (o[26] = d("div", { class: "yarr-section-heading" }, [
+    return (a, o) => (A(), O("section", Yu, [
+      o[28] || (o[28] = d("div", { class: "yarr-section-heading" }, [
         d("div", null, [
           d("h2", { id: "server-heading" }, "Server & Auth"),
           d("p", null, "Keep Yarr on loopback unless authentication is fully configured.")
@@ -5367,7 +5367,7 @@ const Oa = {
             d("option", { value: "CUSTOM" }, "Custom address", -1)
           ])], 40, ju)
         ]),
-        e.plugin.bindMode === "CUSTOM" ? (E(), O("label", Ku, [
+        e.plugin.bindMode === "CUSTOM" ? (A(), O("label", Ku, [
           o[16] || (o[16] = d("span", null, [
             d("strong", null, "Custom bind address"),
             d("small", null, "Use an IP address owned by this server.")
@@ -5394,23 +5394,26 @@ const Oa = {
           }, null, 40, Gu)
         ]),
         d("label", Ju, [
-          o[19] || (o[19] = d("span", null, [
+          o[20] || (o[20] = d("span", null, [
             d("strong", null, "Authentication mode"),
-            d("small", null, "Required before exposing Yarr beyond loopback.")
+            d("small", null, "LAN, custom, and Tailscale exposure require bearer or Google OAuth.")
           ], -1)),
           d("select", {
             value: e.plugin.authMode,
             disabled: e.disabled,
             onChange: o[4] || (o[4] = (u) => r({ authMode: u.target.value }))
-          }, [...o[18] || (o[18] = [
-            d("option", { value: "BEARER" }, "Bearer token", -1),
-            d("option", { value: "GOOGLE_OAUTH" }, "Google OAuth", -1),
-            d("option", { value: "TRUSTED_GATEWAY" }, "Trusted gateway", -1)
-          ])], 40, zu)
+          }, [
+            o[18] || (o[18] = d("option", { value: "BEARER" }, "Bearer token", -1)),
+            o[19] || (o[19] = d("option", { value: "GOOGLE_OAUTH" }, "Google OAuth", -1)),
+            d("option", {
+              value: "TRUSTED_GATEWAY",
+              disabled: e.plugin.bindMode !== "LOOPBACK" || e.plugin.tailscaleServe
+            }, "Trusted gateway (same-host loopback only)", 8, Qu)
+          ], 40, zu)
         ])
       ]),
-      d("div", Qu, [
-        e.plugin.authMode === "BEARER" ? (E(), Ee(Tn, {
+      d("div", Xu, [
+        e.plugin.authMode === "BEARER" ? (A(), Ae(Rn, {
           key: 0,
           name: "bearer-token",
           label: "Bearer token",
@@ -5418,18 +5421,18 @@ const Oa = {
           intent: e.auth.bearerToken.kind,
           disabled: e.disabled,
           onUpdate: o[5] || (o[5] = (u) => l("bearerToken", u))
-        }, null, 8, ["configured", "intent", "disabled"])) : e.plugin.authMode === "GOOGLE_OAUTH" ? (E(), O(ee, { key: 1 }, [
+        }, null, 8, ["configured", "intent", "disabled"])) : e.plugin.authMode === "GOOGLE_OAUTH" ? (A(), O(ee, { key: 1 }, [
           d("label", null, [
-            o[20] || (o[20] = fe("Google client ID", -1)),
+            o[21] || (o[21] = fe("Google client ID", -1)),
             d("input", {
               type: "text",
               value: e.auth.googleClientId,
               disabled: e.disabled,
               autocomplete: "off",
               onInput: o[6] || (o[6] = (u) => i({ googleClientId: u.target.value }))
-            }, null, 40, Xu)
+            }, null, 40, Zu)
           ]),
-          le(Tn, {
+          le(Rn, {
             name: "google-client-secret",
             label: "Google client secret",
             configured: e.googleSecretConfigured,
@@ -5437,42 +5440,43 @@ const Oa = {
             disabled: e.disabled,
             onUpdate: o[7] || (o[7] = (u) => l("googleClientSecret", u))
           }, null, 8, ["configured", "intent", "disabled"])
-        ], 64)) : (E(), O("div", Zu, [
+        ], 64)) : (A(), O("div", ec, [
+          o[24] || (o[24] = d("p", null, "Trusted gateway accepts provenance only from a same-host proxy while Yarr is bound to loopback. Direct-client Host and Origin headers are not authentication.", -1)),
           d("label", null, [
-            o[21] || (o[21] = fe("Trusted gateway hosts", -1)),
+            o[22] || (o[22] = fe("Trusted gateway hosts", -1)),
             d("textarea", {
               value: e.auth.trustedGatewayHosts,
               disabled: e.disabled,
               rows: "3",
               onInput: o[8] || (o[8] = (u) => i({ trustedGatewayHosts: u.target.value }))
-            }, null, 40, ec)
+            }, null, 40, tc)
           ]),
           d("label", null, [
-            o[22] || (o[22] = fe("Trusted gateway origins", -1)),
+            o[23] || (o[23] = fe("Trusted gateway origins", -1)),
             d("textarea", {
               value: e.auth.trustedGatewayOrigins,
               disabled: e.disabled,
               rows: "3",
               onInput: o[9] || (o[9] = (u) => i({ trustedGatewayOrigins: u.target.value }))
-            }, null, 40, tc)
+            }, null, 40, nc)
           ])
         ]))
       ]),
-      d("div", nc, [
-        d("label", sc, [
-          o[23] || (o[23] = d("span", null, [
+      d("div", sc, [
+        d("label", rc, [
+          o[25] || (o[25] = d("span", null, [
             d("strong", null, "Tailscale Serve"),
-            d("small", null, "Publish the loopback endpoint through Tailscale.")
+            d("small", null, "Publishes the endpoint and therefore requires bearer or Google OAuth.")
           ], -1)),
           d("input", {
             type: "checkbox",
             checked: e.plugin.tailscaleServe,
             disabled: e.disabled,
             onChange: o[10] || (o[10] = (u) => r({ tailscaleServe: u.target.checked }))
-          }, null, 40, rc)
+          }, null, 40, ic)
         ]),
-        e.plugin.tailscaleServe ? (E(), O("label", ic, [
-          o[24] || (o[24] = d("span", null, [
+        e.plugin.tailscaleServe ? (A(), O("label", oc, [
+          o[26] || (o[26] = d("span", null, [
             d("strong", null, "Tailscale hostname"),
             d("small", null, "DNS-label service name.")
           ], -1)),
@@ -5481,10 +5485,10 @@ const Oa = {
             value: e.plugin.tailscaleHostname,
             disabled: e.disabled,
             onInput: o[11] || (o[11] = (u) => r({ tailscaleHostname: u.target.value }))
-          }, null, 40, oc)
+          }, null, 40, lc)
         ])) : te("", !0),
-        d("label", lc, [
-          o[25] || (o[25] = d("span", null, [
+        d("label", ac, [
+          o[27] || (o[27] = d("span", null, [
             d("strong", null, "Log level"),
             d("small", null, "Increase verbosity only while diagnosing an issue.")
           ], -1)),
@@ -5493,22 +5497,22 @@ const Oa = {
             disabled: e.disabled,
             onChange: o[12] || (o[12] = (u) => r({ logLevel: u.target.value }))
           }, [
-            (E(), O(ee, null, st(["TRACE", "DEBUG", "INFO", "WARN", "ERROR"], (u) => d("option", {
+            (A(), O(ee, null, st(["TRACE", "DEBUG", "INFO", "WARN", "ERROR"], (u) => d("option", {
               key: u,
               value: u
-            }, M(u), 9, uc)), 64))
-          ], 40, ac)
+            }, M(u), 9, cc)), 64))
+          ], 40, uc)
         ])
       ])
     ]));
   }
-}), fc = {
+}), dc = {
   class: "yarr-panel",
   "aria-labelledby": "services-heading"
-}, dc = {
+}, hc = {
   key: 0,
   class: "yarr-empty"
-}, hc = ["aria-labelledby"], pc = { class: "yarr-service-row__identity" }, gc = ["id"], bc = { class: "yarr-switch" }, vc = ["checked", "disabled", "onChange"], yc = { class: "yarr-form-grid" }, mc = ["value", "disabled", "onInput"], _c = ["value", "disabled", "onInput"], wc = { class: "yarr-secret-grid" }, Sc = /* @__PURE__ */ Re({
+}, pc = ["aria-labelledby"], gc = { class: "yarr-service-row__identity" }, bc = ["id"], vc = { class: "yarr-switch" }, yc = ["checked", "disabled", "onChange"], mc = { class: "yarr-form-grid" }, _c = ["value", "disabled", "onInput"], wc = ["value", "disabled", "onInput"], Sc = { class: "yarr-secret-grid" }, Cc = /* @__PURE__ */ Te({
   __name: "ServicesPanel",
   props: {
     services: {},
@@ -5539,34 +5543,34 @@ const Oa = {
     function a(o, u, c) {
       l(o, { [u]: c });
     }
-    return (o, u) => (E(), O("section", fc, [
+    return (o, u) => (A(), O("section", dc, [
       u[1] || (u[1] = d("div", { class: "yarr-section-heading" }, [
         d("div", null, [
           d("h2", { id: "services-heading" }, "Services"),
           d("p", null, "Enable only the integrations Yarr should contact.")
         ])
       ], -1)),
-      e.services.length === 0 ? (E(), O("p", dc, "No service definitions are available.")) : te("", !0),
-      (E(!0), O(ee, null, st(e.services, (c, p) => (E(), O("section", {
+      e.services.length === 0 ? (A(), O("p", hc, "No service definitions are available.")) : te("", !0),
+      (A(!0), O(ee, null, st(e.services, (c, p) => (A(), O("section", {
         key: c.service,
         class: "yarr-service-row",
         "aria-labelledby": `service-${c.service}`
       }, [
-        d("div", pc, [
+        d("div", gc, [
           d("h3", {
             id: `service-${c.service}`
-          }, M(i(c.service)), 9, gc),
-          d("label", bc, [
+          }, M(i(c.service)), 9, bc),
+          d("label", vc, [
             d("input", {
               type: "checkbox",
               checked: c.enabled,
               disabled: e.disabled,
               onChange: (v) => l(p, { enabled: v.target.checked })
-            }, null, 40, vc),
+            }, null, 40, yc),
             u[0] || (u[0] = fe(" Enabled", -1))
           ])
         ]),
-        d("div", yc, [
+        d("div", mc, [
           d("label", null, [
             fe(M(i(c.service)) + " base URL", 1),
             d("input", {
@@ -5574,7 +5578,7 @@ const Oa = {
               value: c.baseUrl,
               disabled: e.disabled,
               onInput: (v) => l(p, { baseUrl: v.target.value })
-            }, null, 40, mc)
+            }, null, 40, _c)
           ]),
           d("label", null, [
             fe(M(i(c.service)) + " username", 1),
@@ -5584,11 +5588,11 @@ const Oa = {
               disabled: e.disabled,
               autocomplete: "off",
               onInput: (v) => l(p, { username: v.target.value })
-            }, null, 40, _c)
+            }, null, 40, wc)
           ])
         ]),
-        d("div", wc, [
-          le(Tn, {
+        d("div", Sc, [
+          le(Rn, {
             name: `${c.service}-password`,
             label: `${i(c.service)} password`,
             configured: c.hasPassword,
@@ -5596,7 +5600,7 @@ const Oa = {
             disabled: e.disabled,
             onUpdate: (v) => a(p, "password", v)
           }, null, 8, ["name", "label", "configured", "intent", "disabled", "onUpdate"]),
-          le(Tn, {
+          le(Rn, {
             name: `${c.service}-api-key`,
             label: `${i(c.service)} API key`,
             configured: c.hasApiKey,
@@ -5605,41 +5609,41 @@ const Oa = {
             onUpdate: (v) => a(p, "apiKey", v)
           }, null, 8, ["name", "label", "configured", "intent", "disabled", "onUpdate"])
         ])
-      ], 8, hc))), 128))
+      ], 8, pc))), 128))
     ]));
   }
-}), Cc = ["aria-label"], xc = {
+}), xc = ["aria-label"], Ac = {
   class: "yarr-status-badge__symbol",
   "aria-hidden": "true"
-}, Ec = /* @__PURE__ */ Re({
+}, Ec = /* @__PURE__ */ Te({
   __name: "StatusBadge",
   props: {
     state: {},
     label: { default: void 0 }
   },
   setup(e) {
-    const t = e, n = Nt(() => t.label ?? {
+    const t = e, n = Lt(() => t.label ?? {
       success: "Available",
       warning: "Needs attention",
       danger: "Unavailable",
       neutral: "Unknown"
     }[t.state]);
-    return (s, r) => (E(), O("span", {
-      class: Et(["yarr-status-badge", `is-${e.state}`]),
+    return (s, r) => (A(), O("span", {
+      class: At(["yarr-status-badge", `is-${e.state}`]),
       "aria-label": `Status: ${n.value}`
     }, [
-      d("span", xc, M(e.state === "success" ? "OK" : e.state === "danger" ? "!" : "-"), 1),
+      d("span", Ac, M(e.state === "success" ? "OK" : e.state === "danger" ? "!" : "-"), 1),
       d("span", null, M(n.value), 1)
-    ], 10, Cc));
+    ], 10, xc));
   }
-}), Ac = ["aria-busy"], Rc = { class: "yarr-section-heading" }, Tc = ["disabled"], $c = {
+}), Tc = ["aria-busy"], Rc = { class: "yarr-section-heading" }, $c = ["disabled"], Ic = {
   key: 0,
   class: "yarr-error",
   role: "alert"
-}, Ic = ["disabled"], Oc = {
+}, Oc = ["disabled"], Pc = {
   key: 1,
   role: "status"
-}, Pc = { class: "yarr-detail-list" }, kc = { key: 0 }, Mc = { class: "yarr-actions" }, Uc = ["disabled"], Dc = ["disabled"], Nc = /* @__PURE__ */ Re({
+}, kc = { class: "yarr-detail-list" }, Mc = { key: 0 }, Uc = { class: "yarr-actions" }, Dc = ["disabled"], Lc = ["disabled"], Nc = /* @__PURE__ */ Te({
   __name: "UpdatesPanel",
   emits: ["busy"],
   setup(e, { emit: t }) {
@@ -5650,7 +5654,7 @@ const Oa = {
       const b = ++u;
       i.value = !0, r.value = "";
       try {
-        const C = await Ea(o.signal);
+        const C = await Aa(o.signal);
         b === u && (s.value = C);
       } catch {
         b === u && !o.signal.aborted && (r.value = "Update status could not be loaded. Check Yarr connectivity, then retry.");
@@ -5680,11 +5684,11 @@ const Oa = {
         i.value = !1;
       }
     }
-    return Ln(c), Je(i, (b) => n("busy", b)), At(() => {
+    return Nn(c), Je(i, (b) => n("busy", b)), Et(() => {
       u += 1, o == null || o.abort(), n("busy", !1);
     }), (b, C) => {
       var P;
-      return E(), O("section", {
+      return A(), O("section", {
         class: "yarr-panel",
         "aria-labelledby": "updates-heading",
         "aria-busy": i.value
@@ -5699,21 +5703,21 @@ const Oa = {
             class: "yarr-button is-quiet",
             disabled: i.value,
             onClick: c
-          }, "Check again", 8, Tc)
+          }, "Check again", 8, $c)
         ]),
-        r.value ? (E(), O("div", $c, [
+        r.value ? (A(), O("div", Ic, [
           d("p", null, M(r.value), 1),
-          s.value ? te("", !0) : (E(), O("button", {
+          s.value ? te("", !0) : (A(), O("button", {
             key: 0,
             type: "button",
             class: "yarr-button",
             disabled: i.value,
             onClick: c
-          }, "Retry update check", 8, Ic))
+          }, "Retry update check", 8, Oc))
         ])) : te("", !0),
-        !s.value && !r.value ? (E(), O("p", Oc, "Checking update status...")) : te("", !0),
-        s.value ? (E(), O(ee, { key: 2 }, [
-          d("dl", Pc, [
+        !s.value && !r.value ? (A(), O("p", Pc, "Checking update status...")) : te("", !0),
+        s.value ? (A(), O(ee, { key: 2 }, [
+          d("dl", kc, [
             d("div", null, [
               C[5] || (C[5] = d("dt", null, "Installed", -1)),
               d("dd", null, M(s.value.installedVersion), 1)
@@ -5732,26 +5736,26 @@ const Oa = {
             ])
           ]),
           d("p", {
-            class: Et(["yarr-result", { "is-warning": s.value.rolledBack }]),
+            class: At(["yarr-result", { "is-warning": s.value.rolledBack }]),
             role: "status"
           }, [
             fe(M(s.value.message), 1),
-            s.value.rolledBack ? (E(), O("strong", kc, " The previous version was restored.")) : te("", !0)
+            s.value.rolledBack ? (A(), O("strong", Mc, " The previous version was restored.")) : te("", !0)
           ], 2),
-          d("div", Mc, [
-            s.value.updateAvailable ? (E(), O("button", {
+          d("div", Uc, [
+            s.value.updateAvailable ? (A(), O("button", {
               key: 0,
               type: "button",
               class: "yarr-button",
               disabled: i.value,
               onClick: C[0] || (C[0] = (j) => l.value = !0)
-            }, "Install " + M(s.value.availableVersion), 9, Uc)) : te("", !0),
+            }, "Install " + M(s.value.availableVersion), 9, Dc)) : te("", !0),
             d("button", {
               type: "button",
               class: "yarr-button is-danger is-quiet",
               disabled: i.value,
               onClick: C[1] || (C[1] = (j) => a.value = !0)
-            }, "Reset to packaged version", 8, Dc)
+            }, "Reset to packaged version", 8, Lc)
           ])
         ], 64)) : te("", !0),
         le(fs, {
@@ -5773,51 +5777,51 @@ const Oa = {
           onClose: C[3] || (C[3] = (j) => a.value = !1),
           onConfirm: v
         }, null, 8, ["open", "busy"])
-      ], 8, Ac);
+      ], 8, Tc);
     };
   }
-}), Lc = ["aria-busy"], Yc = { class: "yarr-identity" }, Vc = { class: "yarr-workspace" }, Fc = {
+}), Yc = ["aria-busy"], Vc = { class: "yarr-identity" }, Fc = { class: "yarr-workspace" }, Bc = {
   key: 0,
   class: "yarr-error yarr-load-error",
   role: "alert"
-}, Bc = ["disabled"], Hc = {
+}, Hc = ["disabled"], jc = {
   key: 1,
   class: "yarr-shell__message",
   role: "status"
-}, jc = { class: "yarr-tabs-wrap" }, Kc = {
+}, Kc = { class: "yarr-tabs-wrap" }, qc = {
   class: "yarr-tabs",
   role: "tablist",
   "aria-label": "Yarr settings sections"
-}, qc = ["id", "aria-selected", "aria-controls", "tabindex", "disabled", "onClick", "onKeydown"], Wc = ["id", "aria-labelledby"], Gc = { class: "yarr-save-bar" }, Jc = { "aria-live": "polite" }, zc = {
+}, Wc = ["id", "aria-selected", "aria-controls", "tabindex", "disabled", "onClick", "onKeydown"], Gc = ["id", "aria-labelledby"], Jc = { class: "yarr-save-bar" }, zc = { "aria-live": "polite" }, Qc = {
   key: 0,
   class: "yarr-error",
   role: "alert"
-}, Qc = {
+}, Xc = {
   key: 1,
   class: "yarr-result",
   role: "status"
-}, Xc = { key: 2 }, Zc = ["disabled"], ef = /* @__PURE__ */ Re({
+}, Zc = { key: 2 }, ef = ["disabled"], tf = /* @__PURE__ */ Te({
   __name: "YarrSettings.ce",
   setup(e) {
     const t = ["Overview", "Services", "Server & Auth", "Updates", "Logs"], n = /* @__PURE__ */ B(), s = /* @__PURE__ */ B(), r = /* @__PURE__ */ B(), i = /* @__PURE__ */ B(), l = /* @__PURE__ */ B([]), a = /* @__PURE__ */ B(!1), o = /* @__PURE__ */ B(!1), u = /* @__PURE__ */ B("Overview"), c = /* @__PURE__ */ B(!0), p = /* @__PURE__ */ B(!1), v = /* @__PURE__ */ B(!1), b = /* @__PURE__ */ B(""), C = /* @__PURE__ */ B(""), P = /* @__PURE__ */ B(""), j = /* @__PURE__ */ B(!1), K = /* @__PURE__ */ B(!1), $ = /* @__PURE__ */ B(!1), k = /* @__PURE__ */ B([]);
     let y, V, de = 0;
-    const Te = Nt(() => n.value && s.value && r.value && i.value), me = Nt(() => p.value || v.value);
-    function gt(U, T) {
-      var N;
-      return ((N = U == null ? void 0 : U.extra.find((_e) => _e.key === T)) == null ? void 0 : N.value) ?? "";
+    const Re = Lt(() => n.value && s.value && r.value && i.value), me = Lt(() => p.value || v.value);
+    function gt(U, R) {
+      var L;
+      return ((L = U == null ? void 0 : U.extra.find((_e) => _e.key === R)) == null ? void 0 : L.value) ?? "";
     }
     function Me(U) {
       n.value = U, r.value = { ...U.plugin };
-      const T = U.services.find((N) => N.service === "yarr");
-      a.value = (T == null ? void 0 : T.hasApiKey) ?? !1, o.value = (T == null ? void 0 : T.hasPassword) ?? !1, i.value = {
+      const R = U.services.find((L) => L.service === "yarr");
+      a.value = (R == null ? void 0 : R.hasApiKey) ?? !1, o.value = (R == null ? void 0 : R.hasPassword) ?? !1, i.value = {
         bearerToken: { kind: "PRESERVE" },
-        googleClientId: (T == null ? void 0 : T.username) ?? "",
+        googleClientId: (R == null ? void 0 : R.username) ?? "",
         googleClientSecret: { kind: "PRESERVE" },
-        trustedGatewayHosts: gt(T, "YARR_MCP_ALLOWED_HOSTS"),
-        trustedGatewayOrigins: gt(T, "YARR_MCP_ALLOWED_ORIGINS")
-      }, l.value = U.services.filter((N) => N.service !== "yarr").map((N) => ({
-        ...N,
-        extra: N.extra.map((_e) => ({ ..._e })),
+        trustedGatewayHosts: gt(R, "YARR_MCP_ALLOWED_HOSTS"),
+        trustedGatewayOrigins: gt(R, "YARR_MCP_ALLOWED_ORIGINS")
+      }, l.value = U.services.filter((L) => L.service !== "yarr").map((L) => ({
+        ...L,
+        extra: L.extra.map((_e) => ({ ..._e })),
         password: { kind: "PRESERVE" },
         apiKey: { kind: "PRESERVE" }
       }));
@@ -5827,43 +5831,43 @@ const Oa = {
       const U = ++de;
       c.value = !0, $.value = !0, b.value = "", C.value = "";
       try {
-        const [T, N] = await Promise.all([
+        const [R, L] = await Promise.all([
           _a(y.signal),
           ma(y.signal)
         ]);
         if (U !== de) return;
-        Me(T), s.value = N;
+        Me(R), s.value = L;
       } catch {
         U === de && !y.signal.aborted && (b.value = "Yarr settings could not be loaded. Confirm the Unraid API is running, then retry.");
       } finally {
         U === de && (c.value = !1, $.value = !1);
       }
     }
-    function bt(U, T) {
-      return T.kind === "CLEAR" ? !1 : T.kind === "SET" ? T.value.trim().length > 0 : U;
+    function bt(U, R) {
+      return R.kind === "CLEAR" ? !1 : R.kind === "SET" ? R.value.trim().length > 0 : U;
     }
-    function Rt() {
-      return !r.value || !i.value || r.value.bindMode === "LOOPBACK" ? "" : r.value.authMode === "BEARER" && !bt(a.value, i.value.bearerToken) ? "Bearer authentication requires a configured token before Yarr can bind beyond loopback." : r.value.authMode === "GOOGLE_OAUTH" && (i.value.googleClientId.trim() === "" || !bt(o.value, i.value.googleClientSecret)) ? "Google OAuth requires a client ID and configured client secret before Yarr can bind beyond loopback." : r.value.authMode === "TRUSTED_GATEWAY" && i.value.trustedGatewayHosts.trim() === "" && i.value.trustedGatewayOrigins.trim() === "" ? "Trusted gateway authentication requires at least one allowed host or origin before Yarr can bind beyond loopback." : "";
+    function Tt() {
+      return !r.value || !i.value ? "" : r.value.authMode === "TRUSTED_GATEWAY" ? r.value.bindMode !== "LOOPBACK" || r.value.tailscaleServe ? "Trusted gateway is limited to a same-host proxy with loopback binding and Tailscale Serve disabled. Use bearer or Google OAuth for network exposure." : i.value.trustedGatewayHosts.trim() === "" && i.value.trustedGatewayOrigins.trim() === "" ? "Trusted gateway authentication requires at least one allowed host or origin." : "" : r.value.bindMode === "LOOPBACK" && !r.value.tailscaleServe ? "" : r.value.authMode === "BEARER" && !bt(a.value, i.value.bearerToken) ? "Bearer authentication requires a configured token before Yarr can bind beyond loopback." : r.value.authMode === "GOOGLE_OAUTH" && (i.value.googleClientId.trim() === "" || !bt(o.value, i.value.googleClientSecret)) ? "Google OAuth requires a client ID and configured client secret before Yarr can bind beyond loopback." : "";
     }
     function dt(U) {
       return U.kind === "SET" && U.value.trim() === "" ? { kind: "PRESERVE" } : U;
     }
     function dn() {
-      const U = r.value, T = i.value;
+      const U = r.value, R = i.value;
       return {
         ...U,
-        bearerToken: dt(T.bearerToken),
-        googleClientId: T.googleClientId,
-        googleClientSecret: dt(T.googleClientSecret),
-        trustedGatewayHosts: T.trustedGatewayHosts,
-        trustedGatewayOrigins: T.trustedGatewayOrigins,
-        services: l.value.map((N) => ({
-          service: N.service,
-          enabled: N.enabled,
-          baseUrl: N.baseUrl,
-          username: N.username ?? "",
-          password: dt(N.password),
-          apiKey: dt(N.apiKey)
+        bearerToken: dt(R.bearerToken),
+        googleClientId: R.googleClientId,
+        googleClientSecret: dt(R.googleClientSecret),
+        trustedGatewayHosts: R.trustedGatewayHosts,
+        trustedGatewayOrigins: R.trustedGatewayOrigins,
+        services: l.value.map((L) => ({
+          service: L.service,
+          enabled: L.enabled,
+          baseUrl: L.baseUrl,
+          username: L.username ?? "",
+          password: dt(L.password),
+          apiKey: dt(L.apiKey)
         }))
       };
     }
@@ -5871,15 +5875,15 @@ const Oa = {
       return U.rolledBack ? `Changes were not kept. Previous configuration restored.${U.error ? ` ${U.error}` : ""}` : U.error ? `Save outcome is indeterminate. ${U.error} Check runtime status and logs before retrying.` : U.changed ? U.restarted ? "Changes saved and Yarr restarted." : "Changes saved. Yarr did not require a restart." : "No configuration changes were needed.";
     }
     async function se() {
-      const U = Rt();
+      const U = Tt();
       if (U) {
         C.value = U;
         return;
       }
       V == null || V.abort(), V = new AbortController(), p.value = !0, C.value = "", P.value = "";
       try {
-        const T = await wa(dn(), V.signal);
-        Me(T.config), P.value = ae(T);
+        const R = await wa(dn(), V.signal);
+        Me(R.config), P.value = ae(R);
       } catch {
         V.signal.aborted || (C.value = "Save result was not confirmed. Refresh current state before retrying.");
       } finally {
@@ -5899,88 +5903,88 @@ const Oa = {
     function Ye(U) {
       Me(U.config), P.value = ae(U);
     }
-    function vt(U, T = !1) {
-      u.value = U, T && cn(() => {
-        var N;
-        return (N = k.value[t.indexOf(U)]) == null ? void 0 : N.focus();
+    function vt(U, R = !1) {
+      u.value = U, R && cn(() => {
+        var L;
+        return (L = k.value[t.indexOf(U)]) == null ? void 0 : L.focus();
       });
     }
-    function ze(U, T) {
-      let N = T;
-      if (U.key === "ArrowRight") N = (T + 1) % t.length;
-      else if (U.key === "ArrowLeft") N = (T - 1 + t.length) % t.length;
-      else if (U.key === "Home") N = 0;
-      else if (U.key === "End") N = t.length - 1;
+    function ze(U, R) {
+      let L = R;
+      if (U.key === "ArrowRight") L = (R + 1) % t.length;
+      else if (U.key === "ArrowLeft") L = (R - 1 + t.length) % t.length;
+      else if (U.key === "Home") L = 0;
+      else if (U.key === "End") L = t.length - 1;
       else return;
-      U.preventDefault(), vt(t[N], !0);
+      U.preventDefault(), vt(t[L], !0);
     }
-    function $e(U, T) {
-      U && (k.value[T] = U);
+    function $e(U, R) {
+      U && (k.value[R] = U);
     }
-    return Ln(ft), At(() => {
+    return Nn(ft), Et(() => {
       de += 1, y == null || y.abort(), V == null || V.abort();
-    }), (U, T) => (E(), O("section", {
+    }), (U, R) => (A(), O("section", {
       class: "yarr-shell yarr-settings",
       "aria-labelledby": "yarr-settings-title",
       "aria-busy": c.value || p.value
     }, [
-      d("aside", Yc, [
-        T[10] || (T[10] = d("p", { class: "yarr-shell__eyebrow" }, "Unraid service", -1)),
-        T[11] || (T[11] = d("h1", { id: "yarr-settings-title" }, "Yarr", -1)),
-        s.value ? (E(), Ee(Ec, {
+      d("aside", Vc, [
+        R[10] || (R[10] = d("p", { class: "yarr-shell__eyebrow" }, "Unraid service", -1)),
+        R[11] || (R[11] = d("h1", { id: "yarr-settings-title" }, "Yarr", -1)),
+        s.value ? (A(), Ae(Ec, {
           key: 0,
           state: s.value.ready ? "success" : s.value.state === "running" ? "warning" : "neutral",
           label: s.value.ready ? "Ready" : s.value.state
         }, null, 8, ["state", "label"])) : te("", !0),
-        T[12] || (T[12] = d("p", null, "Media service operations", -1))
+        R[12] || (R[12] = d("p", null, "Media service operations", -1))
       ]),
-      d("main", Vc, [
-        b.value ? (E(), O("div", Fc, [
+      d("main", Fc, [
+        b.value ? (A(), O("div", Bc, [
           d("p", null, M(b.value), 1),
           d("button", {
             type: "button",
             class: "yarr-button",
             disabled: c.value,
             onClick: ft
-          }, "Retry", 8, Bc)
-        ])) : Te.value ? (E(), O(ee, { key: 2 }, [
+          }, "Retry", 8, Hc)
+        ])) : Re.value ? (A(), O(ee, { key: 2 }, [
           d("ol", {
-            class: Et(["yarr-signal-rail", { "is-refreshing": $.value }]),
+            class: At(["yarr-signal-rail", { "is-refreshing": $.value }]),
             "aria-label": "Yarr lifecycle signals"
           }, [
             d("li", null, [
-              T[13] || (T[13] = d("span", null, "Process", -1)),
+              R[13] || (R[13] = d("span", null, "Process", -1)),
               d("strong", null, M(s.value.state), 1)
             ]),
             d("li", null, [
-              T[14] || (T[14] = d("span", null, "Ready", -1)),
+              R[14] || (R[14] = d("span", null, "Ready", -1)),
               d("strong", null, M(s.value.ready ? "Yes" : "No"), 1)
             ]),
             d("li", null, [
-              T[15] || (T[15] = d("span", null, "Endpoint", -1)),
+              R[15] || (R[15] = d("span", null, "Endpoint", -1)),
               d("strong", null, M(s.value.bindAddress) + ":" + M(s.value.port), 1)
             ]),
             d("li", null, [
-              T[16] || (T[16] = d("span", null, "Version", -1)),
+              R[16] || (R[16] = d("span", null, "Version", -1)),
               d("strong", null, M(s.value.version ?? "Unavailable"), 1)
             ])
           ], 2),
-          d("div", jc, [
-            d("div", Kc, [
-              (E(), O(ee, null, st(t, (N, _e) => d("button", {
+          d("div", Kc, [
+            d("div", qc, [
+              (A(), O(ee, null, st(t, (L, _e) => d("button", {
                 id: `yarr-tab-${_e}`,
-                key: N,
+                key: L,
                 ref_for: !0,
                 ref: (Qe) => $e(Qe, _e),
                 type: "button",
                 role: "tab",
-                "aria-selected": u.value === N,
+                "aria-selected": u.value === L,
                 "aria-controls": `yarr-panel-${_e}`,
-                tabindex: u.value === N ? 0 : -1,
+                tabindex: u.value === L ? 0 : -1,
                 disabled: me.value,
-                onClick: (Qe) => vt(N),
+                onClick: (Qe) => vt(L),
                 onKeydown: (Qe) => ze(Qe, _e)
-              }, M(N), 41, qc)), 64))
+              }, M(L), 41, Wc)), 64))
             ])
           ]),
           d("div", {
@@ -5989,59 +5993,59 @@ const Oa = {
             "aria-labelledby": `yarr-tab-${t.indexOf(u.value)}`,
             tabindex: "0"
           }, [
-            u.value === "Overview" ? (E(), Ee($u, {
+            u.value === "Overview" ? (A(), Ae($u, {
               key: 0,
               runtime: s.value,
               config: n.value,
               busy: me.value,
               onControl: J,
-              onImport: T[0] || (T[0] = (N) => j.value = !0),
-              onDiscover: T[1] || (T[1] = (N) => K.value = !0)
-            }, null, 8, ["runtime", "config", "busy"])) : u.value === "Services" ? (E(), Ee(Sc, {
+              onImport: R[0] || (R[0] = (L) => j.value = !0),
+              onDiscover: R[1] || (R[1] = (L) => K.value = !0)
+            }, null, 8, ["runtime", "config", "busy"])) : u.value === "Services" ? (A(), Ae(Cc, {
               key: 1,
               services: l.value,
               disabled: me.value,
-              onUpdate: T[2] || (T[2] = (N) => l.value = N)
-            }, null, 8, ["services", "disabled"])) : u.value === "Server & Auth" ? (E(), Ee(cc, {
+              onUpdate: R[2] || (R[2] = (L) => l.value = L)
+            }, null, 8, ["services", "disabled"])) : u.value === "Server & Auth" ? (A(), Ae(fc, {
               key: 2,
               plugin: r.value,
               auth: i.value,
               "bearer-configured": a.value,
               "google-secret-configured": o.value,
               disabled: me.value,
-              onPlugin: T[3] || (T[3] = (N) => r.value = N),
-              onAuth: T[4] || (T[4] = (N) => i.value = N)
-            }, null, 8, ["plugin", "auth", "bearer-configured", "google-secret-configured", "disabled"])) : u.value === "Updates" ? (E(), Ee(Nc, {
+              onPlugin: R[3] || (R[3] = (L) => r.value = L),
+              onAuth: R[4] || (R[4] = (L) => i.value = L)
+            }, null, 8, ["plugin", "auth", "bearer-configured", "google-secret-configured", "disabled"])) : u.value === "Updates" ? (A(), Ae(Nc, {
               key: 3,
-              onBusy: T[5] || (T[5] = (N) => v.value = N)
-            })) : (E(), Ee(vu, { key: 4 }))
-          ], 8, Wc),
-          d("div", Gc, [
-            d("div", Jc, [
-              C.value ? (E(), O("p", zc, M(C.value), 1)) : P.value ? (E(), O("p", Qc, M(P.value), 1)) : (E(), O("p", Xc, "Changes are validated again by the Yarr service before they are applied."))
+              onBusy: R[5] || (R[5] = (L) => v.value = L)
+            })) : (A(), Ae(vu, { key: 4 }))
+          ], 8, Gc),
+          d("div", Jc, [
+            d("div", zc, [
+              C.value ? (A(), O("p", Qc, M(C.value), 1)) : P.value ? (A(), O("p", Xc, M(P.value), 1)) : (A(), O("p", Zc, "Changes are validated again by the Yarr service before they are applied."))
             ]),
             d("button", {
               type: "button",
               class: "yarr-button",
               disabled: me.value,
               onClick: se
-            }, M(p.value ? "Saving..." : "Save changes"), 9, Zc)
+            }, M(p.value ? "Saving..." : "Save changes"), 9, ef)
           ])
-        ], 64)) : (E(), O("p", Hc, "Loading Yarr operations..."))
+        ], 64)) : (A(), O("p", jc, "Loading Yarr operations..."))
       ]),
       le(ou, {
         open: j.value,
-        onClose: T[6] || (T[6] = (N) => j.value = !1),
+        onClose: R[6] || (R[6] = (L) => j.value = !1),
         onApplied: Ye,
-        onBusy: T[7] || (T[7] = (N) => v.value = N)
+        onBusy: R[7] || (R[7] = (L) => v.value = L)
       }, null, 8, ["open"]),
       le(Wa, {
         open: K.value,
-        onClose: T[8] || (T[8] = (N) => K.value = !1),
+        onClose: R[8] || (R[8] = (L) => K.value = !1),
         onApplied: Ye,
-        onBusy: T[9] || (T[9] = (N) => v.value = N)
+        onBusy: R[9] || (R[9] = (L) => v.value = L)
       }, null, 8, ["open"])
-    ], 8, Lc));
+    ], 8, Yc));
   }
-}), tf = /* @__PURE__ */ Wl(ef, { shadowRoot: !1 });
-customElements.get("yarr-settings-app") || customElements.define("yarr-settings-app", tf);
+}), nf = /* @__PURE__ */ Wl(tf, { shadowRoot: !1 });
+customElements.get("yarr-settings-app") || customElements.define("yarr-settings-app", nf);

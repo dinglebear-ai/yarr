@@ -2,7 +2,7 @@
   "name": "jellyfin",
   "description": "Check server status, active sessions, libraries, and items in Jellyfin via its REST API. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "jellyfin",

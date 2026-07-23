@@ -1,6 +1,36 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -u
 
-YARR_RC_YARR=${YARR_RC_YARR:-/etc/rc.d/rc.yarr}
-[[ -x "$YARR_RC_YARR" ]] || exit 0
-exec "$YARR_RC_YARR" stop
+YARR_RC=${YARR_RC:-/etc/rc.d/rc.yarr}
+YARR_EVENT_ATTEMPTS=${YARR_EVENT_ATTEMPTS:-3}
+YARR_EVENT_LOCK_WAIT_SECONDS=${YARR_EVENT_LOCK_WAIT_SECONDS:-20}
+YARR_EVENT_RETRY_SECONDS=${YARR_EVENT_RETRY_SECONDS:-2}
+YARR_HOOK_NAME=${YARR_HOOK_NAME:-$(basename "$0")}
+
+report_failure() {
+    local message=$1
+    printf 'yarr %s hook: %s\n' "$YARR_HOOK_NAME" "$message" >&2
+    logger -t yarr-plugin -- "$YARR_HOOK_NAME hook: $message" 2>/dev/null || true
+}
+
+attempt=1
+while (( attempt <= YARR_EVENT_ATTEMPTS )); do
+    if YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" stop; then
+        if YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" status >/dev/null 2>&1; then
+            report_failure "stop returned success but the daemon is still running"
+        else
+            status=$?
+            if [[ $status -eq 3 ]]; then
+                exit 0
+            fi
+            report_failure "daemon quiescence could not be proven (status $status)"
+        fi
+    fi
+    if (( attempt < YARR_EVENT_ATTEMPTS )); then
+        sleep "$YARR_EVENT_RETRY_SECONDS"
+    fi
+    ((attempt += 1))
+done
+
+report_failure "refusing to continue before unmount after ${YARR_EVENT_ATTEMPTS} bounded attempts"
+exit 1

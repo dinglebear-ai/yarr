@@ -171,7 +171,7 @@ The script targets Yarr's default port 40070 and `YARR_MCP_TOKEN`.
 ### `install.sh`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/scripts/install.sh | bash
 YARR_VERSION=v0.4.0 INSTALL_DIR=~/.local/bin bash scripts/install.sh
 ```
 

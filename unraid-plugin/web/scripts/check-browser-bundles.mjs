@@ -27,6 +27,20 @@ for (const bundle of bundles) {
   }
 }
 
+const dashboardPage = await readFile(
+  resolve("../source/usr/local/emhttp/plugins/yarr/YarrDashboard.page"),
+  "utf8",
+);
+for (const required of [
+  "<yarr-dashboard></yarr-dashboard>",
+  "/plugins/yarr/web/yarr-dashboard.css",
+  "/plugins/yarr/web/yarr-dashboard.js",
+]) {
+  if (!dashboardPage.includes(required)) {
+    throw new Error(`YarrDashboard.page does not mount the packaged dashboard contract: ${required}`);
+  }
+}
+
 const originalProcess = globalThis.process;
 const originalCustomElements = globalThis.customElements;
 const registry = new Map();

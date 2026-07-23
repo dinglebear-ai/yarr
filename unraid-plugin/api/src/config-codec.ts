@@ -235,10 +235,21 @@ export function validateConfigState(state: ParsedConfigState): void {
   if (config.tailscaleServe && config.tailscaleHostname.length === 0) {
     throw new Error("Tailscale Serve requires a hostname");
   }
-  if (config.bindMode === "loopback") {
+  if (config.authMode === "trusted-gateway") {
+    if (config.bindMode !== "loopback" || config.tailscaleServe) {
+      throw new Error(
+        "trusted-gateway authentication is restricted to loopback without Tailscale Serve; network exposure requires bearer or google-oauth authentication",
+      );
+    }
+    if (!hasYarrListItem(env.YARR_MCP_ALLOWED_HOSTS) && !hasYarrListItem(env.YARR_MCP_ALLOWED_ORIGINS)) {
+      throw new Error("trusted-gateway authentication requires at least one allowed host or origin");
+    }
     return;
   }
 
+  if (config.bindMode === "loopback" && !config.tailscaleServe) {
+    return;
+  }
   if (config.authMode === "bearer" && hasValue(env.YARR_MCP_TOKEN)) {
     return;
   }
@@ -249,14 +260,8 @@ export function validateConfigState(state: ParsedConfigState): void {
   ) {
     return;
   }
-  if (
-    config.authMode === "trusted-gateway" &&
-    (hasYarrListItem(env.YARR_MCP_ALLOWED_HOSTS) || hasYarrListItem(env.YARR_MCP_ALLOWED_ORIGINS))
-  ) {
-    return;
-  }
 
-  throw new Error(`non-loopback configuration requires supported ${config.authMode} authentication`);
+  throw new Error(`network exposure requires configured ${config.authMode} authentication`);
 }
 
 function parseAssignments(text: string, fileName: string): Record<string, string> {

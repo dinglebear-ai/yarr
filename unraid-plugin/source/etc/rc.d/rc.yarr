@@ -2,54 +2,22 @@
 set -u
 
 YARR_RC_PHYSICAL_PATH=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")
-
-yarr_rc_is_installed_path() {
-    case "$1" in
-        /etc/rc.d/rc.yarr) return 0 ;;
-        */source/etc/rc.d/rc.yarr) return 1 ;;
-        */etc/rc.d/rc.yarr) return 0 ;;
-        *) return 1 ;;
-    esac
-}
-
-if yarr_rc_is_installed_path "$YARR_RC_PHYSICAL_PATH"; then
-    YARR_COMMON_SCRIPT=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
-    YARR_RC_FLOCK_BIN=/usr/bin/flock
-else
-    YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
-    YARR_COMMON_SCRIPT="${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
-    if [[ -x /usr/bin/flock ]]; then
-        YARR_RC_FLOCK_BIN=/usr/bin/flock
-    elif [[ -x /home/linuxbrew/.linuxbrew/bin/flock ]]; then
-        YARR_RC_FLOCK_BIN=/home/linuxbrew/.linuxbrew/bin/flock
-    else
-        YARR_RC_FLOCK_BIN=/usr/bin/flock
-    fi
-fi
+case "$YARR_RC_PHYSICAL_PATH" in
+    /etc/rc.d/rc.yarr|*/etc/rc.d/rc.yarr)
+        [[ "$YARR_RC_PHYSICAL_PATH" == */source/etc/rc.d/rc.yarr ]] && YARR_COMMON_SCRIPT="${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}/scripts/yarr-common.sh" || YARR_COMMON_SCRIPT=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+        ;;
+    *) YARR_COMMON_SCRIPT="${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}/scripts/yarr-common.sh" ;;
+esac
 # shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
-source "$YARR_COMMON_SCRIPT" || {
-    printf 'rc.yarr: cannot read common script\n' >&2
-    exit 1
-}
-
-yarr_log() {
-    mkdir -p "$(dirname "$YARR_LOG")"
-    printf '%s yarr: %s\n' "$(date -Is)" "$*" >> "$YARR_LOG"
-}
+source "$YARR_COMMON_SCRIPT" || { printf 'rc.yarr: cannot read common script\n' >&2; exit 1; }
 
 yarr_load_tailscale_state() {
     local line key value service='' port='' path=''
     [[ -f "$YARR_TAILSCALE_STATE" ]] || return 1
     while IFS= read -r line || [[ -n "$line" ]]; do
         [[ "$line" == *=* ]] || return 1
-        key=${line%%=*}
-        value=${line#*=}
-        case "$key" in
-            service) service=$value ;;
-            port) port=$value ;;
-            path) path=$value ;;
-            *) return 1 ;;
-        esac
+        key=${line%%=*}; value=${line#*=}
+        case "$key" in service) service=$value ;; port) port=$value ;; path) path=$value ;; *) return 1 ;; esac
     done < "$YARR_TAILSCALE_STATE"
     [[ "$service" =~ ^svc:[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || return 1
     [[ "$port" =~ ^[0-9]+$ ]] && ((10#$port >= 1 && 10#$port <= 65535)) || return 1
@@ -62,15 +30,12 @@ yarr_write_tailscale_state() {
     local tmp
     umask 077
     tmp="${YARR_TAILSCALE_STATE}.$$"
-    printf 'service=%s\nport=%s\npath=/\n' "$1" "$2" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$YARR_TAILSCALE_STATE"
+    printf 'service=%s\nport=%s\npath=/\n' "$1" "$2" > "$tmp" && chmod 600 "$tmp" && "$YARR_SYNC_BIN" -f "$tmp" && mv -f "$tmp" "$YARR_TAILSCALE_STATE"
 }
 
 yarr_remove_tailscale_serve() {
     [[ -f "$YARR_TAILSCALE_STATE" ]] || return 0
-    yarr_load_tailscale_state || {
-        yarr_log 'refusing to clear malformed Yarr Tailscale ownership state'
-        return 1
-    }
+    yarr_load_tailscale_state || { yarr_log 'refusing to clear malformed Yarr Tailscale ownership state'; return 1; }
     "$YARR_TAILSCALE_BIN" serve clear "$YARR_TAILSCALE_SERVICE" >/dev/null 2>&1 || {
         yarr_log "failed to remove Yarr Tailscale service ${YARR_TAILSCALE_SERVICE}"
         return 1
@@ -83,15 +48,12 @@ yarr_configure_tailscale_serve() {
     [[ "$TAILSCALE_SERVE" == yes ]] || return 0
     service="svc:${TAILSCALE_HOSTNAME}"
     config_file=$(mktemp "${YARR_APPDATA}/.tailscale-config.XXXXXX") || return 1
+    chmod 600 "$config_file" || { rm -f "$config_file"; return 1; }
     if ! "$YARR_TAILSCALE_BIN" serve get-config --service "$service" "$config_file" >/dev/null 2>&1; then
-        rm -f "$config_file"
-        yarr_log "could not inspect Tailscale service ${service}"
-        return 1
+        rm -f "$config_file"; yarr_log "could not inspect Tailscale service ${service}"; return 1
     fi
     if [[ -s "$config_file" ]]; then
-        rm -f "$config_file"
-        yarr_log "refusing to overwrite existing Tailscale service ${service}"
-        return 1
+        rm -f "$config_file"; yarr_log "refusing to overwrite existing Tailscale service ${service}"; return 1
     fi
     rm -f "$config_file"
     "$YARR_TAILSCALE_BIN" serve --bg --service "$service" --https "$PORT" --set-path / "http://127.0.0.1:${PORT}" || return 1
@@ -102,55 +64,105 @@ yarr_configure_tailscale_serve() {
 }
 
 yarr_stop_owned_process() {
-    local pid attempt
-    yarr_pid_is_owned || return 0
-    pid=$(<"$YARR_PID")
+    local pid attempt ownership_status
+    if yarr_pid_is_owned; then
+        pid=$(<"$YARR_PID")
+    else
+        ownership_status=$?
+        if [[ "$ownership_status" == 1 ]]; then
+            yarr_stop_logger
+            return
+        fi
+        yarr_error 'refusing to stop a live process whose Yarr ownership cannot be proven'
+        return 1
+    fi
+
     kill -TERM "$pid" 2>/dev/null || true
-    for ((attempt = 0; attempt < 20; attempt++)); do
+    for ((attempt = 0; attempt < ${YARR_STOP_ATTEMPTS:-20}; attempt++)); do
         kill -0 "$pid" 2>/dev/null || break
-        sleep 1
+        sleep "${YARR_STOP_INTERVAL:-1}"
     done
     if kill -0 "$pid" 2>/dev/null; then
-        yarr_pid_is_owned || return 1
-        pid=$(<"$YARR_PID")
+        yarr_pid_is_owned || { yarr_error 'process identity changed while stopping'; return 1; }
         kill -KILL "$pid" 2>/dev/null || true
+        for ((attempt = 0; attempt < 50; attempt++)); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.02
+        done
     fi
-    rm -f "$YARR_PID"
+    if kill -0 "$pid" 2>/dev/null; then
+        yarr_error "owned Yarr PID ${pid} did not quiesce"
+        return 1
+    fi
+    rm -f "$YARR_PID" "$YARR_PID_META"
+    yarr_stop_logger
+}
+
+yarr_close_active_lock_fd() {
+    local fd=${YARR_ACTIVE_LOCK_FD:-}
+    [[ "$fd" =~ ^[0-9]{1,3}$ ]] || return 0
+    exec {fd}>&-
 }
 
 yarr_start_locked() {
+    local ownership_status logger_pid pid host
     yarr_load_config && yarr_validate_config && yarr_select_binary || return 1
     if yarr_pid_is_owned; then
         yarr_log 'already running'
         return 0
+    else
+        ownership_status=$?
+        [[ "$ownership_status" == 1 ]] || { yarr_error 'cannot start while conflicting live PID evidence exists'; return 1; }
     fi
-    [[ "$ENABLED" == yes ]] || {
-        yarr_log 'disabled; not starting'
-        return 0
-    }
+    [[ "$ENABLED" == yes ]] || { yarr_log 'disabled; not starting'; return 0; }
 
-    mkdir -p "$YARR_APPDATA" "$(dirname "$YARR_LOG")" "$(dirname "$YARR_PID")" || return 1
+    mkdir -p "$YARR_APPDATA" "$(dirname "$YARR_PID")" || return 1
     yarr_write_runtime_env || return 1
-    yarr_log "starting ${YARR_BINARY}"
-    (
-        if [[ -n "${YARR_RC_ACTIVE_LOCK_FD:-}" ]]; then
-            exec {YARR_RC_ACTIVE_LOCK_FD}>&-
-        fi
-        exec setsid env -i "PATH=${PATH}" "${YARR_RUNTIME_PAIRS[@]}" \
-            "$YARR_BINARY" serve mcp 9>&-
-    ) >> "$YARR_LOG" 2>&1 &
-    local pid=$!
+    yarr_prepare_log || return 1
+    [[ ! -e "$YARR_LOG_PIPE" || -p "$YARR_LOG_PIPE" ]] || { yarr_error 'unsafe runtime log pipe path'; return 1; }
+    rm -f "$YARR_LOG_PIPE"
     umask 077
-    printf '%s\n' "$pid" > "${YARR_PID}.$$" && mv -f "${YARR_PID}.$$" "$YARR_PID" || {
-        kill -TERM "$pid" 2>/dev/null || true
-        rm -f "${YARR_PID}.$$"
+    mkfifo -m 0600 "$YARR_LOG_PIPE" || return 1
+    (
+        yarr_close_active_lock_fd
+        yarr_stream_log
+    ) < "$YARR_LOG_PIPE" &
+    logger_pid=$!
+    printf '%s\n' "$logger_pid" > "${YARR_LOGGER_PID}.$$" && chmod 600 "${YARR_LOGGER_PID}.$$" && mv -f "${YARR_LOGGER_PID}.$$" "$YARR_LOGGER_PID" || {
+        kill -TERM "$logger_pid" 2>/dev/null || true
+        rm -f "$YARR_LOG_PIPE" "${YARR_LOGGER_PID}.$$"
         return 1
     }
 
-    if ! yarr_wait_ready "$(yarr_effective_host)"; then
-        yarr_log 'readiness failed; stopping partial startup'
+    yarr_log "starting ${YARR_BINARY}"
+    (
+        yarr_close_active_lock_fd
+        set -a
+        # shellcheck disable=SC1090
+        source "$YARR_RUNTIME_ENV"
+        set +a
+        exec "$YARR_BINARY" serve mcp
+    ) > "$YARR_LOG_PIPE" 2>&1 &
+    pid=$!
+    printf '%s\n' "$pid" > "${YARR_PID}.$$" && chmod 600 "${YARR_PID}.$$" && mv -f "${YARR_PID}.$$" "$YARR_PID" || {
+        kill -TERM "$pid" 2>/dev/null || true
+        rm -f "${YARR_PID}.$$"
+        yarr_stop_logger
+        return 1
+    }
+    if ! yarr_record_pid_metadata "$pid" "$YARR_BINARY"; then
+        kill -TERM "$pid" 2>/dev/null || true
+        rm -f "$YARR_PID"
+        yarr_stop_logger
+        yarr_error 'new Yarr process did not establish exact ownership metadata'
+        return 1
+    fi
+
+    host=$(yarr_effective_host)
+    if ! yarr_wait_ready "$host" "$pid"; then
+        yarr_log 'readiness or listener ownership failed; stopping partial startup'
         yarr_stop_owned_process || true
-        rm -f "$YARR_PID" "$YARR_RUNTIME_ENV"
+        rm -f "$YARR_RUNTIME_ENV"
         return 1
     fi
     if [[ "$TAILSCALE_SERVE" == yes ]]; then
@@ -166,16 +178,31 @@ yarr_start_locked() {
 
 yarr_stop_locked() {
     local result=0
-    yarr_remove_tailscale_serve || result=1
     yarr_stop_owned_process || result=1
-    rm -f "$YARR_RUNTIME_ENV"
+    yarr_remove_tailscale_serve || result=1
+    if [[ "$result" == 0 ]]; then rm -f "$YARR_RUNTIME_ENV"; fi
     return "$result"
 }
 
 yarr_status_locked() {
+    local ownership_status pid
+    yarr_load_config || return 1
+    yarr_validate_config || return 1
+
     if yarr_pid_is_owned; then
-        printf 'yarr: RUNNING\n'
-        return 0
+        pid=$(<"$YARR_PID")
+        if yarr_pid_owns_listening_port "$pid" "${PORT:-40070}"; then
+            printf 'yarr: RUNNING\n'
+            return 0
+        fi
+        printf 'yarr: ERROR owned PID has no expected listener\n' >&2
+        return 4
+    else
+        ownership_status=$?
+        if [[ "$ownership_status" == 2 ]]; then
+            printf 'yarr: ERROR unverified live PID evidence\n' >&2
+            return 4
+        fi
     fi
     printf 'yarr: STOPPED\n'
     return 3
@@ -185,26 +212,16 @@ yarr_restart_locked() {
     yarr_stop_locked && yarr_start_locked
 }
 
-yarr_with_inherited_lock() {
-    local lock_fd=$1 action=$2 actual expected
-    [[ "$lock_fd" =~ ^[0-9]{1,3}$ ]] || return 1
-    ((10#$lock_fd >= 3 && 10#$lock_fd <= 255)) || return 1
-    [[ -e "/proc/$$/fd/${lock_fd}" ]] || return 1
-    actual=$(readlink -f "/proc/$$/fd/${lock_fd}" 2>/dev/null) || return 1
-    expected=$(readlink -f "$YARR_LOCK" 2>/dev/null) || return 1
-    [[ "$actual" == "$expected" ]] || return 1
-    "$YARR_RC_FLOCK_BIN" -n "$lock_fd" || return 1
-    local YARR_RC_ACTIVE_LOCK_FD=$lock_fd
+yarr_dispatch_locked() {
+    local action=$1
+    yarr_recover_config_transaction || return 1
     "$action"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     lock_fd=''
     if [[ "${1:-}" == --lock-fd ]]; then
-        [[ $# -eq 3 ]] || {
-            printf 'usage: %s [--lock-fd FD] {start|stop|restart|status|reload}\n' "$0" >&2
-            exit 2
-        }
+        [[ $# -eq 3 ]] || { printf 'usage: %s [--lock-fd FD] {start|stop|restart|status|reload}\n' "$0" >&2; exit 2; }
         lock_fd=$2
         shift 2
     fi
@@ -213,14 +230,11 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         stop) action=yarr_stop_locked ;;
         restart|reload) action=yarr_restart_locked ;;
         status) action=yarr_status_locked ;;
-        *)
-            printf 'usage: %s [--lock-fd FD] {start|stop|restart|status|reload}\n' "$0" >&2
-            exit 2
-            ;;
+        *) printf 'usage: %s [--lock-fd FD] {start|stop|restart|status|reload}\n' "$0" >&2; exit 2 ;;
     esac
     if [[ -n "$lock_fd" ]]; then
-        yarr_with_inherited_lock "$lock_fd" "$action"
+        yarr_with_inherited_lock "$lock_fd" yarr_dispatch_locked "$action"
     else
-        yarr_with_lock "$action"
+        yarr_with_lock yarr_dispatch_locked "$action"
     fi
 fi

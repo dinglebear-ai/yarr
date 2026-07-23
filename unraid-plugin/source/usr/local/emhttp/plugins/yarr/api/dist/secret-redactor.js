@@ -6,6 +6,7 @@ exports.collectSecretValues = collectSecretValues;
 const promises_1 = require("node:fs/promises");
 const config_codec_1 = require("./config-codec");
 const paths_1 = require("./paths");
+const service_catalog_1 = require("./service-catalog");
 class StoredSecretProvider {
     files;
     constructor(files = {
@@ -65,7 +66,8 @@ function redactSecrets(message, secrets) {
 }
 function collectSecretValues(values) {
     return [...new Set(Object.entries(values)
-            .filter(([key, value]) => value.length > 0 && /(?:TOKEN|SECRET|PASSWORD|USERNAME|API_KEY|PRIVATE_KEY)$/.test(key))
+            .filter(([key, value]) => value.length > 0 && (service_catalog_1.SECRET_ENVIRONMENT_KEYS.has(key) ||
+            /(?:TOKEN|SECRET|PASSWORD|USERNAME|API_KEY|APIKEY|PRIVATE_KEY)$/.test(key)))
             .sort(([left], [right]) => left.localeCompare(right))
             .map(([, value]) => value))];
 }

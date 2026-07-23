@@ -12,8 +12,15 @@ plugin="$package_root/yarr.plg"
 source_root="$package_root/source"
 api_root="$package_root/api"
 web_root="$package_root/web"
+source_repository=$(jq -er '.sourceRepository' "$manifest")
+package_repository=$(jq -er '.packageRepository' "$manifest")
+binary_repository=$(jq -er '.binaryRepository' "$manifest")
+[[ "$source_repository" == dinglebear-ai/yarr && "$package_repository" == dinglebear-ai/yarr ]] || {
+    printf 'source and package repository identity must be dinglebear-ai/yarr\n' >&2
+    exit 1
+}
 package_file="yarr-${version}-x86_64-${build}.txz"
-package_url="https://github.com/dinglebear-ai/yarr/releases/download/unraid-v${version}-${build}/${package_file}"
+package_url="https://github.com/${package_repository}/releases/download/unraid-v${version}-${build}/${package_file}"
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT
 
@@ -25,14 +32,14 @@ if [[ -n "${YARR_RELEASE_ASSET_DIR:-}" ]]; then
     cp -- "$YARR_RELEASE_ASSET_DIR/$archive_asset" "$download/$archive_asset"
     cp -- "$YARR_RELEASE_ASSET_DIR/$checksum_asset" "$download/$checksum_asset"
 else
-    release_state=$(gh release view "v${version}" -R dinglebear-ai/yarr --json tagName,isDraft,assets)
+    release_state=$(gh release view "v${version}" -R "$binary_repository" --json tagName,isDraft,assets)
     [[ $(jq -r '.tagName' <<< "$release_state") == "v${version}" ]] || { printf 'release tag mismatch\n' >&2; exit 1; }
     [[ $(jq -r --arg archive "$archive_asset" --arg checksum "$checksum_asset" \
         '([.assets[].name] | sort) == ([$archive, $checksum] | sort)' <<< "$release_state") == true ]] || {
         printf 'release must contain exactly %s and %s\n' "$archive_asset" "$checksum_asset" >&2
         exit 1
     }
-    gh release download "v${version}" -R dinglebear-ai/yarr \
+    gh release download "v${version}" -R "$binary_repository" \
         --pattern "$archive_asset" --pattern "$checksum_asset" --dir "$download"
 fi
 

@@ -13,7 +13,7 @@ checks required assets, and publishes the GitHub Release last.
 1. Open the failed workflow and identify `verify`, `build`, `stage-release`,
    `npm`, or `finalize`.
 2. Confirm the GitHub Release is still a draft:
-   `gh api repos/jmagar/yarr/releases/tags/vX.Y.Z --jq '{draft,tag_name,assets:[.assets[].name]}'`.
+   `gh api repos/dinglebear-ai/yarr/releases/tags/vX.Y.Z --jq '{draft,tag_name,assets:[.assets[].name]}'`.
 3. Check npm independently:
    `npm view yarr-mcp@X.Y.Z version`.
 4. Fix the underlying source/credential/registry incident. Do not delete a

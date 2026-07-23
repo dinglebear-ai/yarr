@@ -6,6 +6,7 @@ plugin_root="$repo_root/unraid-plugin"
 source_root="$plugin_root/source"
 classic="$plugin_root/yarr.plg"
 page="$source_root/usr/local/emhttp/plugins/yarr/yarr.page"
+dashboard_page="$source_root/usr/local/emhttp/plugins/yarr/YarrDashboard.page"
 default_cfg="$source_root/usr/local/emhttp/plugins/yarr/default.cfg"
 default_env="$source_root/usr/local/emhttp/plugins/yarr/default.env"
 classic_install="$source_root/usr/local/emhttp/plugins/yarr/scripts/install-classic-plugin.sh"
@@ -64,6 +65,9 @@ bash -n "$remove_inline"
 grep -Fq 'upgradepkg --install-new --reinstall' "$install_inline" || fail 'classic install is not idempotent'
 grep -Fq 'install-classic-plugin.sh' "$install_inline" || fail 'classic install does not delegate coordinated activation'
 grep -Fq 'uninstall-classic-plugin.sh' "$remove_inline" || fail 'classic uninstall does not stop before package removal'
+grep -Fq 'flock --exclusive --wait 30 9' "$install_inline" || fail 'classic package install does not hold the stable lifecycle lock'
+grep -Fq '/etc/rc.d/rc.yarr --lock-fd 9 stop' "$install_inline" || fail 'classic upgrade does not stop the old daemon under lock'
+grep -Fq 'flock --exclusive --wait 30 9' "$remove_inline" || fail 'classic package removal does not hold the stable lifecycle lock'
 grep -Fq 'API uninstall failed; refusing to remove classic payload' "$remove_inline" || fail 'classic removal is not gated on API uninstall success'
 if grep -Eq '(/boot/config/plugins/yarr|/mnt/user/appdata/yarr).*(rm|remove)|(rm|remove).*(/boot/config/plugins/yarr|/mnt/user/appdata/yarr)' "$remove_inline"; then
     fail 'classic uninstall removes persistent config or appdata'
@@ -75,6 +79,9 @@ grep -Fq '<script type="module" src="/plugins/yarr/web/yarr-settings.js"></scrip
 if grep -Eqi '(\$_(POST|GET)|file_put_contents|fopen|credential|password|secret|token)' "$page"; then
     fail 'settings page contains config writing or credential handling'
 fi
+grep -Fq '<yarr-dashboard></yarr-dashboard>' "$dashboard_page" || fail 'dashboard custom element is not mounted'
+grep -Fq '/plugins/yarr/web/yarr-dashboard.css' "$dashboard_page" || fail 'dashboard CSS path is wrong'
+grep -Fq '/plugins/yarr/web/yarr-dashboard.js' "$dashboard_page" || fail 'dashboard JS path is wrong'
 
 [[ $(stat -c %a "$default_cfg") == 600 ]] || fail 'default.cfg must be mode 0600'
 [[ $(stat -c %a "$default_env") == 600 ]] || fail 'default.env must be mode 0600'
@@ -90,6 +97,7 @@ mkdir -p "$installed_plugin/scripts" "$classic_root/boot/config/plugins/yarr"
 cp "$default_cfg" "$installed_plugin/default.cfg"
 cp "$default_env" "$installed_plugin/default.env"
 cp "$classic_install" "$installed_plugin/scripts/install-classic-plugin.sh"
+ln -sf "$source_root/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh" "$installed_plugin/scripts/yarr-common.sh"
 cat > "$installed_plugin/scripts/install-api-plugin.sh" <<'EOF'
 #!/usr/bin/env bash
 exit 0
@@ -99,12 +107,20 @@ printf 'sentinel-config\n' > "$classic_root/boot/config/plugins/yarr/yarr.cfg"
 chmod 640 "$classic_root/boot/config/plugins/yarr/yarr.cfg"
 YARR_TEST_ROOT="$classic_root" "$installed_plugin/scripts/install-classic-plugin.sh"
 [[ $(cat "$classic_root/boot/config/plugins/yarr/yarr.cfg") == sentinel-config ]] || fail 'install overwrote existing yarr.cfg'
-[[ $(stat -c %a "$classic_root/boot/config/plugins/yarr/yarr.cfg") == 640 ]] || fail 'install changed existing yarr.cfg mode'
+[[ $(stat -c %a "$classic_root/boot/config/plugins/yarr/yarr.cfg") == 600 ]] || fail 'install did not harden existing yarr.cfg mode'
 [[ -f "$classic_root/boot/config/plugins/yarr/.env" ]] || fail 'install did not create missing .env'
 [[ $(stat -c %a "$classic_root/boot/config/plugins/yarr/.env") == 600 ]] || fail 'created .env is not mode 0600'
 printf 'sentinel-env\n' > "$classic_root/boot/config/plugins/yarr/.env"
 YARR_TEST_ROOT="$classic_root" "$installed_plugin/scripts/install-classic-plugin.sh"
 [[ $(cat "$classic_root/boot/config/plugins/yarr/.env") == sentinel-env ]] || fail 'upgrade overwrote existing .env'
+cp "$classic_root/boot/config/plugins/yarr/yarr.cfg" "$classic_root/boot/config/plugins/yarr/yarr.cfg.transaction"
+cp "$classic_root/boot/config/plugins/yarr/.env" "$classic_root/boot/config/plugins/yarr/.env.transaction"
+printf 'version=1\nhad_previous_good=no\n' > "$classic_root/boot/config/plugins/yarr/yarr.cfg.transaction-state"
+printf 'mixed-new-config\n' > "$classic_root/boot/config/plugins/yarr/yarr.cfg"
+printf 'mixed-new-env\n' > "$classic_root/boot/config/plugins/yarr/.env"
+YARR_TEST_ROOT="$classic_root" "$installed_plugin/scripts/install-classic-plugin.sh"
+[[ $(cat "$classic_root/boot/config/plugins/yarr/yarr.cfg") == sentinel-config ]] || fail 'classic install did not recover interrupted config generation'
+[[ $(cat "$classic_root/boot/config/plugins/yarr/.env") == sentinel-env ]] || fail 'classic install did not preserve interrupted transaction credentials'
 
 # Rootless API fixture exercises loader registration, atomic symlink swaps,
 # stale-log exclusion, rollback, and uninstall registration cleanup.
@@ -115,20 +131,15 @@ api_nodes="$api_home/node_modules"
 api_config="$api_root/boot/config/plugins/dynamix.my.servers/configs/api.json"
 api_credentials="$api_root/boot/config/plugins/dynamix.my.servers/myservers.cfg"
 api_log="$api_root/var/log/graphql-api.log"
-mkdir -p "$payload/dist" "$api_nodes/.unraid-api-plugin-yarr/prior" \
+mkdir -p "$payload" "$api_nodes/.unraid-api-plugin-yarr/prior" \
     "$(dirname "$api_config")" "$(dirname "$api_log")" "$api_root/bin"
-cat > "$payload/package.json" <<'EOF'
-{"name":"unraid-api-plugin-yarr","version":"2.1.0","type":"commonjs","main":"dist/index.js","peerDependencies":{"@nestjs/common":"*"}}
-EOF
-printf '{"name":"unraid-api-plugin-yarr","version":"2.1.0","lockfileVersion":3,"packages":{"":{"name":"unraid-api-plugin-yarr","version":"2.1.0"}}}\n' > "$payload/package-lock.json"
-cat > "$payload/dist/index.js" <<'EOF'
-class YarrApiModule {}
-module.exports = {
-  adapter: "nestjs",
-  ApiModule: YarrApiModule,
-  graphqlSchemaExtension: "extend type Query { yarrRuntime: YarrRuntime! }",
-};
-EOF
+packaged_api="$source_root/usr/local/emhttp/plugins/yarr/api"
+cp -a "$packaged_api/." "$payload/"
+diff -qr "$packaged_api" "$payload" >/dev/null || fail 'API activation fixture is not the exact staged packaged payload'
+for dependency in "$plugin_root/api/node_modules"/*; do
+    [[ -e "$dependency" ]] || continue
+    ln -s "$dependency" "$api_nodes/$(basename "$dependency")"
+done
 printf 'prior\n' > "$api_nodes/.unraid-api-plugin-yarr/prior/marker"
 ln -s "$api_nodes/.unraid-api-plugin-yarr/prior" "$api_nodes/unraid-api-plugin-yarr"
 printf '{"name":"@unraid/api","peerDependencies":{"existing":"*"}}\n' > "$api_home/package.json"
@@ -163,6 +174,22 @@ cat > "$api_root/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'curl\n' >> "$YARR_TEST_OPERATIONS"
+tr '\0' ' ' < "/proc/$$/cmdline" >> "$YARR_TEST_CMDLINES"
+printf '\n' >> "$YARR_TEST_CMDLINES"
+if grep -Fq 'contract-api-key' "/proc/$$/cmdline"; then
+  printf 'API key leaked through curl argv\n' >&2
+  exit 91
+fi
+previous=''
+for argument in "$@"; do
+  if [[ "$previous" == --header && "$argument" == @* ]]; then
+    header_file=${argument#@}
+    [[ -f "$header_file" && ! -L "$header_file" ]] || exit 92
+    [[ $(stat -c %a "$header_file") == 600 ]] || exit 93
+    grep -Fqx 'x-api-key: contract-api-key' "$header_file" || exit 94
+  fi
+  previous=$argument
+done
 if [[ "${YARR_TEST_PROBE_FAIL:-no}" == yes ]]; then
   printf '%s\n' '{"errors":[{"message":"field missing"}]}'
 else
@@ -201,11 +228,16 @@ api_env=(
     YARR_TEST_API_LOG="$api_log"
     YARR_TEST_API_RUNNING="$tmp_dir/api-running"
     YARR_TEST_START_COUNT_FILE="$tmp_dir/api-start-count"
+    YARR_TEST_CMDLINES="$tmp_dir/api-cmdlines"
 )
 env "${api_env[@]}" "$api_install"
 active_target=$(readlink "$api_nodes/unraid-api-plugin-yarr")
 [[ "$active_target" == "$api_nodes/.unraid-api-plugin-yarr/"* ]] || fail 'API target does not point at immutable activation store'
 [[ -f "$active_target/dist/index.js" ]] || fail 'activated API package is incomplete'
+diff -qr "$payload" "$active_target" >/dev/null || fail 'activated API package differs from the exact staged payload'
+if grep -Fq 'contract-api-key' "$tmp_dir/api-cmdlines"; then
+    fail 'Unraid API key appeared in a probe process command line'
+fi
 jq -e '.peerDependencies["unraid-api-plugin-yarr"] == "*"' "$api_home/package.json" >/dev/null || fail 'API package registration missing'
 jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || fail 'API config registration missing'
 if find "$api_nodes" -maxdepth 1 -name 'unraid-api-plugin-yarr.new.*' -print -quit | grep -q .; then
@@ -288,9 +320,20 @@ mkdir -p "$uninstall_plugin/scripts" "$uninstall_root/etc/rc.d" \
     "$uninstall_root/boot/config/plugins/yarr" "$uninstall_root/mnt/user/appdata/yarr" \
     "$uninstall_root/var/run" "$uninstall_root/var/lock" "$uninstall_root/var/log/yarr"
 cp "$classic_uninstall" "$uninstall_plugin/scripts/uninstall-classic-plugin.sh"
+ln -sf "$source_root/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh" "$uninstall_plugin/scripts/yarr-common.sh"
 cat > "$uninstall_root/etc/rc.d/rc.yarr" <<'EOF'
 #!/usr/bin/env bash
-printf 'rc %s\n' "$1" >> "$YARR_TEST_UNINSTALL_OPERATIONS"
+set -u
+if [[ "${1:-}" == --lock-fd ]]; then
+  shift 2
+fi
+action=${1:-}
+printf 'rc %s\n' "$action" >> "$YARR_TEST_UNINSTALL_OPERATIONS"
+case "$action" in
+  stop) exit 0 ;;
+  status) exit 3 ;;
+  *) exit 2 ;;
+esac
 EOF
 cat > "$uninstall_plugin/scripts/uninstall-api-plugin.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -308,6 +351,7 @@ YARR_TEST_ROOT="$uninstall_root" YARR_TEST_UNINSTALL_OPERATIONS="$uninstall_ops"
 [[ -f "$uninstall_root/boot/config/plugins/yarr/yarr.cfg" ]] || fail 'uninstall removed boot config'
 [[ -f "$uninstall_root/mnt/user/appdata/yarr/state" ]] || fail 'uninstall removed appdata'
 [[ ! -e "$uninstall_root/var/run/yarr.pid" && ! -e "$uninstall_root/var/run/yarr.env" ]] || fail 'uninstall retained volatile runtime files'
+[[ -e "$uninstall_root/var/lock/yarr-plugin.lock" ]] || fail 'uninstall unlinked the stable lock inode'
 
 for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" "$build_script" "$verify_script"; do
     [[ -x "$executable" ]] || fail "script is not executable: ${executable#"$repo_root/"}"

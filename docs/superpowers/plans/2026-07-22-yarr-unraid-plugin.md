@@ -16,7 +16,7 @@
 - Keep `yarr.cfg` for lifecycle/plugin settings and `.env` for Yarr settings and credentials. Never mirror either into JSON.
 - Never expose stored credentials through GraphQL, logs, import previews, frontend state, shell output, or test snapshots.
 - Use `/var/lock/yarr-plugin.lock` to serialize save, restart, update, reset, install, and uninstall operations.
-- Default to loopback binding. A non-loopback bind requires bearer authentication, Google OAuth, or typed trusted-gateway mode accepted by Yarr itself.
+- Default to loopback binding. LAN, custom, and Tailscale exposure require bearer authentication or Google OAuth. The plugin permits typed trusted-gateway mode only on loopback with Tailscale disabled behind a same-host proxy.
 - Keep the packaged binary immutable at `/usr/local/yarr/bin/yarr`; place self-updated binaries at `/mnt/user/appdata/yarr/bin/yarr` and retain one known-good predecessor.
 - Verify upstream archives with the published `yarr-x86_64.tar.gz.sha256`, reject extra/missing archive entries, and swap binaries atomically.
 - Use Node's HTTP client over `/var/run/docker.sock` for read-only Docker discovery. Do not import private `@app/*` modules from the Unraid API repository.
@@ -83,6 +83,8 @@ Use this schema and initial release identity:
   "packageFile": "yarr-2.1.0-x86_64-1.txz",
   "packageSha256": "0000000000000000000000000000000000000000000000000000000000000000",
   "packageUrl": "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz",
+  "sourceRepository": "dinglebear-ai/yarr",
+  "packageRepository": "dinglebear-ai/yarr",
   "binaryRepository": "dinglebear-ai/yarr",
   "binaryAsset": "yarr-x86_64.tar.gz",
   "apiPackage": "unraid-api-plugin-yarr",
@@ -458,8 +460,12 @@ validate complete prospective state
 acquire the plugin lock through flock
 write yarr.cfg.next and .env.next with mode 0600
 fsync both files and their parent directory
+copy the current pair and prior known-good pair to transaction evidence
+atomically publish and fsync yarr.cfg.transaction-state
 rename current files to known-good copies
 atomically rename next files into place
+remove and fsync the marker as the pair commit point
+recover any surviving marker before every API/shell read and startup
 restart only when effective state changed
 wait for /ready
 restore both known-good files and restart when readiness fails

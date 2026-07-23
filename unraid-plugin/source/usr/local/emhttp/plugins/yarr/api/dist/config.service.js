@@ -143,6 +143,7 @@ class ConfigService {
         });
     }
     async readState(lease) {
+        await this.recoverConfigTransaction(lease);
         const pluginText = await this.files.readFile(paths_1.YARR_PLUGIN_CONFIG_PATH);
         lease.assertHeld();
         const environmentText = await this.files.readFile(paths_1.YARR_ENVIRONMENT_PATH);
@@ -177,6 +178,11 @@ class ConfigService {
                 await this.files.syncFile(paths_1.YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH);
             }
             await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+            await this.files.writeFile(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH, `version=1\nhad_previous_good=${hadPreviousGoodPair ? "yes" : "no"}\n`, 0o600);
+            await this.files.syncFile(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH);
+            await this.files.rename(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH, paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+            await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+            lease.assertHeld();
             await this.files.rename(paths_1.YARR_PLUGIN_CONFIG_PATH, paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH);
             pluginMovedToGood = true;
             await this.files.rename(paths_1.YARR_ENVIRONMENT_PATH, paths_1.YARR_ENVIRONMENT_GOOD_PATH);
@@ -184,29 +190,65 @@ class ConfigService {
             await this.files.rename(paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH, paths_1.YARR_PLUGIN_CONFIG_PATH);
             await this.files.rename(paths_1.YARR_ENVIRONMENT_NEXT_PATH, paths_1.YARR_ENVIRONMENT_PATH);
             await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+            await this.files.remove(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+            await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
             lease.assertHeld();
             return { hadPreviousGoodPair };
         }
         catch (error) {
             try {
-                if (pluginMovedToGood || environmentMovedToGood) {
-                    await this.restorePairFromTransaction(paths_1.YARR_PLUGIN_CONFIG_TRANSACTION_PATH, paths_1.YARR_ENVIRONMENT_TRANSACTION_PATH, paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH, paths_1.YARR_ENVIRONMENT_NEXT_PATH, paths_1.YARR_PLUGIN_CONFIG_PATH, paths_1.YARR_ENVIRONMENT_PATH);
-                    if (hadPreviousGoodPair) {
-                        await this.restorePairFromTransaction(paths_1.YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH, paths_1.YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH, paths_1.YARR_PLUGIN_CONFIG_GOOD_RESTORE_PATH, paths_1.YARR_ENVIRONMENT_GOOD_RESTORE_PATH, paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH, paths_1.YARR_ENVIRONMENT_GOOD_PATH);
-                    }
-                    else {
-                        await this.files.remove(paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH);
-                        await this.files.remove(paths_1.YARR_ENVIRONMENT_GOOD_PATH);
-                        await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
-                    }
+                if (pluginMovedToGood || environmentMovedToGood || await this.files.exists(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH)) {
+                    await this.recoverConfigTransaction(lease);
                 }
-                await this.cleanupTransactionBackups({ hadPreviousGoodPair });
+                else {
+                    await this.cleanupTransactionBackups({ hadPreviousGoodPair });
+                }
             }
             catch (recoveryError) {
                 throw new Error(`configuration install recovery failed after ${errorMessage(error)}: ${errorMessage(recoveryError)}`);
             }
             throw error;
         }
+    }
+    async recoverConfigTransaction(lease) {
+        if (!await this.files.exists(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH)) {
+            lease.assertHeld();
+            return;
+        }
+        const state = await this.files.readFile(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+        const match = /^version=1\nhad_previous_good=(yes|no)\n$/.exec(state);
+        if (!match) {
+            throw new Error("invalid Yarr configuration transaction marker; refusing to read a possibly mixed generation");
+        }
+        const hadPreviousGoodPair = match[1] === "yes";
+        for (const path of [paths_1.YARR_PLUGIN_CONFIG_TRANSACTION_PATH, paths_1.YARR_ENVIRONMENT_TRANSACTION_PATH]) {
+            if (!await this.files.exists(path)) {
+                throw new Error("incomplete Yarr configuration transaction evidence; refusing to synthesize defaults");
+            }
+        }
+        if (hadPreviousGoodPair) {
+            for (const path of [
+                paths_1.YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH,
+                paths_1.YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH,
+            ]) {
+                if (!await this.files.exists(path)) {
+                    throw new Error("incomplete prior known-good transaction evidence; refusing unsafe recovery");
+                }
+            }
+        }
+        await this.restorePairFromTransaction(paths_1.YARR_PLUGIN_CONFIG_TRANSACTION_PATH, paths_1.YARR_ENVIRONMENT_TRANSACTION_PATH, paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH, paths_1.YARR_ENVIRONMENT_NEXT_PATH, paths_1.YARR_PLUGIN_CONFIG_PATH, paths_1.YARR_ENVIRONMENT_PATH);
+        if (hadPreviousGoodPair) {
+            await this.restorePairFromTransaction(paths_1.YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH, paths_1.YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH, paths_1.YARR_PLUGIN_CONFIG_GOOD_RESTORE_PATH, paths_1.YARR_ENVIRONMENT_GOOD_RESTORE_PATH, paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH, paths_1.YARR_ENVIRONMENT_GOOD_PATH);
+        }
+        else {
+            await this.files.remove(paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH);
+            await this.files.remove(paths_1.YARR_ENVIRONMENT_GOOD_PATH);
+            await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+        }
+        await this.files.remove(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+        await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+        await this.cleanupTransactionBackups({ hadPreviousGoodPair });
+        lease.assertHeld();
     }
     async repairModes(lease) {
         await this.files.chmod(paths_1.YARR_PLUGIN_CONFIG_PATH, 0o600);
@@ -226,13 +268,15 @@ class ConfigService {
         await this.files.rename(environmentStage, environmentTarget);
         await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
     }
-    async cleanupTransactionBackups(backup) {
+    async cleanupTransactionBackups(_backup) {
+        await this.files.remove(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+        await this.files.remove(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH);
         await this.files.remove(paths_1.YARR_PLUGIN_CONFIG_TRANSACTION_PATH);
         await this.files.remove(paths_1.YARR_ENVIRONMENT_TRANSACTION_PATH);
-        if (backup.hadPreviousGoodPair) {
-            await this.files.remove(paths_1.YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH);
-            await this.files.remove(paths_1.YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH);
-        }
+        await this.files.remove(paths_1.YARR_PLUGIN_CONFIG_GOOD_TRANSACTION_PATH);
+        await this.files.remove(paths_1.YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH);
+        await this.files.remove(paths_1.YARR_PLUGIN_CONFIG_GOOD_RESTORE_PATH);
+        await this.files.remove(paths_1.YARR_ENVIRONMENT_GOOD_RESTORE_PATH);
         await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
     }
     async restoreKnownGood(_lease) {

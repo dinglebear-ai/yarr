@@ -1,0 +1,9 @@
+Menu="Dashboard"
+Title="Yarr"
+Icon="server"
+Tag="server"
+---
+<link rel="stylesheet" href="/plugins/yarr/web/yarr-dashboard.css">
+<noscript><p>The Yarr dashboard widget requires JavaScript.</p></noscript>
+<yarr-dashboard></yarr-dashboard>
+<script type="module" src="/plugins/yarr/web/yarr-dashboard.js"></script>

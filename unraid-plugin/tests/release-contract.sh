@@ -12,6 +12,14 @@ root_readme="$repo_root/README.md"
 justfile="$repo_root/Justfile"
 reject_zero_sha=false
 
+legacy_owner=jmagar
+legacy_repository=yarr
+if git -C "$repo_root" grep -n "${legacy_owner}/${legacy_repository}" -- \
+    ':!CHANGELOG.md' ':!docs/sessions/**' > /dev/null; then
+    printf 'release contract: stale legacy publication identity remains outside migration history\n' >&2
+    exit 1
+fi
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --manifest)
@@ -124,7 +132,7 @@ done
 manifest_keys=$(jq -r 'keys_unsorted[]' "$manifest")
 while IFS= read -r key; do
     case "$key" in
-        schemaVersion|pluginVersion|packageBuild|packageFile|packageSha256|packageUrl|binaryRepository|binaryAsset|upstreamBinarySha256|apiPackage|apiVersion|settingsElement|dashboardElement) ;;
+        schemaVersion|pluginVersion|packageBuild|packageFile|packageSha256|packageUrl|sourceRepository|packageRepository|binaryRepository|binaryAsset|upstreamBinarySha256|apiPackage|apiVersion|settingsElement|dashboardElement) ;;
         *) fail "unknown manifest key: $key" ;;
     esac
 done < <(printf '%s\n' "$manifest_keys" | sed '/^$/d')
@@ -136,6 +144,8 @@ jq -e '
     (.packageFile | type == "string" and test("^yarr-[0-9]+\\.[0-9]+\\.[0-9]+-x86_64-[0-9]+\\.txz$")) and
     (.packageSha256 | type == "string" and test("^[0-9a-f]{64}$")) and
     (.packageUrl | type == "string") and
+    (.sourceRepository | type == "string") and
+    (.packageRepository | type == "string") and
     (.binaryRepository | type == "string") and
     (.binaryAsset | type == "string") and
     (.upstreamBinarySha256 | type == "string" and test("^[0-9a-f]{64}$")) and
@@ -154,6 +164,8 @@ actual_package_file=$(jq -r '.packageFile' "$manifest")
 jq -e --arg version "$plugin_version" --arg file "$expected_package_file" \
     --arg tag "unraid-v${plugin_version}-${package_build}" '
       .apiVersion == $version and
+      .sourceRepository == "dinglebear-ai/yarr" and
+      .packageRepository == "dinglebear-ai/yarr" and
       .binaryRepository == "dinglebear-ai/yarr" and
       .binaryAsset == "yarr-x86_64.tar.gz" and
       (.upstreamBinarySha256 | test("^[0-9a-f]{64}$")) and
@@ -204,8 +216,8 @@ done
 for required_text in \
     'Loopback is the default' \
     'authentication gate as LAN mode' \
-    'typed `TRUSTED_GATEWAY` / `trusted-gateway` mode' \
-    'allowlists establish provenance, not end-user identity' \
+    'same-host proxy is the only caller' \
+    'Bearer and Google OAuth are the only approved network-exposed modes' \
     'Tailscale Serve' \
     'Credentials are server-side only' \
     'read-only `GET` list/inspect operations' \
@@ -215,7 +227,7 @@ for required_text in \
     '/mnt/user/appdata/yarr/bin/yarr.previous' \
     'retains both persistent paths' \
     'content-addressed module' \
-    '/var/log/yarr.log' \
+    '/var/log/yarr/yarr.log' \
     '/var/log/graphql-api.log' \
     'unraid-v2.1.0-1' \
     'independently committed upstream archive SHA-256' \

@@ -35,7 +35,7 @@ Choose one installation path:
 npm install --global yarr-mcp
 
 # Linux x86_64 release installer; installs to ~/.local/bin by default
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 
 # source checkout
 cargo build --release --locked
@@ -70,7 +70,7 @@ backend is required before multi-replica OAuth is supported.
 Production deployment requires an immutable manifest digest:
 
 ```bash
-export YARR_MCP_IMAGE='ghcr.io/jmagar/yarr@sha256:<verified-digest>'
+export YARR_MCP_IMAGE='ghcr.io/dinglebear-ai/yarr@sha256:<verified-digest>'
 docker compose -f docker-compose.prod.yml config --quiet
 docker compose -f docker-compose.prod.yml run --rm --no-deps yarr-mcp doctor --json
 docker compose -f docker-compose.prod.yml up -d --wait yarr-mcp

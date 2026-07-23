@@ -141,11 +141,9 @@ describe("Yarr configuration codec", () => {
     expect(() => codec.parseYarrEnvironment("UNKNOWN=first\nsecond\n")).toThrow("expected KEY=value");
   });
 
-  it("uses Yarr's parsed provenance structure for trusted gateway", () => {
+  it("allows trusted gateway only at the same-host loopback boundary", () => {
     const trustedPlugin = codec.parsePluginConfig(
-      pluginConfig
-        .replace("BIND_MODE=loopback", "BIND_MODE=lan")
-        .replace("AUTH_MODE=bearer", "AUTH_MODE=trusted-gateway"),
+      pluginConfig.replace("AUTH_MODE=bearer", "AUTH_MODE=trusted-gateway"),
     );
 
     expect(() =>
@@ -159,10 +157,10 @@ describe("Yarr configuration codec", () => {
         plugin: trustedPlugin,
         env: codec.parseYarrEnvironment("YARR_MCP_ALLOWED_HOSTS= , , \nYARR_MCP_ALLOWED_ORIGINS=\t\n"),
       }),
-    ).toThrow("trusted-gateway authentication");
+    ).toThrow("requires at least one allowed host or origin");
   });
 
-  it("accepts every supported non-loopback authentication mode with its Yarr inputs", () => {
+  it("accepts bearer and Google OAuth for network exposure but rejects spoofable trusted gateway", () => {
     const lanConfig = (authMode: string) =>
       codec.parsePluginConfig(
         pluginConfig
@@ -184,12 +182,35 @@ describe("Yarr configuration codec", () => {
         ),
       }),
     ).not.toThrow();
+    for (const spoofedProvenance of [
+      "YARR_MCP_ALLOWED_HOSTS=proxy.example.test\n",
+      "YARR_MCP_ALLOWED_ORIGINS=https://proxy.example.test\n",
+      "YARR_MCP_ALLOWED_HOSTS=127.0.0.1\nYARR_MCP_ALLOWED_ORIGINS=http://127.0.0.1\n",
+    ]) {
+      expect(() =>
+        codec.validateConfigState({
+          plugin: lanConfig("trusted-gateway"),
+          env: codec.parseYarrEnvironment(spoofedProvenance),
+        }),
+      ).toThrow("restricted to loopback");
+    }
+  });
+
+  it("treats Tailscale Serve as network exposure and rejects trusted gateway", () => {
+    const tailscaleTrusted = codec.parsePluginConfig(
+      pluginConfig
+        .replace("AUTH_MODE=bearer", "AUTH_MODE=trusted-gateway")
+        .replace("TAILSCALE_SERVE=no", "TAILSCALE_SERVE=yes")
+        .replace("TAILSCALE_HOSTNAME=", "TAILSCALE_HOSTNAME=yarr"),
+    );
     expect(() =>
       codec.validateConfigState({
-        plugin: lanConfig("trusted-gateway"),
-        env: codec.parseYarrEnvironment("YARR_MCP_ALLOWED_ORIGINS=https://proxy.example.test\n"),
+        plugin: tailscaleTrusted,
+        env: codec.parseYarrEnvironment(
+          "YARR_MCP_ALLOWED_HOSTS=yarr.example.ts.net\nYARR_MCP_ALLOWED_ORIGINS=https://yarr.example.ts.net\n",
+        ),
       }),
-    ).not.toThrow();
+    ).toThrow("restricted to loopback");
   });
 
   it("accepts only ASCII configuration keys", () => {

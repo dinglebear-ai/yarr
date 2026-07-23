@@ -208,10 +208,14 @@ def check_release(workflow: dict[str, Any]) -> None:
         "release prepare does not expose resolved source SHA",
     )
     resolve = named_step(prepare, "Resolve immutable package tag", "release.prepare")
+    frozen = named_step(prepare, "Validate frozen release identity", "release.prepare")
     prepare_checkout = named_step(prepare, "Check out resolved package commit", "release.prepare")
     check_checkout(prepare_checkout, "${{ steps.resolve.outputs.source_sha }}", "release prepare checkout")
     require_command(resolve, 'gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${PACKAGE_TAG}"', "release prepare does not resolve tag through GitHub")
     require_command(resolve, '[[ "$object_type" == commit && "$object_sha" =~ ^[0-9a-f]{40}$ ]]', "release prepare does not require a commit SHA")
+    require_command(frozen, '--arg repository "$GITHUB_REPOSITORY"', "release identity does not bind the manifest to the workflow repository")
+    require_command(frozen, ".sourceRepository == $repository", "release identity omits the source repository contract")
+    require_command(frozen, ".packageRepository == $repository", "release identity omits the package repository contract")
     require(
         step_index(prepare, "Resolve immutable package tag", "release.prepare")
         < step_index(prepare, "Check out resolved package commit", "release.prepare")

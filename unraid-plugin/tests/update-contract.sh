@@ -30,6 +30,8 @@ expect_eq() {
 [[ -x "$updater" ]] || fail "missing executable yarr-update.sh"
 
 test_root="$tmp_dir/root"
+YARR_TEST_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+export YARR_TEST_PORT
 export YARR_PLUGIN_ROOT="$test_root/plugin"
 export YARR_BOOT_ROOT="$test_root/boot"
 export YARR_APPDATA_ROOT="$test_root/appdata"
@@ -146,16 +148,39 @@ write_yarr() {
     local path=$1 version=$2
     cat > "${path}.c" <<'EOF'
 #include <stdio.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
+
+static volatile sig_atomic_t running = 1;
+static void stop(int signal_number) { (void)signal_number; running = 0; }
 
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--version") == 0) {
         printf("yarr %s\n", VERSION);
         return 0;
     }
-    if (argc >= 2 && strcmp(argv[1], "serve") == 0) {
-        sleep(30);
+    if (argc == 3 && strcmp(argv[1], "serve") == 0 && strcmp(argv[2], "mcp") == 0) {
+        const char *port_text = getenv("YARR_MCP_PORT");
+        const char *host = getenv("YARR_MCP_HOST");
+        int port = port_text ? atoi(port_text) : 40070;
+        int listener = socket(AF_INET, SOCK_STREAM, 0);
+        int enabled = 1;
+        struct sockaddr_in address = {0};
+        if (listener < 0) return 65;
+        setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
+        address.sin_family = AF_INET;
+        address.sin_port = htons((unsigned short)port);
+        if (!host || inet_pton(AF_INET, host, &address.sin_addr) != 1) return 66;
+        if (bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0) return 67;
+        if (listen(listener, 8) != 0) return 68;
+        signal(SIGTERM, stop);
+        signal(SIGINT, stop);
+        while (running) pause();
+        close(listener);
         return 0;
     }
     return 2;
@@ -166,11 +191,11 @@ EOF
 }
 
 write_config() {
-    cat > "$YARR_BOOT_ROOT/config/plugins/yarr/yarr.cfg" <<'EOF'
+    cat > "$YARR_BOOT_ROOT/config/plugins/yarr/yarr.cfg" <<EOF
 ENABLED=yes
 BIND_MODE=loopback
 CUSTOM_HOST=
-PORT=40070
+PORT=$YARR_TEST_PORT
 AUTH_MODE=bearer
 TAILSCALE_SERVE=no
 TAILSCALE_HOSTNAME=
@@ -215,9 +240,12 @@ cat > "$YARR_CURL_BIN" <<'EOF'
 set -euo pipefail
 url=${!#}
 output=''
+max_filesize=''
+printf '%s\n' "$*" >> "${YARR_TEST_CURL_ARGUMENT_LOG}"
 while (($#)); do
     case "$1" in
         -o|--output) output=$2; shift 2 ;;
+        --max-filesize) max_filesize=$2; shift 2 ;;
         *) shift ;;
     esac
 done
@@ -228,6 +256,18 @@ if [[ "$url" == *'/ready' ]]; then
     fi
     exit "${YARR_TEST_READY_STATUS:-0}"
 fi
+if [[ -n "${YARR_TEST_CURL_WAIT_FILE:-}" ]]; then
+    : > "${YARR_TEST_CURL_WAIT_FILE}.entered"
+    while [[ -e "$YARR_TEST_CURL_WAIT_FILE" ]]; do sleep 0.02; done
+fi
+if [[ "${YARR_TEST_CURL_STALL:-no}" == yes || ( -n "${YARR_TEST_CURL_STALL_PATTERN:-}" && "$url" == *"$YARR_TEST_CURL_STALL_PATTERN"* ) ]]; then
+    printf 'partial' > "$output"
+    exit 28
+fi
+if [[ "${YARR_TEST_CURL_OVERSIZE:-no}" == yes ]]; then
+    head -c "$((max_filesize + 1))" /dev/zero > "$output"
+    exit 63
+fi
 case "$url" in
     "$YARR_UPDATE_API_URL") cp "$YARR_TEST_RELEASES" "$output" ;;
     */yarr-x86_64.tar.gz) cp "$YARR_TEST_ARCHIVE" "$output" ;;
@@ -236,6 +276,8 @@ case "$url" in
 esac
 EOF
 chmod 755 "$YARR_CURL_BIN"
+export YARR_TEST_CURL_ARGUMENT_LOG="$test_root/curl-arguments.log"
+: > "$YARR_TEST_CURL_ARGUMENT_LOG"
 
 write_config
 write_yarr "$YARR_PLUGIN_ROOT/bin/yarr" 2.0.0
@@ -285,6 +327,50 @@ expect_eq 'true' "$(jq -r '.updateAvailable' <<< "$check_json")" 'update availab
 if grep -Fq 'contract-token' <<< "$check_json"; then
     fail 'status output exposed environment value'
 fi
+grep -Fq -- '--connect-timeout 10' "$YARR_TEST_CURL_ARGUMENT_LOG" || fail 'updater omitted curl connect timeout'
+grep -Fq -- '--retry 2' "$YARR_TEST_CURL_ARGUMENT_LOG" || fail 'updater omitted bounded curl retry policy'
+grep -Fq -- '--max-filesize 2097152' "$YARR_TEST_CURL_ARGUMENT_LOG" || fail 'updater omitted metadata size limit'
+
+expect_failure 'stalled metadata response' env YARR_TEST_CURL_STALL=yes \
+    YARR_UPDATE_METADATA_TIMEOUT=1 "$updater" check --json
+expect_failure 'oversized metadata response' env YARR_TEST_CURL_OVERSIZE=yes \
+    YARR_UPDATE_METADATA_MAX_BYTES=128 "$updater" check --json
+expect_failure 'oversized checksum response' env YARR_UPDATE_CHECKSUM_MAX_BYTES=16 \
+    "$updater" apply --version 2.1.0 --json
+expect_failure 'oversized archive response' env YARR_UPDATE_ARCHIVE_MAX_BYTES=128 \
+    "$updater" apply --version 2.1.0 --json
+expect_failure 'stalled archive response' env YARR_TEST_CURL_STALL_PATTERN='/yarr-x86_64.tar.gz' \
+    YARR_UPDATE_ARCHIVE_TIMEOUT=1 "$updater" apply --version 2.1.0 --json
+if find "$YARR_APPDATA" -maxdepth 1 -name '.update.*' -print -quit | grep -q .; then
+    fail 'stalled or oversized updater response retained temporary data'
+fi
+
+# All installed-state and policy checks occur after acquiring the stable lock.
+# An older and a cross-major candidate queued behind a newer candidate must
+# re-read the new installed version and fail rather than race it.
+race_hold="$tmp_dir/race-hold"
+touch "$race_hold"
+env YARR_TEST_CURL_WAIT_FILE="$race_hold" YARR_UPDATE_LOCK_WAIT_SECONDS=5 \
+    "$updater" apply --version 2.1.0 --json > "$tmp_dir/race-newer.json" 2> "$tmp_dir/race-newer.err" &
+newer_pid=$!
+for _ in {1..100}; do
+    [[ -e "${race_hold}.entered" ]] && break
+    sleep 0.02
+done
+[[ -e "${race_hold}.entered" ]] || fail 'newer updater did not enter the lock-held fetch window'
+env YARR_UPDATE_LOCK_WAIT_SECONDS=5 "$updater" apply --version 2.0.0 --json \
+    > "$tmp_dir/race-older.json" 2> "$tmp_dir/race-older.err" &
+older_pid=$!
+env YARR_UPDATE_LOCK_WAIT_SECONDS=5 "$updater" apply --version 3.0.0 --json \
+    > "$tmp_dir/race-major.json" 2> "$tmp_dir/race-major.err" &
+major_pid=$!
+rm -f "$race_hold"
+wait "$newer_pid" || fail 'newer candidate failed during lock race'
+if wait "$older_pid"; then fail 'queued older candidate downgraded the newer install'; fi
+if wait "$major_pid"; then fail 'queued cross-major candidate bypassed same-major policy'; fi
+expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'race winner version'
+"$updater" reset --json > "$tmp_dir/race-reset.json"
+[[ ! -e "$YARR_OVERLAY_DIR/yarr" ]] || fail 'race reset did not restore packaged baseline'
 
 expect_failure 'major version update' "$updater" apply --version 3.0.0 --json
 expect_failure 'leading-zero version' "$updater" apply --version 2.01.0 --json
@@ -297,6 +383,7 @@ export YARR_TEST_RELEASES="$fixture"
 
 cp "$YARR_PLUGIN_ROOT/bin/yarr" "$YARR_OVERLAY_DIR/yarr"
 overlay_before=$(sha256sum "$YARR_OVERLAY_DIR/yarr" | awk '{print $1}')
+reset_boundaries
 printf '000000000000000000000000000000000000000000000000000000000000 yarr-x86_64.tar.gz\n' > "$tmp_dir/bad.sha256"
 export YARR_TEST_CHECKSUM="$tmp_dir/bad.sha256"
 expect_failure 'checksum mismatch' "$updater" apply --version 2.1.0 --json
@@ -450,7 +537,7 @@ expect_failure 'reset backup cleanup fault' "$updater" reset --json
 
 prepare_running_overlay
 reset_boundaries
-export YARR_TEST_SIGNAL_COMMAND=rm YARR_TEST_SIGNAL_AT=1
+export YARR_TEST_SIGNAL_COMMAND=rm YARR_TEST_SIGNAL_AT=4
 expect_failure 'signal during apply post-commit cleanup' "$updater" apply --version 2.1.0 --json
 assert_candidate_committed 'signal during apply post-commit cleanup'
 

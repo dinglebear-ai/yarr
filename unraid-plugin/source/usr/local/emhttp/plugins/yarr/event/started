@@ -1,12 +1,27 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -u
 
-YARR_PLUGIN_ROOT=${YARR_PLUGIN_ROOT:-/usr/local/emhttp/plugins/yarr}
-YARR_RC_YARR=${YARR_RC_YARR:-/etc/rc.d/rc.yarr}
-# shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
-source "${YARR_PLUGIN_ROOT}/scripts/yarr-common.sh"
+YARR_RC=${YARR_RC:-/etc/rc.d/rc.yarr}
+YARR_EVENT_ATTEMPTS=${YARR_EVENT_ATTEMPTS:-3}
+YARR_EVENT_LOCK_WAIT_SECONDS=${YARR_EVENT_LOCK_WAIT_SECONDS:-10}
+YARR_EVENT_RETRY_SECONDS=${YARR_EVENT_RETRY_SECONDS:-2}
 
-[[ -f "$YARR_CFG" && -f "$YARR_ENV" ]] || exit 0
-yarr_load_config || exit 1
-[[ "$ENABLED" == yes ]] || exit 0
-exec "$YARR_RC_YARR" start
+report_failure() {
+    local message=$1
+    printf 'yarr array-start hook: %s\n' "$message" >&2
+    logger -t yarr-plugin -- "array-start hook: $message" 2>/dev/null || true
+}
+
+attempt=1
+while (( attempt <= YARR_EVENT_ATTEMPTS )); do
+    if YARR_LOCK_WAIT_SECONDS=$YARR_EVENT_LOCK_WAIT_SECONDS "$YARR_RC" start; then
+        exit 0
+    fi
+    if (( attempt < YARR_EVENT_ATTEMPTS )); then
+        sleep "$YARR_EVENT_RETRY_SECONDS"
+    fi
+    ((attempt += 1))
+done
+
+report_failure "failed after ${YARR_EVENT_ATTEMPTS} bounded attempts"
+exit 1

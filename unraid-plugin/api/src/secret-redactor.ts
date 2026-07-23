@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { parseYarrEnvironment } from "./config-codec";
 import { YARR_ENVIRONMENT_GOOD_PATH, YARR_ENVIRONMENT_PATH } from "./paths";
+import { SECRET_ENVIRONMENT_KEYS } from "./service-catalog";
 
 export interface SecretFileSystem {
   readFile(path: string): Promise<string>;
@@ -84,7 +85,10 @@ export function collectSecretValues(values: Record<string, string>): string[] {
   return [...new Set(
     Object.entries(values)
       .filter(([key, value]) =>
-        value.length > 0 && /(?:TOKEN|SECRET|PASSWORD|USERNAME|API_KEY|PRIVATE_KEY)$/.test(key),
+        value.length > 0 && (
+          SECRET_ENVIRONMENT_KEYS.has(key) ||
+          /(?:TOKEN|SECRET|PASSWORD|USERNAME|API_KEY|APIKEY|PRIVATE_KEY)$/.test(key)
+        ),
       )
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([, value]) => value),

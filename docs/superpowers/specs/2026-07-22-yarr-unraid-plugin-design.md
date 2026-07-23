@@ -132,7 +132,8 @@ classic package. Generated output is never the source of truth.
 | Classic persistent state | `/boot/config/plugins/yarr/` |
 | Lifecycle configuration | `/boot/config/plugins/yarr/yarr.cfg` |
 | Yarr runtime environment/secrets | `/boot/config/plugins/yarr/.env` |
-| Known-good config snapshots | `/boot/config/plugins/yarr/*.known-good` |
+| Known-good config snapshots | `/boot/config/plugins/yarr/*.good` |
+| Config transaction marker | `/boot/config/plugins/yarr/yarr.cfg.transaction-state` |
 | Default appdata/Yarr home | `/mnt/user/appdata/yarr/` |
 | Persistent updated binary | `/mnt/user/appdata/yarr/bin/yarr` |
 | Previous updated binary | `/mnt/user/appdata/yarr/bin/yarr.previous` |
@@ -168,16 +169,19 @@ The classic plugin:
 
 ## Service Lifecycle
 
-`rc.yarr` supports only `start`, `stop`, `restart`, and `status`. It acquires the
-shared plugin lock for state-changing operations and selects the executable in
+`rc.yarr` supports only `start`, `stop`, `restart`, and `status`. Lifecycle,
+configuration, updater, package install/upgrade, and uninstall all acquire the
+same stable lock inode, which is never unlinked. It selects the executable in
 this order:
 
 1. Executable persistent overlay at the configured appdata `bin/yarr` path.
 2. Bundled `/usr/local/yarr/bin/yarr` fallback.
 
-Before signaling a recorded PID, the script verifies both `/proc/<pid>/exe`
-against an allowed Yarr binary path and the expected `serve` process arguments.
-This prevents PID-reuse kills. Startup redirects wrapper stderr to a bounded
+Before signaling a recorded PID, the script verifies PID start time, exact
+argv, expected binary path, and recorded device/inode identity. This preserves
+ownership proof for a deleted-inode executable during upgrade while preventing
+PID-reuse kills. Startup must prove that the newly spawned PID survived and
+owns the configured listening socket before `/ready` can succeed. It redirects wrapper stderr to a bounded
 service log while Yarr retains its own structured rotating log under
 `YARR_HOME/logs`.
 
@@ -208,12 +212,16 @@ Configuration writes are transactional:
 
 1. Acquire `/var/lock/yarr-plugin.lock`.
 2. Parse and validate the complete proposed configuration.
-3. Write mode-`600` temporary files in the destination filesystem.
-4. Flush and atomically rename them into place.
+3. Write mode-`600` temporary files and complete old-generation backups.
+4. Durably publish an atomic transaction marker, flush each file/directory, and
+   rename the pair into place.
 5. Preserve the prior files as known-good snapshots.
 6. Restart Yarr when runtime-affecting values changed.
 7. Require `/ready` to pass.
-8. Restore known-good files and restart the prior configuration on failure.
+8. Remove and fsync the marker as the pair commit point.
+9. Recover an interrupted marker before every API read, shell read, install, or
+   startup, preserving the complete prior generation and its credentials.
+10. Restore known-good files and restart the prior configuration on failure.
 
 GraphQL queries return redacted models. Secrets are represented by booleans
 such as `hasApiKey`, `hasPassword`, or `hasToken`, plus masked display hints that
@@ -228,10 +236,14 @@ The UI exposes a first-class bind mode rather than a raw host field alone:
 - **Loopback:** `127.0.0.1`; Yarr's loopback development auth policy is allowed.
 - **LAN:** `0.0.0.0`; a static bearer token or OAuth configuration is mandatory.
 - **Custom:** an explicit address; non-loopback addresses require bearer or
-  OAuth unless the existing typed trusted-gateway mode is deliberately enabled.
+  OAuth.
+- **Trusted gateway:** accepted only on loopback with Tailscale Serve disabled,
+  behind a same-host proxy. Host/Origin values are not direct-socket
+  authentication.
 
 The default is loopback. Tailscale Serve is independently configurable and
-proxies the loopback endpoint over tailnet HTTPS. The UI explains the effective
+proxies the loopback endpoint over tailnet HTTPS and requires bearer or OAuth.
+The UI explains the effective
 MCP URL and auth policy. Invalid combinations are rejected before files change.
 
 ## Imports
@@ -340,9 +352,11 @@ The updater:
    Yarr, and requires `/ready`.
 9. Restores the previous overlay and service on any activation failure.
 
-Update, reset, lifecycle, and config writes share the same lock. The updater
-emits structured status without logging tokens, credentials, or environment
-contents.
+Update, reset, lifecycle, config writes, package replacement, and uninstall
+share the same never-unlinked lock inode. All updater state/policy validation
+runs under that lock. Network reads have bounded connect/total timeouts,
+retries, and per-resource byte limits. The updater emits structured status
+without logging tokens, credentials, or environment contents.
 
 ## Frontend
 
@@ -351,7 +365,7 @@ The Vue 3 frontend builds two custom-element entrypoints:
 - `<yarr-settings-app>` for the full settings application.
 - `<yarr-dashboard>` for a compact Main/Dashboard widget.
 
-The classic `.page` files only load the compiled assets and mount the custom
+The classic `yarr.page` and `YarrDashboard.page` files only load their respective compiled assets and mount the custom
 elements. The frontend inherits Unraid's CSS variables and light/dark behavior;
 it does not introduce an unrelated palette.
 

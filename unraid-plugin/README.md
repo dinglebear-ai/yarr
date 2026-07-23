@@ -54,22 +54,20 @@ that may run without remote-client authentication.
   unless bearer or OAuth authentication is fully configured.
 - **Custom:** binds an explicitly validated host/address. It has the same
   authentication gate as LAN mode.
-- **Trusted gateway:** the typed `TRUSTED_GATEWAY` / `trusted-gateway` mode is
-  the third approved non-loopback authentication mode. It is safe only when
-  every direct client is blocked from Yarr and requests can arrive solely
-  through a controlled authenticating proxy whose exact hosts or origins are
-  listed in `YARR_MCP_ALLOWED_HOSTS` or `YARR_MCP_ALLOWED_ORIGINS`. Those
-  allowlists establish provenance, not end-user identity; the gateway must
-  authenticate users, strip spoofable forwarding headers, and terminate
-  untrusted connections before forwarding to Yarr.
+- **Trusted gateway:** this plugin permits Yarr's typed `TRUSTED_GATEWAY` /
+  `trusted-gateway` mode only while Yarr is bound to `127.0.0.1`, Tailscale
+  Serve is disabled, and a same-host proxy is the only caller. Allowed Host and
+  Origin values constrain that local proxy contract but do not authenticate a
+  direct network client; both headers are spoofable on a raw socket.
 - **Tailscale Serve:** keeps the Yarr process on loopback and publishes the
-  configured endpoint through a service-scoped Tailscale Serve mapping. Stop,
+  configured endpoint through a service-scoped Tailscale Serve mapping. Because
+  this is network exposure, bearer or Google OAuth is mandatory. Stop,
   uninstall, and failed activation remove only Yarr's mapping.
 
 Do not expose a no-auth listener on LAN, a custom address, or a public reverse
-proxy. Bearer, Google OAuth, and trusted gateway are the only approved
-non-loopback modes. The save and start paths enforce this boundary server-side;
-the browser warning is not the security control.
+proxy. Bearer and Google OAuth are the only approved network-exposed modes. The
+API codec and shell startup preflight both enforce this boundary, including
+after manual file edits; the browser warning is not the security control.
 
 ## Credentials and service import
 
@@ -132,7 +130,9 @@ The updater is independent of the classic package release. On the stable
 channel it accepts only a newer release in the same major version, verifies the
 published SHA-256 before extraction, requires an archive containing exactly one
 regular mode-0755 `yarr` executable, checks `yarr --version`, and then performs
-an atomic durable swap.
+an atomic durable swap. Installed-version and policy checks occur while holding
+the stable lifecycle lock. Metadata, checksums, and archives have independent
+connect/total timeouts, retry limits, and maximum byte sizes.
 
 If readiness fails, the updater restores the previous executable and runtime
 state. **Rollback** selects `yarr.previous`. **Reset to packaged** removes the
@@ -145,12 +145,15 @@ The classic package stages production-only JavaScript for
 `unraid-api-plugin-yarr`. Activation installs a content-addressed module,
 updates the Unraid API loader registration transactionally, restarts
 `unraid-api`, checks only the new GraphQL log segment for loader failures, and
-runs an authenticated `yarrRuntime` probe. Any failure restores the previous
-module, loader document, and API process before returning an error.
+runs an authenticated `yarrRuntime` probe without placing the Unraid API key in
+process arguments. Activation loads the exact staged package, awaits its
+`graphqlSchemaExtension()` exporter, and parses the resolved SDL. Any failure
+restores the previous module, loader document, and API process before returning
+an error.
 
 The settings page loads `yarr-settings.js` and `yarr-settings.css` and mounts
-`<yarr-settings-app>`. The dashboard bundle independently defines
-`<yarr-dashboard>`. Both are standalone browser bundles, inherit Unraid's
+`<yarr-settings-app>`. `YarrDashboard.page` independently loads the dashboard
+CSS/JS and mounts `<yarr-dashboard>`. Both are standalone browser bundles, inherit Unraid's
 light/dark host variables, use the host GraphQL/CSRF boundary, and contain no
 credential values.
 
@@ -160,7 +163,7 @@ Start with the settings **Status** and **Logs** tabs, then inspect:
 
 ```bash
 /etc/rc.d/rc.yarr status
-tail -n 200 /var/log/yarr.log
+tail -n 200 /var/log/yarr/yarr.log
 tail -n 200 /var/log/graphql-api.log
 ```
 
@@ -185,9 +188,10 @@ Common checks:
 ## Uninstall
 
 Use Unraid's **Plugins** page to remove Yarr. The uninstall transaction stops
-the process first, removes the external API registration, restarts and verifies
+and proves process quiescence under the stable lock first, removes the external API registration, restarts and verifies
 the prior Unraid API state, then removes runtime files. If API cleanup cannot be
 completed safely, classic removal aborts rather than stranding a loaded module.
+The lock inode is never unlinked. Boot configuration and appdata are retained.
 
 The following are retained by design:
 

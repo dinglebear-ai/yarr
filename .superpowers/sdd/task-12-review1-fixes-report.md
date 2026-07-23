@@ -1,0 +1,190 @@
+# Task 12 Whole-Feature Security Review 1 Remediation Report
+
+## Status
+
+All 13 review findings are implemented and locally verified from baseline
+`4f15eb5c72a1dbf217705587abef7b2aa963f980` on
+`feat/yarr-unraid-plugin`.
+
+This report records remediation evidence, not review approval. The original
+reviewer remains responsible for re-review.
+
+Safety boundaries observed:
+
+- No deployment or access to `tootie`.
+- No workflow dispatch.
+- No release publication or mutation.
+- No mutation of the upstream `v2.1.0` draft or its assets.
+- Root Yarr authentication behavior was not weakened.
+- Uninstall still preserves Yarr configuration and appdata.
+
+## Finding Disposition
+
+1. **Trusted-gateway spoofing:** Trusted-gateway mode now requires a loopback
+   bind in the API codec, shell preflight, settings UI, and documentation.
+   Non-loopback LAN, custom, wildcard, and Tailscale binds require bearer or
+   Google OAuth. Direct-socket Host and Origin spoof cases reject.
+2. **Real GraphQL exporter mismatch:** API installation loads the staged
+   package's actual async-function `graphqlSchemaExtension`, awaits it, parses
+   its SDL, and validates loader/module/schema behavior. Classic activation
+   contracts use the exact built and staged distribution rather than a
+   handwritten exporter.
+3. **Upgrade orphan/residual daemon:** Lifecycle metadata preserves PID start
+   time, argv, executable path, and inode evidence. Upgrade and uninstall stop
+   under the stable lock and require quiescence. Readiness proves the newly
+   spawned PID survives and owns the listening socket. Running-old-binary,
+   deleted-inode, occupied-port, unrelated-process, failed-stop, and residual
+   uninstall cases are covered.
+4. **Command-line secret leakage:** Unraid API requests use a private temporary
+   curl header file rather than argv. The daemon launcher sources a mode-0600
+   runtime environment and execs Yarr with secret-free argv. `/proc` sentinels
+   cover Unraid API keys, bearer/OAuth credentials, and service credentials
+   through success, retry, and failure windows.
+5. **Canonical repository identity:** Current publication and installation
+   surfaces use `dinglebear-ai/yarr`. Release metadata explicitly models
+   `sourceRepository`, `packageRepository`, and `binaryRepository`, with all
+   three defaulting to the canonical repository.
+6. **Stable lock inode:** `/var/lock/yarr-plugin.lock` is never unlinked.
+   Package, API, configuration, lifecycle, hook, and updater operations share
+   the stable inode using inherited-lock entrypoints that avoid recursive
+   deadlock. Old-inode replacement and concurrent-operation tests pass.
+7. **Crash-recoverable config pair:** The cfg/JSON pair now has a durable
+   transaction marker and recovery protocol. Recovery runs before shell and API
+   reads and startup paths, fsyncs transaction state, and preserves credentials
+   after process death at every commit transition.
+8. **Updater race:** Installed state, current version, candidate version, and
+   update policy are read and validated under the lifecycle lock. Concurrent
+   older/newer candidates cannot downgrade or bypass same-major policy.
+9. **Array hooks:** Start and stop hooks use bounded lock retries. Stop requires
+   confirmed quiescence before unmount and reports failure visibly; start
+   retries and reports failure. Lock-contention contracts pass.
+10. **Wrapper log bound:** The RAM-backed wrapper log has bounded size and
+    retention, fixed private modes, and no-symlink rotation. Threshold,
+    retention, mode, and symlink cases pass without duplicate secret output.
+11. **Dashboard integration:** The package now includes
+    `YarrDashboard.page`, loads the dashboard CSS/JS, and mounts
+    `yarr-dashboard`; `yarr.page` remains settings. Source, package, static
+    browser, and activation contracts use the actual bundle.
+12. **Legacy alias redaction:** Accepted credential aliases and redaction are
+    derived from the canonical service catalog. Exhaustive table-driven tests
+    cover every accepted `*_APIKEY` alias and fixed-point redaction.
+13. **Updater resource bounds:** Curl connection, total-time, retry, metadata,
+    checksum, and archive limits fail closed with cleanup. Stalled and oversized
+    response contracts pass without unbounded buffering or disk growth.
+
+## Repository Identity Audit
+
+Active publication URLs, manifests, package metadata, installation scripts,
+current documentation, workflows, badges, provenance helpers, and live
+configuration examples now use `dinglebear-ai/yarr`.
+
+Historically meaningful ownership text in `CHANGELOG.md` and
+`docs/sessions/**` remains historical. Only active clickable or copy-paste
+canonical links inside historical records were updated. Other plugin manifests
+received URL-only source/homepage corrections; their behavior was not changed.
+An implementation scan outside those historical records found no active
+`jmagar/yarr` or `jmagar/yarr-rmcp` publication URL.
+
+## Verification Evidence
+
+### Focused and aggregate plugin contracts
+
+- `bash unraid-plugin/tests/lifecycle-contract.sh`: PASS.
+- `bash unraid-plugin/tests/update-contract.sh`: PASS.
+- `bash unraid-plugin/tests/classic-contract.sh`: PASS using the real staged API
+  and web payloads; API `2.1.0` activated, `yarrRuntime` verified, and API
+  removal verified.
+- `bash unraid-plugin/tests/release-contract.sh --reject-zero-sha`: PASS with 14
+  declared paths.
+- Structured Python workflow contract and its negative mutations: PASS.
+- `bash unraid-plugin/tests/run.sh`: PASS, including release, lifecycle,
+  updater, classic/API activation, workflow, secret/cmdline, race, crash,
+  process-ownership, dashboard, and negative contracts.
+
+### Rust
+
+- `cargo fmt --all -- --check`: PASS.
+- `cargo check --workspace --all-targets`: PASS.
+- `cargo clippy --workspace --all-targets -- -D warnings`: PASS.
+- `cargo test --workspace --all-targets`: PASS, 744 passed and 0 failed:
+  `97 + 589 + 16 + 5 + 13 + 6 + 18`.
+
+### API
+
+- Vitest: PASS, 12 files and 154 tests.
+- `npx tsc --noEmit`: PASS.
+- `npx tsc`: PASS.
+- `npm audit --omit=dev --audit-level=low`: PASS, 0 vulnerabilities.
+- Isolated production staging audit: PASS, 0 vulnerabilities.
+
+### Web
+
+- Vitest: PASS, 6 files and 45 tests.
+- `npx vue-tsc --noEmit`: PASS.
+- Settings and dashboard production builds: PASS.
+- Static bundle and process-free browser registration smoke: PASS.
+- Final bundle sizes:
+  - settings CSS: 9.45 kB; settings JS: 180.93 kB.
+  - dashboard CSS: 2.34 kB; dashboard JS: 120.23 kB.
+
+### Static and policy gates
+
+- Bash syntax and ShellCheck `-S error`: PASS across 93 tracked shell files.
+- Actionlint: PASS across 13 workflows.
+- Python compilation: PASS across 6 tracked Python files.
+- Active repository identity, stable-lock unlink, secret-bearing `/usr/bin/env`
+  argv, and implementation policy scans: PASS.
+- Package defaults, staged production payload, secret naming, file mode, path,
+  checksum, and source/package parity scans: PASS through the package verifier.
+
+## Package and Provenance Evidence
+
+Read-only upstream draft evidence remained unchanged after local verification:
+
+- Draft tag: `v2.1.0`; draft `true`; prerelease `false`.
+- Archive size: 8,603,266 bytes.
+- Archive SHA-256:
+  `682b6866655349a356a66ce75a9f4aea9cb1b2bb6a3d39b99e13f6f4eab00907`.
+- Checksum asset SHA-256:
+  `7c9cb5850046cb203dec73491558663d6a15e6baf2ed092ac6a689c47cb834ab`.
+
+The package was rebuilt from those cached, verified assets under both
+`umask 022` and `umask 077`. Package, manifest, and PLG bytes were identical:
+
+- Package:
+  `unraid-plugin/packages/yarr-2.1.0-x86_64-1.txz`.
+- SHA-256:
+  `5bbc410efaa25c32da5307c9d64fe130ba8e6641aaaa941475fb7143f74bd088`.
+- MD5:
+  `ed49c3873fa3b3ba8c05d212ae9147ec`.
+- Size: 6,198,884 bytes.
+- Inventory: 40 manifest-declared payload files, 41 regular archive files, and
+  55 total archive entries.
+- `release-manifest.json`, `yarr.plg`, committed package bytes, embedded
+  manifest, and current source/build payloads agree.
+
+## Changed Path Groups
+
+- Root publication metadata, current documentation, plugin manifests, and
+  release workflows.
+- `unraid-plugin/api/src/` implementation and tests.
+- `unraid-plugin/web/src/`, browser contracts, and built settings/dashboard
+  bundles.
+- `unraid-plugin/source/etc/rc.d/`, event hooks, lifecycle/API/update/config
+  scripts, pages, staged API distribution, and staged web assets.
+- `unraid-plugin/tests/` focused, fixture, workflow, release, lifecycle,
+  updater, classic, dashboard, and aggregate contracts.
+- `unraid-plugin/release-manifest.json`, `unraid-plugin/yarr.plg`, package build
+  and verification scripts, and deterministic txz bytes.
+- Task 12 SDD brief, remediation report, phase report, and progress ledger.
+
+## Residual Concerns
+
+- Original reviewer re-review is pending; this report does not claim approval.
+- GitHub-hosted workflow execution remains unverified because dispatch was
+  prohibited.
+- Disposable-Unraid loader/schema/runtime, browser rendering, lifecycle,
+  network/auth, and rollback gates remain intentionally unrun because live host
+  mutation was prohibited.
+- Beads has no configured Dolt remote; the local bead comment is authoritative
+  and `bd dolt push` is expected to report that no remote is configured.

@@ -6,8 +6,8 @@
   <!ENTITY launch     "Settings/yarr">
   <!ENTITY txz        "yarr-2.1.0-x86_64-1.txz">
   <!ENTITY txzURL     "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz">
-  <!ENTITY md5        "bc6d735038900ca1b95eebb6a04fc573">
-  <!ENTITY sha256     "62fd224556ea54a19b037a7fbf93342a2129c441774de75c56b76a2f19d76a95">
+  <!ENTITY md5        "ed49c3873fa3b3ba8c05d212ae9147ec">
+  <!ENTITY sha256     "5bbc410efaa25c32da5307c9d64fe130ba8e6641aaaa941475fb7143f74bd088">
   <!ENTITY plugin     "/boot/config/plugins/&name;">
   <!ENTITY emhttp     "/usr/local/emhttp/plugins/&name;">
 ]>
@@ -33,6 +33,24 @@ set -euo pipefail
 package_path="&plugin;/&txz;"
 expected_sha="&sha256;"
 printf '%s  %s\n' "$expected_sha" "$package_path" | sha256sum -c -
+mkdir -p /var/lock
+exec 9&gt;/var/lock/yarr-plugin.lock
+chmod 0600 /var/lock/yarr-plugin.lock
+flock --exclusive --wait 30 9
+
+if [ -x /etc/rc.d/rc.yarr ]; then
+  /etc/rc.d/rc.yarr --lock-fd 9 stop
+  if /etc/rc.d/rc.yarr --lock-fd 9 status &gt;/dev/null 2&gt;&amp;1; then
+    logger -t yarr "upgrade refused: old daemon remains active"
+    exit 1
+  else
+    status=$?
+    if [ "$status" -ne 3 ]; then
+      logger -t yarr "upgrade refused: old daemon quiescence is unproven (status $status)"
+      exit 1
+    fi
+  fi
+fi
 
 mapfile -d '' previous_packages &lt; &lt;(find "&plugin;" -maxdepth 1 -type f -name 'yarr-*.txz' ! -name '&txz;' -print0 | sort -zV)
 previous=""
@@ -41,11 +59,11 @@ if [ "${#previous_packages[@]}" -gt 0 ]; then
 fi
 
 upgradepkg --install-new --reinstall "$package_path"
-if ! "&emhttp;/scripts/install-classic-plugin.sh"; then
+if ! "&emhttp;/scripts/install-classic-plugin.sh" --lock-fd 9; then
   if [ -n "$previous" ] &amp;&amp; [ -f "$previous" ]; then
     logger -t yarr "activation failed; restoring $previous"
     upgradepkg --install-new --reinstall "$previous" || logger -t yarr "ERROR: classic package rollback failed"
-    "&emhttp;/scripts/install-classic-plugin.sh" || logger -t yarr "ERROR: restored package activation failed"
+    "&emhttp;/scripts/install-classic-plugin.sh" --lock-fd 9 || logger -t yarr "ERROR: restored package activation failed"
   else
     logger -t yarr "activation failed on fresh install; removing unpaired package"
     removepkg "yarr-2.1.0-x86_64-1" || logger -t yarr "ERROR: fresh package cleanup failed"
@@ -67,11 +85,18 @@ printf '\nYarr &version; installed. Configure it at Settings -&gt; Yarr.\n'
 <FILE Run="/bin/bash" Method="remove">
 <INLINE>
 set -u
+mkdir -p /var/lock
+exec 9&gt;/var/lock/yarr-plugin.lock
+chmod 0600 /var/lock/yarr-plugin.lock
+if ! flock --exclusive --wait 30 9; then
+  logger -t yarr "uninstall timed out waiting for the lifecycle lock"
+  exit 1
+fi
 if [ ! -x "&emhttp;/scripts/uninstall-classic-plugin.sh" ]; then
   logger -t yarr "API uninstall failed; refusing to remove classic payload"
   exit 1
 fi
-if ! "&emhttp;/scripts/uninstall-classic-plugin.sh"; then
+if ! "&emhttp;/scripts/uninstall-classic-plugin.sh" --lock-fd 9; then
   logger -t yarr "API uninstall failed; refusing to remove classic payload"
   exit 1
 fi

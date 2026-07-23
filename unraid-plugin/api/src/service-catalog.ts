@@ -47,6 +47,16 @@ export const SERVICE_CATALOG_BY_ID: ReadonlyMap<string, ServiceCatalogEntry> = n
   SERVICE_CATALOG.map((entry) => [entry.id, entry]),
 );
 
+export const SECRET_ENVIRONMENT_KEYS: ReadonlySet<string> = new Set([
+  "YARR_MCP_TOKEN",
+  "YARR_MCP_GOOGLE_CLIENT_SECRET",
+  ...SERVICE_CATALOG.flatMap((entry) => [
+    ...entry.usernameKeys,
+    ...entry.passwordKeys,
+    ...entry.apiKeyKeys,
+  ]),
+]);
+
 export const DOCKER_ENDPOINT_LABEL_KEYS = [
   "net.unraid.docker.webui",
   "io.yarr.service-url",

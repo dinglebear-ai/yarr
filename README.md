@@ -41,12 +41,12 @@ kinds it knows about, and only does what you or your agent ask it to do.
 
 ## Naming
 
-This repository is published at `github.com/jmagar/yarr`.
+This repository is published at `github.com/dinglebear-ai/yarr`.
 
 The Rust package and installed binary are both `yarr`. The npm launcher package
 is `yarr-mcp` because the shorter `yarr` name is occupied on npm; installing the
 launcher still gives you a `yarr` command. The MCP registry name is
-`ai.dinglebear/yarr-mcp`, and Docker images use `ghcr.io/jmagar/yarr`.
+`ai.dinglebear/yarr-mcp`, and Docker images use `ghcr.io/dinglebear-ai/yarr`.
 Production Compose deployments select that image by immutable manifest digest.
 
 Plugin naming is intentionally split:
@@ -108,7 +108,7 @@ adds `yarr` to `PATH`. It does not expose legacy command aliases.
 For machines without npm, use the release installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 ```
 
 That script installs `yarr` into `~/.local/bin`.
@@ -169,7 +169,7 @@ For Claude Code plugin installs, use the marketplace commands inside a Claude
 Code chat session, not in a shell:
 
 ```text
-/plugin marketplace add jmagar/yarr
+/plugin marketplace add dinglebear-ai/yarr
 /plugin install yarr@yarr
 ```
 
@@ -462,7 +462,7 @@ not patched by hand:
 - The npm package version and the GitHub Release tag must match.
 - `server.json` must name the exact `yarr-mcp` npm version and stdio launch
   contract under the `ai.dinglebear/yarr-mcp` registry identity.
-- The Docker image path is `ghcr.io/jmagar/yarr`; production deployment uses a
+- The Docker image path is `ghcr.io/dinglebear-ai/yarr`; production deployment uses a
   promoted immutable `@sha256:` digest.
 
 ## Development
@@ -511,7 +511,7 @@ git diff --check
 For live install verification, use the three public install paths:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 npm i -g yarr-mcp
 npx -y yarr-mcp mcp
 ```

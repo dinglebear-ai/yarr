@@ -177,3 +177,55 @@ One preliminary explicit-integrity shell invocation had a quoting syntax error b
 - Real Unraid loader/schema, GraphQL host integration, settings/dashboard rendering, lifecycle, network/auth, Tailscale, Docker discovery, updater, MCP, rollback, and retention checks remain the disposable-Unraid gate.
 - API development dependencies report four audit findings: one moderate and three high. Production audit and production staging report zero.
 - `bd dolt push` exited `0` with `No remote is configured - skipping.` The absent Dolt remote is recorded as non-fatal.
+
+## Whole-Feature Security Review 1 Remediation
+
+Review 1 remediation was implemented from baseline
+`4f15eb5c72a1dbf217705587abef7b2aa963f980`. All 13 findings have focused
+tests and pass locally. This is remediation status only; original reviewer
+approval remains pending.
+
+Key contract changes:
+
+- Trusted-gateway authentication is loopback-only; every non-loopback bind
+  requires bearer or Google OAuth, with direct-socket spoof rejection.
+- The installer awaits and validates the real packaged async GraphQL exporter.
+- Lifecycle ownership survives deleted-inode upgrades and proves new PID/socket
+  readiness and stop/uninstall quiescence.
+- API, OAuth/bearer, and service credentials are absent from process argv.
+- Current source, binary, and package repositories default explicitly to
+  `dinglebear-ai/yarr`.
+- Package, API, configuration, lifecycle, hook, and updater operations share a
+  never-unlinked stable lock inode.
+- The cfg/JSON pair has durable crash recovery before every read/startup path.
+- Updater policy validation is under lock; hooks have bounded retries; wrapper
+  logs have safe bounded rotation.
+- `YarrDashboard.page` ships and mounts the actual dashboard bundle.
+- Secret alias redaction derives from the service catalog.
+- Updater network and resource consumption is bounded.
+
+Final local evidence:
+
+- Rust fmt/check/clippy pass; Rust tests pass `744/744`.
+- API passes 12 files and `154/154`, typecheck, build, production staging, and
+  zero-vulnerability production audit.
+- Web passes 6 files and `45/45`, typecheck, both builds, and browser/static
+  smoke.
+- Lifecycle, updater, classic/API activation, release, structured workflow
+  mutation, and aggregate contracts pass.
+- Bash syntax and ShellCheck pass across 93 files; actionlint passes 13
+  workflows; Python compilation passes 6 files.
+- Deterministic `umask 022` and `077` package, manifest, and PLG bytes agree.
+- Final package SHA-256 is
+  `5bbc410efaa25c32da5307c9d64fe130ba8e6641aaaa941475fb7143f74bd088`;
+  MD5 is `ed49c3873fa3b3ba8c05d212ae9147ec`; size is 6,198,884 bytes.
+- The package verifier passes 40 manifest-declared payload files. The archive
+  has 41 regular files and 55 total entries.
+- Read-only upstream draft evidence remains unchanged: archive SHA-256
+  `682b6866655349a356a66ce75a9f4aea9cb1b2bb6a3d39b99e13f6f4eab00907`
+  and checksum-asset SHA-256
+  `7c9cb5850046cb203dec73491558663d6a15e6baf2ed092ac6a689c47cb834ab`.
+- No workflow, release, or live-host mutation occurred.
+
+Detailed evidence is in
+`.superpowers/sdd/task-12-review1-fixes-report.md`.

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAX_SERVICE_PATH_LENGTH = exports.MAX_SERVICE_HOSTNAME_LENGTH = exports.MAX_SERVICE_URL_LENGTH = exports.DOCKER_IDENTITY_LABEL_KEYS = exports.DOCKER_ENDPOINT_LABEL_KEYS = exports.SERVICE_CATALOG_BY_ID = exports.PUBLIC_EXTRA_KEYS_BY_SERVICE = exports.YARR_CONTROL_PUBLIC_EXTRA_KEYS = exports.SERVICE_CATALOG = void 0;
+exports.MAX_SERVICE_PATH_LENGTH = exports.MAX_SERVICE_HOSTNAME_LENGTH = exports.MAX_SERVICE_URL_LENGTH = exports.DOCKER_IDENTITY_LABEL_KEYS = exports.DOCKER_ENDPOINT_LABEL_KEYS = exports.SECRET_ENVIRONMENT_KEYS = exports.SERVICE_CATALOG_BY_ID = exports.PUBLIC_EXTRA_KEYS_BY_SERVICE = exports.YARR_CONTROL_PUBLIC_EXTRA_KEYS = exports.SERVICE_CATALOG = void 0;
 exports.normalizeCatalogKey = normalizeCatalogKey;
 exports.normalizeServiceUrl = normalizeServiceUrl;
 exports.SERVICE_CATALOG = [
@@ -25,6 +25,15 @@ exports.PUBLIC_EXTRA_KEYS_BY_SERVICE = new Map([
     ...exports.SERVICE_CATALOG.map((entry) => [entry.id, entry.publicExtraKeys]),
 ]);
 exports.SERVICE_CATALOG_BY_ID = new Map(exports.SERVICE_CATALOG.map((entry) => [entry.id, entry]));
+exports.SECRET_ENVIRONMENT_KEYS = new Set([
+    "YARR_MCP_TOKEN",
+    "YARR_MCP_GOOGLE_CLIENT_SECRET",
+    ...exports.SERVICE_CATALOG.flatMap((entry) => [
+        ...entry.usernameKeys,
+        ...entry.passwordKeys,
+        ...entry.apiKeyKeys,
+    ]),
+]);
 exports.DOCKER_ENDPOINT_LABEL_KEYS = [
     "net.unraid.docker.webui",
     "io.yarr.service-url",

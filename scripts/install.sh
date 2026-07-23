@@ -2,7 +2,7 @@
 # Install a provenance-verified yarr release binary.
 set -euo pipefail
 
-REPO="${YARR_REPO:-jmagar/yarr}"
+REPO="${YARR_REPO:-dinglebear-ai/yarr}"
 VERSION="${YARR_VERSION:-${YARR_MCP_VERSION:-latest}}"
 INSTALL_DIR="${INSTALL_DIR:-${YARR_MCP_INSTALL_DIR:-${HOME}/.local/bin}}"
 CONNECT_TIMEOUT="${YARR_DOWNLOAD_CONNECT_TIMEOUT:-10}"
@@ -19,7 +19,7 @@ the published SHA256SUMS manifest.
 Environment:
   INSTALL_DIR / YARR_MCP_INSTALL_DIR  Destination directory (default: ~/.local/bin)
   YARR_VERSION / YARR_MCP_VERSION    Release tag such as v1.1.1 (default: latest)
-  YARR_REPO                          GitHub owner/repo (default: jmagar/yarr)
+  YARR_REPO                          GitHub owner/repo (default: dinglebear-ai/yarr)
 USAGE
 }
 

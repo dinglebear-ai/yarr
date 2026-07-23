@@ -11,6 +11,7 @@ import {
 } from "./config.service";
 import {
   YARR_CONFIG_DIR,
+  YARR_CONFIG_TRANSACTION_STATE_PATH,
   YARR_ENVIRONMENT_GOOD_PATH,
   YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH,
   YARR_ENVIRONMENT_NEXT_PATH,
@@ -340,6 +341,53 @@ describe("ConfigService", () => {
   });
 
   it.each([
+    ["journal durable, before rotation", 0],
+    ["plugin moved to known-good", 1],
+    ["environment moved to known-good", 2],
+    ["new plugin installed", 3],
+    ["new environment installed before commit marker removal", 4],
+  ])("recovers credentials and one complete generation after process death: %s", async (_label, transition) => {
+    const { service, files } = harness();
+    const nextPlugin = pluginConfig.replace("PORT=40070", "PORT=40199");
+    const nextEnvironment = "YARR_MCP_TOKEN=prospective-secret\n";
+
+    files.files.set(YARR_PLUGIN_CONFIG_NEXT_PATH, { text: nextPlugin, mode: 0o600 });
+    files.files.set(YARR_ENVIRONMENT_NEXT_PATH, { text: nextEnvironment, mode: 0o600 });
+    files.files.set(YARR_PLUGIN_CONFIG_TRANSACTION_PATH, { text: pluginConfig, mode: 0o600 });
+    files.files.set(YARR_ENVIRONMENT_TRANSACTION_PATH, { text: environment, mode: 0o600 });
+    files.files.set(YARR_CONFIG_TRANSACTION_STATE_PATH, {
+      text: "version=1\nhad_previous_good=no\n",
+      mode: 0o600,
+    });
+
+    if (transition >= 1) {
+      files.files.set(YARR_PLUGIN_CONFIG_GOOD_PATH, files.files.get(YARR_PLUGIN_CONFIG_PATH)!);
+      files.files.delete(YARR_PLUGIN_CONFIG_PATH);
+    }
+    if (transition >= 2) {
+      files.files.set(YARR_ENVIRONMENT_GOOD_PATH, files.files.get(YARR_ENVIRONMENT_PATH)!);
+      files.files.delete(YARR_ENVIRONMENT_PATH);
+    }
+    if (transition >= 3) {
+      files.files.set(YARR_PLUGIN_CONFIG_PATH, files.files.get(YARR_PLUGIN_CONFIG_NEXT_PATH)!);
+      files.files.delete(YARR_PLUGIN_CONFIG_NEXT_PATH);
+    }
+    if (transition >= 4) {
+      files.files.set(YARR_ENVIRONMENT_PATH, files.files.get(YARR_ENVIRONMENT_NEXT_PATH)!);
+      files.files.delete(YARR_ENVIRONMENT_NEXT_PATH);
+    }
+
+    const recovered = await service.read();
+
+    expect(recovered.plugin.port).toBe(40070);
+    expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
+    expect(files.files.get(YARR_ENVIRONMENT_PATH)?.text).toBe(environment);
+    expect(files.files.has(YARR_CONFIG_TRANSACTION_STATE_PATH)).toBe(false);
+    expect(files.files.has(YARR_PLUGIN_CONFIG_TRANSACTION_PATH)).toBe(false);
+    expect(files.files.has(YARR_ENVIRONMENT_TRANSACTION_PATH)).toBe(false);
+  });
+
+  it.each([
     [{ ...running, state: "starting", ready: false, healthMessage: "starting" } as RuntimeState],
     [{ ...running, state: "error", ready: false, healthMessage: "error" } as RuntimeState],
     [{ ...running, ready: false, healthMessage: "not ready" } as RuntimeState],
@@ -368,7 +416,11 @@ describe("ConfigService", () => {
     expect(files.operations).not.toContain(
       `copy:${YARR_PLUGIN_CONFIG_GOOD_PATH}->${YARR_PLUGIN_CONFIG_NEXT_PATH}:600`,
     );
-    expect(files.operations.some((operation) => operation.startsWith("remove:"))).toBe(false);
+    expect(
+      files.operations.filter((operation) => operation.startsWith("remove:")),
+    ).toEqual([`remove:${YARR_CONFIG_TRANSACTION_STATE_PATH}`]);
+    expect(files.files.has(YARR_PLUGIN_CONFIG_TRANSACTION_PATH)).toBe(true);
+    expect(files.files.has(YARR_ENVIRONMENT_TRANSACTION_PATH)).toBe(true);
     expect(files.files.get(YARR_PLUGIN_CONFIG_GOOD_PATH)?.text).toBe(pluginConfig);
     expect(files.files.get(YARR_ENVIRONMENT_GOOD_PATH)?.text).toBe(environment);
   });

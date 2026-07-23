@@ -2,7 +2,7 @@
   "name": "yarr-mcp",
   "description": "MCP bridge to the yarr media-automation fleet (Sonarr, Radarr, Prowlarr, Plex, Jellyfin, qBittorrent, and more) for Gemini CLI. Also bundles standalone per-service skills (sonarr, radarr, prowlarr, overseerr, sabnzbd, qbittorrent, plex, jellyfin, tautulli, tracearr, bazarr) that drive each service's REST API directly as an offline fallback when the MCP server is unavailable.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "yarr",

@@ -31,8 +31,8 @@ source "$YARR_COMMON_SCRIPT" || {
     exit 1
 }
 
-YARR_UPDATE_API_URL=${YARR_UPDATE_API_URL:-https://api.github.com/repos/jmagar/yarr/releases}
-YARR_UPDATE_DOWNLOAD_ROOT=${YARR_UPDATE_DOWNLOAD_ROOT:-https://github.com/jmagar/yarr/releases/download}
+YARR_UPDATE_API_URL=${YARR_UPDATE_API_URL:-https://api.github.com/repos/dinglebear-ai/yarr/releases}
+YARR_UPDATE_DOWNLOAD_ROOT=${YARR_UPDATE_DOWNLOAD_ROOT:-https://github.com/dinglebear-ai/yarr/releases/download}
 YARR_UPDATE_ASSET=yarr-x86_64.tar.gz
 YARR_UPDATE_CHECKSUM_ASSET=${YARR_UPDATE_ASSET}.sha256
 YARR_MV_BIN=${YARR_MV_BIN:-/bin/mv}
@@ -46,6 +46,16 @@ YARR_UPDATE_ROLLBACK=''
 YARR_ROLLED_BACK=false
 YARR_RESET_CLEANUP_PENDING=false
 YARR_APPLY_CLEANUP_PENDING=false
+YARR_UPDATE_CONNECT_TIMEOUT=${YARR_UPDATE_CONNECT_TIMEOUT:-10}
+YARR_UPDATE_METADATA_TIMEOUT=${YARR_UPDATE_METADATA_TIMEOUT:-30}
+YARR_UPDATE_CHECKSUM_TIMEOUT=${YARR_UPDATE_CHECKSUM_TIMEOUT:-20}
+YARR_UPDATE_ARCHIVE_TIMEOUT=${YARR_UPDATE_ARCHIVE_TIMEOUT:-300}
+YARR_UPDATE_RETRIES=${YARR_UPDATE_RETRIES:-2}
+YARR_UPDATE_RETRY_DELAY=${YARR_UPDATE_RETRY_DELAY:-1}
+YARR_UPDATE_METADATA_MAX_BYTES=${YARR_UPDATE_METADATA_MAX_BYTES:-2097152}
+YARR_UPDATE_CHECKSUM_MAX_BYTES=${YARR_UPDATE_CHECKSUM_MAX_BYTES:-4096}
+YARR_UPDATE_ARCHIVE_MAX_BYTES=${YARR_UPDATE_ARCHIVE_MAX_BYTES:-134217728}
+YARR_UPDATE_LOCK_WAIT_SECONDS=${YARR_UPDATE_LOCK_WAIT_SECONDS:-30}
 
 [[ -r "$YARR_RC_YARR" ]] || { printf 'yarr-update: cannot read lifecycle script\n' >&2; exit 1; }
 # Source lifecycle helpers without executing their direct-command dispatcher.
@@ -137,9 +147,44 @@ yarr_update_version_gt() {
     ((10#$lpatch > 10#$rpatch))
 }
 
+yarr_update_fetch_bounded() {
+    local destination=$1 url=$2 max_bytes=$3 total_timeout=$4 size status
+    "$YARR_RM_BIN" -f -- "$destination" || return 1
+    if "$YARR_CURL_BIN" \
+        --fail --location --silent --show-error \
+        --connect-timeout "$YARR_UPDATE_CONNECT_TIMEOUT" \
+        --max-time "$total_timeout" \
+        --retry "$YARR_UPDATE_RETRIES" \
+        --retry-delay "$YARR_UPDATE_RETRY_DELAY" \
+        --retry-connrefused \
+        --retry-all-errors \
+        --max-filesize "$max_bytes" \
+        --output "$destination" \
+        "$url"; then
+        status=0
+    else
+        status=$?
+    fi
+    if (( status != 0 )); then
+        "$YARR_RM_BIN" -f -- "$destination" || true
+        return "$status"
+    fi
+    size=$(stat -c '%s' "$destination") || {
+        "$YARR_RM_BIN" -f -- "$destination" || true
+        return 1
+    }
+    if (( size > max_bytes )); then
+        yarr_update_error "response exceeded the ${max_bytes}-byte limit"
+        "$YARR_RM_BIN" -f -- "$destination" || true
+        return 1
+    fi
+}
+
 yarr_update_fetch_releases() {
     local destination=$1
-    "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$destination" "$YARR_UPDATE_API_URL" || return 1
+    yarr_update_fetch_bounded \
+        "$destination" "$YARR_UPDATE_API_URL" \
+        "$YARR_UPDATE_METADATA_MAX_BYTES" "$YARR_UPDATE_METADATA_TIMEOUT" || return 1
     jq -e 'type == "array"' "$destination" >/dev/null
 }
 
@@ -242,11 +287,18 @@ yarr_update_with_lock() {
     local status
     mkdir -p "$(dirname "$YARR_LOCK")" || return 1
     exec 9>"$YARR_LOCK"
-    flock -n 9 || { exec 9>&-; yarr_update_error 'another Yarr lifecycle operation is in progress'; return 1; }
+    chmod 0600 "$YARR_LOCK" || { exec 9>&-; return 1; }
+    flock --exclusive --wait "$YARR_UPDATE_LOCK_WAIT_SECONDS" 9 || {
+        exec 9>&-
+        yarr_update_error 'timed out waiting for another Yarr lifecycle operation'
+        return 1
+    }
     YARR_UPDATE_LOCK_FD=9
+    YARR_ACTIVE_LOCK_FD=9
     "$@"
     status=$?
     unset YARR_UPDATE_LOCK_FD
+    unset YARR_ACTIVE_LOCK_FD
     exec 9>&-
     return "$status"
 }
@@ -282,7 +334,7 @@ yarr_update_rollback_apply_current() {
 }
 
 yarr_update_apply_locked() {
-    local candidate=$1
+    local candidate=$1 ownership_status
     YARR_TXN_WAS_RUNNING=false
     YARR_TXN_HAD_ACTIVE=false
     YARR_TXN_HAD_PREVIOUS=false
@@ -301,6 +353,12 @@ yarr_update_apply_locked() {
     if yarr_pid_is_owned; then
         YARR_TXN_WAS_RUNNING=true
         yarr_update_lifecycle stop || return 1
+    else
+        ownership_status=$?
+        if (( ownership_status != 1 )); then
+            yarr_update_error 'live daemon ownership is indeterminate; retaining evidence'
+            return 1
+        fi
     fi
     if [[ "$YARR_TXN_HAD_PREVIOUS" == true ]]; then
         YARR_TXN_PREVIOUS_LOCATION=backup
@@ -367,7 +425,7 @@ yarr_update_rollback_reset_current() {
 }
 
 yarr_update_reset_locked() {
-    local transaction
+    local transaction ownership_status
     transaction=$(mktemp -d "${YARR_OVERLAY_DIR}/.yarr.reset.XXXXXX") || return 1
     yarr_update_track_tempdir "$transaction"
     YARR_TXN_WAS_RUNNING=false
@@ -379,6 +437,12 @@ yarr_update_reset_locked() {
     if yarr_pid_is_owned; then
         YARR_TXN_WAS_RUNNING=true
         yarr_update_lifecycle stop || return 1
+    else
+        ownership_status=$?
+        if (( ownership_status != 1 )); then
+            yarr_update_error 'live daemon ownership is indeterminate; retaining evidence'
+            return 1
+        fi
     fi
     if [[ -e "$YARR_TXN_ACTIVE" ]] && ! "$YARR_MV_BIN" "$YARR_TXN_ACTIVE" "$YARR_TXN_ACTIVE_BACKUP"; then
         yarr_update_rollback_reset_current || true
@@ -404,7 +468,7 @@ yarr_update_reset_locked() {
     fi
 }
 
-yarr_update_check() {
+yarr_update_check_locked() {
     local work releases installed available
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
@@ -421,7 +485,7 @@ yarr_update_check() {
     else yarr_update_emit "$available" false 'Yarr is current'; fi
 }
 
-yarr_update_apply() {
+yarr_update_apply_request_locked() {
     local version=$1 work releases archive checksum extract candidate installed
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
@@ -442,15 +506,19 @@ yarr_update_apply() {
         yarr_update_emit "$version" false 'Yarr is current'
         return 0
     fi
-    if ! "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$archive" "$(yarr_update_download_url "$version" "$YARR_UPDATE_ASSET")" || \
-        ! "$YARR_CURL_BIN" --fail --location --silent --show-error --output "$checksum" "$(yarr_update_download_url "$version" "$YARR_UPDATE_CHECKSUM_ASSET")" || \
+    if ! yarr_update_fetch_bounded \
+        "$archive" "$(yarr_update_download_url "$version" "$YARR_UPDATE_ASSET")" \
+        "$YARR_UPDATE_ARCHIVE_MAX_BYTES" "$YARR_UPDATE_ARCHIVE_TIMEOUT" || \
+        ! yarr_update_fetch_bounded \
+        "$checksum" "$(yarr_update_download_url "$version" "$YARR_UPDATE_CHECKSUM_ASSET")" \
+        "$YARR_UPDATE_CHECKSUM_MAX_BYTES" "$YARR_UPDATE_CHECKSUM_TIMEOUT" || \
         ! yarr_update_verify_checksum "$archive" "$checksum" || \
         ! yarr_update_validate_archive "$archive" "$extract" || \
         [[ "$(yarr_update_version_from_binary "$candidate")" != "$version" ]]; then
         yarr_update_error 'downloaded release failed verification'
         return 1
     fi
-    if ! yarr_update_with_lock yarr_update_apply_locked "$candidate"; then
+    if ! yarr_update_apply_locked "$candidate"; then
         if [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
             yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending'
             return 1
@@ -462,13 +530,25 @@ yarr_update_apply() {
     yarr_update_emit "$version" false "Yarr updated to ${version}"
 }
 
-yarr_update_reset() {
-    if ! yarr_update_with_lock yarr_update_reset_locked; then
+yarr_update_reset_request_locked() {
+    if ! yarr_update_reset_locked; then
         [[ "$YARR_RESET_CLEANUP_PENDING" == true ]] && return 1
         yarr_update_emit '' "$YARR_ROLLED_BACK" 'Reset failed; previous binary restored' || true
         return 1
     fi
     yarr_update_emit '' false 'Yarr reset to packaged binary'
+}
+
+yarr_update_check() {
+    yarr_update_with_lock yarr_update_check_locked
+}
+
+yarr_update_apply() {
+    yarr_update_with_lock yarr_update_apply_request_locked "$1"
+}
+
+yarr_update_reset() {
+    yarr_update_with_lock yarr_update_reset_request_locked
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

@@ -31,7 +31,7 @@ plugins/
 Both catalogs list `yarr` first, then the 11 standalone plugins:
 
 - **Claude Code** — [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json)
-  at the repo root. Add it with `/plugin marketplace add jmagar/yarr` then install
+  at the repo root. Add it with `/plugin marketplace add dinglebear-ai/yarr` then install
   individual plugins (`/plugin install sonarr@yarr`). Uses
   `metadata.pluginRoot: "./plugins"` with relative `source` paths.
 - **Codex** — [`.agents/plugins/marketplace.json`](../.agents/plugins/marketplace.json),

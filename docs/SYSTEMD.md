@@ -32,7 +32,7 @@ npm i -g yarr-mcp
 Or use the release installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 ```
 
 The npm package and curl installer both expose `yarr`. Verify the command is in
