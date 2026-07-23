@@ -540,3 +540,34 @@ No deployment, workflow dispatch, release publication, or upstream draft
 mutation occurred. Independent reviewer approval remains pending. Detailed
 evidence is in
 `.superpowers/sdd/task-12-classic-trust-api-uninstall-report.md`.
+
+## API uninstall stopped-state and preparation cleanup remediation
+
+The final API-uninstall review findings are closed locally. The state detector
+now models upstream PM2 exit-`0`/empty stopped behavior but accepts it only when
+an independent `/proc` scan finds no exact or ambiguous Unraid API process.
+Exact Node executable, `/usr/local/unraid-api` cwd, and `dist/main.js`
+entrypoint evidence is required for running state. Empty/live,
+online/no-process, malformed, failed-command, and ambiguous-identity tuples fail
+before recovery creation or mutation. A proven stopped host remains stopped.
+
+Recovery preparation is now separate from loader/runtime mutation. Twelve
+named chmod/copy/marker/verify/sync steps clean the new transaction immediately
+on failure without invoking rollback. The contract repeats every step twice
+and proves zero leaks plus unchanged loader bytes/modes and runtime state.
+Cleanup-removal failure retains exactly one revalidated mode-`0700`
+transaction and reports its bounded identifier and operator action.
+
+Focused classic and upstream source contracts, the aggregate lifecycle/
+updater/classic/workflow/release harness, changed-shell ShellCheck, dual builds,
+browser smoke, zero production audits, and package verification pass. The
+umask `022`/`077` packages are byte-identical at SHA-256
+`6e9f405ebc7f445c69f98a77bec770fdaf15fc50e8346376d2619af3ba3c95e4`,
+MD5 `13ebe82db5a62644a9c2242750c30592`, and `6,227,708` bytes. The
+archive has `59` entries, `44` declared files, no `./` member, and `14`
+root-ID directories at mode `0755`.
+
+No deployment, workflow dispatch, release publication, or upstream draft
+mutation occurred. Independent reviewer approval remains pending. Detailed
+evidence is in
+`.superpowers/sdd/task-12-api-uninstall-final-findings-report.md`.

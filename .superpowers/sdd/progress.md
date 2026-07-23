@@ -93,6 +93,29 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - No deployment, workflow dispatch, release publication, or upstream draft
   mutation occurred. Independent reviewer approval remains pending.
 
+### 2026-07-23 - API uninstall final findings
+
+- Modeled upstream PM2 exit-`0`/empty stopped status and required independent
+  exact Node executable/cwd/entrypoint process evidence for running state.
+- Added fail-closed empty/live, online/no-process, ambiguous-process, garbage,
+  and command-error contracts before mutation.
+- Preserved a proven stopped API without start or stop operations.
+- Split recovery preparation from loader/runtime mutation. All 12
+  chmod/copy/marker/verify/sync steps clean up without rollback on failure.
+- Repeated every preparation fault twice with zero leaks and exact loader
+  byte/mode, target, store, and runtime-state preservation.
+- Cleanup-removal failure retains and reports exactly one validated
+  mode-`0700` transaction with an operator action.
+- Focused classic/upstream semantics and aggregate plugin/package gates,
+  ShellCheck, builds, browser smoke, audits, and verifier pass.
+- Deterministic umask `022`/`077` package:
+  SHA-256 `6e9f405ebc7f445c69f98a77bec770fdaf15fc50e8346376d2619af3ba3c95e4`,
+  MD5 `13ebe82db5a62644a9c2242750c30592`, size `6,227,708` bytes,
+  `59` entries, `44` declared files, `14` root-owned mode-`0755`
+  directories, and no `./` member.
+- No deployment, workflow dispatch, release publication, or upstream draft
+  mutation occurred. Independent reviewer approval remains pending.
+
 ### 2026-07-23 - Same-operation updater state validation
 
 - Strengthened the closed 26-row updater matrix with strict core Yarr release

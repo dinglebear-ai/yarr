@@ -43,6 +43,25 @@ expect_failure_message() {
     fi
 }
 
+if [[ -n "${YARR_UPSTREAM_UNRAID_API_ROOT:-}" ]]; then
+    upstream_status="$YARR_UPSTREAM_UNRAID_API_ROOT/api/src/unraid-api/cli/status.command.ts"
+    upstream_pm2="$YARR_UPSTREAM_UNRAID_API_ROOT/api/src/unraid-api/cli/pm2.service.ts"
+    upstream_pm2_contract="$YARR_UPSTREAM_UNRAID_API_ROOT/api/src/unraid-api/cli/__test__/pm2-commands.spec.ts"
+    [[ -f "$upstream_status" && -f "$upstream_pm2" && -f "$upstream_pm2_contract" ]] ||
+        fail 'configured upstream unraid-api source is incomplete'
+    grep -Fq "{ tag: 'PM2 Status', stdio: 'inherit', raw: true }" "$upstream_status" ||
+        fail 'upstream status no longer inherits raw PM2 status output'
+    grep -Fq "'status'," "$upstream_status" &&
+        grep -Fq "'unraid-api'," "$upstream_status" &&
+        grep -Fq "'--mini-list'" "$upstream_status" ||
+        fail 'upstream status command no longer models PM2 mini-list'
+    grep -Fq 'return runCommand();' "$upstream_pm2" ||
+        fail 'upstream raw PM2 result no longer preserves command exit/output'
+    grep -Fq "run: vi.fn().mockResolvedValue({ stdout: '', stderr: '' })" \
+        "$upstream_pm2_contract" ||
+        fail 'upstream lifecycle contract no longer includes empty successful PM2 output'
+fi
+
 for required in \
     "$classic" "$page" "$dashboard_page" "$icon" "$icon_source" "$default_cfg" "$default_env" \
     "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" \
@@ -392,8 +411,10 @@ api_nodes="$api_home/node_modules"
 api_config="$api_root/boot/config/plugins/dynamix.my.servers/configs/api.json"
 api_credentials="$api_root/boot/config/plugins/dynamix.my.servers/myservers.cfg"
 api_log="$api_root/var/log/graphql-api.log"
+api_proc="$api_root/proc"
+api_process_pid=4242
 mkdir -p "$payload" "$api_nodes/.unraid-api-plugin-yarr/prior" \
-    "$(dirname "$api_config")" "$(dirname "$api_log")" "$api_root/bin"
+    "$(dirname "$api_config")" "$(dirname "$api_log")" "$api_root/bin" "$api_proc"
 packaged_api="$source_root/usr/local/emhttp/plugins/yarr/api"
 cp -a "$packaged_api/." "$payload/"
 diff -qr "$packaged_api" "$payload" >/dev/null || fail 'API activation fixture is not the exact staged packaged payload'
@@ -408,21 +429,52 @@ printf '{"version":"test","plugins":["existing"]}\n' > "$api_config"
 printf 'apikey="contract-api-key"\n' > "$api_credentials"
 printf 'FATAL stale error that must be ignored\n' > "$api_log"
 
+create_owned_api_process() {
+    local proc_dir="$api_proc/$api_process_pid"
+    mkdir -p "$proc_dir"
+    printf '%s\0%s\0' "$(command -v node)" './dist/main.js' > "$proc_dir/cmdline"
+    ln -sfn "$api_home" "$proc_dir/cwd"
+    ln -sfn "$(command -v node)" "$proc_dir/exe"
+}
+
+clear_api_process_evidence() {
+    rm -rf -- "$api_proc/$api_process_pid"
+}
+
 cat > "$api_root/bin/unraid-api" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'api %s\n' "$1" >> "$YARR_TEST_OPERATIONS"
+create_process_evidence() {
+  local proc_dir="$YARR_TEST_PROC_ROOT/$YARR_TEST_PROCESS_PID"
+  mkdir -p "$proc_dir"
+  printf '%s\0%s\0' "$YARR_TEST_NODE" './dist/main.js' > "$proc_dir/cmdline"
+  ln -sfn "$YARR_TEST_API_HOME" "$proc_dir/cwd"
+  ln -sfn "$YARR_TEST_NODE" "$proc_dir/exe"
+}
 case "$1" in
   status)
+    if [[ "${YARR_TEST_STATUS_ERROR:-no}" == yes ]]; then
+      exit 2
+    fi
+    if [[ "${YARR_TEST_STATUS_GARBAGE:-no}" == yes ]]; then
+      printf 'unknown pm2 state\n'
+      exit 0
+    fi
+    if [[ "${YARR_TEST_STATUS_FORCE_EMPTY:-no}" == yes ]]; then
+      exit 0
+    fi
     if [[ -f "$YARR_TEST_API_RUNNING" ]]; then
       printf 'online\n'
       exit 0
     fi
-    printf 'stopped\n'
-    exit 3
+    # Real `unraid-api status` inherits PM2 mini-list: an intentionally
+    # stopped service returns success with no output.
+    exit 0
     ;;
   stop)
     rm -f "$YARR_TEST_API_RUNNING"
+    rm -rf -- "$YARR_TEST_PROC_ROOT/$YARR_TEST_PROCESS_PID"
     exit 0
     ;;
   start)
@@ -434,6 +486,7 @@ case "$1" in
       exit 1
     fi
     : > "$YARR_TEST_API_RUNNING"
+    create_process_evidence
     log_variable="YARR_TEST_NEW_LOG_AT_${count}"
     printf '%s\n' "${!log_variable:-${YARR_TEST_NEW_LOG:-YarrApiModule loaded}}" >> "$YARR_TEST_API_LOG"
     ;;
@@ -508,20 +561,38 @@ EOF
 chmod 755 "$api_root/bin/mv"
 : > "$tmp_dir/api-mv-count"
 
+cat > "$api_root/bin/rm" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${YARR_TEST_FAIL_RECOVERY_RM:-no}" == yes &&
+      "${!#}" == *'.unraid-api-plugin-yarr.uninstall-recovery.'* ]]; then
+  printf 'injected recovery cleanup failure\n' >&2
+  exit 72
+fi
+exec /bin/rm "$@"
+EOF
+chmod 755 "$api_root/bin/rm"
+
 api_env=(
     YARR_API_TEST_ROOT="$api_root"
     YARR_API_COMMAND="$api_root/bin/unraid-api"
     YARR_API_CURL="$api_root/bin/curl"
     YARR_API_NODE="$(command -v node)"
+    YARR_API_PROC_ROOT="$api_proc"
     YARR_API_ATTEMPTS=2
     YARR_API_INTERVAL=0
     YARR_TEST_OPERATIONS="$tmp_dir/api-operations.log"
     YARR_TEST_API_LOG="$api_log"
     YARR_TEST_API_RUNNING="$tmp_dir/api-running"
+    YARR_TEST_PROC_ROOT="$api_proc"
+    YARR_TEST_PROCESS_PID="$api_process_pid"
+    YARR_TEST_API_HOME="$api_home"
+    YARR_TEST_NODE="$(command -v node)"
     YARR_TEST_START_COUNT_FILE="$tmp_dir/api-start-count"
     YARR_TEST_CURL_COUNT_FILE="$tmp_dir/api-curl-count"
     YARR_TEST_CMDLINES="$tmp_dir/api-cmdlines"
 )
+create_owned_api_process
 env "${api_env[@]}" "$api_install"
 active_target=$(readlink "$api_nodes/unraid-api-plugin-yarr")
 [[ "$active_target" == "$api_nodes/.unraid-api-plugin-yarr/"* ]] || fail 'API target does not point at immutable activation store'
@@ -592,7 +663,12 @@ jq -e '.plugins | index("unraid-api-plugin-yarr")' "$api_config" >/dev/null || f
 env "${api_env[@]}" "$api_root/bin/unraid-api" start
 [[ -f "$tmp_dir/api-running" ]] || fail 'test recovery could not restart unraid-api after restart exhaustion'
 
-uninstall_env=("${api_env[@]}" YARR_API_MV="$api_root/bin/mv" YARR_TEST_MV_COUNT_FILE="$tmp_dir/api-mv-count")
+uninstall_env=(
+    "${api_env[@]}"
+    YARR_API_MV="$api_root/bin/mv"
+    YARR_API_RM="$api_root/bin/rm"
+    YARR_TEST_MV_COUNT_FILE="$tmp_dir/api-mv-count"
+)
 
 reset_api_fault_counters() {
     : > "$tmp_dir/api-mv-count"
@@ -615,6 +691,112 @@ assert_prior_api_restored() {
         fail "$label retained recovery after verified rollback"
     fi
 }
+
+package_before_sha=$(sha256sum "$api_home/package.json" | cut -d' ' -f1)
+package_before_mode=$(stat -c %a "$api_home/package.json")
+config_before_sha=$(sha256sum "$api_config" | cut -d' ' -f1)
+config_before_mode=$(stat -c %a "$api_config")
+prior_store_marker_sha=$(sha256sum "$api_nodes/.unraid-api-plugin-yarr/prior/marker" | cut -d' ' -f1)
+prior_store_marker_mode=$(stat -c %a "$api_nodes/.unraid-api-plugin-yarr/prior/marker")
+
+assert_preparation_unchanged() {
+    local label=$1
+    [[ $(sha256sum "$api_home/package.json" | cut -d' ' -f1) == "$package_before_sha" &&
+        $(stat -c %a "$api_home/package.json") == "$package_before_mode" ]] ||
+        fail "$label changed package loader bytes or mode"
+    [[ $(sha256sum "$api_config" | cut -d' ' -f1) == "$config_before_sha" &&
+        $(stat -c %a "$api_config") == "$config_before_mode" ]] ||
+        fail "$label changed API config bytes or mode"
+    [[ $(readlink "$api_nodes/unraid-api-plugin-yarr") == "$prior_active" ]] ||
+        fail "$label changed active target"
+    [[ $(sha256sum "$api_nodes/.unraid-api-plugin-yarr/prior/marker" | cut -d' ' -f1) == "$prior_store_marker_sha" &&
+        $(stat -c %a "$api_nodes/.unraid-api-plugin-yarr/prior/marker") == "$prior_store_marker_mode" ]] ||
+        fail "$label changed immutable package store bytes or mode"
+    [[ -f "$tmp_dir/api-running" ]] || fail "$label changed prior running state"
+    if grep -Eq '^api (start|stop)$' "$tmp_dir/api-operations.log"; then
+        fail "$label invoked lifecycle rollback before loader mutation"
+    fi
+}
+
+preparation_failpoints=(
+    recovery-chmod recovery-verify
+    package-json-copy package-json-marker package-json-verify package-json-sync
+    api-json-copy api-json-marker api-json-verify api-json-sync
+    recovery-sync parent-sync
+)
+for failpoint in "${preparation_failpoints[@]}"; do
+    for repetition in 1 2; do
+        reset_api_fault_counters
+        expect_failure_message "uninstall preparation $failpoint attempt $repetition" \
+            "API uninstall preparation failed at ${failpoint}" \
+            env "${uninstall_env[@]}" YARR_API_UNINSTALL_FAILPOINT="$failpoint" \
+            "$api_uninstall"
+        assert_preparation_unchanged "$failpoint attempt $repetition"
+        if find "$api_nodes" -maxdepth 1 -type d \
+            -name '.unraid-api-plugin-yarr.uninstall-recovery.*' -print -quit | grep -q .; then
+            fail "$failpoint attempt $repetition leaked a recovery transaction"
+        fi
+    done
+done
+
+reset_api_fault_counters
+expect_failure_message 'uninstall preparation cleanup failure' \
+    'API uninstall preparation cleanup pending:' \
+    env "${uninstall_env[@]}" \
+    YARR_API_UNINSTALL_FAILPOINT=package-json-copy \
+    YARR_TEST_FAIL_RECOVERY_RM=yes "$api_uninstall"
+assert_preparation_unchanged 'preparation cleanup failure'
+mapfile -t preparation_recoveries < <(
+    find "$api_nodes" -maxdepth 1 -type d \
+        -name '.unraid-api-plugin-yarr.uninstall-recovery.*' -print
+)
+[[ ${#preparation_recoveries[@]} == 1 &&
+    ! -L "${preparation_recoveries[0]}" &&
+    $(stat -c %a "${preparation_recoveries[0]}") == 700 ]] ||
+    fail 'preparation cleanup failure did not retain exactly one validated transaction'
+/bin/rm -rf -- "${preparation_recoveries[0]}"
+
+# State detection must reconcile PM2 status with independently observed owned
+# process evidence before any loader or lifecycle mutation.
+reset_api_fault_counters
+expect_failure_message 'empty status with live owned process' \
+    'prior unraid-api state is contradictory' \
+    env "${uninstall_env[@]}" YARR_TEST_STATUS_FORCE_EMPTY=yes "$api_uninstall"
+assert_preparation_unchanged 'empty status with live owned process'
+
+reset_api_fault_counters
+clear_api_process_evidence
+expect_failure_message 'online status without owned process' \
+    'prior unraid-api state is contradictory' \
+    env "${uninstall_env[@]}" "$api_uninstall"
+assert_preparation_unchanged 'online status without owned process'
+create_owned_api_process
+
+reset_api_fault_counters
+rm -f "$tmp_dir/api-running"
+clear_api_process_evidence
+mkdir -p "$api_proc/4343"
+printf '%s\0%s\0' "$(command -v node)" './dist/main.js' > "$api_proc/4343/cmdline"
+ln -sfn "$tmp_dir" "$api_proc/4343/cwd"
+ln -sfn "$(command -v node)" "$api_proc/4343/exe"
+expect_failure_message 'empty status with ambiguous process' \
+    'prior unraid-api state is ambiguous' \
+    env "${uninstall_env[@]}" "$api_uninstall"
+rm -rf -- "$api_proc/4343"
+: > "$tmp_dir/api-running"
+create_owned_api_process
+
+reset_api_fault_counters
+expect_failure_message 'garbage PM2 status' \
+    'prior unraid-api state is ambiguous' \
+    env "${uninstall_env[@]}" YARR_TEST_STATUS_GARBAGE=yes "$api_uninstall"
+assert_preparation_unchanged 'garbage PM2 status'
+
+reset_api_fault_counters
+expect_failure_message 'failed PM2 status command' \
+    'prior unraid-api state is ambiguous' \
+    env "${uninstall_env[@]}" YARR_TEST_STATUS_ERROR=yes "$api_uninstall"
+assert_preparation_unchanged 'failed PM2 status command'
 
 reset_api_fault_counters
 expect_failure_message 'uninstall start nonzero' 'unraid-api launch failed without Yarr' \
@@ -694,6 +876,7 @@ mv "$api_home/package.json.new" "$api_home/package.json"
 jq '.plugins += ["unraid-api-plugin-yarr"]' "$api_config" > "$api_config.new"
 mv "$api_config.new" "$api_config"
 rm -f "$tmp_dir/api-running"
+clear_api_process_evidence
 reset_api_fault_counters
 env "${uninstall_env[@]}" "$api_uninstall"
 if grep -Eq '^api (start|stop)$' "$tmp_dir/api-operations.log"; then

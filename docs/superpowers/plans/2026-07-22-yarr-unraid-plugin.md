@@ -968,6 +968,9 @@ install places API and web artifacts at exact runtime paths
 API activation uses a temporary symlink and atomic rename
 API activation reloads unraid-api and checks /var/log/graphql-api.log
 failed activation restores the prior API package
+API uninstall treats PM2 exit-0/empty as stopped only with no exact or ambiguous owned process evidence
+API uninstall rejects status/process contradictions before loader mutation
+API uninstall preparation faults remove recovery without rollback; cleanup failure retains one validated transaction
 uninstall stops Yarr before removing volatile files
 uninstall retains /boot config and /mnt/user/appdata/yarr
 package paths cannot escape staging roots

@@ -165,6 +165,12 @@ The classic plugin:
    authenticated log/schema readiness, and rolls back on failure. Uninstall
    uses the same readiness boundary, proves Yarr fields absent before commit,
    and retains a mode-0700 recovery transaction if rollback readiness fails.
+   Its stopped-state detector models PM2 exit-0/empty output only when an
+   independent `/proc` scan finds no exact or ambiguous Unraid API process;
+   status/process contradictions fail before mutation. Loader-document
+   snapshots are byte/mode-verified and synced before mutation. Preparation
+   failure removes that transaction without rollback, while cleanup failure
+   retains one validated transaction and reports its bounded identifier.
 6. Starts Yarr immediately only when enabled and the array is mounted.
 7. Retains one prior classic archive only with its atomically persisted,
    PLG-derived trusted SHA-256 sidecar; rollback revalidates archive safety and
@@ -484,6 +490,10 @@ independently.
 - Complete package inventory and source/archive parity
 - Daemon and logger PID reuse plus start-tick/executable/argument identity tests
 - Malformed-stopped status, pre-install, event-stop, and uninstall tests
+- PM2 exit-0/empty stopped status, contradictory live-process evidence, and
+  online-without-owned-process tests
+- Repeated API-uninstall preparation chmod/copy/verify/sync fault matrices,
+  cleanup-removal failure, zero-leak assertions, and loader byte/mode parity
 - Config quoting/injection and path validation tests
 - Lock/concurrent-operation tests
 - Archive traversal, extra-entry, symlink, checksum, downgrade, version,

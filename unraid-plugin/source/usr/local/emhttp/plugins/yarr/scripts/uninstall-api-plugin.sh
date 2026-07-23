@@ -18,6 +18,9 @@ api_log="${root}/var/log/graphql-api.log"
 api_command=${YARR_API_COMMAND:-unraid-api}
 curl_command=${YARR_API_CURL:-/usr/bin/curl}
 probe_url=${YARR_API_GRAPHQL_URL:-http://127.0.0.1/graphql}
+proc_root=${YARR_API_PROC_ROOT:-${root:+${root}/proc}}
+proc_root=${proc_root:-/proc}
+expected_node=${YARR_API_NODE:-/usr/local/bin/node}
 move_command=${YARR_API_MV:-/bin/mv}
 remove_command=${YARR_API_RM:-/bin/rm}
 attempts=${YARR_API_ATTEMPTS:-30}
@@ -32,11 +35,16 @@ removed_target=''
 removed_store=''
 target_moved=false
 store_moved=false
+preparation_active=false
+preparation_failure_step=''
 transaction_active=false
 api_was_running=unknown
+api_process_state=unknown
 prior_probe_mode=yarr-absent
 rollback_readiness_proven=false
 rollback_cleanup_pending=false
+recovery_owner=''
+recovery_group=''
 
 log_message() {
     if [[ -n "$root" ]]; then
@@ -75,28 +83,90 @@ restore_optional_file() {
     fi
 }
 
+inspect_api_process_evidence() {
+    local proc_dir cwd exe expected_exe arg candidate owned=false ambiguous=false
+    local -a argv=() proc_dirs=()
+    api_process_state=unknown
+    [[ -d "$proc_root" && ! -L "$proc_root" ]] || {
+        api_process_state=ambiguous
+        return 0
+    }
+    expected_exe=$(readlink -f -- "$expected_node" 2>/dev/null) || {
+        api_process_state=ambiguous
+        return 0
+    }
+    shopt -s nullglob
+    proc_dirs=("$proc_root"/[0-9]*)
+    shopt -u nullglob
+    for proc_dir in "${proc_dirs[@]}"; do
+        [[ -d "$proc_dir" && ! -L "$proc_dir" ]] || continue
+        argv=()
+        while IFS= read -r -d '' arg; do
+            argv+=("$arg")
+        done < "$proc_dir/cmdline" 2>/dev/null || true
+        ((${#argv[@]} >= 2)) || continue
+        candidate=false
+        for arg in "${argv[@]:1}"; do
+            if [[ "$arg" == ./dist/main.js ||
+                "$arg" == "$api_home/dist/main.js" ]]; then
+                candidate=true
+                break
+            fi
+        done
+        "$candidate" || continue
+        cwd=$(readlink -f -- "$proc_dir/cwd" 2>/dev/null) || {
+            ambiguous=true
+            continue
+        }
+        exe=$(readlink -f -- "$proc_dir/exe" 2>/dev/null) || {
+            ambiguous=true
+            continue
+        }
+        if [[ "$cwd" == "$api_home" && "$exe" == "$expected_exe" ]]; then
+            owned=true
+        else
+            ambiguous=true
+        fi
+    done
+    if "$owned"; then
+        api_process_state=live
+    elif "$ambiguous"; then
+        api_process_state=ambiguous
+    else
+        api_process_state=none
+    fi
+}
+
 detect_api_state() {
-    local output status running=false stopped=false
+    local output status running=false stopped=false empty=false
     if output=$("$api_command" status 2>&1); then
         status=0
     else
         status=$?
     fi
+    inspect_api_process_evidence
+    [[ -z "${output//[[:space:]]/}" ]] && empty=true
     grep -Eiq '(^|[^[:alpha:]])(online|running)([^[:alpha:]]|$)' <<< "$output" && running=true
     grep -Eiq '(^|[^[:alpha:]])(stopped|offline)([^[:alpha:]]|$)' <<< "$output" && stopped=true
-    if "$running" && ! "$stopped"; then
+    if ((status != 0)); then
+        log_message "API uninstall failed: prior unraid-api state is ambiguous (status ${status}, process ${api_process_state})"
+        return 1
+    fi
+    if "$running" && ! "$stopped" && [[ "$api_process_state" == live ]]; then
         api_was_running=true
         return 0
     fi
-    if "$stopped" && ! "$running"; then
+    if { "$stopped" && ! "$running" || "$empty"; } &&
+        [[ "$api_process_state" == none ]]; then
         api_was_running=false
         return 0
     fi
-    if (( status == 3 )) && [[ -z "$output" ]]; then
-        api_was_running=false
-        return 0
+    if { "$running" && [[ "$api_process_state" != live ]]; } ||
+        { { "$stopped" || "$empty"; } && [[ "$api_process_state" == live ]]; }; then
+        log_message "API uninstall failed: prior unraid-api state is contradictory (status ${status}, process ${api_process_state})"
+    else
+        log_message "API uninstall failed: prior unraid-api state is ambiguous (status ${status}, process ${api_process_state})"
     fi
-    log_message "API uninstall failed: prior unraid-api state is ambiguous (status ${status})"
     return 1
 }
 
@@ -135,9 +205,82 @@ loader_state_is_removed() {
     fi
 }
 
+recovery_identifier_is_safe() {
+    [[ -n "$recovery" &&
+        "$recovery" == "$api_nodes"/.unraid-api-plugin-yarr.uninstall-recovery.* &&
+        ${recovery##*/} =~ ^\.unraid-api-plugin-yarr\.uninstall-recovery\.[A-Za-z0-9]{8}$ ]]
+}
+
+recovery_is_valid() {
+    recovery_identifier_is_safe &&
+        [[ -d "$recovery" && ! -L "$recovery" &&
+            $(stat -c %a "$recovery" 2>/dev/null) == 700 &&
+            $(stat -c %u "$recovery" 2>/dev/null) == "$recovery_owner" &&
+            $(stat -c %g "$recovery" 2>/dev/null) == "$recovery_group" ]]
+}
+
 remove_recovery() {
     [[ -n "$recovery" ]] || return 0
-    "$remove_command" -rf -- "$recovery"
+    recovery_is_valid || return 1
+    "$remove_command" -rf -- "$recovery" || return 1
+    [[ ! -e "$recovery" && ! -L "$recovery" ]]
+}
+
+cleanup_pre_mutation_recovery() {
+    local phase=$1
+    if remove_recovery; then
+        recovery=''
+        return 0
+    fi
+    if recovery_is_valid; then
+        log_message "API uninstall ${phase} cleanup pending: ${recovery##*/}; operator action: remove the retained mode-0700 transaction before retry"
+    else
+        log_message "API uninstall ${phase} cleanup failed and retained recovery identity is invalid; operator intervention required"
+    fi
+    return 1
+}
+
+preparation_step() {
+    local label=$1
+    shift
+    if [[ "${YARR_API_UNINSTALL_FAILPOINT:-}" == "$label" ]] || ! "$@"; then
+        preparation_failure_step=$label
+        log_message "API uninstall preparation failed at ${label}"
+        return 1
+    fi
+}
+
+verify_prepared_file() {
+    local source=$1 snapshot=$2 marker=$3
+    [[ -f "$source" && ! -L "$source" &&
+        -f "$snapshot" && ! -L "$snapshot" &&
+        -f "$marker" && ! -L "$marker" ]] || return 1
+    cmp -s -- "$source" "$snapshot" || return 1
+    [[ $(stat -c '%u:%g:%a' "$snapshot") == "$(stat -c '%u:%g:%a' "$source")" &&
+        $(stat -c %a "$marker") == 600 &&
+        $(stat -c %u "$marker") == "$recovery_owner" &&
+        $(stat -c %g "$marker") == "$recovery_group" ]]
+}
+
+sync_prepared_file() {
+    local snapshot=$1 marker=$2
+    sync -f "$snapshot" && sync -f "$marker"
+}
+
+prepare_optional_file() {
+    local label=$1 source=$2 step_label=${1//./-}
+    local snapshot="$recovery/$label" marker="$recovery/$label.present"
+    if [[ -L "$source" || ( -e "$source" && ! -f "$source" ) ]]; then
+        preparation_failure_step="${step_label}-copy"
+        log_message "API uninstall preparation failed at ${step_label}-copy"
+        return 1
+    fi
+    [[ -f "$source" ]] || return 0
+    preparation_step "${step_label}-copy" cp -p -- "$source" "$snapshot" || return 1
+    preparation_step "${step_label}-marker" install -m 0600 /dev/null "$marker" || return 1
+    preparation_step "${step_label}-verify" verify_prepared_file \
+        "$source" "$snapshot" "$marker" || return 1
+    preparation_step "${step_label}-sync" sync_prepared_file "$snapshot" "$marker"
 }
 
 rollback_uninstall() {
@@ -176,7 +319,13 @@ rollback_uninstall() {
 on_exit() {
     local status=$?
     trap - EXIT
-    if "$transaction_active"; then
+    if "$preparation_active"; then
+        preparation_active=false
+        if cleanup_pre_mutation_recovery preparation; then
+            log_message 'API uninstall preparation aborted before mutation; recovery removed'
+        fi
+        status=1
+    elif "$transaction_active"; then
         log_message 'API uninstall failed; restoring prior activation'
         if rollback_uninstall; then
             log_message 'API uninstall rollback restored the exact prior state and readiness'
@@ -200,22 +349,22 @@ fi
 mkdir -p "$api_nodes"
 umask 077
 recovery=$(mktemp -d "$api_nodes/.${plugin_name}.uninstall-recovery.XXXXXXXX")
-chmod 0700 "$recovery"
-[[ ${recovery##*/} =~ ^\.unraid-api-plugin-yarr\.uninstall-recovery\.[A-Za-z0-9]{8}$ ]] || {
+preparation_active=true
+recovery_owner=$(id -u)
+recovery_group=$(id -g)
+preparation_step recovery-chmod chmod 0700 "$recovery" || exit 1
+preparation_step recovery-verify recovery_is_valid || exit 1
+recovery_identifier_is_safe || {
     log_message 'API uninstall failed: recovery identifier is unsafe'
     exit 1
 }
 removed_target="$recovery/target"
 removed_store="$recovery/store"
 
-if [[ -f "$api_package_json" ]]; then
-    cp -p -- "$api_package_json" "$recovery/package.json"
-    : > "$recovery/package.json.present"
-fi
-if [[ -f "$api_config_json" ]]; then
-    cp -p -- "$api_config_json" "$recovery/api.json"
-    : > "$recovery/api.json.present"
-fi
+prepare_optional_file package.json "$api_package_json" || exit 1
+prepare_optional_file api.json "$api_config_json" || exit 1
+preparation_step recovery-sync sync -f "$recovery" || exit 1
+preparation_step parent-sync sync -f "$api_nodes" || exit 1
 if jq -e --arg name "$plugin_name" \
     '(.peerDependencies[$name] != null)' "$recovery/package.json" >/dev/null 2>&1 ||
     jq -e --arg name "$plugin_name" \
@@ -223,14 +372,11 @@ if jq -e --arg name "$plugin_name" \
     "$recovery/api.json" >/dev/null 2>&1; then
     prior_probe_mode=yarr-present
 fi
+preparation_active=false
 
 if [[ "$api_was_running" == true ]] && ! "$api_command" stop; then
     log_message 'API uninstall failed: could not stop unraid-api'
-    if remove_recovery; then
-        recovery=''
-    else
-        log_message "API uninstall pre-mutation cleanup pending: ${recovery##*/}"
-    fi
+    cleanup_pre_mutation_recovery pre-mutation || true
     exit 1
 fi
 transaction_active=true

@@ -207,8 +207,22 @@ activation artifacts are deleted. Failure restores the exact loader files,
 target, and immutable store, restarts the prior state, and proves its
 readiness. If rollback readiness is unproven, the mode-`0700` recovery
 transaction remains under the API module directory and uninstall returns
-failure. When status proves the API was stopped, uninstall validates the
-detached loader state without starting it.
+failure.
+
+The real `unraid-api status` command inherits PM2 mini-list behavior: an
+intentionally stopped API can return exit `0` with no output. Uninstall accepts
+that tuple as stopped only after a `/proc` identity scan proves there is no
+live or ambiguous Node process for the exact `/usr/local/unraid-api` cwd and
+`dist/main.js` entrypoint. Empty status with live evidence, online status
+without owned evidence, command errors, and unrecognized output fail before
+recovery creation or loader mutation. A proven stopped API remains stopped.
+
+Before mutation, uninstall copies, byte/mode-verifies, and durably syncs the
+loader documents into a private transaction. Any preparation failure removes
+that transaction without invoking rollback. If removal itself fails, exactly
+one validated mode-`0700` transaction is retained and its bounded identifier
+and cleanup action are reported. Runtime rollback is reserved for failures
+after the loader/runtime transaction starts.
 
 The classic package stages production-only JavaScript for
 `unraid-api-plugin-yarr`. Activation installs a content-addressed module,
