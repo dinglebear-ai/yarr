@@ -108,8 +108,19 @@ icon_header=$(od -An -tx1 -N26 "$icon" | tr -d ' \n')
 [[ "$icon_header" == 89504e470d0a1a0a0000000d4948445200000100000001000806 ]] ||
     fail 'source yarr.png must be a 256x256 8-bit RGBA PNG'
 grep -Fq 'viewBox="0 0 256 256"' "$icon_source" || fail 'Yarr icon source has the wrong canvas'
-grep -Fq '#29b6f6' "$icon_source" || fail 'Yarr icon source lacks the Aurora cyan motif'
-grep -Fq '#f9a8c4' "$icon_source" || fail 'Yarr icon source lacks the rose signal accent'
+grep -Fq 'viewBox="0 0 24 24"' "$icon_source" || fail 'Yarr icon source lacks the Aurora 24x24 glyph grid'
+grep -Fq 'fill="none"' "$icon_source" || fail 'Yarr icon source is not an outline glyph'
+grep -Fq 'stroke-width="1.75"' "$icon_source" || fail 'Yarr icon source has drifted from the Aurora stroke weight'
+grep -Fq 'stroke-linecap="round"' "$icon_source" || fail 'Yarr icon source lacks rounded stroke caps'
+grep -Fq 'stroke-linejoin="round"' "$icon_source" || fail 'Yarr icon source lacks rounded stroke joins'
+grep -Fq '#ff7eb0' "$icon_source" || fail 'Yarr icon source lacks the Aurora media rose tone'
+grep -Fq '#6fdcff' "$icon_source" || fail 'Yarr icon source lacks the restrained Aurora cyan play accent'
+grep -Fq 'data-role="media-hub"' "$icon_source" || fail 'Yarr icon source lacks the central media hub'
+grep -Fq 'data-role="media-play"' "$icon_source" || fail 'Yarr icon source lacks the media play mark'
+[[ $(grep -Fc 'data-role="endpoint"' "$icon_source") == 3 ]] || fail 'Yarr icon source must contain exactly three service endpoints'
+if grep -Eqi '<(linearGradient|radialGradient|text)([[:space:]>])' "$icon_source"; then
+    fail 'Yarr icon source contains a gradient or text logo treatment'
+fi
 grep -Fxq 'DASHBOARD_WIDGET_ENABLE=true' "$default_cfg" || fail 'dashboard widget does not default enabled'
 
 [[ $(stat -c %a "$default_cfg") == 600 ]] || fail 'default.cfg must be mode 0600'

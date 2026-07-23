@@ -28,3 +28,11 @@ Task 12 review 1 remediation: implemented and locally verified from 4f15eb5c72a1
 - Final package inventory: 56 archive entries, 14 directories, 42 regular files, zero dot-root members; verifier reports 41 payload files and 16 declared source paths.
 - Gates: API focused 52/52 and full 161/161; web focused 23/23 and full 48/48; API/web typechecks and builds; production audit 0 vulnerabilities; aggregate contracts PASS; 17 shell syntax files plus canonical ShellCheck PASS; actionlint PASS; 2 Python workflow contracts compile; canonical identity, secret-argv, package, release, workflow, tar-mode, and diff-hygiene checks PASS.
 - No host deployment, workflow dispatch, release publication, or upstream draft mutation was performed. This post-review scope awaits the parent's sequential independent reviews; no approval is claimed here.
+
+### 2026-07-23 - Aurora OperationIcon revision
+
+- Replaced the rejected orbital-Y badge with an Aurora-native media-fleet operation glyph: a central play hub connected to three managed service endpoints.
+- The canonical SVG uses a 24x24 `fill="none"` glyph grid, rounded caps/joins, 1.75 stroke weight, Aurora media rose `#ff7eb0`, and one restrained cyan play accent.
+- Deterministic CairoSVG 2.7.1 rendering produced a 256x256 RGBA PNG; its 32px raster preserves 84 rose pixels, 20 cyan pixels, 572 dark surface pixels, and 736 opaque pixels.
+- Rebuilt the coordinated package twice under umask `022` and `077`; both outputs are byte-identical at SHA-256 `511335b80133dcbfe9b15a2c65c3063e2a9cfad0adc4b24c96fb9ad2d3058b66`, MD5 `143216710e10604e47b7b0be6e0017f6`, 6,216,908 bytes.
+- Focused classic/icon/package contracts and the complete aggregate Yarr plugin harness pass. No deployment, workflow dispatch, release publication, or upstream draft mutation was performed.

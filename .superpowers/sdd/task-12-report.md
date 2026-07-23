@@ -271,12 +271,12 @@ Archive construction now normalizes the complete staged directory tree and valid
 | Evidence | Result |
 | --- | --- |
 | Package | `unraid-plugin/packages/yarr-2.1.0-x86_64-1.txz` |
-| SHA-256 | `e961580952e43d8fde61bb4c9518b3289d2025d24616f3cb25af845398e2fd43` |
-| MD5 | `a87c1b417b3fb56147b6edcc4fd790bc` |
-| Size | 6,229,812 bytes |
+| SHA-256 | `511335b80133dcbfe9b15a2c65c3063e2a9cfad0adc4b24c96fb9ad2d3058b66` |
+| MD5 | `143216710e10604e47b7b0be6e0017f6` |
+| Size | 6,216,908 bytes |
 | Reproducibility | byte-identical under umask `022` and `077` |
 | Archive layout | 56 entries, 14 directories, 42 regular files, 0 dot-root members |
-| Icon | 256x256 RGBA, mode `0644`, SHA-256 `731c27cf832515526b3a761c16d6fde878b7121dbaf6892feaf6296309b5c949` |
+| Icon | 256x256 RGBA, mode `0644`, SHA-256 `2b068b08366b3c425c1aa47c0bfd1357f90221d544d23f91e6387b39893ae743` |
 | Required source inventory | 16 paths |
 | Package verifier payload count | 41 files |
 
@@ -287,6 +287,6 @@ Archive construction now normalizes the complete staged directory tree and valid
 - Settings bundle: 181.53 kB JS and 9.45 kB CSS. Dashboard bundle: 122.76 kB JS and 4.22 kB CSS.
 - Aggregate contract harness passed workflow, release inventory, lifecycle/config recovery, updater/race/resource, real packaged API activation/removal, classic/browser/package, secret/cmdline sentinel, and archive negative-mutation contracts.
 - Static gates passed for 17 shell syntax files, canonical error-severity ShellCheck, actionlint, 2 Python workflow contracts, canonical repository identity, secret-free argv policy, explicit tar listings, package verification, release zero-SHA rejection, and diff hygiene.
-- Deterministic icon rendering matched the committed PNG byte-for-byte. The 32x32 RGBA render retained 71 bright-Y pixels, 39 cyan-core pixels, a 120-pixel cyan silhouette, the rose accent, and 884 opaque pixels.
+- Deterministic CairoSVG 2.7.1 rendering matched the committed PNG byte-for-byte. The 32x32 RGBA render retained 84 rose pixels for the hub, links, and three endpoints; 20 cyan play pixels; 572 dark surface pixels; and 736 opaque pixels.
 
 No deployment, workflow dispatch, release publication, or upstream `v2.1.0` draft-asset mutation occurred. The earlier review decision predates this added integration scope; the parent will run sequential independent reviews, so this report does not claim approval.
