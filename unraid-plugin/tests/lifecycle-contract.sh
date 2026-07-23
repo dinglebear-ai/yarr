@@ -209,6 +209,18 @@ expect_eq "$YARR_TEST_PORT" "$PORT" "shell transaction recovery port"
 grep -Fqx 'YARR_MCP_TOKEN=contract-token' "$YARR_ENV" || fail 'shell transaction recovery lost the prior credential'
 [[ ! -e "${YARR_CFG}.transaction-state" ]] || fail 'shell transaction recovery retained its commit marker'
 
+cp "$YARR_CFG" "${YARR_CFG}.good"
+cp "$YARR_ENV" "${YARR_ENV}.good"
+sed -i "s/^PORT=${YARR_TEST_PORT}$/PORT=40198/" "$YARR_CFG"
+printf 'YARR_MCP_TOKEN=failed-rollback-secret\n' > "$YARR_ENV"
+printf 'version=2\noperation=rollback\nhad_previous_good=yes\n' > "${YARR_CFG}.transaction-state"
+cp "${YARR_CFG}.good" "$YARR_CFG"
+yarr_load_config
+yarr_validate_config
+expect_eq "$YARR_TEST_PORT" "$PORT" "shell rollback transaction recovery port"
+grep -Fqx 'YARR_MCP_TOKEN=contract-token' "$YARR_ENV" || fail 'shell rollback recovery lost the known-good credential'
+[[ ! -e "${YARR_CFG}.transaction-state" ]] || fail 'shell rollback recovery retained its commit marker'
+
 YARR_LOG_MAX_BYTES=64
 YARR_LOG_RETENTION=2
 printf '%080d\n' 0 > "$YARR_LOG"

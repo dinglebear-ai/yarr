@@ -56,6 +56,7 @@ YARR_UPDATE_METADATA_MAX_BYTES=${YARR_UPDATE_METADATA_MAX_BYTES:-2097152}
 YARR_UPDATE_CHECKSUM_MAX_BYTES=${YARR_UPDATE_CHECKSUM_MAX_BYTES:-4096}
 YARR_UPDATE_ARCHIVE_MAX_BYTES=${YARR_UPDATE_ARCHIVE_MAX_BYTES:-134217728}
 YARR_UPDATE_LOCK_WAIT_SECONDS=${YARR_UPDATE_LOCK_WAIT_SECONDS:-30}
+YARR_UPDATE_TMP_ROOT=${YARR_UPDATE_TMP_ROOT:-${TMPDIR:-/tmp}}
 
 [[ -r "$YARR_RC_YARR" ]] || { printf 'yarr-update: cannot read lifecycle script\n' >&2; exit 1; }
 # Source lifecycle helpers without executing their direct-command dispatcher.
@@ -115,6 +116,26 @@ yarr_update_clear_tempdir() {
         }
         YARR_UPDATE_TMP=''
     fi
+}
+
+yarr_update_begin_network_tempdir() {
+    [[ -d "$YARR_UPDATE_TMP_ROOT" && ! -L "$YARR_UPDATE_TMP_ROOT" ]] || {
+        yarr_update_error 'updater temporary root is missing or unsafe'
+        return 1
+    }
+    umask 077
+    YARR_UPDATE_TMP=$(mktemp -d "${YARR_UPDATE_TMP_ROOT%/}/yarr-update.XXXXXX") || return 1
+    chmod 0700 "$YARR_UPDATE_TMP" || return 1
+    YARR_UPDATE_STAGED=''
+    yarr_update_track_tempdir "$YARR_UPDATE_TMP"
+}
+
+yarr_update_clear_network_tempdir() {
+    [[ -z "$YARR_UPDATE_TMP" ]] || "$YARR_RM_BIN" -rf -- "$YARR_UPDATE_TMP" || {
+        yarr_update_error 'could not remove updater network staging'
+        return 1
+    }
+    YARR_UPDATE_TMP=''
 }
 
 yarr_update_version_from_binary() {
@@ -188,11 +209,9 @@ yarr_update_fetch_releases() {
     jq -e 'type == "array"' "$destination" >/dev/null
 }
 
-yarr_update_release_eligible() {
-    local releases=$1 version=$2 installed=$3 tag="v${version}"
+yarr_update_release_present() {
+    local releases=$1 version=$2 tag="v${version}"
     yarr_update_valid_version "$version" || return 1
-    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$installed")" ]] || return 1
-    yarr_update_version_gt "$installed" "$version" && return 1
     jq -e --arg tag "$tag" --arg archive "$YARR_UPDATE_ASSET" --arg checksum "$YARR_UPDATE_CHECKSUM_ASSET" '
         [.[] | select(.tag_name == $tag)] as $matches |
         ($matches | length == 1) and
@@ -204,15 +223,23 @@ yarr_update_release_eligible() {
     ' "$releases" >/dev/null
 }
 
+yarr_update_release_eligible() {
+    local releases=$1 version=$2 installed=$3 supported=$4
+    [[ "$(yarr_update_major "$installed")" == "$(yarr_update_major "$supported")" ]] || return 1
+    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$supported")" ]] || return 1
+    yarr_update_version_gt "$installed" "$version" && return 1
+    yarr_update_release_present "$releases" "$version"
+}
+
 yarr_update_select_available() {
-    local releases=$1 installed=$2 channel=$3 tag draft prerelease version suffix selected=''
+    local releases=$1 installed=$2 supported=$3 channel=$4 tag draft prerelease version suffix selected=''
     while IFS=$'\t' read -r tag draft prerelease; do
         [[ "$tag" =~ ^v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))(-.+)?$ ]] || continue
         version=${BASH_REMATCH[1]}
         suffix=${BASH_REMATCH[5]}
         [[ "$draft" == false ]] || continue
         [[ "$channel" == stable && "$prerelease" == false && -z "$suffix" ]] || continue
-        yarr_update_release_eligible "$releases" "$version" "$installed" || continue
+        yarr_update_release_eligible "$releases" "$version" "$installed" "$supported" || continue
         if [[ -z "$selected" ]] || yarr_update_version_gt "$version" "$selected"; then
             selected=$version
         fi
@@ -261,7 +288,7 @@ yarr_update_emit() {
     local available=$1 rolled_back=$2 message=$3 installed packaged using_overlay update_available
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
-    packaged=$(yarr_update_version_from_binary "${YARR_PLUGIN_ROOT}/bin/yarr") || return 1
+    packaged=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
     [[ "$YARR_BINARY" == "${YARR_OVERLAY_DIR}/yarr" ]] && using_overlay=true || using_overlay=false
     if [[ -n "$available" ]] && yarr_update_version_gt "$available" "$installed"; then
         update_available=true
@@ -295,8 +322,11 @@ yarr_update_with_lock() {
     }
     YARR_UPDATE_LOCK_FD=9
     YARR_ACTIVE_LOCK_FD=9
-    "$@"
-    status=$?
+    if "$@"; then status=0; else status=$?; fi
+    if [[ -n "$YARR_UPDATE_STAGED" ]]; then
+        "$YARR_RM_BIN" -f -- "$YARR_UPDATE_STAGED" || status=1
+        YARR_UPDATE_STAGED=''
+    fi
     unset YARR_UPDATE_LOCK_FD
     unset YARR_ACTIVE_LOCK_FD
     exec 9>&-
@@ -468,56 +498,60 @@ yarr_update_reset_locked() {
     fi
 }
 
+yarr_update_validate_supported_state() {
+    local installed=$1 supported=$2
+    [[ "$(yarr_update_major "$installed")" == "$(yarr_update_major "$supported")" ]] || {
+        yarr_update_error 'active Yarr major is incompatible with this plugin; reset to the packaged binary'
+        return 1
+    }
+}
+
 yarr_update_check_locked() {
-    local work releases installed available
+    local releases=$1 installed supported available
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
-    mkdir -p "$YARR_APPDATA" || return 1
-    work=$(mktemp -d "${YARR_APPDATA}/.update.XXXXXX") || return 1
-    yarr_update_track_tempdir "$work"
-    releases="$work/releases.json"
-    yarr_update_fetch_releases "$releases" || return 1
-    available=$(yarr_update_select_available "$releases" "$installed" "$UPDATE_CHANNEL" || true)
-    yarr_update_clear_tempdir
+    supported=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
+    yarr_update_validate_supported_state "$installed" "$supported" || return 1
+    available=$(yarr_update_select_available "$releases" "$installed" "$supported" "$UPDATE_CHANNEL" || true)
     if [[ -z "$available" ]]; then yarr_update_emit '' false 'No compatible release is available'
     elif yarr_update_version_gt "$available" "$installed"; then yarr_update_emit "$available" false "Update available: ${available}"
     else yarr_update_emit "$available" false 'Yarr is current'; fi
 }
 
-yarr_update_apply_request_locked() {
-    local version=$1 work releases archive checksum extract candidate installed
+yarr_update_apply_prepared_locked() {
+    local version=$1 releases=$2 candidate=$3 expected_candidate_sha=$4
+    local installed supported actual_candidate_sha
     yarr_load_config && yarr_validate_config || return 1
     yarr_select_binary || return 1
     installed=$(yarr_update_version_from_binary "$YARR_BINARY") || return 1
+    supported=$(yarr_update_version_from_binary "$YARR_PACKAGED_BINARY") || return 1
+    yarr_update_validate_supported_state "$installed" "$supported" || return 1
     yarr_update_valid_version "$version" || { yarr_update_error 'version must match MAJOR.MINOR.PATCH'; return 1; }
-    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$installed")" ]] || { yarr_update_error 'major-version updates are not supported'; return 1; }
+    [[ "$(yarr_update_major "$version")" == "$(yarr_update_major "$supported")" ]] || { yarr_update_error 'major-version updates are not supported by this plugin'; return 1; }
     yarr_update_version_gt "$installed" "$version" && { yarr_update_error 'downgrades are not supported'; return 1; }
-    mkdir -p "$YARR_APPDATA" "$YARR_OVERLAY_DIR" || return 1
-    work=$(mktemp -d "${YARR_APPDATA}/.update.XXXXXX") || return 1
-    yarr_update_track_tempdir "$work"
-    releases="$work/releases.json"; archive="$work/$YARR_UPDATE_ASSET"; checksum="${archive}.sha256"; extract="$work/extract"; candidate="$extract/yarr"
-    if ! yarr_update_fetch_releases "$releases" || ! yarr_update_release_eligible "$releases" "$version" "$installed"; then
+    if ! yarr_update_release_eligible "$releases" "$version" "$installed" "$supported"; then
         yarr_update_error 'requested release is not an eligible stable release'
         return 1
     fi
+    [[ -f "$candidate" && ! -L "$candidate" && -x "$candidate" ]] || {
+        yarr_update_error 'prepared candidate is missing or unsafe'
+        return 1
+    }
+    actual_candidate_sha=$(sha256sum "$candidate" | awk '{print tolower($1)}') || return 1
+    [[ "$actual_candidate_sha" == "$expected_candidate_sha" ]] || {
+        yarr_update_error 'prepared candidate changed before activation'
+        return 1
+    }
+    [[ "$(yarr_update_version_from_binary "$candidate")" == "$version" ]] || {
+        yarr_update_error 'prepared candidate version changed before activation'
+        return 1
+    }
     if [[ "$version" == "$installed" ]]; then
-        yarr_update_clear_tempdir
         yarr_update_emit "$version" false 'Yarr is current'
         return 0
     fi
-    if ! yarr_update_fetch_bounded \
-        "$archive" "$(yarr_update_download_url "$version" "$YARR_UPDATE_ASSET")" \
-        "$YARR_UPDATE_ARCHIVE_MAX_BYTES" "$YARR_UPDATE_ARCHIVE_TIMEOUT" || \
-        ! yarr_update_fetch_bounded \
-        "$checksum" "$(yarr_update_download_url "$version" "$YARR_UPDATE_CHECKSUM_ASSET")" \
-        "$YARR_UPDATE_CHECKSUM_MAX_BYTES" "$YARR_UPDATE_CHECKSUM_TIMEOUT" || \
-        ! yarr_update_verify_checksum "$archive" "$checksum" || \
-        ! yarr_update_validate_archive "$archive" "$extract" || \
-        [[ "$(yarr_update_version_from_binary "$candidate")" != "$version" ]]; then
-        yarr_update_error 'downloaded release failed verification'
-        return 1
-    fi
+    mkdir -p "$YARR_APPDATA" "$YARR_OVERLAY_DIR" || return 1
     if ! yarr_update_apply_locked "$candidate"; then
         if [[ "$YARR_APPLY_CLEANUP_PENDING" == true ]]; then
             yarr_update_emit "$version" false 'Yarr updated; obsolete backup cleanup pending'
@@ -526,7 +560,6 @@ yarr_update_apply_request_locked() {
         yarr_update_emit "$version" "$YARR_ROLLED_BACK" 'Update failed; previous binary restored' || true
         return 1
     fi
-    yarr_update_clear_tempdir
     yarr_update_emit "$version" false "Yarr updated to ${version}"
 }
 
@@ -540,11 +573,47 @@ yarr_update_reset_request_locked() {
 }
 
 yarr_update_check() {
-    yarr_update_with_lock yarr_update_check_locked
+    local releases status
+    yarr_update_begin_network_tempdir || return 1
+    releases="$YARR_UPDATE_TMP/releases.json"
+    yarr_update_fetch_releases "$releases" || return 1
+    if yarr_update_with_lock yarr_update_check_locked "$releases"; then status=0; else status=$?; fi
+    yarr_update_clear_network_tempdir || status=1
+    return "$status"
 }
 
 yarr_update_apply() {
-    yarr_update_with_lock yarr_update_apply_request_locked "$1"
+    local version=$1 releases archive checksum extract candidate candidate_sha status
+    yarr_update_valid_version "$version" || { yarr_update_error 'version must match MAJOR.MINOR.PATCH'; return 1; }
+    yarr_update_begin_network_tempdir || return 1
+    releases="$YARR_UPDATE_TMP/releases.json"
+    archive="$YARR_UPDATE_TMP/$YARR_UPDATE_ASSET"
+    checksum="${archive}.sha256"
+    extract="$YARR_UPDATE_TMP/extract"
+    candidate="$extract/yarr"
+    if ! yarr_update_fetch_releases "$releases" || \
+        ! yarr_update_release_present "$releases" "$version" || \
+        ! yarr_update_fetch_bounded \
+            "$archive" "$(yarr_update_download_url "$version" "$YARR_UPDATE_ASSET")" \
+            "$YARR_UPDATE_ARCHIVE_MAX_BYTES" "$YARR_UPDATE_ARCHIVE_TIMEOUT" || \
+        ! yarr_update_fetch_bounded \
+            "$checksum" "$(yarr_update_download_url "$version" "$YARR_UPDATE_CHECKSUM_ASSET")" \
+            "$YARR_UPDATE_CHECKSUM_MAX_BYTES" "$YARR_UPDATE_CHECKSUM_TIMEOUT" || \
+        ! yarr_update_verify_checksum "$archive" "$checksum" || \
+        ! yarr_update_validate_archive "$archive" "$extract" || \
+        [[ "$(yarr_update_version_from_binary "$candidate")" != "$version" ]]; then
+        yarr_update_error 'downloaded release failed verification'
+        return 1
+    fi
+    candidate_sha=$(sha256sum "$candidate" | awk '{print tolower($1)}') || return 1
+    if yarr_update_with_lock yarr_update_apply_prepared_locked \
+        "$version" "$releases" "$candidate" "$candidate_sha"; then
+        status=0
+    else
+        status=$?
+    fi
+    yarr_update_clear_network_tempdir || status=1
+    return "$status"
 }
 
 yarr_update_reset() {

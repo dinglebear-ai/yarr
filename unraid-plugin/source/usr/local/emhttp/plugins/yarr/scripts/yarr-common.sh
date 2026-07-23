@@ -140,7 +140,7 @@ yarr_recover_config_transaction() {
         return 1
     }
 
-    local line key value version='' had_previous_good='' seen_version=false seen_good=false
+    local line key value version='' operation='' had_previous_good='' seen_version=false seen_operation=false seen_good=false
     while IFS= read -r line || [[ -n "$line" ]]; do
         [[ "$line" == *=* ]] || { yarr_error 'configuration transaction marker is malformed'; return 1; }
         key=${line%%=*}
@@ -151,6 +151,11 @@ yarr_recover_config_transaction() {
                 version=$value
                 seen_version=true
                 ;;
+            operation)
+                [[ "$seen_operation" == false ]] || { yarr_error 'duplicate transaction marker operation'; return 1; }
+                operation=$value
+                seen_operation=true
+                ;;
             had_previous_good)
                 [[ "$seen_good" == false ]] || { yarr_error 'duplicate transaction marker good-pair state'; return 1; }
                 had_previous_good=$value
@@ -159,10 +164,32 @@ yarr_recover_config_transaction() {
             *) yarr_error 'unknown configuration transaction marker field'; return 1 ;;
         esac
     done < "$YARR_CONFIG_JOURNAL"
-    [[ "$version" == 1 && ( "$had_previous_good" == yes || "$had_previous_good" == no ) ]] || {
+    if [[ "$version" == 1 && "$seen_operation" == false ]]; then
+        operation=install
+    elif [[ "$version" != 2 || ( "$operation" != install && "$operation" != rollback ) ]]; then
         yarr_error 'configuration transaction marker has unsupported state'
         return 1
+    fi
+    [[ "$had_previous_good" == yes || "$had_previous_good" == no ]] || {
+        yarr_error 'configuration transaction marker has unsupported good-pair state'
+        return 1
     }
+    if [[ "$operation" == rollback ]]; then
+        [[ "$had_previous_good" == yes ]] || {
+            yarr_error 'rollback transaction lacks a known-good pair'
+            return 1
+        }
+        yarr_restore_config_pair "$YARR_CFG_GOOD" "$YARR_ENV_GOOD" \
+            "$YARR_CFG_NEXT" "$YARR_ENV_NEXT" "$YARR_CFG" "$YARR_ENV" || {
+            yarr_error 'could not complete configuration rollback'
+            return 1
+        }
+        rm -f -- "$YARR_CONFIG_JOURNAL"
+        yarr_sync_config_dir || return 1
+        yarr_cleanup_orphaned_config_artifacts || return 1
+        yarr_error 'recovered an interrupted configuration rollback'
+        return 0
+    fi
     yarr_restore_config_pair "$YARR_CFG_TRANSACTION" "$YARR_ENV_TRANSACTION" \
         "$YARR_CFG_NEXT" "$YARR_ENV_NEXT" "$YARR_CFG" "$YARR_ENV" || {
         yarr_error 'could not recover the pre-transaction configuration pair'

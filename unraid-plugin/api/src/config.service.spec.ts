@@ -11,6 +11,7 @@ import {
 } from "./config.service";
 import {
   YARR_CONFIG_DIR,
+  YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH,
   YARR_CONFIG_TRANSACTION_STATE_PATH,
   YARR_ENVIRONMENT_GOOD_PATH,
   YARR_ENVIRONMENT_GOOD_TRANSACTION_PATH,
@@ -235,7 +236,54 @@ describe("ConfigService", () => {
     expect(files.operations).toContain(
       `copy:${YARR_PLUGIN_CONFIG_GOOD_PATH}->${YARR_PLUGIN_CONFIG_NEXT_PATH}:600`,
     );
+    expect(files.operations).toContain(
+      `write:${YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH}:600`,
+    );
     expect(files.operations.at(-1)).toBe(`fsync-dir:${YARR_CONFIG_DIR}`);
+  });
+
+  it.each([
+    ["rollback marker durable", 0],
+    ["known-good plugin copied", 1],
+    ["known-good environment copied", 2],
+    ["rollback stages synced", 3],
+    ["known-good plugin renamed", 4],
+    ["known-good environment renamed", 5],
+  ])("recovers one known-good generation after rollback process death: %s", async (_label, transition) => {
+    const { service, files } = harness();
+    const failedPlugin = pluginConfig.replace("PORT=40070", "PORT=40199");
+    const failedEnvironment = "YARR_MCP_TOKEN=failed-candidate-secret\n";
+
+    files.files.set(YARR_PLUGIN_CONFIG_PATH, { text: failedPlugin, mode: 0o600 });
+    files.files.set(YARR_ENVIRONMENT_PATH, { text: failedEnvironment, mode: 0o600 });
+    files.files.set(YARR_PLUGIN_CONFIG_GOOD_PATH, { text: pluginConfig, mode: 0o600 });
+    files.files.set(YARR_ENVIRONMENT_GOOD_PATH, { text: environment, mode: 0o600 });
+    files.files.set(YARR_CONFIG_TRANSACTION_STATE_PATH, {
+      text: "version=2\noperation=rollback\nhad_previous_good=yes\n",
+      mode: 0o600,
+    });
+    if (transition >= 1) {
+      files.files.set(YARR_PLUGIN_CONFIG_NEXT_PATH, { text: pluginConfig, mode: 0o600 });
+    }
+    if (transition >= 2) {
+      files.files.set(YARR_ENVIRONMENT_NEXT_PATH, { text: environment, mode: 0o600 });
+    }
+    if (transition >= 4) {
+      files.files.set(YARR_PLUGIN_CONFIG_PATH, { text: pluginConfig, mode: 0o600 });
+      files.files.delete(YARR_PLUGIN_CONFIG_NEXT_PATH);
+    }
+    if (transition >= 5) {
+      files.files.set(YARR_ENVIRONMENT_PATH, { text: environment, mode: 0o600 });
+      files.files.delete(YARR_ENVIRONMENT_NEXT_PATH);
+    }
+
+    const recovered = await service.read();
+
+    expect(recovered.plugin.port).toBe(40070);
+    expect(files.files.get(YARR_PLUGIN_CONFIG_PATH)?.text).toBe(pluginConfig);
+    expect(files.files.get(YARR_ENVIRONMENT_PATH)?.text).toBe(environment);
+    expect(files.files.has(YARR_CONFIG_TRANSACTION_STATE_PATH)).toBe(false);
+    expect(JSON.stringify(recovered)).not.toContain("failed-candidate-secret");
   });
 
   it("redacts both prospective and known-good secrets when rollback restart fails", async () => {

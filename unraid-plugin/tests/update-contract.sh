@@ -6,6 +6,7 @@ updater="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/y
 common="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh"
 rc="$repo_root/unraid-plugin/source/etc/rc.d/rc.yarr"
 fixture="$repo_root/unraid-plugin/tests/fixtures/releases.json"
+stopping="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/stopping_svcs"
 tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT
 
@@ -46,6 +47,7 @@ export YARR_CURL_BIN="$test_root/bin/curl"
 export YARR_RC_YARR="$rc"
 export YARR_UPDATE_API_URL='https://fixture.invalid/api/releases'
 export YARR_UPDATE_DOWNLOAD_ROOT='https://fixture.invalid/releases/download'
+export YARR_UPDATE_TMP_ROOT="$tmp_dir/update-tmp"
 export YARR_READY_ATTEMPTS=1
 export YARR_READY_INTERVAL=0
 
@@ -53,6 +55,7 @@ mkdir -p "$YARR_PLUGIN_ROOT/bin" "$YARR_PLUGIN_ROOT/scripts" \
     "$YARR_BOOT_ROOT/config/plugins/yarr" "$YARR_OVERLAY_DIR" \
     "$YARR_RUN_ROOT" "$YARR_LOCK_ROOT" "$YARR_LOG_ROOT" "$test_root/bin" \
     "$test_root/releases"
+mkdir -p "$YARR_UPDATE_TMP_ROOT"
 cp "$common" "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh"
 
 installed_common="$test_root/installed/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh"
@@ -270,6 +273,10 @@ if [[ "${YARR_TEST_CURL_OVERSIZE:-no}" == yes ]]; then
 fi
 case "$url" in
     "$YARR_UPDATE_API_URL") cp "$YARR_TEST_RELEASES" "$output" ;;
+    */v2.0.0/yarr-x86_64.tar.gz) cp "$YARR_TEST_ARCHIVE_2_0_0" "$output" ;;
+    */v2.0.0/yarr-x86_64.tar.gz.sha256) cp "$YARR_TEST_CHECKSUM_2_0_0" "$output" ;;
+    */v3.0.0/yarr-x86_64.tar.gz) cp "$YARR_TEST_ARCHIVE_3_0_0" "$output" ;;
+    */v3.0.0/yarr-x86_64.tar.gz.sha256) cp "$YARR_TEST_CHECKSUM_3_0_0" "$output" ;;
     */yarr-x86_64.tar.gz) cp "$YARR_TEST_ARCHIVE" "$output" ;;
     */yarr-x86_64.tar.gz.sha256) cp "$YARR_TEST_CHECKSUM" "$output" ;;
     *) printf 'unexpected curl URL: %s\n' "$url" >&2; exit 1 ;;
@@ -285,6 +292,17 @@ make_archive 2.1.0
 export YARR_TEST_RELEASES="$fixture"
 export YARR_TEST_ARCHIVE="$test_root/releases/yarr-x86_64.tar.gz"
 export YARR_TEST_CHECKSUM="$test_root/releases/yarr-x86_64.tar.gz.sha256"
+make_archive 2.0.0
+export YARR_TEST_ARCHIVE_2_0_0="$test_root/releases/yarr-2.0.0-x86_64.tar.gz"
+export YARR_TEST_CHECKSUM_2_0_0="${YARR_TEST_ARCHIVE_2_0_0}.sha256"
+cp "$YARR_TEST_ARCHIVE" "$YARR_TEST_ARCHIVE_2_0_0"
+cp "$YARR_TEST_CHECKSUM" "$YARR_TEST_CHECKSUM_2_0_0"
+make_archive 3.0.0
+export YARR_TEST_ARCHIVE_3_0_0="$test_root/releases/yarr-3.0.0-x86_64.tar.gz"
+export YARR_TEST_CHECKSUM_3_0_0="${YARR_TEST_ARCHIVE_3_0_0}.sha256"
+cp "$YARR_TEST_ARCHIVE" "$YARR_TEST_ARCHIVE_3_0_0"
+cp "$YARR_TEST_CHECKSUM" "$YARR_TEST_CHECKSUM_3_0_0"
+make_archive 2.1.0
 
 signal_rc="$test_root/bin/rc-signal-after-stop"
 cat > "$signal_rc" <<'EOF'
@@ -341,36 +359,71 @@ expect_failure 'oversized archive response' env YARR_UPDATE_ARCHIVE_MAX_BYTES=12
     "$updater" apply --version 2.1.0 --json
 expect_failure 'stalled archive response' env YARR_TEST_CURL_STALL_PATTERN='/yarr-x86_64.tar.gz' \
     YARR_UPDATE_ARCHIVE_TIMEOUT=1 "$updater" apply --version 2.1.0 --json
-if find "$YARR_APPDATA" -maxdepth 1 -name '.update.*' -print -quit | grep -q .; then
+if find "$YARR_UPDATE_TMP_ROOT" -mindepth 1 -print -quit | grep -q .; then
     fail 'stalled or oversized updater response retained temporary data'
 fi
+
+# Network staging must not hold the lifecycle lock. A real array-stop hook must
+# quiesce Yarr while an apply is stalled, and the later short activation must
+# preserve that stopped state rather than restarting after unmount begins.
+"$rc" start
+stop_wins_hold="$tmp_dir/stop-wins-hold"
+touch "$stop_wins_hold"
+env YARR_TEST_CURL_WAIT_FILE="$stop_wins_hold" YARR_UPDATE_LOCK_WAIT_SECONDS=5 \
+    "$updater" apply --version 2.1.0 --json > "$tmp_dir/stop-wins.json" 2> "$tmp_dir/stop-wins.err" &
+stop_wins_pid=$!
+for _ in {1..100}; do
+    [[ -e "${stop_wins_hold}.entered" ]] && break
+    sleep 0.02
+done
+[[ -e "${stop_wins_hold}.entered" ]] || fail 'stalled updater did not enter network staging'
+flock -n "$YARR_LOCK" /usr/bin/true || fail 'network staging retained the lifecycle lock'
+env YARR_RC="$rc" YARR_EVENT_ATTEMPTS=2 YARR_EVENT_LOCK_WAIT_SECONDS=1 \
+    YARR_EVENT_RETRY_SECONDS=0 "$stopping"
+[[ ! -e "$YARR_PID" ]] || fail 'array-stop hook did not quiesce Yarr during updater staging'
+rm -f "$stop_wins_hold"
+wait "$stop_wins_pid" || fail 'updater did not finish after array stop won'
+[[ ! -e "$YARR_PID" ]] || fail 'updater restarted Yarr after array-stop quiescence'
+expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'post-stop staged update'
+"$updater" reset --json > "$tmp_dir/stop-wins-reset.json"
 
 # All installed-state and policy checks occur after acquiring the stable lock.
 # An older and a cross-major candidate queued behind a newer candidate must
 # re-read the new installed version and fail rather than race it.
-race_hold="$tmp_dir/race-hold"
-touch "$race_hold"
-env YARR_TEST_CURL_WAIT_FILE="$race_hold" YARR_UPDATE_LOCK_WAIT_SECONDS=5 \
-    "$updater" apply --version 2.1.0 --json > "$tmp_dir/race-newer.json" 2> "$tmp_dir/race-newer.err" &
+exec 8>"$YARR_LOCK"
+flock -n 8 || fail 'could not hold lifecycle lock for updater race'
+env YARR_UPDATE_LOCK_WAIT_SECONDS=5 "$updater" apply --version 2.1.0 --json \
+    > "$tmp_dir/race-newer.json" 2> "$tmp_dir/race-newer.err" 8>&- &
 newer_pid=$!
 for _ in {1..100}; do
-    [[ -e "${race_hold}.entered" ]] && break
+    [[ "$(readlink -f "/proc/$newer_pid/fd/9" 2>/dev/null || true)" == "$(readlink -f "$YARR_LOCK")" ]] && break
     sleep 0.02
 done
-[[ -e "${race_hold}.entered" ]] || fail 'newer updater did not enter the lock-held fetch window'
+[[ "$(readlink -f "/proc/$newer_pid/fd/9" 2>/dev/null || true)" == "$(readlink -f "$YARR_LOCK")" ]] || \
+    fail 'newer updater did not queue after network staging'
 env YARR_UPDATE_LOCK_WAIT_SECONDS=5 "$updater" apply --version 2.0.0 --json \
-    > "$tmp_dir/race-older.json" 2> "$tmp_dir/race-older.err" &
+    > "$tmp_dir/race-older.json" 2> "$tmp_dir/race-older.err" 8>&- &
 older_pid=$!
 env YARR_UPDATE_LOCK_WAIT_SECONDS=5 "$updater" apply --version 3.0.0 --json \
-    > "$tmp_dir/race-major.json" 2> "$tmp_dir/race-major.err" &
+    > "$tmp_dir/race-major.json" 2> "$tmp_dir/race-major.err" 8>&- &
 major_pid=$!
-rm -f "$race_hold"
-wait "$newer_pid" || fail 'newer candidate failed during lock race'
+exec 8>&-
+if ! wait "$newer_pid"; then
+    cat "$tmp_dir/race-newer.err" >&2
+    fail 'newer candidate failed during lock race'
+fi
 if wait "$older_pid"; then fail 'queued older candidate downgraded the newer install'; fi
 if wait "$major_pid"; then fail 'queued cross-major candidate bypassed same-major policy'; fi
 expect_eq '2.1.0' "$("$YARR_OVERLAY_DIR/yarr" --version | awk '{print $2}')" 'race winner version'
 "$updater" reset --json > "$tmp_dir/race-reset.json"
 [[ ! -e "$YARR_OVERLAY_DIR/yarr" ]] || fail 'race reset did not restore packaged baseline'
+
+# A retained or manually recovered overlay cannot redefine the major supported
+# by the installed classic/API package.
+write_yarr "$YARR_OVERLAY_DIR/yarr" 3.0.0
+expect_failure 'incompatible retained overlay check' "$updater" check --json
+expect_failure 'incompatible retained overlay update' "$updater" apply --version 3.0.0 --json
+rm -f "$YARR_OVERLAY_DIR/yarr"
 
 expect_failure 'major version update' "$updater" apply --version 3.0.0 --json
 expect_failure 'leading-zero version' "$updater" apply --version 2.01.0 --json

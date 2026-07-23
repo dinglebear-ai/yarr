@@ -185,6 +185,14 @@ Review 1 remediation was implemented from baseline
 tests and pass locally. This is remediation status only; original reviewer
 approval remains pending.
 
+The first remediation commit
+`4119e97c3ed88db617616df3c4894c630c1e7da2` received a follow-up review with
+four remaining gaps. The follow-up implementation removes the release-report
+identity false negative, stages bounded updater network work outside the
+lifecycle lock, journals known-good config rollback across every crash point,
+and enforces the immutable packaged binary's supported major under lock. The
+full matrix below includes those changes; reviewer approval remains pending.
+
 Key contract changes:
 
 - Trusted-gateway authentication is loopback-only; every non-loopback bind
@@ -198,8 +206,9 @@ Key contract changes:
 - Package, API, configuration, lifecycle, hook, and updater operations share a
   never-unlinked stable lock inode.
 - The cfg/JSON pair has durable crash recovery before every read/startup path.
-- Updater policy validation is under lock; hooks have bounded retries; wrapper
-  logs have safe bounded rotation.
+- Updater network staging does not hold the lifecycle lock; activation
+  revalidates policy, candidate identity, and packaged-major support under the
+  lock. Hooks have bounded retries; wrapper logs have safe bounded rotation.
 - `YarrDashboard.page` ships and mounts the actual dashboard bundle.
 - Secret alias redaction derives from the service catalog.
 - Updater network and resource consumption is bounded.
@@ -207,7 +216,7 @@ Key contract changes:
 Final local evidence:
 
 - Rust fmt/check/clippy pass; Rust tests pass `744/744`.
-- API passes 12 files and `154/154`, typecheck, build, production staging, and
+- API passes 12 files and `160/160`, typecheck, build, production staging, and
   zero-vulnerability production audit.
 - Web passes 6 files and `45/45`, typecheck, both builds, and browser/static
   smoke.
@@ -217,8 +226,8 @@ Final local evidence:
   workflows; Python compilation passes 6 files.
 - Deterministic `umask 022` and `077` package, manifest, and PLG bytes agree.
 - Final package SHA-256 is
-  `5bbc410efaa25c32da5307c9d64fe130ba8e6641aaaa941475fb7143f74bd088`;
-  MD5 is `ed49c3873fa3b3ba8c05d212ae9147ec`; size is 6,198,884 bytes.
+  `18ea78e57e146d6cdad3c12b7cad549d7c5e011bae6ad826670c6258cb4ab942`;
+  MD5 is `eced952d41b2179cd199e59a2b57ea78`; size is 6,198,560 bytes.
 - The package verifier passes 40 manifest-declared payload files. The archive
   has 41 regular files and 55 total entries.
 - Read-only upstream draft evidence remains unchanged: archive SHA-256

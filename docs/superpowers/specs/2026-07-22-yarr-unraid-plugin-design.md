@@ -342,8 +342,8 @@ The updater:
 2. Rejects implicit downgrades.
 3. Enforces the supported Yarr major from `release-manifest.json`; a new major
    requires a compatible classic plugin update.
-4. Downloads `yarr-x86_64.tar.gz` and its `.sha256` asset into a private
-   temporary directory.
+4. Downloads `yarr-x86_64.tar.gz` and its `.sha256` asset into a private,
+   RAM-backed temporary directory without holding the lifecycle lock.
 5. Parses the published digest and computes the archive digest locally.
 6. Requires the tar inventory to contain exactly the expected regular `yarr`
    executable and no links, absolute paths, traversal, or extra payload.
@@ -353,10 +353,13 @@ The updater:
 9. Restores the previous overlay and service on any activation failure.
 
 Update, reset, lifecycle, config writes, package replacement, and uninstall
-share the same never-unlinked lock inode. All updater state/policy validation
-runs under that lock. Network reads have bounded connect/total timeouts,
-retries, and per-resource byte limits. The updater emits structured status
-without logging tokens, credentials, or environment contents.
+share the same never-unlinked lock inode. Network staging never holds that lock.
+Immediately before the short activation transaction, the updater acquires the
+lock and revalidates the current installed version, the packaged supported
+major, stable-release policy, and staged candidate hash/version. Network reads
+have bounded connect/total timeouts, retries, and per-resource byte limits. The
+updater emits structured status without logging tokens, credentials, or
+environment contents.
 
 ## Frontend
 

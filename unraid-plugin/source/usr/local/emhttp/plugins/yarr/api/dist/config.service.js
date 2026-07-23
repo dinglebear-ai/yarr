@@ -119,13 +119,12 @@ class ConfigService {
                     throw redactedError(error, secrets);
                 const original = errorMessage(error);
                 try {
-                    await this.restoreKnownGood(lease);
+                    const rollback = await this.installKnownGoodRollback(lease);
                     const restored = priorRuntime.state === "running" && priorRuntime.ready
                         ? await this.runtime.restart({ lockFd: lease.fd, secrets: currentSecrets })
                         : await this.runtime.stop({ lockFd: lease.fd, secrets: currentSecrets });
                     assertRestoredRuntime(restored, priorRuntime);
-                    if (backup)
-                        await this.cleanupTransactionBackups(backup);
+                    await this.cleanupTransactionBackups(rollback);
                 }
                 catch (rollbackError) {
                     throw new Error((0, secret_redactor_1.redactSecrets)(`configuration rollback failed after ${original}: ${errorMessage(rollbackError)}`, secrets));
@@ -216,11 +215,29 @@ class ConfigService {
             return;
         }
         const state = await this.files.readFile(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
-        const match = /^version=1\nhad_previous_good=(yes|no)\n$/.exec(state);
-        if (!match) {
+        const legacyMatch = /^version=1\nhad_previous_good=(yes|no)\n$/.exec(state);
+        const currentMatch = /^version=2\noperation=(install|rollback)\nhad_previous_good=(yes|no)\n$/.exec(state);
+        if (!legacyMatch && !currentMatch) {
             throw new Error("invalid Yarr configuration transaction marker; refusing to read a possibly mixed generation");
         }
-        const hadPreviousGoodPair = match[1] === "yes";
+        const operation = currentMatch?.[1] ?? "install";
+        const hadPreviousGoodPair = (currentMatch?.[2] ?? legacyMatch?.[1]) === "yes";
+        if (operation === "rollback" && !hadPreviousGoodPair) {
+            throw new Error("rollback transaction lacks a known-good pair");
+        }
+        if (operation === "rollback") {
+            for (const path of [paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH, paths_1.YARR_ENVIRONMENT_GOOD_PATH]) {
+                if (!await this.files.exists(path)) {
+                    throw new Error("rollback transaction lacks durable known-good evidence");
+                }
+            }
+            await this.restorePairFromTransaction(paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH, paths_1.YARR_ENVIRONMENT_GOOD_PATH, paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH, paths_1.YARR_ENVIRONMENT_NEXT_PATH, paths_1.YARR_PLUGIN_CONFIG_PATH, paths_1.YARR_ENVIRONMENT_PATH);
+            await this.files.remove(paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+            await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+            await this.cleanupTransactionBackups({ hadPreviousGoodPair: true });
+            lease.assertHeld();
+            return;
+        }
         for (const path of [paths_1.YARR_PLUGIN_CONFIG_TRANSACTION_PATH, paths_1.YARR_ENVIRONMENT_TRANSACTION_PATH]) {
             if (!await this.files.exists(path)) {
                 throw new Error("incomplete Yarr configuration transaction evidence; refusing to synthesize defaults");
@@ -279,7 +296,16 @@ class ConfigService {
         await this.files.remove(paths_1.YARR_ENVIRONMENT_GOOD_RESTORE_PATH);
         await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
     }
-    async restoreKnownGood(_lease) {
+    async installKnownGoodRollback(lease) {
+        if (!await this.files.exists(paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH) ||
+            !await this.files.exists(paths_1.YARR_ENVIRONMENT_GOOD_PATH)) {
+            throw new Error("known-good configuration pair is incomplete");
+        }
+        await this.files.writeFile(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH, "version=2\noperation=rollback\nhad_previous_good=yes\n", 0o600);
+        await this.files.syncFile(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH);
+        await this.files.rename(paths_1.YARR_CONFIG_TRANSACTION_STATE_NEXT_PATH, paths_1.YARR_CONFIG_TRANSACTION_STATE_PATH);
+        await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+        lease.assertHeld();
         await this.files.copyFile(paths_1.YARR_PLUGIN_CONFIG_GOOD_PATH, paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH, 0o600);
         await this.files.copyFile(paths_1.YARR_ENVIRONMENT_GOOD_PATH, paths_1.YARR_ENVIRONMENT_NEXT_PATH, 0o600);
         await this.files.syncFile(paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH);
@@ -288,6 +314,8 @@ class ConfigService {
         await this.files.rename(paths_1.YARR_PLUGIN_CONFIG_NEXT_PATH, paths_1.YARR_PLUGIN_CONFIG_PATH);
         await this.files.rename(paths_1.YARR_ENVIRONMENT_NEXT_PATH, paths_1.YARR_ENVIRONMENT_PATH);
         await this.files.syncDirectory(paths_1.YARR_CONFIG_DIR);
+        lease.assertHeld();
+        return { hadPreviousGoodPair: true };
     }
 }
 exports.ConfigService = ConfigService;

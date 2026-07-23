@@ -6,6 +6,13 @@ All 13 review findings are implemented and locally verified from baseline
 `4f15eb5c72a1dbf217705587abef7b2aa963f980` on
 `feat/yarr-unraid-plugin`.
 
+The first remediation commit was
+`4119e97c3ed88db617616df3c4894c630c1e7da2`. Independent re-review found four
+remaining gaps in release-identity scanning, updater lock duration, rollback
+journaling, and packaged-major enforcement. Those gaps are remediated and the
+complete local matrix passes. Re-review of the follow-up commit remains
+pending.
+
 This report records remediation evidence, not review approval. The original
 reviewer remains responsible for re-review.
 
@@ -51,10 +58,13 @@ Safety boundaries observed:
 7. **Crash-recoverable config pair:** The cfg/JSON pair now has a durable
    transaction marker and recovery protocol. Recovery runs before shell and API
    reads and startup paths, fsyncs transaction state, and preserves credentials
-   after process death at every commit transition.
-8. **Updater race:** Installed state, current version, candidate version, and
-   update policy are read and validated under the lifecycle lock. Concurrent
-   older/newer candidates cannot downgrade or bypass same-major policy.
+   after process death at every install and known-good rollback transition.
+8. **Updater race:** Bounded network staging occurs outside the lifecycle lock.
+   Activation then re-reads installed state, current version, the package's
+   supported major, candidate hash/version, and update policy under the stable
+   lock. Concurrent older/newer candidates cannot downgrade or redefine the
+   package-supported major, and array stop can quiesce Yarr while a download is
+   stalled.
 9. **Array hooks:** Start and stop hooks use bounded lock retries. Stop requires
    confirmed quiescence before unmount and reports failure visibly; start
    retries and reports failure. Lock-contention contracts pass.
@@ -78,12 +88,34 @@ Active publication URLs, manifests, package metadata, installation scripts,
 current documentation, workflows, badges, provenance helpers, and live
 configuration examples now use `dinglebear-ai/yarr`.
 
-Historically meaningful ownership text in `CHANGELOG.md` and
-`docs/sessions/**` remains historical. Only active clickable or copy-paste
-canonical links inside historical records were updated. Other plugin manifests
-received URL-only source/homepage corrections; their behavior was not changed.
-An implementation scan outside those historical records found no active
-`jmagar/yarr` or `jmagar/yarr-rmcp` publication URL.
+Historically meaningful ownership text and recorded commands in
+`docs/sessions/**` remain historical. Active links in `CHANGELOG.md` and active
+clickable or copy-paste canonical links inside historical records use the
+canonical repository. Other plugin manifests received URL-only source/homepage
+corrections; their behavior was not changed. An implementation scan outside
+historical session records found no active legacy owner/repository publication
+URL.
+
+## Reviewer Follow-up Disposition
+
+1. **Release gate identity finding:** The remediation report no longer embeds a
+   literal legacy publication URL, and the final release contract passes with
+   zero-SHA rejection enabled. Active changelog links are canonical while
+   historical session evidence remains intact.
+2. **Updater lock-duration finding:** Metadata and payload transfer, timeout,
+   retry, checksum, archive validation, and candidate hashing happen in a
+   private RAM-backed temporary directory before the lock. The short locked
+   phase revalidates all state-dependent invariants immediately before
+   activation. A real stop-hook contract proves a stalled download does not
+   block quiescence or restart Yarr after stop wins.
+3. **Rollback-journal finding:** Readiness-failure restoration now writes and
+   fsyncs a versioned rollback marker before changing either current config
+   member. Shell and API startup recovery understand install and rollback
+   operations. Process-death failpoints cover every rollback transition and
+   preserve the known-good credentials.
+4. **Packaged-major finding:** The updater derives supported major from the
+   immutable packaged binary, not an active overlay. Check and apply reject an
+   incompatible retained overlay and every cross-major candidate under lock.
 
 ## Verification Evidence
 
@@ -111,7 +143,7 @@ An implementation scan outside those historical records found no active
 
 ### API
 
-- Vitest: PASS, 12 files and 154 tests.
+- Vitest: PASS, 12 files and 160 tests.
 - `npx tsc --noEmit`: PASS.
 - `npx tsc`: PASS.
 - `npm audit --omit=dev --audit-level=low`: PASS, 0 vulnerabilities.
@@ -154,10 +186,10 @@ The package was rebuilt from those cached, verified assets under both
 - Package:
   `unraid-plugin/packages/yarr-2.1.0-x86_64-1.txz`.
 - SHA-256:
-  `5bbc410efaa25c32da5307c9d64fe130ba8e6641aaaa941475fb7143f74bd088`.
+  `18ea78e57e146d6cdad3c12b7cad549d7c5e011bae6ad826670c6258cb4ab942`.
 - MD5:
-  `ed49c3873fa3b3ba8c05d212ae9147ec`.
-- Size: 6,198,884 bytes.
+  `eced952d41b2179cd199e59a2b57ea78`.
+- Size: 6,198,560 bytes.
 - Inventory: 40 manifest-declared payload files, 41 regular archive files, and
   55 total archive entries.
 - `release-manifest.json`, `yarr.plg`, committed package bytes, embedded
@@ -165,8 +197,8 @@ The package was rebuilt from those cached, verified assets under both
 
 ## Changed Path Groups
 
-- Root publication metadata, current documentation, plugin manifests, and
-  release workflows.
+- Root publication metadata, active changelog links, current documentation,
+  plugin manifests, and release workflows.
 - `unraid-plugin/api/src/` implementation and tests.
 - `unraid-plugin/web/src/`, browser contracts, and built settings/dashboard
   bundles.
@@ -180,7 +212,8 @@ The package was rebuilt from those cached, verified assets under both
 
 ## Residual Concerns
 
-- Original reviewer re-review is pending; this report does not claim approval.
+- Original reviewer follow-up re-review is pending; this report does not claim
+  approval.
 - GitHub-hosted workflow execution remains unverified because dispatch was
   prohibited.
 - Disposable-Unraid loader/schema/runtime, browser rendering, lifecycle,
