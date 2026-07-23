@@ -196,11 +196,17 @@ full matrix below includes those changes; reviewer approval remains pending.
 The reviewer rechecked follow-up commit
 `1b7803aa4f9b9ee64e0542c51517fcb74f16788b`, accepted three gaps, and found one
 remaining High-severity race: a staged updater could write appdata after the
-array-stop hook returned. The final remediation establishes a private
-array-stopping fence under the lifecycle lock before quiescence, aborts updater
-check/apply/reset before appdata access, and clears the fence only through the
-mounted-array start hook under the same lock. Final reviewer approval remains
-pending.
+array-stop hook returned. Commit
+`e71c23eb70b1f604ef0496f78cf7230e4a94fcc7` established a private
+array-stopping fence under the lifecycle lock before quiescence and closed that
+High finding. The next re-review found a low same-boot reinstall regression:
+the fence remained after uninstall and blocked ordinary autostart after the
+array remounted while Yarr was absent. The latest remediation preserves the
+fence across unmount and uninstall so old waiting updaters still fail closed,
+but makes a classic installer that proves `/mnt/user` mounted enter the same
+lock-held mounted transition as the array-start hook. The classic contract
+proves unmounted reinstall remains fenced and mounted reinstall clears before
+autostart. Final reviewer approval remains pending.
 
 Key contract changes:
 
@@ -218,8 +224,9 @@ Key contract changes:
 - Updater network staging does not hold the lifecycle lock; activation
   revalidates policy, candidate identity, and packaged-major support under the
   lock. Array stop fences all later appdata access until mounted-array start
-  clears the fence. Hooks have bounded retries; wrapper logs have safe bounded
-  rotation.
+  clears the fence. A mounted classic reinstall uses that same transition,
+  while unmount and uninstall retain the fence. Hooks have bounded retries;
+  wrapper logs have safe bounded rotation.
 - `YarrDashboard.page` ships and mounts the actual dashboard bundle.
 - Secret alias redaction derives from the service catalog.
 - Updater network and resource consumption is bounded.
@@ -237,10 +244,13 @@ Final local evidence:
   workflows; Python compilation passes 6 files.
 - Deterministic `umask 022` and `077` package, manifest, and PLG bytes agree.
 - Final package SHA-256 is
-  `b0058122376173921b8df75fd2ab8500afffbfb4e565ecba7e67931e02f43562`;
-  MD5 is `81c1ff67a3b6d3a2d11c666c9a7d1b99`; size is 6,201,496 bytes.
+  `d9108ee6ac2b84456bece6460fd6b614fc92c8e2885aac15b19e42e63b906619`;
+  MD5 is `4c8fe578b46833be653696bfa14573cb`; size is 6,198,320 bytes.
 - The package verifier passes 40 manifest-declared payload files. The archive
   has 41 regular files and 55 total entries.
+- `tar -tvf` inspection of both retained reproducible outputs found no `./`
+  entry; all 14 archived directories are `root:root` mode `0755`, with no
+  group/world-write bits.
 - Read-only upstream draft evidence remains unchanged: archive SHA-256
   `682b6866655349a356a66ce75a9f4aea9cb1b2bb6a3d39b99e13f6f4eab00907`
   and checksum-asset SHA-256

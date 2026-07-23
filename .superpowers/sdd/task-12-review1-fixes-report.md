@@ -15,10 +15,16 @@ complete local matrix passes.
 The first follow-up commit
 `1b7803aa4f9b9ee64e0542c51517fcb74f16788b` was not approved: the reviewer
 accepted three gaps but found that an updater could still write appdata after
-the array-stop hook returned. The subsequent remediation establishes an
-array-stopping fence under the lifecycle lock, aborts updater check/apply/reset
-before appdata access, and clears the fence only from the mounted-array start
-hook. Final re-review remains pending.
+the array-stop hook returned. Commit
+`e71c23eb70b1f604ef0496f78cf7230e4a94fcc7` established an array-stopping
+fence under the lifecycle lock and closed that High finding. The next re-review
+did not approve because the retained fence blocked a same-boot reinstall after
+the array remounted while Yarr was absent. The latest remediation deliberately
+retains the fence across unmount and uninstall so an already-waiting updater
+still fails closed, while a classic installer that proves `/mnt/user` mounted
+enters the same lock-held mounted transition as the array-start hook. An
+unmounted reinstall retains the fence; a mounted reinstall clears it before
+autostart. Final re-review remains pending.
 
 This report records remediation evidence, not review approval. The original
 reviewer remains responsible for re-review.
@@ -72,7 +78,8 @@ Safety boundaries observed:
    lock. Concurrent older/newer candidates cannot downgrade or redefine the
    package-supported major. Array stop establishes a private runtime fence
    before quiescing Yarr; a staged updater then aborts before appdata access.
-   Only the mounted-array start hook clears that fence under the same lock.
+   Only a proven mounted-array transition clears that fence under the same
+   lock; both the start hook and a mounted classic installer use it.
 9. **Array hooks:** Start and stop hooks use bounded lock retries. Stop requires
    confirmed quiescence before unmount and reports failure visibly; start
    retries and reports failure. Lock-contention contracts pass.
@@ -117,8 +124,8 @@ URL.
    activation. The stop hook writes and fsyncs an array-stopping fence under the
    same lock before quiescence. A staged updater then fails before selecting,
    creating, or mutating appdata. Check, apply, reset, and manual start remain
-   fenced until the mounted-array start hook clears the private marker under
-   lock.
+   fenced until a proven mounted-array transition clears the private marker
+   under lock.
 3. **Rollback-journal finding:** Readiness-failure restoration now writes and
    fsyncs a versioned rollback marker before changing either current config
    member. Shell and API startup recovery understand install and rollback
@@ -127,6 +134,12 @@ URL.
 4. **Packaged-major finding:** The updater derives supported major from the
    immutable packaged binary, not an active overlay. Check and apply reject an
    incompatible retained overlay and every cross-major candidate under lock.
+5. **Same-boot reinstall regression:** Uninstall keeps the array-stop fence
+   because a pre-existing updater can outlive package removal. The installer
+   now proves the array mount and invokes the lock-held mounted transition
+   before autostart. The classic contract exercises stop, uninstall, unmounted
+   reinstall, and mounted reinstall using the real fence helper. It also avoids
+   following the shared-helper fixture symlink during chmod.
 
 ## Verification Evidence
 
@@ -191,18 +204,21 @@ Read-only upstream draft evidence remained unchanged after local verification:
 - Checksum asset SHA-256:
   `7c9cb5850046cb203dec73491558663d6a15e6baf2ed092ac6a689c47cb834ab`.
 
-The package was rebuilt from those cached, verified assets under both
+The package was rebuilt from those read-only, verified assets under both
 `umask 022` and `umask 077`. Package, manifest, and PLG bytes were identical:
 
 - Package:
   `unraid-plugin/packages/yarr-2.1.0-x86_64-1.txz`.
 - SHA-256:
-  `b0058122376173921b8df75fd2ab8500afffbfb4e565ecba7e67931e02f43562`.
+  `d9108ee6ac2b84456bece6460fd6b614fc92c8e2885aac15b19e42e63b906619`.
 - MD5:
-  `81c1ff67a3b6d3a2d11c666c9a7d1b99`.
-- Size: 6,201,496 bytes.
+  `4c8fe578b46833be653696bfa14573cb`.
+- Size: 6,198,320 bytes.
 - Inventory: 40 manifest-declared payload files, 41 regular archive files, and
   55 total archive entries.
+- Independent `tar -tvf` inspection of both retained reproducible outputs found
+  no `./` header and exactly 14 directory headers, all `0/0` mode `0755`; no
+  archived directory is group- or world-writable.
 - `release-manifest.json`, `yarr.plg`, committed package bytes, embedded
   manifest, and current source/build payloads agree.
 
@@ -223,7 +239,7 @@ The package was rebuilt from those cached, verified assets under both
 
 ## Residual Concerns
 
-- Original reviewer final re-review is pending after the array-stop fence
+- Original reviewer final re-review is pending after the same-boot reinstall
   remediation; this report does not claim approval.
 - GitHub-hosted workflow execution remains unverified because dispatch was
   prohibited.

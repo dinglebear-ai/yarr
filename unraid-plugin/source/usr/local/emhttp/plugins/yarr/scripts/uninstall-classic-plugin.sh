@@ -25,6 +25,9 @@ uninstall_classic_locked() {
     if [[ -x "$plugin_root/scripts/uninstall-api-plugin.sh" ]]; then
         "$plugin_root/scripts/uninstall-api-plugin.sh" || return 1
     fi
+    # Preserve the array-stopping fence across uninstall. An updater that was
+    # already waiting for this lock must still fail closed after package
+    # removal. A later installer clears it only after proving /mnt/user mounted.
     rm -f -- "${root}/var/run/yarr.pid" "${root}/var/run/yarr.pid.meta" \
         "${root}/var/run/yarr-logger.pid" "${root}/var/run/yarr.env"
     [[ ! -e "${root}/var/run/yarr-log.pipe" || -p "${root}/var/run/yarr-log.pipe" ]] || return 1

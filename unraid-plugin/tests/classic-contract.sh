@@ -102,7 +102,8 @@ cat > "$installed_plugin/scripts/install-api-plugin.sh" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-chmod 755 "$installed_plugin/scripts/"*.sh
+chmod 755 "$installed_plugin/scripts/install-classic-plugin.sh" \
+    "$installed_plugin/scripts/install-api-plugin.sh"
 printf 'sentinel-config\n' > "$classic_root/boot/config/plugins/yarr/yarr.cfg"
 chmod 640 "$classic_root/boot/config/plugins/yarr/yarr.cfg"
 YARR_TEST_ROOT="$classic_root" "$installed_plugin/scripts/install-classic-plugin.sh"
@@ -324,7 +325,9 @@ ln -sf "$source_root/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh" "$uni
 cat > "$uninstall_root/etc/rc.d/rc.yarr" <<'EOF'
 #!/usr/bin/env bash
 set -u
+lock_fd=''
 if [[ "${1:-}" == --lock-fd ]]; then
+  lock_fd=$2
   shift 2
 fi
 action=${1:-}
@@ -332,6 +335,12 @@ printf 'rc %s\n' "$action" >> "$YARR_TEST_UNINSTALL_OPERATIONS"
 case "$action" in
   stop) exit 0 ;;
   status) exit 3 ;;
+  start)
+    [[ "${YARR_ARRAY_MOUNTED_REQUEST:-no}" == yes && -n "$lock_fd" ]] || exit 2
+    # shellcheck source=/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh
+    source "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh" || exit 1
+    yarr_with_inherited_lock "$lock_fd" yarr_clear_array_stopping
+    ;;
   *) exit 2 ;;
 esac
 EOF
@@ -339,11 +348,15 @@ cat > "$uninstall_plugin/scripts/uninstall-api-plugin.sh" <<'EOF'
 #!/usr/bin/env bash
 printf 'api uninstall\n' >> "$YARR_TEST_UNINSTALL_OPERATIONS"
 EOF
-chmod 755 "$uninstall_root/etc/rc.d/rc.yarr" "$uninstall_plugin/scripts/"*.sh
+chmod 755 "$uninstall_root/etc/rc.d/rc.yarr" \
+    "$uninstall_plugin/scripts/uninstall-classic-plugin.sh" \
+    "$uninstall_plugin/scripts/uninstall-api-plugin.sh"
 printf 'keep config\n' > "$uninstall_root/boot/config/plugins/yarr/yarr.cfg"
 printf 'keep appdata\n' > "$uninstall_root/mnt/user/appdata/yarr/state"
 touch "$uninstall_root/var/run/yarr.pid" "$uninstall_root/var/run/yarr.env" \
     "$uninstall_root/var/lock/yarr-plugin.lock" "$uninstall_root/var/log/yarr/yarr.log"
+printf 'array-stopping\n' > "$uninstall_root/var/run/yarr-array-stopping"
+chmod 0600 "$uninstall_root/var/run/yarr-array-stopping"
 uninstall_ops="$tmp_dir/uninstall-operations.log"
 YARR_TEST_ROOT="$uninstall_root" YARR_TEST_UNINSTALL_OPERATIONS="$uninstall_ops" \
     "$uninstall_plugin/scripts/uninstall-classic-plugin.sh"
@@ -352,6 +365,38 @@ YARR_TEST_ROOT="$uninstall_root" YARR_TEST_UNINSTALL_OPERATIONS="$uninstall_ops"
 [[ -f "$uninstall_root/mnt/user/appdata/yarr/state" ]] || fail 'uninstall removed appdata'
 [[ ! -e "$uninstall_root/var/run/yarr.pid" && ! -e "$uninstall_root/var/run/yarr.env" ]] || fail 'uninstall retained volatile runtime files'
 [[ -e "$uninstall_root/var/lock/yarr-plugin.lock" ]] || fail 'uninstall unlinked the stable lock inode'
+[[ -f "$uninstall_root/var/run/yarr-array-stopping" ]] || fail 'uninstall removed the fail-closed array fence'
+
+# A same-boot reinstall must retain the fence while the array is unmounted, then
+# clear it through the real lock-aware mounted transition before autostart.
+cp "$classic_install" "$uninstall_plugin/scripts/install-classic-plugin.sh"
+cp "$default_cfg" "$uninstall_plugin/default.cfg"
+cp "$default_env" "$uninstall_plugin/default.env"
+cat > "$uninstall_plugin/scripts/install-api-plugin.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod 755 "$uninstall_plugin/scripts/install-classic-plugin.sh" \
+    "$uninstall_plugin/scripts/install-api-plugin.sh"
+printf 'ENABLED=yes\n' > "$uninstall_root/boot/config/plugins/yarr/yarr.cfg"
+reinstall_bin="$tmp_dir/reinstall-bin"
+mkdir -p "$reinstall_bin"
+cat > "$reinstall_bin/mountpoint" <<'EOF'
+#!/usr/bin/env bash
+[[ "${1:-}" == -q && "${2:-}" == "${YARR_TEST_MOUNTPOINT:-}" ]]
+EOF
+chmod 755 "$reinstall_bin/mountpoint"
+PATH="$reinstall_bin:$PATH" YARR_TEST_ROOT="$uninstall_root" \
+    YARR_TEST_MOUNTPOINT="$uninstall_root/not-mounted" \
+    YARR_TEST_UNINSTALL_OPERATIONS="$uninstall_ops" \
+    "$uninstall_plugin/scripts/install-classic-plugin.sh"
+[[ -f "$uninstall_root/var/run/yarr-array-stopping" ]] || fail 'unmounted reinstall cleared the array fence'
+PATH="$reinstall_bin:$PATH" YARR_TEST_ROOT="$uninstall_root" \
+    YARR_TEST_MOUNTPOINT="$uninstall_root/mnt/user" \
+    YARR_TEST_UNINSTALL_OPERATIONS="$uninstall_ops" \
+    "$uninstall_plugin/scripts/install-classic-plugin.sh"
+[[ ! -e "$uninstall_root/var/run/yarr-array-stopping" ]] || fail 'mounted reinstall retained the stale array fence'
+grep -Fxq 'rc start' "$uninstall_ops" || fail 'mounted reinstall did not enter the mounted start transition'
 
 for executable in "$classic_install" "$classic_uninstall" "$api_install" "$api_uninstall" "$build_script" "$verify_script"; do
     [[ -x "$executable" ]] || fail "script is not executable: ${executable#"$repo_root/"}"

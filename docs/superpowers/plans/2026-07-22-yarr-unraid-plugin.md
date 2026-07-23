@@ -16,6 +16,7 @@
 - Keep `yarr.cfg` for lifecycle/plugin settings and `.env` for Yarr settings and credentials. Never mirror either into JSON.
 - Never expose stored credentials through GraphQL, logs, import previews, frontend state, shell output, or test snapshots.
 - Use `/var/lock/yarr-plugin.lock` to serialize save, restart, update, reset, install, and uninstall operations.
+- Fence appdata before array unmount, retain that fence across uninstall, and clear it only through a lock-held mounted-array transition used by the start hook or a mounted reinstall.
 - Default to loopback binding. LAN, custom, and Tailscale exposure require bearer authentication or Google OAuth. The plugin permits typed trusted-gateway mode only on loopback with Tailscale disabled behind a same-host proxy.
 - Keep the packaged binary immutable at `/usr/local/yarr/bin/yarr`; place self-updated binaries at `/mnt/user/appdata/yarr/bin/yarr` and retain one known-good predecessor.
 - Verify upstream archives with the published `yarr-x86_64.tar.gz.sha256`, reject extra/missing archive entries, and swap binaries atomically.

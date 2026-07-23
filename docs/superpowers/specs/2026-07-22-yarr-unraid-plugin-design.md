@@ -356,8 +356,11 @@ Update, reset, lifecycle, config writes, package replacement, and uninstall
 share the same never-unlinked lock inode. Network staging never holds that lock.
 Before stopping for array unmount, the stop hooks establish a private
 array-stopping fence under that lock. Updater check, apply, and reset abort
-before any appdata access while the fence exists. Only the mounted-array start
-hook clears the fence, under the same lock, before starting Yarr.
+before any appdata access while the fence exists. Uninstall retains the fence
+because an already-waiting updater can outlive package removal. Only a proven
+mounted-array start transition clears the fence under the same lock before
+starting Yarr; both the array-start hook and a mounted classic installer use
+that transition, so a same-boot reinstall recovers without weakening unmount.
 Immediately before the short activation transaction, the updater acquires the
 lock and revalidates the current installed version, the packaged supported
 major, stable-release policy, and staged candidate hash/version. Network reads

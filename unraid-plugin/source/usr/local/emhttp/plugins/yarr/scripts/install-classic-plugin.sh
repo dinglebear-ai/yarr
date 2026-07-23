@@ -5,6 +5,7 @@ root=${YARR_TEST_ROOT:-}
 plugin_root="${root}/usr/local/emhttp/plugins/yarr"
 config_root="${root}/boot/config/plugins/yarr"
 rc_yarr="${root}/etc/rc.d/rc.yarr"
+user_mount="${root}/mnt/user"
 if [[ -n "$root" ]]; then
     export YARR_PLUGIN_ROOT="$plugin_root"
     export YARR_BOOT_ROOT="${root}/boot"
@@ -31,10 +32,11 @@ install_classic_locked() {
 
     "$plugin_root/scripts/install-api-plugin.sh"
 
-    if [[ -z "$root" && -x "$rc_yarr" ]] && \
+    if [[ -x "$rc_yarr" ]] && \
         grep -Eq '^ENABLED=yes$' "$config_root/yarr.cfg" && \
-        mountpoint -q /mnt/user 2>/dev/null; then
-        "$rc_yarr" --lock-fd "$YARR_ACTIVE_LOCK_FD" start
+        mountpoint -q "$user_mount" 2>/dev/null; then
+        YARR_ARRAY_MOUNTED_REQUEST=yes \
+            "$rc_yarr" --lock-fd "$YARR_ACTIVE_LOCK_FD" start
     fi
 }
 
