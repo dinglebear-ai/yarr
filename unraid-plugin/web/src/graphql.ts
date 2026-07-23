@@ -1,0 +1,158 @@
+import type {
+  SaveYarrConfigInput,
+  YarrConfig,
+  YarrConfigMutationResult,
+  YarrControlAction,
+  YarrRuntime,
+} from "./types";
+
+declare global {
+  interface Window {
+    csrf_token?: string;
+  }
+}
+
+const REQUEST_TIMEOUT_MS = 8_000;
+const CSRF_WAIT_MS = 2_000;
+const MAX_RESPONSE_BYTES = 1_000_000;
+const SAFE_REQUEST_ERROR = "Unable to complete this request.";
+const TIMEOUT_ERROR = "Request timed out.";
+const ABORT_ERROR = "Request cancelled.";
+
+const RUNTIME_FIELDS = `
+  state pid version bindAddress port ready healthMessage uptimeSeconds
+`;
+const CONFIG_FIELDS = `
+  plugin { enabled bindMode customHost port authMode tailscaleServe tailscaleHostname logLevel updateChannel }
+  services { service enabled baseUrl username hasPassword hasApiKey extra { key value } }
+`;
+const MUTATION_FIELDS = `
+  config { ${CONFIG_FIELDS} }
+  changed restarted rolledBack error
+`;
+
+const YARR_RUNTIME_QUERY = `query YarrRuntime { yarrRuntime { ${RUNTIME_FIELDS} } }`;
+const YARR_CONFIG_QUERY = `query YarrConfig { yarrConfig { ${CONFIG_FIELDS} } }`;
+const SAVE_YARR_CONFIG_MUTATION = `mutation SaveYarrConfig($input: SaveYarrConfigInput!) {
+  saveYarrConfig(input: $input) { ${MUTATION_FIELDS} }
+}`;
+const CONTROL_YARR_MUTATION = `mutation ControlYarr($action: YarrControlAction!) {
+  controlYarr(action: $action) { ${RUNTIME_FIELDS} }
+}`;
+
+type GraphQLBody = { data?: Record<string, unknown>; errors?: unknown };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function abortError(message: string): Error {
+  return new DOMException(message, "AbortError");
+}
+
+async function waitForCsrfToken(signal: AbortSignal): Promise<void> {
+  if (window.csrf_token || signal.aborted) {
+    if (signal.aborted) throw abortError(ABORT_ERROR);
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const interval = window.setInterval(() => {
+      if (window.csrf_token) finish(resolve);
+    }, 20);
+    const deadline = window.setTimeout(() => finish(resolve), CSRF_WAIT_MS);
+    const onAbort = () => finish(() => reject(abortError(ABORT_ERROR)));
+    const finish = (callback: () => void) => {
+      window.clearInterval(interval);
+      window.clearTimeout(deadline);
+      signal.removeEventListener("abort", onAbort);
+      callback();
+    };
+
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function readJson(response: Response): Promise<GraphQLBody> {
+  const length = Number(response.headers.get("content-length"));
+  if (Number.isFinite(length) && length > MAX_RESPONSE_BYTES) throw new Error(SAFE_REQUEST_ERROR);
+
+  const text = await response.text();
+  if (text.length > MAX_RESPONSE_BYTES) throw new Error(SAFE_REQUEST_ERROR);
+  try {
+    const json: unknown = JSON.parse(text);
+    if (!isRecord(json)) throw new Error(SAFE_REQUEST_ERROR);
+    return json;
+  } catch {
+    throw new Error(SAFE_REQUEST_ERROR);
+  }
+}
+
+async function request<T>(document: string, variables?: Record<string, unknown>, callerSignal?: AbortSignal): Promise<T> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort(abortError(TIMEOUT_ERROR));
+  }, REQUEST_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort(abortError(ABORT_ERROR));
+
+  if (callerSignal?.aborted) abortFromCaller();
+  else callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  try {
+    await waitForCsrfToken(controller.signal);
+    const response = await fetch("/graphql", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrf-token": window.csrf_token ?? "",
+      },
+      body: JSON.stringify({ query: document, variables }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) throw new Error(SAFE_REQUEST_ERROR);
+    const body = await readJson(response);
+    if (Array.isArray(body.errors) && body.errors.length > 0) throw new Error(SAFE_REQUEST_ERROR);
+    if (!isRecord(body.data)) throw new Error(SAFE_REQUEST_ERROR);
+    return body.data as T;
+  } catch (error) {
+    if (timedOut) throw new Error(TIMEOUT_ERROR);
+    if (controller.signal.aborted) throw new Error(ABORT_ERROR);
+    if (error instanceof Error && error.message === SAFE_REQUEST_ERROR) throw error;
+    throw new Error(SAFE_REQUEST_ERROR);
+  } finally {
+    window.clearTimeout(timeout);
+    callerSignal?.removeEventListener("abort", abortFromCaller);
+  }
+}
+
+function result<T>(data: Record<string, unknown>, field: string): T {
+  const value = data[field];
+  if (!isRecord(value)) throw new Error(SAFE_REQUEST_ERROR);
+  return value as T;
+}
+
+export async function queryYarrRuntime(signal?: AbortSignal): Promise<YarrRuntime> {
+  return result<YarrRuntime>(await request<Record<string, unknown>>(YARR_RUNTIME_QUERY, undefined, signal), "yarrRuntime");
+}
+
+export async function queryYarrConfig(signal?: AbortSignal): Promise<YarrConfig> {
+  return result<YarrConfig>(await request<Record<string, unknown>>(YARR_CONFIG_QUERY, undefined, signal), "yarrConfig");
+}
+
+export async function mutateYarrConfig(input: SaveYarrConfigInput, signal?: AbortSignal): Promise<YarrConfigMutationResult> {
+  return result<YarrConfigMutationResult>(
+    await request<Record<string, unknown>>(SAVE_YARR_CONFIG_MUTATION, { input }, signal),
+    "saveYarrConfig",
+  );
+}
+
+export async function controlYarr(action: YarrControlAction, signal?: AbortSignal): Promise<YarrRuntime> {
+  return result<YarrRuntime>(
+    await request<Record<string, unknown>>(CONTROL_YARR_MUTATION, { action }, signal),
+    "controlYarr",
+  );
+}
