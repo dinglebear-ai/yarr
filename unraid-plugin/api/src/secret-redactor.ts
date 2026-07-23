@@ -84,7 +84,7 @@ export function collectSecretValues(values: Record<string, string>): string[] {
   return [...new Set(
     Object.entries(values)
       .filter(([key, value]) =>
-        value.length > 0 && /(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)$/.test(key),
+        value.length > 0 && /(?:TOKEN|SECRET|PASSWORD|USERNAME|API_KEY|PRIVATE_KEY)$/.test(key),
       )
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([, value]) => value),

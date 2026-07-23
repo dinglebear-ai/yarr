@@ -8,10 +8,12 @@ import type {
   ParsedPluginConfig,
   ParsedYarrEnvironment,
   SaveYarrConfigInput,
+  SaveYarrServiceInput,
   SecretUpdate,
   YarrConfigView,
   YarrPluginConfig,
 } from "./config.types";
+import { normalizeServiceUrl, SERVICE_CATALOG, SERVICE_CATALOG_BY_ID } from "./service-catalog";
 
 const PLUGIN_DEFAULTS = {
   ENABLED: "yes",
@@ -40,6 +42,7 @@ const INPUT_KEYS = new Set<keyof SaveYarrConfigInput>([
   "googleClientSecret",
   "trustedGatewayHosts",
   "trustedGatewayOrigins",
+  "services",
 ]);
 
 const BIND_MODES = new Set<BindMode>(["loopback", "lan", "custom"]);
@@ -77,6 +80,9 @@ export function toPublicConfig(
     }
   }
 
+  const enabledServices = new Set(
+    (env.values.YARR_SERVICES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean),
+  );
   return {
     plugin: publicPlugin,
     services: [
@@ -89,6 +95,15 @@ export function toPublicConfig(
         hasApiKey: hasValue(env.values.YARR_MCP_TOKEN),
         extra,
       },
+      ...SERVICE_CATALOG.map((entry) => ({
+        service: entry.id,
+        enabled: enabledServices.has(entry.id),
+        baseUrl: firstValue(env.values, entry.urlKeys) ?? "",
+        username: null,
+        hasPassword: hasValue(firstValue(env.values, entry.passwordKeys)),
+        hasApiKey: hasValue(firstValue(env.values, entry.apiKeyKeys)),
+        extra: {},
+      })),
     ],
   };
 }
@@ -132,10 +147,74 @@ export function mergeConfigInput(
     "YARR_MCP_ALLOWED_ORIGINS",
     "trustedGatewayOrigins",
   );
+  applyServiceInputs(input.services, env.values);
 
   const merged = { plugin, env };
   validateConfigState(merged);
   return merged;
+}
+
+function applyServiceInputs(
+  services: SaveYarrServiceInput[] | undefined,
+  values: Record<string, string>,
+): void {
+  if (services === undefined) return;
+  if (!Array.isArray(services) || services.length > SERVICE_CATALOG.length) {
+    throw new Error("services must be an array of supported service updates");
+  }
+  const enabled = (values.YARR_SERVICES ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  for (const update of services) {
+    if (update === null || typeof update !== "object" || Array.isArray(update)) {
+      throw new Error("service update must be an object");
+    }
+    for (const key of Object.keys(update)) {
+      if (!["service", "enabled", "baseUrl", "username", "password", "apiKey"].includes(key)) {
+        throw new Error(`unknown service update field ${key}`);
+      }
+    }
+    const entry = typeof update.service === "string" ? SERVICE_CATALOG_BY_ID.get(update.service) : undefined;
+    if (!entry) throw new Error(`unsupported service ${String(update.service)}`);
+    if (seen.has(entry.id)) throw new Error(`duplicate service update ${entry.id}`);
+    seen.add(entry.id);
+    if (update.enabled !== undefined) {
+      if (typeof update.enabled !== "boolean") throw new Error(`${entry.id}.enabled must be a boolean`);
+      const index = enabled.findIndex((value) => value.toLowerCase() === entry.id);
+      if (update.enabled && index < 0) enabled.push(entry.id);
+      if (!update.enabled && index >= 0) enabled.splice(index, 1);
+    }
+    if (update.baseUrl !== undefined) {
+      const normalized = normalizeServiceUrl(update.baseUrl);
+      if (!normalized) throw new Error(`${entry.id}.baseUrl must be an http or https URL without embedded credentials`);
+      values[entry.urlKeys[0]] = normalized;
+    }
+    if (update.username !== undefined) {
+      if (entry.usernameKeys.length === 0) throw new Error(`${entry.id} does not support a username`);
+      applyString(update.username, values, entry.usernameKeys[0], `${entry.id}.username`);
+    }
+    applyCatalogSecret(update.password, values, entry.passwordKeys[0], `${entry.id}.password`);
+    applyCatalogSecret(update.apiKey, values, entry.apiKeyKeys[0], `${entry.id}.apiKey`);
+  }
+  if (enabled.length > 0) values.YARR_SERVICES = enabled.join(",");
+  else delete values.YARR_SERVICES;
+}
+
+function applyCatalogSecret(
+  update: SecretUpdate | undefined,
+  values: Record<string, string>,
+  key: string | undefined,
+  inputKey: string,
+): void {
+  if (update === undefined || update.kind === "preserve") return;
+  if (!key) throw new Error(`${inputKey} is not supported`);
+  applySecret(update, values, key, inputKey);
+}
+
+function firstValue(values: Record<string, string>, keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    if (hasValue(values[key])) return values[key];
+  }
+  return undefined;
 }
 
 export function validateConfigState(state: ParsedConfigState): void {

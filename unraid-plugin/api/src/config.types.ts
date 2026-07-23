@@ -42,6 +42,15 @@ export type SecretUpdate =
   | { kind: "set"; value: string }
   | { kind: "clear" };
 
+export interface SaveYarrServiceInput {
+  service: string;
+  enabled?: boolean;
+  baseUrl?: string;
+  username?: string;
+  password?: SecretUpdate;
+  apiKey?: SecretUpdate;
+}
+
 export interface SaveYarrConfigInput {
   enabled?: boolean;
   bindMode?: BindMode;
@@ -57,6 +66,7 @@ export interface SaveYarrConfigInput {
   googleClientSecret?: SecretUpdate;
   trustedGatewayHosts?: string;
   trustedGatewayOrigins?: string;
+  services?: SaveYarrServiceInput[];
 }
 
 export interface YarrConfigView {
