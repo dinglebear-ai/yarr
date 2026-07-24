@@ -28,6 +28,8 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_HTTP_MULTIPLEXING: false
   RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: "0"
+  SOLDR_CACHE_DIR: ${{ github.workspace }}/../.soldr-cache
 
 jobs:
   # -- actionlint: GitHub Actions workflow syntax and shell checks -------------
@@ -49,13 +51,13 @@ jobs:
   # ── fmt: cargo fmt --check ──────────────────────────────────────────────────
   fmt:
     name: Format
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust (stable with rustfmt)
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
         with:
           components: rustfmt
 
@@ -65,26 +67,15 @@ jobs:
   # ── clippy: zero warnings ────────────────────────────────────────────────────
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust (stable with clippy)
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
         with:
           components: clippy
-
-      # Cache Cargo registry and build artifacts between runs.
-      - name: Cache Cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ github.repository }}-clippy-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ github.repository }}-clippy-
 
       - name: cargo clippy -- -D warnings
         run: cargo clippy --all-targets -- -D warnings
@@ -92,23 +83,13 @@ jobs:
   # ── docs: rustdoc with zero warnings (broken/ambiguous intra-doc links) ──────
   docs:
     name: Docs
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-
-      - name: Cache Cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ github.repository }}-docs-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ github.repository }}-docs-
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
 
       - name: cargo doc (deny warnings)
         env:
@@ -118,24 +99,13 @@ jobs:
   # ── test: cargo nextest run --profile ci ─────────────────────────────────────
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-
-      # Cache Cargo registry and build artifacts between runs.
-      - name: Cache Cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ github.repository }}-test-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ github.repository }}-test-
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@95cc2373c3f00275e315c306e56fef1c7a8854c0 # cargo-nextest
@@ -187,15 +157,15 @@ jobs:
   # ── contracts: generated docs, plugin layout, coupled files ─────────────────
   template:
     name: Repo Contracts
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
 
       - name: Check PATTERNS.md contracts
         run: cargo xtask patterns
