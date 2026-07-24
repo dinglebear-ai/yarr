@@ -9,28 +9,22 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_INCREMENTAL: "0"
+  SOLDR_CACHE_DIR: ${{ github.workspace }}/../.soldr-cache
+
 jobs:
   msrv:
     name: Minimum Supported Rust Version (1.90)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust 1.90
-        run: |
-          rustup toolchain install 1.90.0 --profile minimal
-          rustup default 1.90.0
-
-      - name: Cache Cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ github.repository }}-msrv-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ github.repository }}-msrv-
+          toolchain: "1.90.0"
 
       - name: cargo check (MSRV)
         run: cargo check --all-targets --locked

@@ -21,6 +21,8 @@ concurrency:
 env:
   BINARY_NAME: yarr
   RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
+  CARGO_INCREMENTAL: "0"
+  SOLDR_CACHE_DIR: ${{ github.workspace }}/../.soldr-cache
 
 jobs:
   verify:
@@ -80,7 +82,7 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, unraid]
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -99,30 +101,26 @@ jobs:
           ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
 
-      - name: Install Rust target
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install Rust + soldr
+        uses: ./.github/actions/setup-rust-soldr
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install build dependencies
+      # Base build deps (cc, pkg-config, libssl-dev) are installed by the
+      # composite above when missing; only the mingw cross-linker is extra.
+      # The runner may be root (no sudo binary), so pick the escalation path.
+      - name: Install cross-compilation dependencies
+        if: matrix.target == 'x86_64-pc-windows-gnu'
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev
-          if [[ "${{ matrix.target }}" == "x86_64-pc-windows-gnu" ]]; then
+          if [[ "$(id -u)" == "0" ]]; then
+            apt-get update
+            apt-get install -y gcc-mingw-w64-x86-64
+          else
+            sudo apt-get update
             sudo apt-get install -y gcc-mingw-w64-x86-64
           fi
-
-      - name: Cache Cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ github.repository }}-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ github.repository }}-release-${{ matrix.target }}-
 
       - name: Build release binary
         env:

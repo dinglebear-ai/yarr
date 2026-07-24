@@ -1,4 +1,4 @@
 self-hosted-runner:
-  labels: []
+  labels: [unraid]
 
 config-variables: null
