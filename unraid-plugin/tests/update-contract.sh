@@ -24,6 +24,21 @@ expect_failure() {
     fi
 }
 
+wait_for_process_exit() {
+    local pid=$1 status=0
+    while true; do
+        if wait "$pid"; then
+            status=0
+        else
+            status=$?
+        fi
+        if ! kill -0 "$pid" 2>/dev/null; then
+            return "$status"
+        fi
+        sleep 0.01
+    done
+}
+
 expect_eq() {
     local expected=$1 actual=$2 label=$3
     [[ "$actual" == "$expected" ]] || fail "$label: expected $expected, got $actual"
@@ -1182,9 +1197,13 @@ if [[ "$stop_observed" != true ]]; then
 fi
 kill -TERM "$signal_update_pid"
 kill -CONT "$signal_update_pid"
-if wait "$signal_update_pid"; then
+signal_status=0
+if wait_for_process_exit "$signal_update_pid"; then
     fail 'signal after first binary move unexpectedly succeeded'
+else
+    signal_status=$?
 fi
+expect_eq '143' "$signal_status" 'signal after first binary move exit status'
 assert_running_overlay_restored 'signal after first binary move'
 
 prepare_running_overlay
