@@ -76,7 +76,7 @@ python3 scripts/check-blob-size.py --base origin/main --head HEAD --max-bytes 51
 just blob-size-check
 ```
 
-Checks changed git blobs against a size budget. Use `scripts/blob-size-allowlist.txt` only for intentional, reproducible large artifacts such as the vendored OpenAPI specifications and their generated Jellyfin/Plex registries.
+Checks changed git blobs against a size budget. Use `scripts/blob-size-allowlist.txt` only for intentional, reproducible large artifacts such as the vendored OpenAPI specifications, their generated Jellyfin/Plex registries, and the committed classic Unraid package that release CI rebuilds and byte-compares against the frozen candidate.
 
 ### `check-coupled-files.sh`
 

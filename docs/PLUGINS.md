@@ -1,7 +1,11 @@
 # Plugin distribution
 
 Yarr publishes one full MCP plugin and 11 service-specific skills-only plugins
-for Claude Code, Codex, and Gemini CLI.
+for Claude Code, Codex, and Gemini CLI. Their manifests and marketplace
+instructions use the canonical `dinglebear-ai/yarr` repository identity. The
+classic filesystem package under `unraid-plugin/` is a separate Unraid
+distribution, not an MCP plugin; its operator and release contract lives in
+`unraid-plugin/README.md`.
 
 ## Full yarr plugin
 
