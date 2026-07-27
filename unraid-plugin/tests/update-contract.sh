@@ -24,21 +24,6 @@ expect_failure() {
     fi
 }
 
-wait_for_process_exit() {
-    local pid=$1 status=0
-    while true; do
-        if wait "$pid"; then
-            status=0
-        else
-            status=$?
-        fi
-        if ! kill -0 "$pid" 2>/dev/null; then
-            return "$status"
-        fi
-        sleep 0.01
-    done
-}
-
 expect_eq() {
     local expected=$1 actual=$2 label=$3
     [[ "$actual" == "$expected" ]] || fail "$label: expected $expected, got $actual"
@@ -144,11 +129,6 @@ if [[ "\$status" == 0 && "\$name" == install &&
       "\${YARR_TEST_CORRUPT_INSTALL_AT:-0}" == "\$count" ]]; then
     printf '\\ncorrupted snapshot\\n' >> "\${!#}"
 fi
-if [[ "\$status" == 0 && "\${YARR_TEST_STOP_COMMAND:-}" == "\$name" &&
-      "\${YARR_TEST_STOP_AT:-0}" == "\$count" ]]; then
-    kill -STOP "\$PPID"
-    : > "\${YARR_TEST_STOP_MARKER:?}"
-fi
 if [[ "\$status" == 0 && "\${YARR_TEST_SIGNAL_COMMAND:-}" == "\$name" &&
       "\${YARR_TEST_SIGNAL_AT:-0}" == "\$count" ]]; then
     kill -TERM "\$PPID"
@@ -180,8 +160,7 @@ reset_boundaries() {
     : > "$YARR_TEST_OPERATION_LOG"
     unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
         YARR_TEST_FAIL_AT_2 YARR_TEST_CORRUPT_INSTALL_AT \
-        YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT \
-        YARR_TEST_STOP_COMMAND YARR_TEST_STOP_AT YARR_TEST_STOP_MARKER
+        YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 }
 
 write_yarr() {
@@ -1169,36 +1148,37 @@ expect_failure 'signal after service stop' "$updater" apply --version 2.1.0 --js
 export YARR_RC_YARR="$rc"
 assert_running_overlay_restored 'signal after service stop'
 
+signal_boundary_updater="$test_root/bin/yarr-update-signal-boundary"
+cp "$updater" "$signal_boundary_updater"
+python3 - "$signal_boundary_updater" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text()
+needle = '''    if [[ "$YARR_RECOVERY_HAD_PREVIOUS" == true ]] &&
+        ! "$YARR_MV_BIN" -f -- "$YARR_TXN_PREVIOUS" \\
+            "${YARR_RECOVERY_TRANSACTION}/previous.displaced"; then
+        yarr_update_attempt_recovery
+        return 1
+    fi
+'''
+replacement = needle + '''    if [[ "${YARR_TEST_SIGNAL_BOUNDARY:-}" == after_previous_displaced ]]; then
+        yarr_update_handle_signal 143
+    fi
+'''
+if source.count(needle) != 1:
+    raise SystemExit('signal-boundary updater patch target count is not 1')
+path.write_text(source.replace(needle, replacement))
+PY
+chmod 755 "$signal_boundary_updater"
+
 prepare_running_overlay
 reset_boundaries
-stop_marker="$tmp_dir/stop-after-first-move"
-rm -f -- "$stop_marker"
-export YARR_TEST_STOP_COMMAND=mv YARR_TEST_STOP_AT=1
-export YARR_TEST_STOP_MARKER="$stop_marker"
-"$updater" apply --version 2.1.0 --json >"$tmp_dir/command.out" 2>"$tmp_dir/command.err" &
-signal_update_pid=$!
-stop_observed=false
-for ((attempt = 0; attempt < 200; attempt += 1)); do
-    if [[ -e "$stop_marker" ]]; then
-        stop_observed=true
-        break
-    fi
-    if ! kill -0 "$signal_update_pid" 2>/dev/null; then
-        break
-    fi
-    sleep 0.05
-done
-if [[ "$stop_observed" != true ]]; then
-    kill -CONT "$signal_update_pid" 2>/dev/null || true
-    wait "$signal_update_pid" 2>/dev/null || true
-    cat "$tmp_dir/command.out" >&2
-    cat "$tmp_dir/command.err" >&2
-    fail 'signal after first binary move did not reach the stopped boundary'
-fi
-kill -TERM "$signal_update_pid"
-kill -CONT "$signal_update_pid"
 signal_status=0
-if wait_for_process_exit "$signal_update_pid"; then
+if env YARR_TEST_SIGNAL_BOUNDARY=after_previous_displaced \
+    "$signal_boundary_updater" apply --version 2.1.0 --json \
+    >"$tmp_dir/command.out" 2>"$tmp_dir/command.err"; then
     fail 'signal after first binary move unexpectedly succeeded'
 else
     signal_status=$?
