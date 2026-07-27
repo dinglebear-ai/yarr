@@ -352,7 +352,7 @@ describe("RuntimeService", () => {
         throw new Error("failed with runtime-secret");
       },
     };
-    const { runtime, data } = runtimeHarness([]);
+    const { data } = runtimeHarness([]);
     const replacement = new RuntimeService(runner, { readFile: async (path) => data.get(path)! }, {
       get: async () => ({ status: 500, body: "" }),
     });

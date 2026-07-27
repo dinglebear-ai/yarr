@@ -44,10 +44,6 @@ function streamResponse(chunks: Uint8Array[], options: { contentLength?: string;
   };
 }
 
-function runtimeJson(filler = ""): string {
-  return `{"data":{"yarrRuntime":{"filler":"${filler}"}}}`;
-}
-
 describe("Yarr GraphQL client", () => {
   beforeEach(() => {
     window.csrf_token = "host-csrf-token";

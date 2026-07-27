@@ -30,6 +30,28 @@ describe("SecretField", () => {
     expect(label?.textContent).toContain("Bearer token");
   });
 
+  it("generates a 256-bit hexadecimal secret without exposing weak randomness", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const updates: unknown[] = [];
+    mounted = createApp(SecretField, {
+      name: "bearer-token",
+      label: "Bearer token",
+      configured: false,
+      generate: true,
+      onUpdate: (value: unknown) => updates.push(value),
+    });
+    mounted.mount(host);
+    await nextTick();
+
+    host.querySelector<HTMLButtonElement>("button")!.click();
+    await nextTick();
+
+    const value = host.querySelector<HTMLInputElement>('input[type="password"]')?.value;
+    expect(value).toMatch(/^[0-9a-f]{64}$/);
+    expect(updates.at(-1)).toEqual({ kind: "SET", value });
+  });
+
   it("disables every credential control without changing intent", async () => {
     const host = document.createElement("div");
     document.body.append(host);

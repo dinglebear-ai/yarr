@@ -9,9 +9,11 @@ const props = withDefaults(defineProps<{
   configured: boolean;
   intent?: YarrSecretUpdateKind;
   disabled?: boolean;
+  generate?: boolean;
 }>(), {
   intent: "PRESERVE",
   disabled: false,
+  generate: false,
 });
 
 const emit = defineEmits<{
@@ -43,6 +45,13 @@ function updateValue(value: string): void {
   emit("update", { kind: "SET", value });
 }
 
+function generateValue(): void {
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  selectedIntent.value = "SET";
+  updateValue([...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join(""));
+}
+
 function clearValue(): void {
   confirmClear.value = false;
   updateIntent("CLEAR");
@@ -55,6 +64,7 @@ function clearValue(): void {
     <p class="yarr-secret-field__status">{{ configured ? "Configured" : "Not configured" }}</p>
     <label><input :name="`${name}-intent`" type="radio" :checked="selectedIntent === 'PRESERVE'" :disabled="disabled" @change="updateIntent('PRESERVE')"> Keep current value</label>
     <label><input :name="`${name}-intent`" type="radio" :checked="selectedIntent === 'SET'" :disabled="disabled" @change="updateIntent('SET')"> Set a new value</label>
+    <button v-if="generate" type="button" class="yarr-button is-quiet" :disabled="disabled" @click="generateValue">Generate secure {{ label.toLowerCase() }}</button>
     <label v-if="selectedIntent === 'SET'" :for="inputId">New {{ label }}</label>
     <input
       v-if="selectedIntent === 'SET'"

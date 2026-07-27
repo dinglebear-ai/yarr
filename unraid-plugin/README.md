@@ -94,7 +94,7 @@ The settings application exposes five keyboard-accessible tabs: **Overview**,
 | Custom host | Required only for custom bind mode; must be an IPv4/IPv6 literal |
 | Port | Integer from 1 through 65535; default 40070 |
 | Auth mode | Bearer, Google OAuth, or trusted gateway under its loopback-only constraints |
-| Bearer token | Preserve, set, or clear explicitly; never returned by GraphQL |
+| Bearer token | Generate or set 256 bits of entropy (64 hex or 43 base64url characters); preserve/set/clear explicitly; never returned by GraphQL |
 | Google client ID/secret | OAuth identity; secret uses explicit preserve/set/clear semantics |
 | Allowed hosts/origins | Trusted-gateway constraints, not direct-client authentication |
 | Tailscale Serve | Publishes the loopback runtime through a Yarr-scoped mapping |

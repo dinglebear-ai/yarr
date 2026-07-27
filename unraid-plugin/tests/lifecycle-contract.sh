@@ -30,6 +30,7 @@ expect_eq() {
 }
 
 test_root="$tmp_dir/root"
+YARR_STRONG_TOKEN=$(printf 'a%.0s' {1..64})
 YARR_TEST_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
 export YARR_TEST_PORT
 export YARR_PLUGIN_ROOT="$test_root/plugin"
@@ -116,7 +117,7 @@ LOG_LEVEL=info
 UPDATE_CHANNEL=stable
 EOF
     cat > "$YARR_BOOT_ROOT/config/plugins/yarr/.env" <<EOF
-YARR_MCP_TOKEN=contract-token
+YARR_MCP_TOKEN=$YARR_STRONG_TOKEN
 EOF
 }
 
@@ -206,7 +207,7 @@ printf 'YARR_MCP_TOKEN=prospective-crash-secret\n' > "$YARR_ENV"
 yarr_load_config
 yarr_validate_config
 expect_eq "$YARR_TEST_PORT" "$PORT" "shell transaction recovery port"
-grep -Fqx 'YARR_MCP_TOKEN=contract-token' "$YARR_ENV" || fail 'shell transaction recovery lost the prior credential'
+grep -Fqx "YARR_MCP_TOKEN=$YARR_STRONG_TOKEN" "$YARR_ENV" || fail 'shell transaction recovery lost the prior credential'
 [[ ! -e "${YARR_CFG}.transaction-state" ]] || fail 'shell transaction recovery retained its commit marker'
 
 cp "$YARR_CFG" "${YARR_CFG}.good"
@@ -218,7 +219,7 @@ cp "${YARR_CFG}.good" "$YARR_CFG"
 yarr_load_config
 yarr_validate_config
 expect_eq "$YARR_TEST_PORT" "$PORT" "shell rollback transaction recovery port"
-grep -Fqx 'YARR_MCP_TOKEN=contract-token' "$YARR_ENV" || fail 'shell rollback recovery lost the known-good credential'
+grep -Fqx "YARR_MCP_TOKEN=$YARR_STRONG_TOKEN" "$YARR_ENV" || fail 'shell rollback recovery lost the known-good credential'
 [[ ! -e "${YARR_CFG}.transaction-state" ]] || fail 'shell rollback recovery retained its commit marker'
 
 YARR_LOG_MAX_BYTES=64
@@ -267,7 +268,10 @@ expect_eq "192.0.2.15" "$(yarr_effective_host)" "custom host"
 : > "$YARR_ENV"
 expect_failure "non-loopback bearer mode without YARR_MCP_TOKEN" \
     bash -c "source '$common'; yarr_load_config; yarr_validate_config"
-printf 'YARR_MCP_TOKEN=contract-token\n' > "$YARR_ENV"
+printf 'YARR_MCP_TOKEN=short-token\n' > "$YARR_ENV"
+expect_failure "non-loopback bearer mode with weak YARR_MCP_TOKEN" \
+    bash -c "source '$common'; yarr_load_config; yarr_validate_config"
+printf 'YARR_MCP_TOKEN=%s\n' "$YARR_STRONG_TOKEN" > "$YARR_ENV"
 yarr_load_config
 yarr_validate_config
 
@@ -504,7 +508,7 @@ export YARR_TEST_CURL_STATUS=0
 "$rc" start
 service_pid=$(cat "$YARR_PID")
 [[ -n "$service_pid" ]] || fail "start did not record a PID"
-if tr '\0' '\n' < "/proc/$service_pid/cmdline" | grep -Eq 'contract-token|client-secret|API_KEY|PASSWORD'; then
+if tr '\0' '\n' < "/proc/$service_pid/cmdline" | grep -Eq "${YARR_STRONG_TOKEN}|client-secret|API_KEY|PASSWORD"; then
     fail "runtime secret appeared in the Yarr daemon command line"
 fi
 "$rc" start
@@ -518,7 +522,7 @@ yarr_select_binary
 yarr_write_runtime_env
 [[ "$(stat -c '%a' "$YARR_RUNTIME_ENV")" == "600" ]] || fail "runtime environment is not mode 0600"
 grep -Fqx "export YARR_MCP_HOST=127.0.0.1" "$YARR_RUNTIME_ENV" || fail "runtime host missing"
-grep -Fqx "export YARR_MCP_TOKEN=contract-token" "$YARR_RUNTIME_ENV" || fail "runtime token was not shell-safely rendered"
+grep -Fqx "export YARR_MCP_TOKEN=$YARR_STRONG_TOKEN" "$YARR_RUNTIME_ENV" || fail "runtime token was not shell-safely rendered"
 
 "$rc" stop
 cat >> "$YARR_ENV" <<'EOF'
@@ -542,6 +546,7 @@ kill -0 "$occupier_pid" 2>/dev/null || fail 'failed startup signaled the unrelat
 kill "$occupier_pid"
 wait "$occupier_pid" 2>/dev/null || true
 
+write_config
 poison="$test_root/poison"
 malicious_token="contract-token;\$(touch $poison)"
 printf 'YARR_MCP_TOKEN=%s\n' "$malicious_token" > "$YARR_ENV"

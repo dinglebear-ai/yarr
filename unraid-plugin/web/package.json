@@ -8,6 +8,7 @@
     "build:settings": "vite build",
     "build:dashboard": "vite build --mode dashboard",
     "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit --noUnusedLocals --noUnusedParameters --allowUnreachableCode false --allowUnusedLabels false",
     "check:browser-bundles": "node scripts/check-browser-bundles.mjs"
   },
   "dependencies": {

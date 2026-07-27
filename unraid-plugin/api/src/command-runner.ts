@@ -34,7 +34,7 @@ export interface CommandProcess {
   ): this;
 }
 
-export interface CommandSpawnOptions {
+interface CommandSpawnOptions {
   shell: false;
   detached: true;
   stdio: ["ignore", "pipe", "pipe"] | ["ignore", "pipe", "pipe", number];

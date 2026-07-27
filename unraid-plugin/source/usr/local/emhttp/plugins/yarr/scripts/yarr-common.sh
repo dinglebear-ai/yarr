@@ -362,6 +362,10 @@ yarr_valid_tailscale_hostname() {
     [[ "$1" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]
 }
 
+yarr_valid_bearer_token() {
+    [[ "$1" =~ ^[0-9A-Fa-f]{64}$ || "$1" =~ ^[0-9A-Za-z_-]{43}$ ]]
+}
+
 yarr_validate_config() {
     local service service_key service_url
     local -a yarr_enabled_services=()
@@ -409,7 +413,10 @@ yarr_validate_config() {
     fi
     case "$AUTH_MODE" in
         bearer)
-            [[ -n "${YARR_ENV_VALUES[YARR_MCP_TOKEN]:-}" ]] || { yarr_error 'network exposure with bearer mode requires a non-empty YARR_MCP_TOKEN'; return 1; }
+            yarr_valid_bearer_token "${YARR_ENV_VALUES[YARR_MCP_TOKEN]:-}" || {
+                yarr_error 'network exposure with bearer mode requires a 256-bit YARR_MCP_TOKEN (64 hex or 43 base64url characters)'
+                return 1
+            }
             ;;
         google-oauth)
             [[ -n "${YARR_ENV_VALUES[YARR_MCP_GOOGLE_CLIENT_ID]:-}" && -n "${YARR_ENV_VALUES[YARR_MCP_GOOGLE_CLIENT_SECRET]:-}" ]] || {

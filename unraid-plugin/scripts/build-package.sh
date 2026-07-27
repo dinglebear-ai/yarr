@@ -86,7 +86,9 @@ node "$package_root/tests/update-protocol-dist-contract.cjs" \
 (cd "$generated_root/api" && npm ci --omit=dev --ignore-scripts --legacy-peer-deps)
 if [[ -d "$generated_root/api/node_modules" ]]; then
     find "$generated_root/api/node_modules" -name '.package-lock.json' -delete
-    rmdir "$generated_root/api/node_modules" 2>/dev/null || true
+    # npm versions differ in whether they retain empty scoped directories.
+    # Remove every empty directory so the archive payload is toolchain-neutral.
+    find "$generated_root/api/node_modules" -depth -type d -empty -delete
 fi
 
 cp -- "$web_root/dist/settings/yarr-settings.js" "$web_root/dist/settings/yarr-settings.css" \
@@ -133,8 +135,10 @@ embedded="$stage/usr/local/emhttp/plugins/yarr/package-manifest.sha256"
 chmod 0644 "$embedded"
 
 candidate_archive="$temporary/$package_file"
+# Keep the tar stream and XZ encoder deterministic across distro/tool versions.
 tar -C "$stage" --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner \
-    --format=posix --pax-option=delete=atime,delete=ctime -cJf "$candidate_archive" etc usr
+    --format=posix --pax-option=delete=atime,delete=ctime -cf - etc usr | \
+    xz --threads=1 --check=crc64 --lzma2=preset=6 > "$candidate_archive"
 package_sha=$(sha256sum "$candidate_archive" | cut -d' ' -f1)
 package_md5=$(md5sum "$candidate_archive" | cut -d' ' -f1)
 

@@ -15,7 +15,7 @@ export interface YarrPluginConfig {
   updateChannel: "stable";
 }
 
-export interface YarrServiceConfig {
+interface YarrServiceConfig {
   service: string;
   enabled: boolean;
   baseUrl: string;

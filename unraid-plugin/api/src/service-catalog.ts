@@ -33,7 +33,7 @@ export const SERVICE_CATALOG: readonly ServiceCatalogEntry[] = [
   service("jellyfin", "Jellyfin", 8096, ["jellyfin"], [], [], ["JELLYFIN_API_KEY", "JELLYFIN_APIKEY"], []),
 ] as const;
 
-export const YARR_CONTROL_PUBLIC_EXTRA_KEYS = [
+const YARR_CONTROL_PUBLIC_EXTRA_KEYS = [
   "YARR_MCP_ALLOWED_HOSTS",
   "YARR_MCP_ALLOWED_ORIGINS",
 ] as const;
@@ -67,9 +67,9 @@ export const DOCKER_IDENTITY_LABEL_KEYS = [
   "net.unraid.docker.name",
 ] as const;
 
-export const MAX_SERVICE_URL_LENGTH = 2048;
-export const MAX_SERVICE_HOSTNAME_LENGTH = 253;
-export const MAX_SERVICE_PATH_LENGTH = 1024;
+const MAX_SERVICE_URL_LENGTH = 2048;
+const MAX_SERVICE_HOSTNAME_LENGTH = 253;
+const MAX_SERVICE_PATH_LENGTH = 1024;
 
 export function normalizeCatalogKey(key: string): string {
   return key.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");

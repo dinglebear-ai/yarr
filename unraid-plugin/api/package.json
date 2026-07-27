@@ -13,11 +13,11 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters --allowUnreachableCode false --allowUnusedLabels false",
     "test": "vitest run"
   },
   "peerDependencies": {
     "@nestjs/common": "*",
-    "@nestjs/config": "*",
     "@nestjs/graphql": "*",
     "@unraid/shared": "*",
     "class-transformer": "*",
@@ -25,7 +25,6 @@
   },
   "devDependencies": {
     "@nestjs/common": "11.1.26",
-    "@nestjs/config": "4.0.4",
     "@nestjs/core": "^11.1.26",
     "@nestjs/graphql": "13.4.2",
     "@types/node": "22.18.0",

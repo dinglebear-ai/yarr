@@ -29,7 +29,15 @@ expect_eq() {
     [[ "$actual" == "$expected" ]] || fail "$label: expected $expected, got $actual"
 }
 
+release_helper="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/scripts/yarr-update-release.sh"
 [[ -x "$updater" ]] || fail "missing executable yarr-update.sh"
+[[ -r "$release_helper" ]] || fail "missing readable yarr-update-release.sh"
+grep -Fq 'source "$YARR_UPDATE_RELEASE_HELPER"' "$updater" || fail 'updater does not load the release helper'
+grep -Fq 'local releases=$1 version=$2' "$release_helper" || fail 'release lookup does not bind arguments explicitly'
+grep -Fq 'local tag="v${version}"' "$release_helper" || fail 'release lookup does not derive its tag after binding version'
+if grep -Fq 'local releases=$1 version=$2 tag=' "$release_helper"; then
+    fail 'release lookup depends on Bash dynamic scoping'
+fi
 
 test_root="$tmp_dir/root"
 YARR_TEST_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
@@ -59,6 +67,7 @@ mkdir -p "$YARR_PLUGIN_ROOT/bin" "$YARR_PLUGIN_ROOT/scripts" \
     "$test_root/releases"
 mkdir -p "$YARR_UPDATE_TMP_ROOT"
 cp "$common" "$YARR_PLUGIN_ROOT/scripts/yarr-common.sh"
+cp "$release_helper" "$YARR_PLUGIN_ROOT/scripts/yarr-update-release.sh"
 
 installed_common="$test_root/installed/usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh"
 mkdir -p "$(dirname "$installed_common")"
@@ -97,9 +106,11 @@ env YARR_PLUGIN_ROOT="$YARR_PLUGIN_ROOT" YARR_RC_YARR="$rc" bash -c '
     source "$1"
     YARR_PLUGIN_ROOT="$3/bootstrap-attacker/plugin"
     YARR_RC_YARR="$3/bootstrap-attacker/rc.yarr"
+    YARR_UPDATE_RELEASE_HELPER="$3/bootstrap-attacker/yarr-update-release.sh"
     mapfile -t bootstrap_paths < <(yarr_update_bootstrap_paths "$2")
     [[ "${bootstrap_paths[0]}" == /usr/local/emhttp/plugins/yarr/scripts/yarr-common.sh ]]
     [[ "${bootstrap_paths[1]}" == /etc/rc.d/rc.yarr ]]
+    [[ "${bootstrap_paths[2]}" == /usr/local/emhttp/plugins/yarr/scripts/yarr-update-release.sh ]]
 ' _ "$updater" "$installed_updater" "$test_root" || \
     fail 'installed updater bootstrap selector accepted caller-controlled helper paths'
 

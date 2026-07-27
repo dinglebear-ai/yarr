@@ -135,8 +135,6 @@ export class ConfigService {
       const current = await this.readState(lease);
       const prospective = mergeConfigInput(current, input);
       lease.assertHeld();
-      const currentPlugin = serializePluginConfig(current.plugin);
-      const currentEnvironment = serializeYarrEnvironment(current.env);
       const nextPlugin = serializePluginConfig(prospective.plugin);
       const nextEnvironment = serializeYarrEnvironment(prospective.env);
       const currentView = toPublicConfig(current.plugin, current.env);
@@ -149,6 +147,7 @@ export class ConfigService {
       const priorRuntime = await this.runtime.status({ lockFd: lease.fd, secrets: currentSecrets });
       lease.assertHeld();
       assertStablePriorRuntime(priorRuntime);
+      const priorWasRunning = priorRuntime.state === "running" && priorRuntime.ready;
       await this.repairModes(lease);
 
       if (effectiveFingerprint(current) === effectiveFingerprint(prospective)) {
@@ -166,7 +165,12 @@ export class ConfigService {
         assertDesiredRuntime(applied, nextView.plugin.enabled);
         lease.assertHeld();
         await this.cleanupTransactionBackups(backup!);
-        return { config: nextView, changed: true, restarted: true, rolledBack: false };
+        return {
+          config: nextView,
+          changed: true,
+          restarted: nextView.plugin.enabled,
+          rolledBack: false,
+        };
       } catch (error) {
         if (error instanceof FatalCommandError) {
           throw new FatalCommandError(redactSecrets(FATAL_MANUAL_INTERVENTION, secrets));
@@ -175,7 +179,7 @@ export class ConfigService {
         const original = errorMessage(error);
         try {
           const rollback = await this.installKnownGoodRollback(lease);
-          const restored = priorRuntime.state === "running" && priorRuntime.ready
+          const restored = priorWasRunning
             ? await this.runtime.restart({ lockFd: lease.fd, secrets: currentSecrets })
             : await this.runtime.stop({ lockFd: lease.fd, secrets: currentSecrets });
           assertRestoredRuntime(restored, priorRuntime);
@@ -192,7 +196,7 @@ export class ConfigService {
         return {
           config: currentView,
           changed: true,
-          restarted: true,
+          restarted: priorWasRunning,
           rolledBack: true,
           error: redactSecrets(original, secrets),
         };

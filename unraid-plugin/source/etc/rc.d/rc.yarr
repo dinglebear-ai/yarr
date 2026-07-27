@@ -23,7 +23,6 @@ yarr_load_tailscale_state() {
     [[ "$port" =~ ^[0-9]+$ ]] && ((10#$port >= 1 && 10#$port <= 65535)) || return 1
     [[ "$path" == / ]] || return 1
     YARR_TAILSCALE_SERVICE=$service
-    YARR_TAILSCALE_PORT=$port
 }
 
 yarr_write_tailscale_state() {

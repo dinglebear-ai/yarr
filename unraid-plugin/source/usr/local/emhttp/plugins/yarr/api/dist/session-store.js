@@ -29,6 +29,10 @@ class ExpiringSessionStore {
         this.sessions.set(id, { value, expiresAt: this.now() + this.ttlMs });
         return id;
     }
+    peek(id) {
+        this.removeExpired();
+        return this.sessions.get(id)?.value;
+    }
     take(id) {
         this.removeExpired();
         const stored = this.sessions.get(id);

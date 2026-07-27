@@ -100,13 +100,22 @@ describe("Yarr configuration codec", () => {
     );
   });
 
-  it("rejects non-loopback configuration without supported authentication", () => {
-    const state = {
-      plugin: codec.parsePluginConfig(pluginConfig.replace("BIND_MODE=loopback", "BIND_MODE=lan")),
-      env: codec.parseYarrEnvironment(""),
-    };
+  it("requires a 256-bit bearer token for non-loopback exposure", () => {
+    const plugin = codec.parsePluginConfig(pluginConfig.replace("BIND_MODE=loopback", "BIND_MODE=lan"));
 
-    expect(() => codec.validateConfigState(state)).toThrow("authentication");
+    for (const token of ["", "short-token", "g".repeat(64), "A".repeat(42)]) {
+      expect(() => codec.validateConfigState({
+        plugin,
+        env: codec.parseYarrEnvironment(token === "" ? "" : `YARR_MCP_TOKEN=${token}\n`),
+      })).toThrow("256-bit bearer token");
+    }
+
+    for (const token of ["a".repeat(64), "A".repeat(43)]) {
+      expect(() => codec.validateConfigState({
+        plugin,
+        env: codec.parseYarrEnvironment(`YARR_MCP_TOKEN=${token}\n`),
+      })).not.toThrow();
+    }
   });
 
   it("writes exactly one trailing newline", () => {
@@ -193,7 +202,7 @@ describe("Yarr configuration codec", () => {
     expect(() =>
       codec.validateConfigState({
         plugin: lanConfig("bearer"),
-        env: codec.parseYarrEnvironment("YARR_MCP_TOKEN=token\n"),
+        env: codec.parseYarrEnvironment(`YARR_MCP_TOKEN=${"a".repeat(64)}\n`),
       }),
     ).not.toThrow();
     expect(() =>

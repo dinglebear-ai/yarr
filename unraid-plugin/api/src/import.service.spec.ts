@@ -276,7 +276,13 @@ describe("ImportService", () => {
         selectedServiceIds: ["radarr"],
         credentialConsent: {},
       }),
-    ).rejects.toThrow("service radarr was not present in this import preview");
+).rejects.toThrow("service radarr was not present in this import preview");
+
+    await expect(service.apply({
+      previewId: first.previewId,
+      selectedServiceIds: ["sonarr"],
+      credentialConsent: {},
+    })).resolves.toBeDefined();
 
     const expired = await service.preview({ SONARR_URL: "http://sonarr:8989" });
     now += 11;

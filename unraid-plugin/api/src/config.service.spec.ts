@@ -327,7 +327,7 @@ describe("ConfigService", () => {
 
     const result = await service.save({ enabled: false });
 
-    expect(result).toMatchObject({ rolledBack: false, restarted: true });
+    expect(result).toMatchObject({ rolledBack: false, restarted: false });
     expect(result.config.plugin.enabled).toBe(false);
     expect(calls.map((call) => call.action)).toEqual(["status", "stop"]);
   });
@@ -340,7 +340,7 @@ describe("ConfigService", () => {
 
     const result = await service.save({ port: 40127 });
 
-    expect(result.rolledBack).toBe(true);
+    expect(result).toMatchObject({ rolledBack: true, restarted: false });
     expect(calls.map((call) => call.action)).toEqual(["status", "restart", "stop"]);
   });
 

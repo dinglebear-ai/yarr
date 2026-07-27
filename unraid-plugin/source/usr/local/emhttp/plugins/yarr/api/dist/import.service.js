@@ -64,10 +64,10 @@ class ImportService {
         };
     }
     async apply(input) {
-        const session = this.sessions.take(input.previewId);
+        const selected = uniqueStrings(input.selectedServiceIds, "selectedServiceIds");
+        const session = this.sessions.peek(input.previewId);
         if (!session)
             throw new Error("invalid or expired import preview");
-        const selected = uniqueStrings(input.selectedServiceIds, "selectedServiceIds");
         const updates = [];
         const current = await this.config.read();
         for (const serviceId of selected) {
@@ -80,6 +80,11 @@ class ImportService {
                 throw new Error(`${serviceId} requires a valid URL before it can be enabled`);
             }
             updates.push(toConfigUpdate(imported, consent, effectiveUrl));
+        }
+        // Consume secrets only after all non-mutating validation and reads pass.
+        // Once the privileged save begins, an unconfirmed result must not be replayable.
+        if (this.sessions.take(input.previewId) !== session) {
+            throw new Error("invalid or expired import preview");
         }
         return this.config.save({ services: updates });
     }

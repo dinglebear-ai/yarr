@@ -73,7 +73,7 @@ expect_rejection_contains "mutable workflow action" \
     "CI action is not pinned to an immutable SHA" \
     bash "$test_dir/release-contract.sh" --ci-workflow "$tmp_dir/mutable-action.yml"
 
-sed '/cd unraid-plugin\/api && npm ci && npm audit --audit-level=high && npm test && npx tsc --noEmit && npx tsc/d' \
+sed '/cd unraid-plugin\/api && npm ci && npm audit --audit-level=high && npm test && npm run typecheck && npm run build/d' \
     "$test_dir/../../.github/workflows/unraid-plugin-ci.yml" > "$tmp_dir/missing-api-gate.yml"
 expect_rejection_contains "missing API workflow gate" \
     "CI API gate is incomplete" \

@@ -27,7 +27,7 @@ export interface DiscoveryConfigWriter {
   save(input: SaveYarrConfigInput): Promise<SaveConfigResult>;
 }
 
-export interface DiscoveryCandidate {
+interface DiscoveryCandidate {
   candidateId: string;
   source: "docker";
   serviceId: string;
@@ -302,7 +302,7 @@ function resolveBaseUrl(
   for (const key of DOCKER_ENDPOINT_LABEL_KEYS) {
     const value = labels[key];
     if (value === undefined) continue;
-    const expanded = expandUnraidUrl(value, entry, network);
+    const expanded = expandUnraidUrl(value, network);
     const normalized = expanded ? normalizeServiceUrl(expanded) : null;
     if (normalized) return { baseUrl: normalized, reason: "URL found in container label", score: 45 };
   }
@@ -314,7 +314,7 @@ function resolveBaseUrl(
   return null;
 }
 
-function expandUnraidUrl(value: string, entry: ServiceCatalogEntry, network: Record<string, unknown>): string | null {
+function expandUnraidUrl(value: string, network: Record<string, unknown>): string | null {
   if (!/^https?:\/\//i.test(value)) return null;
   let expanded = value;
   if (expanded.includes("[IP]")) {

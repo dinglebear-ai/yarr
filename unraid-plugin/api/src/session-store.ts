@@ -39,6 +39,11 @@ export class ExpiringSessionStore<T> {
     return id;
   }
 
+  peek(id: string): T | undefined {
+    this.removeExpired();
+    return this.sessions.get(id)?.value;
+  }
+
   take(id: string): T | undefined {
     this.removeExpired();
     const stored = this.sessions.get(id);

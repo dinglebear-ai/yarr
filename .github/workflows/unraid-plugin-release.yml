@@ -139,10 +139,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: |
-            unraid-plugin/api/package-lock.json
-            unraid-plugin/web/package-lock.json
+          package-manager-cache: false
 
       - name: Install package verification tools
         shell: bash
@@ -153,11 +150,11 @@ jobs:
 
       - name: Test and build API extension
         shell: bash
-        run: cd unraid-plugin/api && npm ci && npm audit --audit-level=high && npm test && npx tsc --noEmit && npx tsc
+        run: cd unraid-plugin/api && npm ci && npm audit --audit-level=high && npm test && npm run typecheck && npm run build
 
       - name: Test and build settings and dashboard elements
         shell: bash
-        run: cd unraid-plugin/web && npm ci && npm audit --audit-level=high && npm test && npx vue-tsc --noEmit && npm run build
+        run: cd unraid-plugin/web && npm ci && npm audit --audit-level=high && npm test && npm run typecheck && npm run build
 
       - name: Run release contracts
         shell: bash

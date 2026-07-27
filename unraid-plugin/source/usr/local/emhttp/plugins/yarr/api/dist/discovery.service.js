@@ -218,7 +218,7 @@ function resolveBaseUrl(entry, env, labels, network) {
         const value = labels[key];
         if (value === undefined)
             continue;
-        const expanded = expandUnraidUrl(value, entry, network);
+        const expanded = expandUnraidUrl(value, network);
         const normalized = expanded ? (0, service_catalog_1.normalizeServiceUrl)(expanded) : null;
         if (normalized)
             return { baseUrl: normalized, reason: "URL found in container label", score: 45 };
@@ -231,7 +231,7 @@ function resolveBaseUrl(entry, env, labels, network) {
         return { baseUrl: address, reason: "container network address uses service default port", score: 20 };
     return null;
 }
-function expandUnraidUrl(value, entry, network) {
+function expandUnraidUrl(value, network) {
     if (!/^https?:\/\//i.test(value))
         return null;
     let expanded = value;

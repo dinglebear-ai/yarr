@@ -986,6 +986,17 @@ grep -Fq 'yarr-dashboard.js' "$build_script" || fail 'build does not stage the d
 grep -Fq 'yarr-settings.js' "$build_script" || fail 'build does not stage the settings bundle'
 grep -Fq 'yarr-2b068b08366b.png' "$build_script" || fail 'build does not validate and stage the immutable Yarr icon'
 grep -Fq 'package-manifest.sha256' "$build_script" || fail 'build does not embed a SHA-256/mode inventory'
+grep -Fq 'yarr-update-release.sh' "$source_root/usr/local/emhttp/plugins/yarr/scripts/yarr-update.sh" ||
+    fail 'updater does not source its packaged release helper'
+[[ -r "$source_root/usr/local/emhttp/plugins/yarr/scripts/yarr-update-release.sh" ]] ||
+    fail 'classic source is missing the release helper'
+grep -Fq 'find "$generated_root/api/node_modules" -depth -type d -empty -delete' "$build_script" ||
+    fail 'build does not normalize npm empty-directory drift'
+grep -Fq 'xz --threads=1 --check=crc64 --lzma2=preset=6' "$build_script" ||
+    fail 'build does not pin deterministic XZ encoder settings'
+if grep -Fq -- '-cJf "$candidate_archive"' "$build_script"; then
+    fail 'build delegates archive compression to host XZ defaults'
+fi
 grep -Fq 'package-manifest.sha256' "$verify_script" || fail 'verifier does not enforce embedded inventory'
 grep -Fq 'git ls-files' "$verify_script" || fail 'verifier does not enforce tracked source parity'
 grep -Fq 'xmllint' "$verify_script" || fail 'verifier does not validate plugin XML'

@@ -1,7 +1,7 @@
 export type YarrControlAction = "START" | "STOP" | "RESTART";
-export type YarrBindMode = "LOOPBACK" | "LAN" | "CUSTOM";
-export type YarrAuthMode = "BEARER" | "GOOGLE_OAUTH" | "TRUSTED_GATEWAY";
-export type YarrLogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR";
+type YarrBindMode = "LOOPBACK" | "LAN" | "CUSTOM";
+type YarrAuthMode = "BEARER" | "GOOGLE_OAUTH" | "TRUSTED_GATEWAY";
+type YarrLogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR";
 export type YarrSecretUpdateKind = "PRESERVE" | "SET" | "CLEAR";
 
 export interface YarrRuntime {
@@ -15,7 +15,7 @@ export interface YarrRuntime {
   uptimeSeconds: number | null;
 }
 
-export interface YarrKeyValue {
+interface YarrKeyValue {
   key: string;
   value: string;
 }
@@ -33,7 +33,7 @@ export interface YarrPluginConfig {
   updateChannel: string;
 }
 
-export interface YarrServiceConfig {
+interface YarrServiceConfig {
   service: string;
   enabled: boolean;
   baseUrl: string;
@@ -109,7 +109,7 @@ export interface YarrImportPreview {
   warnings: string[];
 }
 
-export interface YarrDiscoveryCandidate {
+interface YarrDiscoveryCandidate {
   candidateId: string;
   source: string;
   serviceId: string;
@@ -119,7 +119,7 @@ export interface YarrDiscoveryCandidate {
   hasCredential: boolean;
 }
 
-export interface YarrDiscoveryError {
+interface YarrDiscoveryError {
   code: string;
   message: string;
 }
@@ -130,8 +130,8 @@ export interface YarrDiscoveryResult {
   errors: YarrDiscoveryError[];
 }
 
-export type YarrUpdateOperation = "CHECK" | "APPLY" | "RESET" | "ROLLBACK";
-export type YarrUpdateOutcome =
+type YarrUpdateOperation = "CHECK" | "APPLY" | "RESET" | "ROLLBACK";
+type YarrUpdateOutcome =
   | "CHECK_NO_COMPATIBLE_RELEASE"
   | "CHECK_UPDATE_AVAILABLE"
   | "CHECK_CURRENT"
@@ -167,7 +167,7 @@ export interface YarrUpdateStatus {
 
 export type YarrUpdateResult = YarrUpdateStatus;
 
-export interface YarrCredentialConsentInput {
+interface YarrCredentialConsentInput {
   serviceId: string;
   consent: boolean;
 }

@@ -80,8 +80,6 @@ class ConfigService {
             const current = await this.readState(lease);
             const prospective = (0, config_codec_1.mergeConfigInput)(current, input);
             lease.assertHeld();
-            const currentPlugin = (0, config_codec_1.serializePluginConfig)(current.plugin);
-            const currentEnvironment = (0, config_codec_1.serializeYarrEnvironment)(current.env);
             const nextPlugin = (0, config_codec_1.serializePluginConfig)(prospective.plugin);
             const nextEnvironment = (0, config_codec_1.serializeYarrEnvironment)(prospective.env);
             const currentView = (0, config_codec_1.toPublicConfig)(current.plugin, current.env);
@@ -94,6 +92,7 @@ class ConfigService {
             const priorRuntime = await this.runtime.status({ lockFd: lease.fd, secrets: currentSecrets });
             lease.assertHeld();
             assertStablePriorRuntime(priorRuntime);
+            const priorWasRunning = priorRuntime.state === "running" && priorRuntime.ready;
             await this.repairModes(lease);
             if (effectiveFingerprint(current) === effectiveFingerprint(prospective)) {
                 return { config: currentView, changed: false, restarted: false, rolledBack: false };
@@ -109,7 +108,12 @@ class ConfigService {
                 assertDesiredRuntime(applied, nextView.plugin.enabled);
                 lease.assertHeld();
                 await this.cleanupTransactionBackups(backup);
-                return { config: nextView, changed: true, restarted: true, rolledBack: false };
+                return {
+                    config: nextView,
+                    changed: true,
+                    restarted: nextView.plugin.enabled,
+                    rolledBack: false,
+                };
             }
             catch (error) {
                 if (error instanceof command_runner_1.FatalCommandError) {
@@ -120,7 +124,7 @@ class ConfigService {
                 const original = errorMessage(error);
                 try {
                     const rollback = await this.installKnownGoodRollback(lease);
-                    const restored = priorRuntime.state === "running" && priorRuntime.ready
+                    const restored = priorWasRunning
                         ? await this.runtime.restart({ lockFd: lease.fd, secrets: currentSecrets })
                         : await this.runtime.stop({ lockFd: lease.fd, secrets: currentSecrets });
                     assertRestoredRuntime(restored, priorRuntime);
@@ -134,7 +138,7 @@ class ConfigService {
                 return {
                     config: currentView,
                     changed: true,
-                    restarted: true,
+                    restarted: priorWasRunning,
                     rolledBack: true,
                     error: (0, secret_redactor_1.redactSecrets)(original, secrets),
                 };

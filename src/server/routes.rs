@@ -130,10 +130,9 @@ pub fn router(state: AppState) -> Router {
         .merge(metrics);
 
     if let Some(oauth) = oauth_router {
-        base = base.merge(oauth.layer(axum::middleware::from_fn_with_state(
-            super::token_rate_limit::new_limiter(),
-            super::token_rate_limit::enforce_token_rate_limit,
-        )));
+        // labby-auth applies bounded per-IP register, authorize, and token
+        // limits internally; do not wrap it in a process-global bucket.
+        base = base.merge(oauth);
     }
 
     let base =

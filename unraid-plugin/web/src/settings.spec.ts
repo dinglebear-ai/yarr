@@ -194,6 +194,23 @@ describe("Yarr settings", () => {
     expect(host.textContent).toContain("Save outcome is indeterminate");
   });
 
+  it("reports a successful disabled save as stopped rather than restarted", async () => {
+    await mountSettings();
+    api.mutateYarrConfig.mockResolvedValue({
+      config: { ...config, plugin: { ...config.plugin, enabled: false } },
+      changed: true,
+      restarted: false,
+      rolledBack: false,
+      error: null,
+    });
+
+    button("Save changes").click();
+    await flush();
+
+    expect(host.textContent).toContain("Changes saved and Yarr stopped");
+    expect(host.textContent).not.toContain("Yarr restarted");
+  });
+
   it("persists the dashboard widget toggle through the typed config mutation", async () => {
     await mountSettings();
     button("Server & Auth").click();
@@ -219,7 +236,7 @@ describe("Yarr settings", () => {
     await nextTick();
 
     expect(api.mutateYarrConfig).not.toHaveBeenCalled();
-    expect(host.textContent).toContain("Bearer authentication requires a configured token");
+    expect(host.textContent).toContain("Bearer authentication requires a generated 256-bit token");
   });
 
   it("shows only secret presence, preserves blank set values, and confirms explicit clearing", async () => {

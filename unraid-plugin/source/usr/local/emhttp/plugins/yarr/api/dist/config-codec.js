@@ -205,8 +205,10 @@ function validateConfigState(state) {
     if (config.bindMode === "loopback" && !config.tailscaleServe) {
         return;
     }
-    if (config.authMode === "bearer" && hasValue(env.YARR_MCP_TOKEN)) {
-        return;
+    if (config.authMode === "bearer") {
+        if (isStrongBearerToken(env.YARR_MCP_TOKEN))
+            return;
+        throw new Error("network exposure requires a 256-bit bearer token (64 hex or 43 base64url characters)");
     }
     if (config.authMode === "google-oauth" &&
         hasValue(env.YARR_MCP_GOOGLE_CLIENT_ID) &&
@@ -369,6 +371,9 @@ function effectiveHost(config) {
 }
 function urlHost(host) {
     return host.includes(":") ? `[${host}]` : host;
+}
+function isStrongBearerToken(value) {
+    return value !== undefined && (/^[0-9A-Fa-f]{64}$/.test(value) || /^[0-9A-Za-z_-]{43}$/.test(value));
 }
 function hasValue(value) {
     return value !== undefined && value.length > 0;

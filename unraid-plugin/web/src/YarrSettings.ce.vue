@@ -101,6 +101,12 @@ function effectiveSecret(configured: boolean, update: YarrSecretUpdate): boolean
   return configured;
 }
 
+function effectiveBearerToken(configured: boolean, update: YarrSecretUpdate): boolean {
+  if (update.kind === "CLEAR") return false;
+  if (update.kind === "PRESERVE") return configured;
+  return /^[0-9A-Fa-f]{64}$/.test(update.value) || /^[0-9A-Za-z_-]{43}$/.test(update.value);
+}
+
 function exposureError(): string {
   if (!plugin.value || !auth.value) return "";
   if (plugin.value.authMode === "TRUSTED_GATEWAY") {
@@ -113,8 +119,8 @@ function exposureError(): string {
     return "";
   }
   if (plugin.value.bindMode === "LOOPBACK" && !plugin.value.tailscaleServe) return "";
-  if (plugin.value.authMode === "BEARER" && !effectiveSecret(bearerConfigured.value, auth.value.bearerToken)) {
-    return "Bearer authentication requires a configured token before Yarr can bind beyond loopback.";
+  if (plugin.value.authMode === "BEARER" && !effectiveBearerToken(bearerConfigured.value, auth.value.bearerToken)) {
+    return "Bearer authentication requires a generated 256-bit token before Yarr can bind beyond loopback.";
   }
   if (plugin.value.authMode === "GOOGLE_OAUTH" && (
     auth.value.googleClientId.trim() === "" || !effectiveSecret(googleSecretConfigured.value, auth.value.googleClientSecret)
@@ -157,6 +163,7 @@ function mutationMessage(result: YarrConfigMutationResult): string {
   if (result.error) return `Save outcome is indeterminate. ${result.error} Check runtime status and logs before retrying.`;
   if (!result.changed) return "No configuration changes were needed.";
   if (result.restarted) return "Changes saved and Yarr restarted.";
+  if (!result.config.plugin.enabled) return "Changes saved and Yarr stopped.";
   return "Changes saved. Yarr did not require a restart.";
 }
 

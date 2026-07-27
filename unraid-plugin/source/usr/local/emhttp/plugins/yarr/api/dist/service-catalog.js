@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAX_SERVICE_PATH_LENGTH = exports.MAX_SERVICE_HOSTNAME_LENGTH = exports.MAX_SERVICE_URL_LENGTH = exports.DOCKER_IDENTITY_LABEL_KEYS = exports.DOCKER_ENDPOINT_LABEL_KEYS = exports.SECRET_ENVIRONMENT_KEYS = exports.SERVICE_CATALOG_BY_ID = exports.PUBLIC_EXTRA_KEYS_BY_SERVICE = exports.YARR_CONTROL_PUBLIC_EXTRA_KEYS = exports.SERVICE_CATALOG = void 0;
+exports.DOCKER_IDENTITY_LABEL_KEYS = exports.DOCKER_ENDPOINT_LABEL_KEYS = exports.SECRET_ENVIRONMENT_KEYS = exports.SERVICE_CATALOG_BY_ID = exports.PUBLIC_EXTRA_KEYS_BY_SERVICE = exports.SERVICE_CATALOG = void 0;
 exports.normalizeCatalogKey = normalizeCatalogKey;
 exports.normalizeServiceUrl = normalizeServiceUrl;
 exports.SERVICE_CATALOG = [
@@ -16,12 +16,12 @@ exports.SERVICE_CATALOG = [
     service("plex", "Plex", 32400, ["plex", "plexmediaserver"], [], [], ["PLEX_TOKEN"], []),
     service("jellyfin", "Jellyfin", 8096, ["jellyfin"], [], [], ["JELLYFIN_API_KEY", "JELLYFIN_APIKEY"], []),
 ];
-exports.YARR_CONTROL_PUBLIC_EXTRA_KEYS = [
+const YARR_CONTROL_PUBLIC_EXTRA_KEYS = [
     "YARR_MCP_ALLOWED_HOSTS",
     "YARR_MCP_ALLOWED_ORIGINS",
 ];
 exports.PUBLIC_EXTRA_KEYS_BY_SERVICE = new Map([
-    ["yarr", exports.YARR_CONTROL_PUBLIC_EXTRA_KEYS],
+    ["yarr", YARR_CONTROL_PUBLIC_EXTRA_KEYS],
     ...exports.SERVICE_CATALOG.map((entry) => [entry.id, entry.publicExtraKeys]),
 ]);
 exports.SERVICE_CATALOG_BY_ID = new Map(exports.SERVICE_CATALOG.map((entry) => [entry.id, entry]));
@@ -42,16 +42,16 @@ exports.DOCKER_IDENTITY_LABEL_KEYS = [
     "com.docker.compose.service",
     "net.unraid.docker.name",
 ];
-exports.MAX_SERVICE_URL_LENGTH = 2048;
-exports.MAX_SERVICE_HOSTNAME_LENGTH = 253;
-exports.MAX_SERVICE_PATH_LENGTH = 1024;
+const MAX_SERVICE_URL_LENGTH = 2048;
+const MAX_SERVICE_HOSTNAME_LENGTH = 253;
+const MAX_SERVICE_PATH_LENGTH = 1024;
 function normalizeCatalogKey(key) {
     return key.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 function normalizeServiceUrl(value) {
     const trimmed = value.trim();
     if (trimmed.length === 0 ||
-        trimmed.length > exports.MAX_SERVICE_URL_LENGTH ||
+        trimmed.length > MAX_SERVICE_URL_LENGTH ||
         trimmed.includes("?") ||
         trimmed.includes("#")) {
         return null;
@@ -67,18 +67,18 @@ function normalizeServiceUrl(value) {
         if (!validHostname(hostname) || (url.port !== "" && (Number(url.port) < 1 || Number(url.port) > 65535))) {
             return null;
         }
-        if (url.pathname.length > exports.MAX_SERVICE_PATH_LENGTH)
+        if (url.pathname.length > MAX_SERVICE_PATH_LENGTH)
             return null;
         const path = url.pathname.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
         const normalized = `${url.protocol}//${url.host}${path === "" || path === "/" ? "" : path}`;
-        return normalized.length <= exports.MAX_SERVICE_URL_LENGTH ? normalized : null;
+        return normalized.length <= MAX_SERVICE_URL_LENGTH ? normalized : null;
     }
     catch {
         return null;
     }
 }
 function validHostname(hostname) {
-    if (hostname.length === 0 || hostname.length > exports.MAX_SERVICE_HOSTNAME_LENGTH)
+    if (hostname.length === 0 || hostname.length > MAX_SERVICE_HOSTNAME_LENGTH)
         return false;
     if (hostname.includes(":"))
         return true;

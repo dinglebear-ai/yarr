@@ -66,7 +66,7 @@ chrono = { version = "0.4", features = ["serde"] }
 toml = "1.1"
 
 # OAuth + JWT
-lab-auth = { git = "https://github.com/jmagar/lab.git", rev = "87cec3241f9baef22335de9cc8629ebbcd8ba047", package = "lab-auth" }
+lab-auth = { git = "https://github.com/jmagar/lab.git", rev = "ea3d44a06021fe07211ed16153d6c3da005ab1dd", package = "labby-auth", features = ["http-axum"] }
 url = "2"
 
 # Logging
