@@ -54,10 +54,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq libxml2-utils python3-yaml shellcheck xz-utils
 
-      - name: Install pinned actionlint
-        uses: taiki-e/install-action@6c1f7cf125e42770ff087ea443901b487cc5471a # v2
+      - name: Set up Go for actionlint
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          tool: actionlint@1.7.12
+          go-version: stable
+          cache: false
+
+      - name: Install pinned actionlint
+        shell: bash
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
       - name: Test and build API extension
         shell: bash
