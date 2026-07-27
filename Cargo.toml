@@ -20,8 +20,8 @@ edition = "2024"
 rust-version = "1.90"
 categories = ["command-line-utilities", "development-tools"]
 keywords = ["mcp", "media", "sonarr", "radarr", "plex"]
-repository = "https://github.com/jmagar/yarr"
-homepage = "https://github.com/jmagar/yarr#readme"
+repository = "https://github.com/dinglebear-ai/yarr"
+homepage = "https://github.com/dinglebear-ai/yarr#readme"
 description = "Rust MCP and CLI server for media automation fleets: Sonarr, Radarr, Plex, Jellyfin, and related services."
 license = "MIT"
 autobins = false
@@ -66,7 +66,7 @@ chrono = { version = "0.4", features = ["serde"] }
 toml = "1.1"
 
 # OAuth + JWT
-lab-auth = { git = "https://github.com/jmagar/lab.git", rev = "87cec3241f9baef22335de9cc8629ebbcd8ba047", package = "lab-auth" }
+lab-auth = { git = "https://github.com/jmagar/lab.git", rev = "53dbc4798567f3cacc0f740b3b4de5839ca39133", package = "labby-auth", features = ["http-axum"] }
 url = "2"
 
 # Logging

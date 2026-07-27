@@ -2,7 +2,7 @@
   "name": "sonarr",
   "description": "Search, add, and monitor TV series in Sonarr via its REST API. Check the download queue, history, and quality profiles. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "sonarr",

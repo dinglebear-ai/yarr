@@ -15,7 +15,6 @@ use crate::{
 };
 
 pub mod routes;
-mod token_rate_limit;
 
 pub use routes::router;
 
@@ -69,12 +68,9 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
         return Ok(AuthPolicyKind::LoopbackDev);
     }
 
-    let has_token = config
-        .mcp
-        .api_token
-        .as_deref()
-        .map(|token| !token.is_empty())
-        .unwrap_or(false);
+    let bearer_token = config.mcp.api_token.as_deref();
+    let has_token = bearer_token.is_some_and(|token| !token.is_empty());
+    let has_strong_token = bearer_token.is_some_and(is_strong_bearer_token);
     let has_oauth = config.mcp.auth.mode == AuthMode::OAuth;
 
     if config.mcp.no_auth {
@@ -92,8 +88,12 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
 
     if has_oauth {
         Ok(AuthPolicyKind::MountedOAuth)
-    } else if has_token {
+    } else if has_strong_token {
         Ok(AuthPolicyKind::MountedBearer)
+    } else if has_token {
+        anyhow::bail!(
+            "Refusing network exposure with a weak bearer token. Generate 256 bits of entropy with `openssl rand -hex 32`."
+        );
     } else if trusted_gateway && trusted_gateway_has_provenance(config) {
         Ok(AuthPolicyKind::TrustedGatewayUnscoped)
     } else if trusted_gateway {
@@ -116,6 +116,14 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
             config.mcp.host
         );
     }
+}
+
+fn is_strong_bearer_token(token: &str) -> bool {
+    (token.len() == 64 && token.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        || (token.len() == 43
+            && token
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')))
 }
 
 fn trusted_gateway_has_provenance(config: &Config) -> bool {

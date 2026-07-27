@@ -30,6 +30,9 @@
 #   - live suites     → `just test-mcporter` (now `cargo xtask live --suite mcp`) and the
 #                       other `cargo xtask live` suites need the shart stack; manual/CI only.
 #   - shart lifecycle → `just shart-*` performs remote Docker/ZFS operations; manual-only.
+#   - Unraid distribution → `just unraid-test`, `just unraid-build`, and
+#                           `just unraid-release-check` are full package/release
+#                           gates; manual and CI only.
 #
 # TEMPLATE: Resist the urge to add more hooks here. If something slows down
 #           your commit flow, developers will start using --no-verify, which

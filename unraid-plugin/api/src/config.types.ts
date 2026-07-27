@@ -1,0 +1,77 @@
+export type BindMode = "loopback" | "lan" | "custom";
+export type AuthMode = "bearer" | "google-oauth" | "trusted-gateway";
+export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
+
+export interface YarrPluginConfig {
+  enabled: boolean;
+  dashboardWidgetEnable: boolean;
+  bindMode: BindMode;
+  customHost: string;
+  port: number;
+  authMode: AuthMode;
+  tailscaleServe: boolean;
+  tailscaleHostname: string;
+  logLevel: LogLevel;
+  updateChannel: "stable";
+}
+
+interface YarrServiceConfig {
+  service: string;
+  enabled: boolean;
+  baseUrl: string;
+  username: string | null;
+  hasPassword: boolean;
+  hasApiKey: boolean;
+  extra: Record<string, string>;
+}
+
+export interface ParsedPluginConfig {
+  values: Record<string, string>;
+}
+
+export interface ParsedYarrEnvironment {
+  values: Record<string, string>;
+}
+
+export interface ParsedConfigState {
+  plugin: ParsedPluginConfig;
+  env: ParsedYarrEnvironment;
+}
+
+export type SecretUpdate =
+  | { kind: "preserve" }
+  | { kind: "set"; value: string }
+  | { kind: "clear" };
+
+export interface SaveYarrServiceInput {
+  service: string;
+  enabled?: boolean;
+  baseUrl?: string;
+  username?: string;
+  password?: SecretUpdate;
+  apiKey?: SecretUpdate;
+}
+
+export interface SaveYarrConfigInput {
+  enabled?: boolean;
+  dashboardWidgetEnable?: boolean;
+  bindMode?: BindMode;
+  customHost?: string;
+  port?: number;
+  authMode?: AuthMode;
+  tailscaleServe?: boolean;
+  tailscaleHostname?: string;
+  logLevel?: LogLevel;
+  updateChannel?: "stable";
+  bearerToken?: SecretUpdate;
+  googleClientId?: string;
+  googleClientSecret?: SecretUpdate;
+  trustedGatewayHosts?: string;
+  trustedGatewayOrigins?: string;
+  services?: SaveYarrServiceInput[];
+}
+
+export interface YarrConfigView {
+  plugin: YarrPluginConfig;
+  services: YarrServiceConfig[];
+}

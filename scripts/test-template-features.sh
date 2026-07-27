@@ -88,6 +88,20 @@ fi
 
 expect_ok "plugin layout validator passes" bash scripts/validate-plugin-layout.sh
 expect_ok "schema docs checker passes" python3 scripts/check-schema-docs.py --check
+expect_ok "documentation link checker passes" python3 scripts/check-doc-links.py
+
+mkdir -p "$TMPDIR_ROOT/link-repo/scripts"
+(
+  cd "$TMPDIR_ROOT/link-repo"
+  git init -q
+  git config user.email test@yarr.invalid
+  git config user.name "Template Test"
+  printf "# Broken\n\n[missing](missing.md)\n" > README.md
+  git add README.md
+)
+expect_fail "documentation link checker rejects missing targets" \
+  python3 scripts/check-doc-links.py --root "$TMPDIR_ROOT/link-repo"
+
 expect_ok "Trivy SARIF keeps the HIGH/CRITICAL gate" bash -c '
   grep -Eq "^[[:space:]]+severity: CRITICAL,HIGH$" .github/workflows/docker-publish.yml
   grep -Eq "^[[:space:]]+limit-severities-for-sarif: true$" .github/workflows/docker-publish.yml

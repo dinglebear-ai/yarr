@@ -47,6 +47,7 @@ run_check "PATTERNS.md contracts" cargo xtask patterns
 run_check "plugin layout" just validate-plugin
 run_check "npm package" node packages/yarr-mcp/scripts/check-package.js
 run_check "schema docs" python3 scripts/check-schema-docs.py --check
+run_check "documentation links" python3 scripts/check-doc-links.py
 run_check "template feature smoke" bash scripts/test-template-features.sh
 run_check "version sync" bash scripts/check-version-sync.sh
 run_check "blob size" python3 scripts/check-blob-size.py

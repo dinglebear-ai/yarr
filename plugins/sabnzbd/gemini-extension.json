@@ -2,7 +2,7 @@
   "name": "sabnzbd",
   "description": "View, pause, resume, and manage the SABnzbd Usenet download queue and history via its REST API. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "sabnzbd",

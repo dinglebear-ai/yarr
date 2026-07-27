@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>Yarr media fleet</title>
+  <desc>A central media play hub connected to three managed service endpoints.</desc>
+  <rect
+    data-role="tone-tile"
+    x="16"
+    y="16"
+    width="224"
+    height="224"
+    rx="52"
+    fill="#251f2e"
+    stroke="#ff7eb0"
+    stroke-opacity=".42"
+    stroke-width="4"
+  />
+  <rect
+    x="26"
+    y="26"
+    width="204"
+    height="204"
+    rx="43"
+    fill="none"
+    stroke="#ff7eb0"
+    stroke-opacity=".08"
+    stroke-width="2"
+  />
+  <svg
+    x="38"
+    y="38"
+    width="180"
+    height="180"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#ff7eb0"
+    stroke-width="1.75"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <g data-role="fleet-links" opacity=".76">
+      <path d="M12 7.9V5.25" />
+      <path d="m8.7 14.55-2.65 2.4" />
+      <path d="m15.3 14.55 2.65 2.4" />
+    </g>
+    <circle data-role="endpoint" cx="12" cy="3.35" r="1.65" />
+    <circle data-role="endpoint" cx="4.45" cy="18.45" r="1.65" />
+    <circle data-role="endpoint" cx="19.55" cy="18.45" r="1.65" />
+    <circle data-role="media-hub" cx="12" cy="12" r="4.15" />
+    <path
+      data-role="media-play"
+      d="m10.75 9.7 3.75 2.3-3.75 2.3Z"
+      stroke="#6fdcff"
+    />
+  </svg>
+</svg>

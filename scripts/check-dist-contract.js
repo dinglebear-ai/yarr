@@ -37,7 +37,7 @@ function cargoLockVersion(name) {
 assert.equal(contract.schemaVersion, 1);
 assert.deepEqual(contract.identity, {
   binaryName: "yarr",
-  canonicalRepo: "jmagar/yarr",
+  canonicalRepo: "dinglebear-ai/yarr",
   npmPackage: "yarr-mcp",
   mcpName: "ai.dinglebear/yarr-mcp",
 });
@@ -45,7 +45,7 @@ assert.equal(contract.versionContract.mode, "coupled-release-tag");
 assert.equal(contract.versionContract.tagPrefix, "v");
 assert.equal(contract.integrity.checksumAsset, "SHA256SUMS");
 assert.equal(contract.integrity.provenanceDigest, "github-release-api-sha256");
-assert.equal(platform.releaseBaseUrl({}), "https://github.com/jmagar/yarr/releases/download");
+assert.equal(platform.releaseBaseUrl({}), "https://github.com/dinglebear-ai/yarr/releases/download");
 
 const versions = new Map([
   ["Cargo.toml", tomlPackageVersion("Cargo.toml")],

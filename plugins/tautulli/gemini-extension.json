@@ -2,7 +2,7 @@
   "name": "tautulli",
   "description": "Read Plex viewing activity, watch history, home stats, and users from Tautulli via its API. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "tautulli",

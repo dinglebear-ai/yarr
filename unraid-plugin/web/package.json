@@ -1,0 +1,25 @@
+{
+  "name": "yarr-unraid-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && vite build --mode dashboard && npm run check:browser-bundles",
+    "build:settings": "vite build",
+    "build:dashboard": "vite build --mode dashboard",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit --noUnusedLocals --noUnusedParameters --allowUnreachableCode false --allowUnusedLabels false",
+    "check:browser-bundles": "node scripts/check-browser-bundles.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.20"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "happy-dom": "^20.8.3",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.10",
+    "vue-tsc": "3.3.8"
+  }
+}

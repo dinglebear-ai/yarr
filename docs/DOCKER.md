@@ -30,7 +30,7 @@ production image reference and is not a production publication path.
 ## Production image contract
 
 ```bash
-export YARR_MCP_IMAGE='ghcr.io/jmagar/yarr@sha256:<64-hex-digest>'
+export YARR_MCP_IMAGE='ghcr.io/dinglebear-ai/yarr@sha256:<64-hex-digest>'
 docker compose -f docker-compose.prod.yml config --quiet
 docker compose -f docker-compose.prod.yml pull yarr-mcp
 docker compose -f docker-compose.prod.yml up -d --wait yarr-mcp
@@ -68,7 +68,7 @@ Deploy from the promoted digest shown by the workflow or registry, not from a
 mutable tag:
 
 ```bash
-docker buildx imagetools inspect ghcr.io/jmagar/yarr:1.2.3
+docker buildx imagetools inspect ghcr.io/dinglebear-ai/yarr:1.2.3
 # Copy the sha256 manifest digest into YARR_MCP_IMAGE.
 ```
 

@@ -6,7 +6,7 @@ Owner: `@jmagar`
 
 ```bash
 docker inspect --format '{{.Config.Image}}' yarr-mcp | tee .yarr-previous-image
-export YARR_MCP_IMAGE='ghcr.io/jmagar/yarr@sha256:<verified-digest>'
+export YARR_MCP_IMAGE='ghcr.io/dinglebear-ai/yarr@sha256:<verified-digest>'
 docker compose -f docker-compose.prod.yml config --quiet
 docker compose -f docker-compose.prod.yml run --rm --no-deps yarr-mcp doctor --json
 ```

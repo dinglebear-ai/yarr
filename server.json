@@ -4,9 +4,9 @@
   "title": "Yarr MCP",
   "description": "MCP server for querying and automating a configured media automation fleet.",
   "version": "2.1.0",
-  "websiteUrl": "https://github.com/jmagar/yarr",
+  "websiteUrl": "https://github.com/dinglebear-ai/yarr",
   "repository": {
-    "url": "https://github.com/jmagar/yarr",
+    "url": "https://github.com/dinglebear-ai/yarr",
     "source": "github",
     "id": "1247261733"
   },
@@ -98,8 +98,8 @@
           "format": "string",
           "isRequired": false,
           "isSecret": false,
-          "default": "jmagar/yarr",
-          "placeholder": "jmagar/yarr"
+          "default": "dinglebear-ai/yarr",
+          "placeholder": "dinglebear-ai/yarr"
         },
         {
           "name": "YARR_RELEASE_BASE_URL",
@@ -133,7 +133,7 @@
       },
       "buildInfo": {
         "version": "2.1.0",
-        "repository": "https://github.com/jmagar/yarr"
+        "repository": "https://github.com/dinglebear-ai/yarr"
       }
     }
   }

@@ -90,7 +90,7 @@ See `docs/AUTH.md` and `config.example.toml` for all fields.
 ## Production Compose
 
 `docker-compose.prod.yml` requires both `.env` and `YARR_MCP_IMAGE` set to an
-immutable `ghcr.io/jmagar/yarr@sha256:...` reference. It uses `/ready` for the
+immutable `ghcr.io/dinglebear-ai/yarr@sha256:...` reference. It uses `/ready` for the
 container health check. Validate with:
 
 ```bash

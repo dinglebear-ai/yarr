@@ -1,0 +1,156 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DockerService = void 0;
+const node_http_1 = require("node:http");
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+class DockerService {
+    requestFactory;
+    constructor(requestFactory = node_http_1.request) {
+        this.requestFactory = requestFactory;
+    }
+    async listContainers(options = {}) {
+        const result = await this.getJson("/containers/json", options);
+        if (!result.ok)
+            return result;
+        if (!Array.isArray(result.data))
+            return invalidResponse(result.bytesRead);
+        return { ok: true, data: result.data.filter(isRecord), bytesRead: result.bytesRead };
+    }
+    async inspectContainer(id, options = {}) {
+        if (typeof id !== "string" || id.length === 0 || id.length > 256)
+            return invalidResponse(0);
+        const result = await this.getJson(`/containers/${encodeURIComponent(id)}/json`, options);
+        if (!result.ok)
+            return result;
+        if (!isRecord(result.data))
+            return invalidResponse(result.bytesRead);
+        return { ok: true, data: result.data, bytesRead: result.bytesRead };
+    }
+    getJson(path, options) {
+        if (path !== "/containers/json" && !/^\/containers\/[^/]+\/json$/.test(path)) {
+            return Promise.resolve(invalidResponse(0));
+        }
+        return new Promise((resolve) => {
+            let settled = false;
+            let bytes = 0;
+            let request;
+            const finish = (result) => {
+                if (settled)
+                    return;
+                settled = true;
+                resolve(result);
+            };
+            try {
+                request = this.requestFactory({
+                    socketPath: "/var/run/docker.sock",
+                    method: "GET",
+                    path,
+                    headers: { Accept: "application/json" },
+                    timeout: requestTimeout(options.timeoutMs),
+                }, (response) => {
+                    const status = response.statusCode ?? 0;
+                    if (status < 200 || status >= 300) {
+                        response.destroy();
+                        request.destroy();
+                        finish({
+                            ok: false,
+                            error: { code: "http_status", message: `Docker returned HTTP ${status}` },
+                            bytesRead: bytes,
+                        });
+                        return;
+                    }
+                    const chunks = [];
+                    response.on("data", (chunk) => {
+                        if (settled)
+                            return;
+                        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                        bytes += buffer.length;
+                        if (bytes > MAX_RESPONSE_BYTES) {
+                            response.destroy();
+                            request.destroy();
+                            finish({
+                                ok: false,
+                                error: { code: "response_too_large", message: "Docker response exceeded 2 MiB" },
+                                bytesRead: bytes,
+                            });
+                            return;
+                        }
+                        chunks.push(buffer);
+                    });
+                    response.on("end", () => {
+                        if (settled)
+                            return;
+                        try {
+                            finish({
+                                ok: true,
+                                data: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+                                bytesRead: bytes,
+                            });
+                        }
+                        catch {
+                            finish({
+                                ok: false,
+                                error: { code: "invalid_json", message: "Docker returned malformed JSON" },
+                                bytesRead: bytes,
+                            });
+                        }
+                    });
+                    response.on("error", () => {
+                        finish({
+                            ok: false,
+                            error: { code: "request_failed", message: "Docker response failed" },
+                            bytesRead: bytes,
+                        });
+                    });
+                });
+            }
+            catch {
+                finish({
+                    ok: false,
+                    error: { code: "request_failed", message: "Docker request failed" },
+                    bytesRead: bytes,
+                });
+                return;
+            }
+            request.on("timeout", () => {
+                request.destroy();
+                finish({
+                    ok: false,
+                    error: { code: "timeout", message: "Docker socket request timed out" },
+                    bytesRead: bytes,
+                });
+            });
+            request.on("error", (error) => {
+                const unavailable = error.code === "ENOENT" || error.code === "EACCES" || error.code === "ECONNREFUSED";
+                finish(unavailable
+                    ? {
+                        ok: false,
+                        error: { code: "socket_unavailable", message: "Docker socket is unavailable" },
+                        bytesRead: bytes,
+                    }
+                    : {
+                        ok: false,
+                        error: { code: "request_failed", message: "Docker request failed" },
+                        bytesRead: bytes,
+                    });
+            });
+            request.end();
+        });
+    }
+}
+exports.DockerService = DockerService;
+function invalidResponse(bytesRead) {
+    return {
+        ok: false,
+        error: { code: "invalid_response", message: "Docker returned an invalid response" },
+        bytesRead,
+    };
+}
+function requestTimeout(value) {
+    return value === undefined || !Number.isFinite(value)
+        ? 3000
+        : Math.max(1, Math.min(3000, Math.floor(value)));
+}
+function isRecord(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+}

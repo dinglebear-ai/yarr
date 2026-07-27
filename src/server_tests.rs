@@ -59,7 +59,25 @@ fn non_loopback_gateway_without_provenance_is_rejected() {
 #[test]
 fn non_loopback_bearer_token_mounts_bearer_policy() {
     let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("a".repeat(64));
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedBearer
+    );
+}
+
+#[test]
+fn non_loopback_weak_bearer_token_is_rejected() {
+    let mut config = config("0.0.0.0");
     config.mcp.api_token = Some("secret".into());
+    let error = resolve_auth_policy_kind(&config, false).unwrap_err();
+    assert!(error.to_string().contains("weak bearer token"));
+}
+
+#[test]
+fn non_loopback_base64url_bearer_token_mounts_bearer_policy() {
+    let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("A".repeat(43));
     assert_eq!(
         resolve_auth_policy_kind(&config, false).unwrap(),
         AuthPolicyKind::MountedBearer

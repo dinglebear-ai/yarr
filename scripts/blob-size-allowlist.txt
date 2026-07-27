@@ -15,3 +15,7 @@ specs/*
 # parameter, request body, response, media type, and explicit omission marker.
 src/openapi/generated/jellyfin.rs
 src/openapi/generated/plex.rs
+
+# Deterministic classic Unraid packages are committed so CI and release jobs can
+# reproduce them byte for byte against the frozen candidate before publication.
+unraid-plugin/packages/*.txz

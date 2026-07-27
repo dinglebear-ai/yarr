@@ -3,14 +3,14 @@
   "version": "2.1.0",
   "description": "Node launcher for the yarr Rust MCP server and CLI for self-hosted media automation fleets.",
   "license": "MIT",
-  "homepage": "https://github.com/jmagar/yarr#readme",
+  "homepage": "https://github.com/dinglebear-ai/yarr#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jmagar/yarr.git",
+    "url": "git+https://github.com/dinglebear-ai/yarr.git",
     "directory": "packages/yarr-mcp"
   },
   "bugs": {
-    "url": "https://github.com/jmagar/yarr/issues"
+    "url": "https://github.com/dinglebear-ai/yarr/issues"
   },
   "bin": {
     "yarr-mcp": "bin/yarr.js",

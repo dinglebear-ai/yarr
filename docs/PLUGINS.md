@@ -1,13 +1,39 @@
+---
+title: "Plugin Distribution"
+doc_type: "guide"
+status: "active"
+owner: "yarr"
+audience: ["plugin users", "plugin maintainers", "contributors", "agents"]
+scope: "project"
+source_of_truth: false
+upstream_refs:
+  - "plugins/"
+  - "packages/yarr-mcp/package.json"
+  - "scripts/check-dist-contract.js"
+last_reviewed: "2026-07-27"
+---
+
 # Plugin distribution
 
 Yarr publishes one full MCP plugin and 11 service-specific skills-only plugins
-for Claude Code, Codex, and Gemini CLI.
+for Claude Code, Codex, and Gemini CLI. The classic filesystem package under
+`unraid-plugin/` is a separate Unraid distribution, not an MCP plugin.
 
-## Full yarr plugin
+## Choose a plugin
 
-The full plugin does not commit or execute a platform-specific ELF. Claude and
-Codex use `plugins/yarr/.mcp.json`; Gemini carries the equivalent `mcpServers`
-block in `plugins/yarr/gemini-extension.json`. The current released command is:
+| Package | Includes | Runtime dependency | Best for |
+|---|---|---|---|
+| `yarr` | Full MCP connection plus all fallback skills | Exact pinned `yarr-mcp@VERSION` | One agent surface for the fleet |
+| `sonarr`, `radarr`, etc. | One direct-service skill | No Yarr MCP launcher | Narrow direct upstream workflows |
+
+The full plugin and skills-only packages can coexist. The skills call strict
+per-service helpers when MCP is not the selected path.
+
+## Full Yarr plugin
+
+Claude and Codex use `plugins/yarr/.mcp.json`; Gemini carries the equivalent
+`mcpServers` block in `plugins/yarr/gemini-extension.json`. All three start
+stdio through the same exact launcher specification:
 
 ```json
 {
@@ -16,64 +42,96 @@ block in `plugins/yarr/gemini-extension.json`. The current released command is:
 }
 ```
 
-The version pin is intentional supply-chain state. Release/package contract
-checks update and verify it with the coupled npm/runtime version. Do not replace
-it with an unpinned `npx yarr-mcp`, `@latest`, or a repository binary path.
+The version pin is intentional supply-chain state. Release/package contracts
+couple it to the Rust runtime, npm package, `server.json`, and release tag. Do
+not replace it with unpinned `npx yarr-mcp`, `@latest`, or a repository binary.
 
-The full plugin also includes fallback skills for Sonarr, Radarr, Prowlarr,
-Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, Tautulli, Bazarr, and Tracearr.
-Those skills call their configured upstream directly when the MCP surface is
-not the selected path.
+### Launcher availability
 
-## Settings bridge
+A manifest pin proves intent, not registry availability. Verify the exact
+package before installing or debugging the full plugin:
 
-Claude lifecycle hooks run the repository-local safe bridge:
+```bash
+npm view yarr-mcp@2.1.0 version
+```
+
+At this documentation revision, GitHub release `v2.1.0` is public but
+`yarr-mcp@2.1.0` returns `E404`; recovery is tracked in
+[issue #80](https://github.com/dinglebear-ai/yarr/issues/80). The full plugin
+cannot start from npm until that exact version resolves. Do not loosen the pin
+or silently use npm `latest` (currently an older launcher). Install the native
+Yarr binary directly for MCP use, or use a skills-only plugin meanwhile.
+
+## Installation
+
+Inside Claude Code:
+
+```text
+/plugin marketplace add dinglebear-ai/yarr
+/plugin install yarr@yarr
+```
+
+For a single service:
+
+```text
+/plugin install sonarr@yarr
+/plugin install plex@yarr
+```
+
+Codex and Gemini should use their corresponding marketplace or local extension
+install flow after validating the manifest and exact launcher availability.
+
+## Platform manifests
+
+| File | Platform | MCP config | Settings model |
+|---|---|---|---|
+| `.claude-plugin/plugin.json` | Claude Code | `.mcp.json` | `userConfig` and lifecycle hooks |
+| `.codex-plugin/plugin.json` | Codex | `.mcp.json` | Shared skills; no Claude hook execution |
+| `gemini-extension.json` | Gemini CLI | Inline `mcpServers.yarr` | `envVar` plus `${extensionPath}` |
+
+Manifests intentionally omit a `version` field. Marketplace identity comes
+from repository artifacts and commit state; a copied manifest version creates
+duplicate or stale identities.
+
+## Settings bridge and secret handling
+
+Claude lifecycle hooks run:
 
 ```text
 ${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh
 ```
 
-The bridge accepts only manifest-declared option names and writes mode-0600 JSON
-under:
-
-```text
-~/.config/lab-<service>/config.json
-```
-
-Both bundled fallback skills and standalone service plugins read that same
-strict per-service JSON contract. They parse an allowlist of keys; they never
-`source`, `eval`, or execute stored settings. A value containing shell syntax is
-data, not code. Old executable `config.env` files are not part of the contract.
+The bridge accepts only declared option names and writes mode-`0600` JSON to
+`~/.config/lab-<service>/config.json`. Fallback helpers parse a fixed allowlist
+of JSON keys. They never `source`, `eval`, or execute stored values. Shell
+syntax inside a value remains data.
 
 Codex does not run Claude lifecycle hooks. Gemini injects manifest settings via
-its `envVar` model; it uses `${extensionPath}` for extension-relative paths and
-does not support Claude's `${user_config.*}` interpolation.
+its `envVar` model and uses `${extensionPath}` for extension-relative files.
+
+## Optional health monitor
+
+The full Claude plugin includes a transition-only server-health monitor. It
+checks an independently running HTTP server through an installed `yarr` binary
+on `PATH` or `YARR_MCP_BIN`; it does not monitor the stdio child process. The
+native installer is the recommended way to provide that binary while npm
+publication is incomplete.
 
 ## Standalone plugins
 
 The bare-named `sonarr`, `radarr`, `prowlarr`, `overseerr`, `sabnzbd`,
 `qbittorrent`, `plex`, `jellyfin`, `tautulli`, `bazarr`, and `tracearr` packages
-are skills-only. They must not declare an MCP server. Their local setup scripts
-write the same strict config JSON described above and their skill scripts call
-only the corresponding upstream service.
+are skills-only and must not declare an MCP server. Their setup scripts write
+the same strict per-service JSON contract and call only the matching upstream.
 
-## Manifests
+## Maintainer checklist
 
-- Claude: `.claude-plugin/plugin.json` plus host-specific hooks.
-- Codex: `.codex-plugin/plugin.json` plus shared skills.
-- Gemini: `gemini-extension.json` plus shared skills and, for full yarr only,
-  the pinned stdio MCP command.
-- Marketplace catalogs: `.claude-plugin/marketplace.json` and
-  `.agents/plugins/marketplace.json`.
-
-Plugin manifests intentionally have no `version` field. Release identity comes
-from the pinned launcher/package and repository artifact metadata, not a stale
-manifest version copied by hand.
-
-## Validation
-
-Run all distribution gates after any manifest, hook, skill, npm, target, or
-installer change:
+1. Keep every `yarr-mcp@<version>` pin equal to `packages/yarr-mcp/package.json`.
+2. Verify `npm view yarr-mcp@<version> version` before describing the pin as available.
+3. Keep full-plugin and skills-only boundaries explicit in every marketplace description.
+4. Keep manifests versionless and free of committed platform binaries.
+5. Update plugin docs whenever settings, hooks, monitor behavior, or fallback config changes.
+6. Run the complete distribution checks below.
 
 ```bash
 just validate-plugin
@@ -84,7 +142,9 @@ node scripts/check-dist-contract.js
 npm test --prefix packages/yarr-mcp
 npm run check --prefix packages/yarr-mcp
 npm pack --dry-run --json ./packages/yarr-mcp
+python3 scripts/check-doc-links.py
 ```
 
-The executable manifests and contract checks are authoritative if a generated
-marketplace README drifts from this overview.
+The executable manifests and contract checks are authoritative if a marketplace
+overview drifts. See [plugins/README.md](../plugins/README.md) and the
+[full plugin guide](../plugins/yarr/README.md) for package-level details.

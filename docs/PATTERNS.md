@@ -769,7 +769,7 @@ replace a digest with a mutable tag-only reference.
 ```yaml
 services:
   yarr-mcp:
-    image: ${YARR_MCP_IMAGE:?Set an immutable ghcr.io/jmagar/yarr@sha256 digest}
+    image: ${YARR_MCP_IMAGE:?Set an immutable ghcr.io/dinglebear-ai/yarr@sha256 digest}
     pull_policy: always
     container_name: yarr
     restart: unless-stopped
@@ -815,10 +815,10 @@ networks:
 
 ```bash
 #!/usr/bin/env bash
-# One-line install: curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
+# One-line install: curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 set -euo pipefail
 
-REPO="jmagar/yarr"
+REPO="dinglebear-ai/yarr"
 BINARY="yarr"
 INSTALL_DIR="${HOME}/.local/bin"
 
@@ -1461,8 +1461,8 @@ plugins/
 {
   "name": "yarr-mcp",
   "description": "Yarr service MCP server for Codex.",
-  "homepage": "https://github.com/jmagar/yarr",
-  "repository": "https://github.com/jmagar/yarr",
+  "homepage": "https://github.com/dinglebear-ai/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": ["yarr", "mcp", "homelab"],
   "skills": "./skills/",
@@ -1474,7 +1474,7 @@ plugins/
     "developerName": "Jacob Magar",
     "category": "Infrastructure",
     "capabilities": ["Read"],
-    "websiteURL": "https://github.com/jmagar/yarr",
+    "websiteURL": "https://github.com/dinglebear-ai/yarr",
     "defaultPrompt": [
       "Check Yarr service status.",
       "List all items in Yarr.",
@@ -2232,7 +2232,7 @@ INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "${INSTALL_DIR}"
 
 # Download and install
-BINARY_URL="https://github.com/jmagar/yarr/releases/latest/download/yarr-x86_64.tar.gz"
+BINARY_URL="https://github.com/dinglebear-ai/yarr/releases/latest/download/yarr-x86_64.tar.gz"
 tmpdir="$(mktemp -d)"
 curl -fsSL "${BINARY_URL}" -o "${tmpdir}/yarr.tar.gz"
 tar -xzf "${tmpdir}/yarr.tar.gz" -C "${tmpdir}"
