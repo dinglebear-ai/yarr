@@ -176,7 +176,6 @@ find "$source_plugin_root/scripts" -maxdepth 1 -type f \
     \( -name 'install-*.sh' -o -name 'uninstall-*.sh' -o -name 'yarr-update.sh' \
        -o -name 'validate-classic-package.sh' \) \
     -exec chmod 0755 '{}' +
-chmod 0600 "$source_plugin_root/default.cfg" "$source_plugin_root/default.env"
 mkdir -p "$package_root/packages"
 install -m 0644 -- "$candidate_archive" "$package_root/packages/$package_file"
 install -m 0644 -- "$candidate_manifest" "$package_root/.release-manifest.json.new"

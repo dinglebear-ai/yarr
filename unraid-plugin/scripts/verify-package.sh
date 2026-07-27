@@ -147,13 +147,30 @@ dashboard_element=$(jq -er '.dashboardElement' "$manifest")
 grep -Fq "<${settings_element}></${settings_element}>" "$temporary/root/usr/local/emhttp/plugins/yarr/Yarr.page" || fail 'settings element differs from release manifest'
 [[ "$dashboard_element" == yarr-dashboard ]] || fail 'dashboard element differs from release manifest'
 
-# Every physical source file must have exact archive byte and mode parity.
+# Every physical source file must have exact archive byte parity. Git can
+# represent these non-executable templates only as 0644, while the package
+# deliberately stores the default templates as 0600. All other file modes
+# must remain identical between source and archive.
 while IFS= read -r -d '' source_file; do
     relative=${source_file#"$source_root/"}
     packaged="$temporary/root/$relative"
     [[ -f "$packaged" ]] || fail "source shrinkage: $relative is absent from archive"
     cmp -s "$source_file" "$packaged" || fail "source/archive byte drift: $relative"
-    [[ $(stat -c %a "$source_file") == "$(stat -c %a "$packaged")" ]] || fail "source/archive mode drift: $relative"
+    source_mode=$(stat -c %a "$source_file")
+    packaged_mode=$(stat -c %a "$packaged")
+    case "$relative" in
+        usr/local/emhttp/plugins/yarr/default.cfg|usr/local/emhttp/plugins/yarr/default.env)
+            if [[ "$source_root" == "$package_root/source" ]]; then
+                [[ "$source_mode" == 644 ]] || fail "checkout source template mode is not 0644: $relative"
+            else
+                [[ "$source_mode" == 600 ]] || fail "staged source template mode is not 0600: $relative"
+            fi
+            [[ "$packaged_mode" == 600 ]] || fail "packaged template mode is not 0600: $relative"
+            ;;
+        *)
+            [[ "$source_mode" == "$packaged_mode" ]] || fail "source/archive mode drift: $relative"
+            ;;
+    esac
 done < <(find "$source_root" -type f -print0 | sort -z)
 
 # Tracked classic source may not disappear from a generated candidate root.

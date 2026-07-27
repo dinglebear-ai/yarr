@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 plugin_root="$repo_root/unraid-plugin"
@@ -362,8 +363,9 @@ if grep -Eqi '<(linearGradient|radialGradient|text)([[:space:]>])' "$icon_source
 fi
 grep -Fxq 'DASHBOARD_WIDGET_ENABLE=true' "$default_cfg" || fail 'dashboard widget does not default enabled'
 
-[[ $(stat -c %a "$default_cfg") == 600 ]] || fail 'default.cfg must be mode 0600'
-[[ $(stat -c %a "$default_env") == 600 ]] || fail 'default.env must be mode 0600'
+# Git preserves only the executable bit, so fresh checkouts materialize these
+# non-secret templates as 0644. verify-package.sh checks the archive copies are
+# 0600, and the install contract below checks persistent copies are hardened.
 if grep -Ev '^[[:space:]]*(#.*)?$' "$default_env" | grep -q .; then
     fail 'default.env packages a value instead of an empty commented template'
 fi
