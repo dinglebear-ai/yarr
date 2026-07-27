@@ -4,7 +4,7 @@
 
 services:
   yarr-mcp:
-    container_name: yarr-mcp
+    container_name: yarr
     networks:
       - mcp
     restart: unless-stopped
