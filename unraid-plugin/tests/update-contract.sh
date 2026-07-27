@@ -129,7 +129,21 @@ if [[ "\$status" == 0 && "\$name" == install &&
       "\${YARR_TEST_CORRUPT_INSTALL_AT:-0}" == "\$count" ]]; then
     printf '\\ncorrupted snapshot\\n' >> "\${!#}"
 fi
-if [[ "\$status" == 0 && "\${YARR_TEST_SIGNAL_COMMAND:-}" == "\$name" && "\${YARR_TEST_SIGNAL_AT:-0}" == "\$count" ]]; then
+if [[ "\$status" == 0 && "\${YARR_TEST_PAUSE_COMMAND:-}" == "\$name" &&
+      "\${YARR_TEST_PAUSE_AT:-0}" == "\$count" ]]; then
+    : > "\${YARR_TEST_PAUSE_MARKER:?}"
+    released=false
+    for ((attempt = 0; attempt < 200; attempt += 1)); do
+        if [[ -e "\${YARR_TEST_PAUSE_RELEASE:?}" ]]; then
+            released=true
+            break
+        fi
+        sleep 0.05
+    done
+    [[ "\$released" == true ]] || exit 124
+fi
+if [[ "\$status" == 0 && "\${YARR_TEST_SIGNAL_COMMAND:-}" == "\$name" &&
+      "\${YARR_TEST_SIGNAL_AT:-0}" == "\$count" ]]; then
     kill -TERM "\$PPID"
 fi
 exit "\$status"
@@ -159,7 +173,9 @@ reset_boundaries() {
     : > "$YARR_TEST_OPERATION_LOG"
     unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
         YARR_TEST_FAIL_AT_2 YARR_TEST_CORRUPT_INSTALL_AT \
-        YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
+        YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT \
+        YARR_TEST_PAUSE_COMMAND YARR_TEST_PAUSE_AT YARR_TEST_PAUSE_MARKER \
+        YARR_TEST_PAUSE_RELEASE
 }
 
 write_yarr() {
@@ -1149,8 +1165,36 @@ assert_running_overlay_restored 'signal after service stop'
 
 prepare_running_overlay
 reset_boundaries
-export YARR_TEST_SIGNAL_COMMAND=mv YARR_TEST_SIGNAL_AT=1
-expect_failure 'signal after first binary move' "$updater" apply --version 2.1.0 --json
+pause_marker="$tmp_dir/pause-after-first-move"
+pause_release="$tmp_dir/release-after-first-move"
+rm -f -- "$pause_marker" "$pause_release"
+export YARR_TEST_PAUSE_COMMAND=mv YARR_TEST_PAUSE_AT=1
+export YARR_TEST_PAUSE_MARKER="$pause_marker" YARR_TEST_PAUSE_RELEASE="$pause_release"
+"$updater" apply --version 2.1.0 --json >"$tmp_dir/command.out" 2>"$tmp_dir/command.err" &
+signal_update_pid=$!
+pause_observed=false
+for ((attempt = 0; attempt < 200; attempt += 1)); do
+    if [[ -e "$pause_marker" ]]; then
+        pause_observed=true
+        break
+    fi
+    if ! kill -0 "$signal_update_pid" 2>/dev/null; then
+        break
+    fi
+    sleep 0.05
+done
+if [[ "$pause_observed" != true ]]; then
+    : > "$pause_release"
+    wait "$signal_update_pid" 2>/dev/null || true
+    cat "$tmp_dir/command.out" >&2
+    cat "$tmp_dir/command.err" >&2
+    fail 'signal after first binary move did not reach the deterministic pause boundary'
+fi
+kill -TERM "$signal_update_pid"
+: > "$pause_release"
+if wait "$signal_update_pid"; then
+    fail 'signal after first binary move unexpectedly succeeded'
+fi
 assert_running_overlay_restored 'signal after first binary move'
 
 prepare_running_overlay
