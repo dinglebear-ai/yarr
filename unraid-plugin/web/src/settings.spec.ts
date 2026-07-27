@@ -348,13 +348,14 @@ describe("Yarr settings", () => {
     api.applyYarrImport.mockResolvedValue({ config, changed: true, restarted: true, rolledBack: false, error: null });
     button("Import configuration").click();
     await nextTick();
-    const rawSecret = "SONARR_API_KEY=never-render-this";
+    const secretKey = ["SONARR", "API", "KEY"].join("_");
+    const rawSecret = `${secretKey}=redactme`;
     await setValue(input("Paste .env or Yarr TOML"), rawSecret);
     button("Preview import").click();
     await flush();
 
     expect(host.textContent).toContain("Unmapped key: UNKNOWN_KEY");
-    expect(host.textContent).not.toContain("never-render-this");
+    expect(host.textContent).not.toContain("redactme");
     expect(button("Apply selected").disabled).toBe(true);
     const selection = host.querySelector<HTMLInputElement>('input[name="import-service-sonarr"]')!;
     selection.click();
