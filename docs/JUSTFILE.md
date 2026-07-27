@@ -8,7 +8,7 @@ audience:
   - "agents"
 scope: "project"
 source_of_truth: false
-last_reviewed: "2026-07-16"
+last_reviewed: "2026-07-27"
 ---
 
 # Justfile
@@ -42,7 +42,8 @@ current list.
 | Recipe | Purpose |
 |---|---|
 | `just verify` | `fmt-check` + `lint` + `check` + `test`. |
-| `just template-check` | Pattern/plugin/schema/template checks. |
+| `just template-check` | Pattern, plugin, schema, Markdown-link, and template checks. |
+| `just docs-links-check` | Validate every tracked Markdown relative link and heading anchor. |
 | `just pre-release` | Full release-readiness gate (`scripts/pre-release-check.sh`). |
 | `just fmt` | Format Rust and TOML. |
 | `just fmt-check` | Check formatting (CI). |
@@ -64,6 +65,18 @@ current list.
 | `just auth-smoke` | Test bearer auth path against running server. |
 | `just test-mcporter` | Run live MCP integration tests. |
 | `just repair` | Rebuild and restart via systemd or Docker when available. |
+
+## Unraid distribution recipes
+
+| Recipe | Purpose |
+|---|---|
+| `just unraid-test` | Run lifecycle, updater, classic install/API loader, package, workflow, and negative contracts. |
+| `just unraid-build VERSION BUILD` | Build and verify the deterministic classic `.txz`. |
+| `just unraid-release-check` | Verify committed package, manifest, `.plg`, workflow, and release identity. |
+
+These recipes are manual/CI release gates, not pre-commit hooks. The package
+build requires the exact checksummed upstream native release assets and must
+remain byte-identical across the CI umasks.
 
 ## Plugin and xtask recipes
 
@@ -89,31 +102,10 @@ refresh-docs-dry:       bash scripts/refresh-docs.sh --dry-run
 
 ## Doctor output
 
-```
-$ yarr doctor
+Use `just doctor` for human-readable diagnostics and run `yarr doctor --json`
+when another tool must consume the result. The exact fields are owned by the
+current CLI implementation; do not copy a frozen sample transcript into
+automation. Exit code 0 means the configured environment passed its checks;
+exit code 1 means at least one issue requires operator action.
 
-yarr-mcp v0.1.0 — environment check
-
-  Config
-  ──────────────────────────────────────────
-  ✓ Config file:       ~/.yarr/config.toml
-  ✓ Data directory:    ~/.yarr/ (writable)
-  ✓ Binary in PATH:    /home/user/.local/bin/yarr
-
-  Service credentials
-  ──────────────────────────────────────────
-  ✓ YARR_SERVICES:  sonarr,radarr (set)
-  ✗ YARR_SONARR_URL: not set
-    → Set YARR_SONARR_URL in ~/.yarr/.env
-
-  Connectivity
-  ──────────────────────────────────────────
-  ✓ Upstream reachable: https://yarr.internal/api → 200 OK (42 ms)
-
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1 issue found. Fix it before running: yarr serve
-```
-
-Exit code 0 = ready. Exit code 1 = issues found.
-
-See `docs/PATTERNS.md` §48 for the full doctor command pattern.
+See `docs/PATTERNS.md` §48 for the reusable doctor command pattern.

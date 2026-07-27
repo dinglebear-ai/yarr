@@ -179,6 +179,9 @@ jobs:
       - name: Check schema docs
         run: python3 scripts/check-schema-docs.py --check
 
+      - name: Check documentation links and anchors
+        run: python3 scripts/check-doc-links.py
+
       - name: Run feature smoke tests
         run: bash scripts/test-template-features.sh
 

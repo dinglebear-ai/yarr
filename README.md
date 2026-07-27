@@ -72,7 +72,7 @@ Primary capabilities:
   Overseerr, Jellyfin, and Plex. The executor preserves the declared parameter,
   request-media, and successful-response transport contract; unsupported rows
   are excluded and listed in the generated
-  [capability matrix](docs/TOOLS_ACTIONS_ENDPOINTS.md#generated-operations-spec-backed-services).
+  [capability matrix](https://github.com/dinglebear-ai/yarr/blob/main/docs/TOOLS_ACTIONS_ENDPOINTS.md#generated-operations-spec-backed-services).
 - Curated commands for SABnzbd, qBittorrent, Tautulli, Bazarr, and Tracearr,
   whose upstreams do not ship usable machine-readable specs.
 - Code Mode over MCP for multi-step media automation scripts.
@@ -90,33 +90,38 @@ Boundaries:
 
 ## Install
 
-The recommended install path is the Node launcher package:
-
-```bash
-# Run the stdio MCP server without a permanent install.
-npx -y yarr-mcp mcp
-
-# Or install the launcher globally.
-npm i -g yarr-mcp
-yarr --version
-yarr mcp
-```
-
-The npm package downloads the matching GitHub Release binary during install and
-adds `yarr` to `PATH`. It does not expose legacy command aliases.
-
-For machines without npm, use the release installer:
+The native release installer is the safest default because it verifies the
+release archive and SHA-256 before installing `yarr` into `~/.local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
+yarr --version
 ```
 
-That script installs `yarr` into `~/.local/bin`.
+The npm launcher is a coupled distribution, not an alias for whatever version
+happens to be tagged `latest`. Verify the exact release version exists on npm
+before using it:
+
+```bash
+YARR_VERSION=2.1.0
+npm view "yarr-mcp@${YARR_VERSION}" version
+npx -y "yarr-mcp@${YARR_VERSION}" mcp
+# Or, after the same availability check:
+npm i -g "yarr-mcp@${YARR_VERSION}"
+```
+
+Never use an unpinned `npx yarr-mcp` or `@latest` in an MCP manifest: npm may
+still point at an older launcher after a partial release. At the time of this
+documentation refresh, GitHub release `v2.1.0` is public but
+`yarr-mcp@2.1.0` is not yet available on npm; recovery is tracked in
+[issue #80](https://github.com/dinglebear-ai/yarr/issues/80). Use the native
+installer, a verified release archive, a source build, or the independent
+Unraid package until the exact npm version resolves.
 
 ## Unraid Plugin
 
 The coordinated Unraid distribution lives under
-[`unraid-plugin/`](unraid-plugin/README.md). It combines the classic `.plg`
+[`unraid-plugin/`](https://github.com/dinglebear-ai/yarr/tree/main/unraid-plugin). It combines the classic `.plg`
 installer and privileged service lifecycle, an external NestJS GraphQL
 extension, and Vue settings/dashboard custom elements.
 
@@ -130,7 +135,7 @@ Fresh installs bind Yarr to loopback. LAN or custom-address binding is rejected
 until authentication is configured; Tailscale Serve is the supported
 tailnet-only option. Service credentials stay in server-side boot
 configuration and are never returned to the browser. See the
-[Unraid operator and release guide](unraid-plugin/README.md) for persistence,
+[Unraid operator and release guide](https://github.com/dinglebear-ai/yarr/blob/main/unraid-plugin/README.md) for persistence,
 discovery, updates, rollback, uninstall retention, troubleshooting, and
 release gates.
 
@@ -143,8 +148,8 @@ export YARR_SERVICES=sonarr
 export YARR_SONARR_URL=http://127.0.0.1:8989
 export YARR_SONARR_API_KEY=...
 
-npx -y yarr-mcp sonarr status
-npx -y yarr-mcp mcp
+yarr sonarr status
+yarr mcp
 ```
 
 Then point an MCP client at the stdio command:
@@ -153,8 +158,8 @@ Then point an MCP client at the stdio command:
 {
   "mcpServers": {
     "yarr": {
-      "command": "npx",
-      "args": ["-y", "yarr-mcp", "mcp"],
+      "command": "yarr",
+      "args": ["mcp"],
       "env": {
         "YARR_SERVICES": "sonarr",
         "YARR_SONARR_URL": "http://127.0.0.1:8989",
@@ -172,6 +177,17 @@ Code chat session, not in a shell:
 /plugin marketplace add dinglebear-ai/yarr
 /plugin install yarr@yarr
 ```
+
+The full plugin starts the exact launcher pinned in its manifest. Confirm that
+version exists before installing or debugging the plugin:
+
+```bash
+npm view yarr-mcp@2.1.0 version
+```
+
+Until issue #80 is resolved, the full plugin cannot start from npm. The
+service-specific skills-only plugins do not depend on that launcher and remain
+available for direct upstream workflows.
 
 Install one skills-only plugin when you want direct service scripts without the
 MCP server:
@@ -224,14 +240,18 @@ YARR_MCP_TOKEN=change-me yarr serve
 }
 ```
 
-HTTP MCP smoke call:
+HTTP MCP initialization smoke call:
 
 ```bash
-curl -s http://127.0.0.1:40070/mcp \
+curl --fail http://127.0.0.1:40070/mcp \
   -H "Authorization: Bearer $YARR_MCP_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"yarr","arguments":{"code":"async () => await sonarr.get_system_status()"}}}'
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
 ```
+
+Use an MCP client such as mcporter for session-aware `tools/list` and Code Mode
+calls; a raw one-shot `tools/call` is not a complete MCP session.
 
 ## Runtime Surfaces
 
@@ -240,7 +260,7 @@ curl -s http://127.0.0.1:40070/mcp \
 | MCP | Required | One default `yarr` Code Mode tool over the whole fleet |
 | CLI | Required | Scriptable parity surface for debugging and automation |
 | REST | Not shipped | Upstream-client servers do not expose a local REST action API |
-| Web | Not shipped | Upstream-client servers do not serve an embedded web UI |
+| Web | Core: not shipped | The core server has no embedded UI; the classic Unraid distribution ships a separate settings/dashboard web surface |
 
 Set `YARR_MCP_TOOL_MODE=flat` to advertise one action-dispatched MCP tool per
 configured service instead of the single Code Mode tool. That mode is useful
@@ -508,12 +528,22 @@ cargo test
 git diff --check
 ```
 
-For live install verification, use the three public install paths:
+For live install verification, validate the native installer and only exercise
+the npm path after the exact coupled version resolves:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
-npm i -g yarr-mcp
-npx -y yarr-mcp mcp
+yarr --version
+
+YARR_VERSION=2.1.0
+npm view "yarr-mcp@${YARR_VERSION}" version
+npx -y "yarr-mcp@${YARR_VERSION}" mcp
+```
+
+Documentation changes also require the repository-local link and anchor guard:
+
+```bash
+python3 scripts/check-doc-links.py
 ```
 
 ## Deployment
@@ -548,6 +578,9 @@ gateway when exposed outside loopback.
 - Code Mode cannot find a callable: use `codemode.search(...)` and
   `codemode.describe(...)`; generated names follow upstream OpenAPI operation
   IDs after normalization.
+- `npm` or the full plugin reports `E404`/`ETARGET`: check the exact pinned
+  launcher with `npm view yarr-mcp@2.1.0 version`. Do not fall back to unpinned
+  `latest`; use the native binary while issue #80 is open.
 
 ## Related Servers
 
@@ -569,18 +602,26 @@ gateway when exposed outside loopback.
 
 The source of truth docs split is:
 
-- `docs/API.md` for action contracts and Code Mode call shape.
-- `docs/CONFIG.md` for environment variables, auth states, and tool modes.
-- `docs/QUICKSTART.md` for local smoke tests.
-- `docs/MCP_SCHEMA.md` for schema drift rules.
-- `docs/AUTH.md` for bearer and OAuth auth.
-- `docs/DEPLOYMENT.md` and `docs/DOCKER.md` for production runtime.
-- `docs/PATTERNS.md` for conventions shared across the RMCP server family.
-- `docs/PLUGINS.md` for marketplace plugin packaging.
-- `plugins/README.md` for the `yarr` bundle versus per-service plugin layout.
-- `plugins/yarr/README.md` and `plugins/yarr/skills/yarr/SKILL.md` for the
-  full plugin package.
-- `CLAUDE.md` for repo-local agent memory and the "How to add an action"
+- `docs/README.md` is the audience-oriented documentation index.
+- `docs/DOCS.md` defines authority, generated-doc rules, freshness checks, and
+  where new documentation belongs.
+- `docs/API.md` covers action contracts and Code Mode call shape.
+- `docs/CONFIG.md`, `docs/ENV.md`, and `docs/AUTH.md` cover configuration,
+  environment variables, auth states, and tool modes.
+- `docs/QUICKSTART.md` covers native, source, exact-version npm, and Unraid
+  first-run paths.
+- `docs/MCP_SCHEMA.md` and `docs/TOOLS_ACTIONS_ENDPOINTS.md` are checked
+  schema/action references.
+- `docs/DEPLOYMENT.md`, `docs/DOCKER.md`, and `docs/SYSTEMD.md` cover production
+  runtime choices.
+- `docs/CI.md`, `docs/SCRIPTS.md`, and `docs/runbooks/` cover validation,
+  releases, incidents, and rollback.
+- `docs/PATTERNS.md` holds conventions shared across the RMCP server family.
+- `docs/PLUGINS.md`, `plugins/README.md`, and `plugins/yarr/README.md` cover
+  marketplace packaging and launcher availability.
+- `unraid-plugin/README.md` is the operator, API, recovery, verification, and
+  release guide for the classic Unraid distribution.
+- `CLAUDE.md` holds repo-local agent memory and the "How to add an action"
   checklist.
 
 ## License

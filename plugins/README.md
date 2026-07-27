@@ -71,7 +71,10 @@ the `yarr` bundle side by side does not cause them to clobber each other.
 
 In addition to the standalone layout above, `yarr/` ships `.mcp.json` and
 `gemini-extension.json`'s inline `mcpServers.yarr` (stdio through the pinned
-`yarr-mcp@2.1.0` npm launcher, no committed platform binary),
+`yarr-mcp@2.1.0` npm launcher, no committed platform binary). Verify that
+exact package with `npm view yarr-mcp@2.1.0 version` before installation.
+GitHub `v2.1.0` is public while the npm package is currently missing; issue #80
+tracks recovery, and operators must not loosen the pin to `latest`. The package also ships
 `monitors/monitors.json`, the safe local JSON setup hook, the consolidated
 `skills/yarr/SKILL.md`, and
 the 11 bundled fallback skills under `skills/<service>/`. See its
@@ -95,3 +98,5 @@ When changing a plugin package:
    into `plugins/yarr/skills/` plus the `yarr` credential bridge.
 4. Verify all manifests still omit explicit `version` fields (`cargo test --test template_invariants`).
 5. Run `cargo test --test plugin_contract` after touching the `yarr` manifests.
+6. Run `node scripts/sync-plugin-manifests.js --check` and `python3 scripts/check-doc-links.py`.
+7. Do not describe a pinned launcher as available until the exact npm version resolves.

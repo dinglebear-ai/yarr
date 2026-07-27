@@ -11,7 +11,8 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `build-web.sh` | Build the Next.js web UI static export (`apps/web/out/`). |
 | `bump-version.sh` | Update version-bearing files from the `Cargo.toml` version. |
 | `check-blob-size.py` | Block unexpectedly large changed blobs. |
-| `check-coupled-files.sh` | Warn when files that normally change together drift. The `schemas.rs` ↔ `docs/MCP_SCHEMA.md` pair defers to `check-schema-docs.py --check`, so formatting-only edits do not false-positive. |
+| `check-coupled-files.sh` | Warn when files that normally change together drift. The schema/docs pair defers to `check-schema-docs.py --check`, so formatting-only edits do not false-positive. |
+| `check-doc-links.py` | Validate every tracked Markdown relative link and heading anchor. |
 | `check-dependency-updates.sh` | Report lockfile-compatible and latest dependency updates. |
 | `check-file-size.sh` | Pre-commit source file size budget. |
 | `check-plugin-hook-contract.py` | Audit plugin setup hook contract across Rust MCP servers. |
@@ -86,6 +87,18 @@ just coupled-files-check
 ```
 
 CI-oriented guard for files that usually change together, such as script changes with `scripts/README.md`, schema changes with `docs/MCP_SCHEMA.md`, and automation changes with docs.
+
+### `check-doc-links.py`
+
+```bash
+python3 scripts/check-doc-links.py
+just docs-links-check
+```
+
+Walks every tracked Markdown file, ignores fenced examples and external URLs,
+and validates repository-relative targets, directory READMEs, repository
+boundaries, and heading anchors. Root-relative links such as `/docs/...` are
+rejected because they break in package registries and non-GitHub renderers.
 
 ### `check-dependency-updates.sh`
 
@@ -172,7 +185,7 @@ The script targets Yarr's default port 40070 and `YARR_MCP_TOKEN`.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/scripts/install.sh | bash
-YARR_VERSION=v0.4.0 INSTALL_DIR=~/.local/bin bash scripts/install.sh
+YARR_VERSION=v2.1.0 INSTALL_DIR=~/.local/bin bash scripts/install.sh
 ```
 
 Downloads the matching GitHub Release tarball and installs `yarr` in the target
@@ -221,12 +234,12 @@ labels and pass/fail summaries and exits nonzero if any live read fails.
 
 ```bash
 scripts/pre-release-check.sh
-scripts/pre-release-check.sh --skip-verify --skip-build-plugin
+scripts/pre-release-check.sh --skip-verify
 scripts/pre-release-check.sh --mcporter
 just pre-release
 ```
 
-Runs the release gate: pattern checks, plugin validation, schema docs, template feature smoke tests, version sync, blob size, ASCII hygiene, `just verify`, and `just build-plugin`. `--mcporter` also runs `just test-mcporter` and requires a running server.
+Runs the release gate: pattern checks, plugin validation, npm distribution checks, schema docs, Markdown links/anchors, template feature smoke tests, version sync, blob size, ASCII hygiene, and `just verify`. `--mcporter` also runs `just test-mcporter` and requires a running server.
 
 ### `refresh-docs.sh`
 
@@ -313,7 +326,7 @@ bash scripts/test-template-features.sh
 just template-features
 ```
 
-Fast shell smoke tests for invariants that are awkward as Rust tests: `.env` blocking, agent docs symlinks, plugin layout, schema docs, the Trivy SARIF severity gate, and ASCII hygiene.
+Fast shell smoke tests for invariants that are awkward as Rust tests: `.env` blocking, agent docs symlinks, plugin layout, schema docs, Markdown links/anchors, the Trivy SARIF severity gate, and ASCII hygiene.
 
 ### `web-watch.sh`
 

@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **docs:** add role-based navigation, safe multi-path quickstarts, complete Unraid settings/GraphQL/recovery coverage, and a tracked Markdown link/anchor CI guard
 * **unraid:** add canonical settings/dashboard routes, original Yarr artwork, a persistent dashboard toggle, and a compact freshness-aware runtime widget
 
 ### Fixed
 
+* **docs:** replace unpinned npm launcher guidance with exact-version availability checks and document the `v2.1.0` partial-release recovery boundary
 * **unraid:** enforce cache-busted page assets and canonical root-owned mode-0755 package directories
 
 ## [2.1.0](https://github.com/dinglebear-ai/yarr/compare/v2.0.1...v2.1.0) (2026-07-20)

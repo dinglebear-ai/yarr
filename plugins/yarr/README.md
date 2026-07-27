@@ -76,7 +76,18 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
 }
 ```
 
-Installing either plugin is enough; there's nothing to start or point at a URL for.
+The full plugin is self-starting only when the exact pinned launcher exists on npm.
+Verify it before installation or troubleshooting:
+
+```bash
+npm view yarr-mcp@2.1.0 version
+```
+
+GitHub release `v2.1.0` is currently public while that npm version is missing;
+[issue #80](https://github.com/dinglebear-ai/yarr/issues/80) tracks recovery.
+Do not replace the pin with `latest` or an older launcher. Use the native Yarr
+binary directly for MCP, or install a service-specific skills-only plugin, until
+the exact package resolves.
 
 A user who instead wants to run `yarr` as a persistent HTTP server (e.g. for other MCP clients, or to share one server across machines) can still do so separately — that's what the `server_url`/`api_token` `userConfig`/`settings` fields and the health monitor (below) are for. That mode is independent of this plugin's own stdio MCP connection.
 
@@ -107,7 +118,8 @@ health monitor's `watch.sh` still resolves `yarr` from PATH (or `YARR_MCP_BIN`)
 `yarr` separately if you want the monitor to work:
 
 ```bash
-npm i -g yarr-mcp
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
+yarr --version
 ```
 
 Disabling the plugin mid-session does not stop an already-running monitor; it stops when the session ends.
@@ -119,7 +131,8 @@ Disabling the plugin mid-session does not stop an already-running monitor; it st
 ## Packaging checklist
 
 1. Keep the pinned `yarr-mcp@<version>` spec equal to the coupled runtime/package release version.
-2. Confirm `yarr` is installed separately on PATH when testing the optional health monitor (`watch.sh`).
-3. Run `node scripts/test-plugin-distribution.js` and `scripts/validate-plugin-layout.sh`.
-4. Verify all manifests still omit explicit `version` fields.
-5. Install through the target marketplace or local plugin path.
+2. Verify `npm view yarr-mcp@<version> version`; a manifest pin is not proof of registry availability.
+3. Confirm the native `yarr` binary is installed separately on PATH when testing the optional health monitor (`watch.sh`).
+4. Run `node scripts/test-plugin-distribution.js`, `scripts/validate-plugin-layout.sh`, and `python3 scripts/check-doc-links.py`.
+5. Verify all manifests still omit explicit `version` fields.
+6. Install through the target marketplace or local plugin path and test both stdio startup and one fallback skill.

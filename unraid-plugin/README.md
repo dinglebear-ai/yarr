@@ -2,8 +2,10 @@
 
 This directory is the complete Unraid distribution for Yarr. It keeps the
 privileged classic plugin, external Unraid API extension, settings application,
-dashboard widget, package sources, release metadata, and contracts together
-without changing Yarr's normal Rust, npm, Docker, or MCP distributions.
+dashboard widget, package sources, release metadata, and contracts together as
+a separately versioned product surface. The normal Rust, npm, Docker, and MCP
+distributions remain independent, while shared repository release and security
+contracts keep their identities and documentation coherent.
 
 ## Components and ownership
 
@@ -30,6 +32,21 @@ without changing Yarr's normal Rust, npm, Docker, or MCP distributions.
 The classic plugin is the only component allowed to perform privileged
 operating-system work. The API extension never replaces that boundary.
 
+## Guide map
+
+- [Installation and first run](#installation)
+- [Settings reference](#settings-reference)
+- [Network and authentication](#network-and-authentication)
+- [Credentials, import, and discovery](#credentials-and-service-import)
+- [Persistent and runtime paths](#persistent-and-runtime-paths)
+- [Updates, reset, and recovery](#binary-updater-rollback-and-reset)
+- [GraphQL API contract](#graphql-api-contract)
+- [API and web loader behavior](#api-and-web-loader-behavior)
+- [Troubleshooting and safe evidence](#troubleshooting-and-logs)
+- [Uninstall and retained state](#uninstall)
+- [Local and release verification](#local-verification)
+- [Disposable live gate](#disposable-unraid-live-release-gate)
+
 ## Installation
 
 In Unraid, open **Plugins > Install Plugin** and enter:
@@ -46,6 +63,49 @@ failed activation restores the prior package and API loader state.
 Configure Yarr under **Settings > Yarr**. A fresh install is disabled and uses
 loopback binding until the operator saves a valid configuration and starts the
 service.
+
+### First-run checklist
+
+1. Open **Settings > Yarr** and confirm the page shows runtime and package state.
+2. Keep **Bind mode** on **Loopback** for the first save.
+3. Choose an authentication mode, even if loopback is the initial deployment.
+4. Add at least one service URL and its required credential, then enable it.
+5. Save and confirm the configuration transaction reports success.
+6. Start Yarr from **Overview** and require **Ready**, not merely **Running**.
+7. Review **Logs** for a bounded, redacted startup record.
+8. Test one read-only MCP or GraphQL operation before enabling LAN, OAuth, or Tailscale Serve.
+9. Enable the dashboard widget only after the runtime is stable.
+
+A failed save or restart is transactional: the UI reports whether the prior
+configuration/runtime was proven restored. Do not repeatedly retry an
+incomplete restoration without preserving the recovery identifier and logs.
+
+## Settings reference
+
+The settings application exposes five keyboard-accessible tabs: **Overview**,
+**Services**, **Server & Auth**, **Updates**, and **Logs**. **Import** and
+**Discover** open explicit review dialogs rather than silently applying data.
+
+| Setting or action | Purpose and constraints |
+|---|---|
+| Enabled | Controls whether the service should run; a fresh install remains disabled until saved |
+| Dashboard widget | Persistently shows/hides the compact Unraid dashboard element |
+| Bind mode | `loopback`, `lan`, or validated `custom` IP literal |
+| Custom host | Required only for custom bind mode; must be an IPv4/IPv6 literal |
+| Port | Integer from 1 through 65535; default 40070 |
+| Auth mode | Bearer, Google OAuth, or trusted gateway under its loopback-only constraints |
+| Bearer token | Preserve, set, or clear explicitly; never returned by GraphQL |
+| Google client ID/secret | OAuth identity; secret uses explicit preserve/set/clear semantics |
+| Allowed hosts/origins | Trusted-gateway constraints, not direct-client authentication |
+| Tailscale Serve | Publishes the loopback runtime through a Yarr-scoped mapping |
+| Tailscale hostname | Validated DNS-label service name required when Serve is enabled |
+| Log level | `trace`, `debug`, `info`, `warn`, or `error` |
+| Update channel | `stable`; updater accepts only policy-compatible releases |
+| Services | Per-service enable, URL, username, password, and API-key state |
+| Save | Transactionally installs configuration and restores the exact prior runtime on failure |
+| Start/Stop/Restart | Uses the privileged classic lifecycle boundary |
+| Import/Discover | Preview, select, consent, revalidate, then apply |
+| Update/Reset/Rollback | Verified binary transactions that never change service credentials |
 
 ## Network and authentication
 
@@ -182,6 +242,23 @@ and the bounded message class as one tuple before GraphQL or the UI receives
 the response. Human-readable `message` remains display text and is never used
 as the authoritative outcome discriminator.
 
+### Recovery decision table
+
+| Reported state | What is proven | Operator action |
+|---|---|---|
+| Update/reset/rollback completed | New selected binary, mode, durability, restart, and readiness passed | Record version and continue |
+| Failed before activation/mutation | Live binary was not replaced | Correct the reported precondition and retry once |
+| `rolledBack=true` | Exact prior binary and prior runtime readiness were restored | Preserve logs; investigate the candidate before another update |
+| Restoration incomplete | Full prior state is not proven | Stop retries, record the recovery identifier, inspect retained snapshots |
+| `cleanupPending=true` | Primary outcome completed or failed as reported, but private recovery cleanup did not | Preserve identifier and remove only after validating retained state |
+| Rollback unavailable | No trusted predecessor is present | Use reset to packaged or reinstall the verified package |
+| Runtime state indeterminate | Process-group termination or ownership proof failed | Do not mutate configuration or binaries; perform manual process inspection |
+
+For incomplete recovery, collect file names, modes, sizes, and SHA-256 values
+from `/mnt/user/appdata/yarr/bin` without copying binary contents into an issue.
+Do not delete `.yarr.*.recovery.*` directories until the live binary and intended
+predecessor are identified and a recovery action is documented.
+
 ## Trusted classic rollback
 
 Classic rollback never derives trust from a retained archive's filename or
@@ -197,6 +274,38 @@ from a root-only runtime directory. A legacy archive without provenance fails
 closed before daemon stop or `upgradepkg`; it is never trusted by calculating
 a new digest. Package pruning preserves the current pair and one trusted prior
 pair, and removes archive/sidecar pairs together only after activation commits.
+
+## GraphQL API contract
+
+Every operation uses the public Unraid permissions directive against the
+`SERVICES` resource. Queries require read permission; mutations require update
+permission. The browser sends the host CSRF token and exposes only user-safe
+request errors.
+
+| Query | Returns |
+|---|---|
+| `yarrRuntime` | Lifecycle state, PID, version, bind/port, readiness, and bounded health message |
+| `yarrConfig` | Public plugin/service configuration with secret-presence booleans |
+| `yarrDiscoveredServices` | Expiring Docker discovery ID, bounded candidates, and safe errors |
+| `yarrLogs(lines)` | Last 1 through 500 redacted lines plus truncation state |
+| `yarrUpdateStatus` | Validated operation/outcome tuple and binary state |
+
+| Mutation | Behavior |
+|---|---|
+| `saveYarrConfig(input)` | Validates and transactionally saves/restarts or rolls back |
+| `controlYarr(action)` | Starts, stops, or restarts through `rc.yarr` |
+| `previewYarrImport(input)` | Parses bounded `.env` or supported Yarr TOML into an expiring preview |
+| `applyYarrImport(input)` | Applies selected mappings with explicit credential consent |
+| `applyYarrDiscovery(input)` | Re-inspects selected Docker candidates before applying |
+| `updateYarrBinary(version)` | Applies one exact policy-compatible release |
+| `resetYarrBinary` | Returns to the packaged binary |
+| `rollbackYarrBinary` | Activates the trusted previous overlay when available |
+
+Import/discovery IDs are single-use, random, bounded, and expire. Secret input
+uses explicit `PRESERVE`, `SET`, or `CLEAR`; a `SET` requires a non-empty value.
+The API rejects unknown fields, duplicate service/consent entries, oversized
+imports/responses, unsafe URLs, invalid versions, and updater state tuples that
+do not match the requested operation and exit code.
 
 ## API and web loader behavior
 
@@ -259,6 +368,32 @@ redacted from normal output, command failures, readiness errors, and historical
 log reads. Do not paste raw boot configuration or unredacted upstream service
 logs into an issue.
 
+### Safe support snapshot
+
+This records operational metadata without reading `.env` or printing secret
+values:
+
+```bash
+report=/tmp/yarr-support.txt
+{
+  date -u
+  uname -a
+  /etc/rc.d/rc.yarr status || true
+  stat -c "%a %U:%G %n" /boot/config/plugins/yarr/yarr.cfg /boot/config/plugins/yarr/.env /usr/local/yarr/bin/yarr 2>&1 || true
+  sha256sum /usr/local/yarr/bin/yarr 2>&1 || true
+  if [[ -f /mnt/user/appdata/yarr/bin/yarr ]]; then
+    stat -c "%a %U:%G %s %n" /mnt/user/appdata/yarr/bin/yarr
+    sha256sum /mnt/user/appdata/yarr/bin/yarr
+  fi
+  tail -n 200 /var/log/yarr/yarr.log
+  tail -n 200 /var/log/graphql-api.log
+} >"$report" 2>&1
+printf "Review and redact before sharing: %s\n" "$report"
+```
+
+Review the report before sharing it. Do not add configuration contents, API
+keys, OAuth material, raw Docker environment, or full upstream responses.
+
 Common checks:
 
 - A start rejected in LAN/custom mode means authentication is incomplete.
@@ -309,12 +444,14 @@ Run backend and frontend gates:
 ```bash
 cd unraid-plugin/api
 npm ci
+npm audit --audit-level=high
 npm test
 npx tsc --noEmit
 npx tsc
 
 cd ../web
 npm ci
+npm audit --audit-level=high
 npm test
 npx vue-tsc --noEmit
 npm run build
@@ -326,6 +463,7 @@ Build and verify the committed package identity:
 cd ../..
 just unraid-build 2.1.0 1
 just unraid-release-check
+python3 scripts/check-doc-links.py
 ```
 
 `build-package.sh` verifies the upstream archive checksum and embedded version

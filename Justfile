@@ -179,6 +179,10 @@ schema-docs:
 schema-docs-check:
     python3 scripts/check-schema-docs.py --check
 
+# Validate every tracked Markdown relative link and heading anchor
+docs-links-check:
+    python3 scripts/check-doc-links.py
+
 # Check static contracts from docs/PATTERNS.md
 patterns-check:
     cargo xtask patterns
@@ -200,6 +204,7 @@ template-check:
     just patterns-check
     just validate-plugin
     just schema-docs-check
+    just docs-links-check
     just template-features
 
 # Run all local quality checks in sequence: fmt-check → lint → check → test
