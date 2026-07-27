@@ -66,11 +66,11 @@ jobs:
 
       - name: Test and build API extension
         shell: bash
-        run: cd unraid-plugin/api && npm ci && npm test && npx tsc --noEmit && npx tsc
+        run: cd unraid-plugin/api && npm ci && npm audit --audit-level=high && npm test && npx tsc --noEmit && npx tsc
 
       - name: Test and build settings and dashboard elements
         shell: bash
-        run: cd unraid-plugin/web && npm ci && npm test && npx vue-tsc --noEmit && npm run build
+        run: cd unraid-plugin/web && npm ci && npm audit --audit-level=high && npm test && npx vue-tsc --noEmit && npm run build
 
       - name: Verify both custom-element bundles
         shell: bash
