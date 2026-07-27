@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 archive=${1:?usage: verify-archive-layout.sh ARCHIVE}
 [[ -f "$archive" && ! -L "$archive" ]] || {

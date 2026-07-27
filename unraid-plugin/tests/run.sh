@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 test_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 tmp_dir=$(mktemp -d)

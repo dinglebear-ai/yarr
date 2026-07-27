@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 archive=${1:?usage: validate-classic-package.sh PACKAGE.txz}
 [[ $# -eq 1 ]] || { printf 'classic package validation: expected one archive\n' >&2; exit 2; }

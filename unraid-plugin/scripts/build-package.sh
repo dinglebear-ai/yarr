@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C
 
 package_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 version=${1:?usage: build-package.sh PLUGIN_VERSION PACKAGE_BUILD}
