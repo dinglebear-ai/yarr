@@ -93,8 +93,32 @@ for (const required of [
   "npm test",
   "npm run check",
   "npm publish --provenance",
+  'gh release view "$RELEASE_TAG"',
+  '--repo "$GITHUB_REPOSITORY"',
 ]) {
   assert.ok(workflow.includes(required), "release workflow is missing contract step: " + required);
+}
+assert.equal(
+  workflow.includes('releases/tags/${RELEASE_TAG}'),
+  false,
+  "draft release discovery must use gh release view rather than the public tag API",
+);
+
+const dockerWorkflow = read(".github/workflows/docker-publish.yml");
+const composeCommon = read("docker-compose.common.yml");
+const composeDev = read("docker-compose.yml");
+const composeProd = read("docker-compose.prod.yml");
+assert.ok(dockerWorkflow.includes("IMAGE_NAME: ghcr.io/dinglebear-ai/yarr"));
+assert.ok(composeProd.includes("${YARR_MCP_IMAGE:?Set YARR_MCP_IMAGE"));
+assert.ok(composeProd.includes("file: docker-compose.common.yml"));
+assert.ok(composeDev.includes("file: docker-compose.common.yml"));
+assert.equal(composeDev.includes("docker-compose.prod.yml"), false);
+assert.ok(composeDev.includes("image: yarr:dev"));
+assert.ok(composeCommon.includes('["CMD", "/usr/local/bin/yarr", "watch"'));
+const legacyImage = "ghcr.io/" + "jmagar" + "/yarr";
+for (const forbidden of ["image: yarr:dev", "CMD-SHELL", "curl -sf", legacyImage]) {
+  assert.equal(composeProd.includes(forbidden), false, "production Compose contains forbidden contract: " + forbidden);
+  assert.equal(composeCommon.includes(forbidden), false, "shared Compose contains forbidden contract: " + forbidden);
 }
 
 const spec = packageJson.name + "@" + packageJson.version;

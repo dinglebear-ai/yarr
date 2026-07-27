@@ -117,6 +117,12 @@ on `PATH` or `YARR_MCP_BIN`; it does not monitor the stdio child process. The
 native installer is the recommended way to provide that binary while npm
 publication is incomplete.
 
+The plugin's MCP connection itself remains stdio and needs no HTTP token. The
+`server_url` and `api_token` settings configure only an optional persistent HTTP
+server used by monitoring or other clients. That HTTP path defaults to
+`static_token_scopes=yarr:read` with `tool_mode=flat`; selecting `codemode`
+requires explicitly granting `yarr:write`.
+
 ## Standalone plugins
 
 The bare-named `sonarr`, `radarr`, `prowlarr`, `overseerr`, `sabnzbd`,

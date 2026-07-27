@@ -19,6 +19,15 @@ fn plugin_option_map_is_non_empty_and_well_formed() {
 }
 
 #[test]
+fn plugin_option_map_includes_static_bearer_controls() {
+    assert!(PLUGIN_OPTION_MAP.contains(&(
+        "CLAUDE_PLUGIN_OPTION_STATIC_TOKEN_SCOPES",
+        "YARR_MCP_STATIC_TOKEN_SCOPES",
+    )));
+    assert!(PLUGIN_OPTION_MAP.contains(&("CLAUDE_PLUGIN_OPTION_TOOL_MODE", "YARR_MCP_TOOL_MODE",)));
+}
+
+#[test]
 fn plugin_option_map_targets_are_unique() {
     let mut targets: Vec<&str> = PLUGIN_OPTION_MAP.iter().map(|(_, t)| *t).collect();
     let before = targets.len();

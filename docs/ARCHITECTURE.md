@@ -83,8 +83,10 @@ probe/metrics reachability at the network or proxy boundary where required.
 ## Auth and destructive actions
 
 `AuthPolicy` distinguishes loopback development, an explicitly trusted gateway,
-and mounted bearer/OAuth auth. Static HTTP bearer tokens are read-only. OAuth
-tokens carry issued scopes. Stdio is a local trusted transport.
+and mounted bearer/OAuth auth. Static HTTP bearer tokens receive the configured
+`YARR_MCP_STATIC_TOKEN_SCOPES` and default to read-only; bearer-only Code Mode
+requires an explicit `yarr:write` grant. OAuth tokens carry issued scopes. Stdio
+is a local trusted transport.
 
 MCP destructive actions require elicitation immediately before dispatch,
 including calls nested inside Code Mode. A peer without elicitation support is

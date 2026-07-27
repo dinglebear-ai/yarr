@@ -11,8 +11,9 @@ last_reviewed: "2026-07-16"
 
 # Docker
 
-The production image is built from `config/Dockerfile`; local and production
-Compose contracts are separate.
+The production image is built from `config/Dockerfile`. Shared runtime settings
+live in `docker-compose.common.yml`; local and production Compose files extend
+that service independently so production image validation cannot leak into local builds.
 
 ## Local build
 
@@ -24,8 +25,9 @@ docker compose up --build -d --wait yarr-mcp
 docker compose logs -f yarr-mcp
 ```
 
-`docker-compose.yml` builds `yarr:dev` from the checkout. It overrides the
-production image reference and is not a production publication path.
+`docker-compose.yml` builds `yarr:dev` from the checkout and extends only the
+shared service file. It does not read or override the production image policy,
+so `YARR_MCP_IMAGE` is unnecessary for local development.
 
 ## Production image contract
 

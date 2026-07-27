@@ -399,19 +399,21 @@ tools.
 
 ## Authentication
 
-`YARR_MCP_TOKEN` authenticates `/mcp` and receives read-only `yarr:read` scope.
-On `127.0.0.1` or `localhost` with no explicit token, auth is bypassed for
-local development. Set a real token, or set `YARR_MCP_AUTH_MODE=oauth` for
-Google OAuth, before exposing this on a network.
+`YARR_MCP_TOKEN` authenticates `/mcp` on any HTTP bind, including loopback.
+It receives the scopes in `YARR_MCP_STATIC_TOKEN_SCOPES`, which defaults to
+read-only `yarr:read`. A read-only bearer deployment must use
+`YARR_MCP_TOOL_MODE=flat`; using the default Code Mode surface requires an
+explicit `yarr:write` scope. On `127.0.0.1` or `localhost` with no explicit
+bearer/OAuth configuration, auth is bypassed for local development.
 
 Auth states:
 
 | State | Condition | Behavior |
 |---|---|---|
-| `LoopbackDev` | loopback bind or explicit loopback no-auth | no auth, no scopes |
+| `LoopbackDev` | loopback bind with no explicit auth, or explicit loopback no-auth | no auth, no scopes |
 | `TrustedGatewayUnscoped` | `YARR_NOAUTH=true` behind a trusted gateway | no local auth or scopes |
-| `Mounted` bearer | non-loopback with `YARR_MCP_TOKEN` | bearer auth with read-only scope checks |
-| `Mounted` OAuth | `YARR_MCP_AUTH_MODE=oauth` | OAuth/JWT auth and scope checks |
+| `Mounted` bearer | any HTTP bind with `YARR_MCP_TOKEN` | bearer auth with configured static-token scopes |
+| `Mounted` OAuth | `YARR_MCP_AUTH_MODE=oauth` on any HTTP bind | OAuth/JWT auth plus optional bearer |
 
 Unauthenticated health endpoints are `/health`, `/ready`, `/status`, and
 `/metrics`. `/status` redacts secrets; `/metrics` exposes HTTP and bounded
@@ -554,6 +556,8 @@ Run as a persistent HTTP MCP server:
 YARR_MCP_HOST=0.0.0.0 \
 YARR_MCP_PORT=40070 \
 YARR_MCP_TOKEN=change-me \
+YARR_MCP_STATIC_TOKEN_SCOPES=yarr:read \
+YARR_MCP_TOOL_MODE=flat \
 yarr serve
 ```
 
@@ -584,18 +588,18 @@ gateway when exposed outside loopback.
 
 ## Related Servers
 
-- [soma](https://github.com/jmagar/soma) - RMCP runtime for provider-backed MCP servers.
-- [unifi-rmcp](https://github.com/jmagar/runifi) - UniFi controller REST API bridge.
-- [tailscale-rmcp](https://github.com/jmagar/rtailscale) - Tailscale API bridge for devices, users, and tailnet operations.
-- [unraid-rmcp](https://github.com/jmagar/runraid) - Unraid GraphQL bridge for NAS and server management.
-- [apprise-rmcp](https://github.com/jmagar/rapprise) - Apprise notification fan-out bridge for many delivery backends.
-- [gotify-rmcp](https://github.com/jmagar/rgotify) - Gotify push notification bridge for sends, messages, apps, and clients.
-- [arcane-rmcp](https://github.com/jmagar/rarcane) - Arcane Docker management bridge for containers and related resources.
-- [ytdl-rmcp](https://github.com/jmagar/rytdl) - Media download and metadata workflow server.
-- [synapse-rmcp](https://github.com/jmagar/synapse) - Local Synapse workflow server for scout and flux actions.
-- [cortex](https://github.com/jmagar/cortex) - Syslog and homelab log aggregation MCP server.
-- [axon](https://github.com/jmagar/axon) - RAG, crawl, scrape, extract, and semantic search project.
-- [labby](https://github.com/jmagar/labby) - Homelab control plane and MCP gateway project.
+- [soma](https://github.com/dinglebear-ai/soma) - RMCP runtime for provider-backed MCP servers.
+- [unifi-rmcp](https://github.com/dinglebear-ai/runifi) - UniFi controller REST API bridge.
+- [tailscale-rmcp](https://github.com/dinglebear-ai/rtailscale) - Tailscale API bridge for devices, users, and tailnet operations.
+- [unraid-rmcp](https://github.com/dinglebear-ai/runraid) - Unraid GraphQL bridge for NAS and server management.
+- [apprise-rmcp](https://github.com/dinglebear-ai/rapprise) - Apprise notification fan-out bridge for many delivery backends.
+- [gotify-rmcp](https://github.com/dinglebear-ai/rgotify) - Gotify push notification bridge for sends, messages, apps, and clients.
+- [arcane-rmcp](https://github.com/dinglebear-ai/rarcane) - Arcane Docker management bridge for containers and related resources.
+- [ytdl-rmcp](https://github.com/dinglebear-ai/rytdl) - Media download and metadata workflow server.
+- [synapse-rmcp](https://github.com/dinglebear-ai/synapse) - Local Synapse workflow server for scout and flux actions.
+- [cortex](https://github.com/dinglebear-ai/cortex) - Syslog and homelab log aggregation MCP server.
+- [axon](https://github.com/dinglebear-ai/axon) - RAG, crawl, scrape, extract, and semantic search project.
+- [labby](https://github.com/dinglebear-ai/labby) - Homelab control plane and MCP gateway project.
 - [lumen](https://github.com/jmagar/lumen) - Local semantic code search MCP server.
 
 ## Documentation

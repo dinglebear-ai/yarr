@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::{AuthConfig, YarrConfig};
+use crate::config::{AuthConfig, ToolMode, YarrConfig};
 
 fn config(host: &str) -> Config {
     Config {
@@ -57,9 +57,10 @@ fn non_loopback_gateway_without_provenance_is_rejected() {
 }
 
 #[test]
-fn non_loopback_bearer_token_mounts_bearer_policy() {
+fn non_loopback_read_only_bearer_mounts_in_flat_mode() {
     let mut config = config("0.0.0.0");
     config.mcp.api_token = Some("a".repeat(64));
+    config.mcp.tool_mode = ToolMode::Flat;
     assert_eq!(
         resolve_auth_policy_kind(&config, false).unwrap(),
         AuthPolicyKind::MountedBearer
@@ -70,6 +71,7 @@ fn non_loopback_bearer_token_mounts_bearer_policy() {
 fn non_loopback_weak_bearer_token_is_rejected() {
     let mut config = config("0.0.0.0");
     config.mcp.api_token = Some("secret".into());
+    config.mcp.tool_mode = ToolMode::Flat;
     let error = resolve_auth_policy_kind(&config, false).unwrap_err();
     assert!(error.to_string().contains("weak bearer token"));
 }
@@ -78,10 +80,43 @@ fn non_loopback_weak_bearer_token_is_rejected() {
 fn non_loopback_base64url_bearer_token_mounts_bearer_policy() {
     let mut config = config("0.0.0.0");
     config.mcp.api_token = Some("A".repeat(43));
+    config.mcp.tool_mode = ToolMode::Flat;
     assert_eq!(
         resolve_auth_policy_kind(&config, false).unwrap(),
         AuthPolicyKind::MountedBearer
     );
+}
+
+#[test]
+fn loopback_weak_bearer_token_is_honored() {
+    // Token strength gates network exposure only; loopback binds stay usable.
+    let mut config = config("127.0.0.1");
+    config.mcp.api_token = Some("secret".into());
+    config.mcp.tool_mode = ToolMode::Flat;
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedBearer
+    );
+}
+
+#[test]
+fn loopback_bearer_is_honored_when_write_scope_enables_codemode() {
+    let mut config = config("127.0.0.1");
+    config.mcp.api_token = Some("secret".into());
+    config.mcp.static_token_scopes = vec![crate::actions::WRITE_SCOPE.into()];
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedBearer
+    );
+}
+
+#[test]
+fn codemode_rejects_read_only_static_bearer() {
+    let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("secret".into());
+    let error = resolve_auth_policy_kind(&config, false).unwrap_err();
+    assert!(error.to_string().contains("YARR_MCP_STATIC_TOKEN_SCOPES"));
+    assert!(error.to_string().contains("YARR_MCP_TOOL_MODE=flat"));
 }
 
 #[test]
@@ -91,6 +126,39 @@ fn non_loopback_oauth_mounts_oauth_policy() {
         mode: AuthMode::OAuth,
         ..AuthConfig::default()
     };
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedOAuth
+    );
+}
+
+#[test]
+fn loopback_oauth_is_honored() {
+    let mut config = config("127.0.0.1");
+    config.mcp.auth.mode = AuthMode::OAuth;
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedOAuth
+    );
+}
+
+#[test]
+fn oauth_can_keep_read_only_break_glass_token_in_codemode() {
+    let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("break-glass".into());
+    config.mcp.auth.mode = AuthMode::OAuth;
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedOAuth
+    );
+}
+
+#[test]
+fn oauth_can_retire_read_only_static_token_in_codemode() {
+    let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("retired".into());
+    config.mcp.auth.mode = AuthMode::OAuth;
+    config.mcp.auth.disable_static_token_with_oauth = true;
     assert_eq!(
         resolve_auth_policy_kind(&config, false).unwrap(),
         AuthPolicyKind::MountedOAuth

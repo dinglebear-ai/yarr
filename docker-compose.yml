@@ -12,7 +12,7 @@ name: yarr
 services:
   yarr-mcp:
     extends:
-      file: docker-compose.prod.yml
+      file: docker-compose.common.yml
       service: yarr-mcp
     image: yarr:dev
     pull_policy: build

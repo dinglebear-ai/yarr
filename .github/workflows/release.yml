@@ -176,8 +176,11 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          if release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" 2>/dev/null)"; then
-            if [[ "$(jq -r '.draft' <<< "$release_json")" != "true" ]]; then
+          if is_draft="$(gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft \
+            --jq '.isDraft' 2>/dev/null)"; then
+            if [[ "$is_draft" != "true" ]]; then
               published="$(npm view "yarr-mcp@${VERSION}" version 2>/dev/null || true)"
               [[ "$published" == "$VERSION" ]] || {
                 echo "::error::GitHub Release is public before npm yarr-mcp@${VERSION} exists"
@@ -188,7 +191,11 @@ jobs:
               echo "public=false" >> "$GITHUB_OUTPUT"
             fi
           else
-            gh release create "$RELEASE_TAG" --draft --verify-tag --generate-notes
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --draft \
+              --verify-tag \
+              --generate-notes
             echo "public=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -196,7 +203,7 @@ jobs:
         if: steps.release-state.outputs.public != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" artifacts/* --clobber
+        run: gh release upload "$RELEASE_TAG" artifacts/* --clobber --repo "$GITHUB_REPOSITORY"
 
   npm:
     name: Publish npm launcher
@@ -263,7 +270,10 @@ jobs:
           published="$(npm view "yarr-mcp@${VERSION}" version)"
           [[ "$published" == "$VERSION" ]]
 
-          assets="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.assets[].name')"
+          assets="$(gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets \
+            --jq '.assets[].name')"
           for required in \
             yarr-x86_64.tar.gz \
             yarr-x86_64.tar.gz.sha256 \
@@ -279,7 +289,7 @@ jobs:
       - name: Publish draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$RELEASE_TAG" --draft=false --latest
+        run: gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"
 
   failure-summary:
     name: Release recovery summary
@@ -305,10 +315,15 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          existing="$(gh issue list --state open --search 'Staged release failed in:title' --json number --jq '.[0].number // empty')"
+          existing="$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --search 'Staged release failed in:title' \
+            --json number \
+            --jq '.[0].number // empty')"
           body="Release ${RELEASE_TAG} stopped in staging: ${RUN_URL}\n\nRunbook: docs/runbooks/partial-release.md"
           if [[ -n "$existing" ]]; then
-            gh issue comment "$existing" --body "$body"
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
           else
-            gh issue create --title "Staged release failed" --body "$body"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Staged release failed" --body "$body"
           fi

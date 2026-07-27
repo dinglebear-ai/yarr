@@ -11,6 +11,10 @@ fn mcp_config_defaults() {
     assert!(!cfg.no_auth);
     assert!(!cfg.trusted_gateway);
     assert!(cfg.api_token.is_none());
+    assert_eq!(
+        cfg.static_token_scopes,
+        vec![crate::actions::READ_SCOPE.to_string()]
+    );
     assert_eq!(cfg.codemode_max_concurrent, 4);
     assert_eq!(cfg.codemode_queue_timeout_ms, 500);
     assert_eq!(cfg.codemode_timeout_secs, 30);

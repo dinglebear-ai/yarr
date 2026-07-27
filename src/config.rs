@@ -91,6 +91,10 @@ impl Config {
         env_bool("YARR_MCP_NO_AUTH", &mut config.mcp.no_auth)?;
         env_bool("YARR_NOAUTH", &mut config.mcp.trusted_gateway)?;
         env_opt_str("YARR_MCP_TOKEN", &mut config.mcp.api_token);
+        env_list(
+            "YARR_MCP_STATIC_TOKEN_SCOPES",
+            &mut config.mcp.static_token_scopes,
+        );
         env_list("YARR_MCP_ALLOWED_HOSTS", &mut config.mcp.allowed_hosts);
         env_list("YARR_MCP_ALLOWED_ORIGINS", &mut config.mcp.allowed_origins);
         env_parse(
@@ -182,6 +186,19 @@ impl Config {
         }
 
         load_services_from_env(&mut config.yarr)?;
+
+        if config.mcp.static_token_scopes.is_empty() {
+            anyhow::bail!("YARR_MCP_STATIC_TOKEN_SCOPES must contain at least one scope");
+        }
+        for scope in &config.mcp.static_token_scopes {
+            if scope != crate::actions::READ_SCOPE && scope != crate::actions::WRITE_SCOPE {
+                anyhow::bail!(
+                    "invalid YARR_MCP_STATIC_TOKEN_SCOPES entry {scope:?}: expected yarr:read or yarr:write"
+                );
+            }
+        }
+        config.mcp.static_token_scopes.sort();
+        config.mcp.static_token_scopes.dedup();
 
         if config.mcp.codemode_max_concurrent == 0 {
             anyhow::bail!("YARR_MCP_CODEMODE_MAX_CONCURRENT must be at least 1");
