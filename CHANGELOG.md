@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+* **plugins:** drop Claude Code lifecycle hooks from all 12 plugins — `hooks/hooks.json` and every manifest `hooks` key are gone. The credential bridge (`scripts/setup.sh`, `scripts/plugin-setup.sh`, `yarr setup plugin-hook`) is now run on demand; contract checks assert hooks stay absent
+* **ci:** retire the no-MCP marketplace variant — removed `check-no-mcp-drift.yml`, `sync-marketplace-no-mcp.yml`, `scripts/apply-no-mcp-marketplace`, `scripts/check-no-mcp-drift`, and `docs/no-mcp-variant.md`
+
 ### Added
 
 * **docs:** add role-based navigation, safe multi-path quickstarts, complete Unraid settings/GraphQL/recovery coverage, and a tracked Markdown link/anchor CI guard

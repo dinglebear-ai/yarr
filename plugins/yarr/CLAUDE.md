@@ -8,12 +8,11 @@ Multi-platform plugin package for the Yarr MCP server. Contains manifests for Cl
 
 | File | Role |
 |---|---|
-| `.claude-plugin/plugin.json` | Claude Code manifest — identity, hooks, skills, monitors, `userConfig` |
+| `.claude-plugin/plugin.json` | Claude Code manifest — identity, skills, monitors, `userConfig`. Declares no hooks. |
 | `.codex-plugin/plugin.json` | Codex manifest — same data + Codex UI fields (`interface`) |
 | `gemini-extension.json` | Gemini CLI manifest — `settings` array instead of `userConfig`, plus an inline `mcpServers.yarr` stdio block (see below) |
 | `.mcp.json` | Claude Code / Codex MCP connection — **stdio by default** through `npx -y yarr-mcp@2.2.0 mcp`, one `YARR_<NAME>_*` env var per `userConfig` field. No committed platform binary or separately-run server is required. |
-| `scripts/plugin-setup.sh` | Persists only allowlisted fallback-skill settings as mode-`0600` JSON; stored values are parsed, never sourced/evaluated. |
-| `hooks/hooks.json` | Lifecycle hook definitions: `SessionStart`, `ConfigChange` |
+| `scripts/plugin-setup.sh` | Run-on-demand credential bridge for the bundled fallback skills (no lifecycle hook invokes it). Persists only allowlisted settings as mode-`0600` JSON; stored values are parsed, never sourced/evaluated. |
 | `monitors/monitors.json` | Background health monitor config (requires Claude Code v2.1.105+) |
 | `skills/yarr/SKILL.md` | Three-tier tool documentation shared by Claude and Codex |
 
@@ -33,7 +32,7 @@ plugins correctly have neither.
 `npx`, `args` starts with `["-y", "yarr-mcp@2.2.0", "mcp"]`, and `env` maps every
 `YARR_<NAME>_*` variable to `${user_config.<field>}`. There is no `url`/`headers`
 block and no separate server process to stand up — installing the plugin is
-enough. `tests/plugin_contract.rs::mcp_json_defaults_to_stdio_with_the_bundled_binary`
+enough. `tests/plugin_contract/manifests.rs::mcp_json_uses_the_pinned_npm_stdio_launcher`
 enforces this shape and cross-checks every `env` value against `userConfig`.
 
 `gemini-extension.json`'s `mcpServers.yarr` is the Gemini analog, but its

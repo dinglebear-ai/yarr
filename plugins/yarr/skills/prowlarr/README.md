@@ -20,7 +20,7 @@ Search across all your indexers and manage Prowlarr.
 
 ### 2. Configure Credentials
 
-Set these values in the plugin settings. The plugin `SessionStart` hook writes `~/.config/lab-prowlarr/config.json` for the helper script; do not commit or manually document real credentials:
+Set these values in the plugin settings. The plugin setup script writes `~/.config/lab-prowlarr/config.json` for the helper script; do not commit or manually document real credentials:
 
 ```bash
 PROWLARR_URL="http://localhost:9696"

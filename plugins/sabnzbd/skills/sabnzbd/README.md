@@ -20,7 +20,7 @@ Manage Usenet downloads via SABnzbd.
 
 ### 2. Configure Plugin Settings
 
-Set these values in the plugin settings. The plugin `SessionStart` hook
+Set these values in the plugin settings. The plugin setup script
 writes `~/.config/lab-sabnzbd/config.json`; do not commit or hand-edit credentials
 in this repo.
 
@@ -90,8 +90,8 @@ SABNZBD_URL="http://localhost:8080"
 SABNZBD_API_KEY="your-api-key"
 ```
 
-To change credentials, update the plugin settings so the next
-`SessionStart` hook writes the correct local config file.
+To change credentials, update the plugin settings and rerun the plugin
+setup script so it writes the correct local config file.
 
 ## API Reference
 

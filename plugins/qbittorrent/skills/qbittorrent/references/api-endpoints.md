@@ -34,7 +34,7 @@ curl "http://localhost:8080/api/v2/torrents/info" \
 
 ## Quick Start
 
-**Prerequisites:** Configure credentials in the plugin settings. The plugin `SessionStart` hook writes `~/.config/lab-qbittorrent/config.json`:
+**Prerequisites:** Configure credentials in the plugin settings. The plugin setup script writes `~/.config/lab-qbittorrent/config.json`:
 ```bash
 QBITTORRENT_URL="http://localhost:8080"
 QBITTORRENT_USERNAME="admin"

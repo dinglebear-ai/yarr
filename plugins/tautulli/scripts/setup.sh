@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart / ConfigChange hook for the tautulli plugin.
+# Setup script for the tautulli plugin. Run it manually: no lifecycle hooks ship here.
 # Persists only manifest-declared options as non-executable JSON.
 set -euo pipefail
 

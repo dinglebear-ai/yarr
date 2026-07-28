@@ -12,7 +12,7 @@ curl() {
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Credentials come from this plugin userConfig (written by its SessionStart hook).
+# Credentials come from this plugin userConfig (written by the plugin setup script).
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/lab-plex/config.json"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/load-config.sh"

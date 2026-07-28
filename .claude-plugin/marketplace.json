@@ -5,7 +5,7 @@
     "url": "https://github.com/jmagar"
   },
   "metadata": {
-    "description": "yarr media-automation plugins: the full MCP server plus standalone, skills-only, no-MCP plugins for each service.",
+    "description": "yarr media-automation plugins: the full MCP server plus standalone, skills-only plugins (no MCP server) for each service.",
     "pluginRoot": "./plugins"
   },
   "plugins": [

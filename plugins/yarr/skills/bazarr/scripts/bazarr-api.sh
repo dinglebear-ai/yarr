@@ -9,7 +9,7 @@ curl() {
 }
 
 # Bazarr API wrapper.
-# Credentials come from the bazarr plugin userConfig (written by its SessionStart hook).
+# Credentials come from the bazarr plugin userConfig (written by the plugin setup script).
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/lab-bazarr/config.json"
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/load-config.sh"
