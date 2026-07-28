@@ -85,8 +85,8 @@ install flow after validating the manifest and exact launcher availability.
 
 | File | Platform | MCP config | Settings model |
 |---|---|---|---|
-| `.claude-plugin/plugin.json` | Claude Code | `.mcp.json` | `userConfig` and lifecycle hooks |
-| `.codex-plugin/plugin.json` | Codex | `.mcp.json` | Shared skills; no Claude hook execution |
+| `.claude-plugin/plugin.json` | Claude Code | `.mcp.json` | `userConfig`; no lifecycle hooks |
+| `.codex-plugin/plugin.json` | Codex | `.mcp.json` | Shared skills; no lifecycle hooks |
 | `gemini-extension.json` | Gemini CLI | Inline `mcpServers.yarr` | `envVar` plus `${extensionPath}` |
 
 Manifests intentionally omit a `version` field. Marketplace identity comes
@@ -95,19 +95,24 @@ duplicate or stale identities.
 
 ## Settings bridge and secret handling
 
-Claude lifecycle hooks run:
+No plugin in this repository declares lifecycle hooks. The credential bridge for
+the skills is a script you run on demand:
 
 ```text
-${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh
+plugins/yarr/scripts/plugin-setup.sh      # full plugin (wraps `yarr setup plugin-hook`)
+plugins/<service>/scripts/setup.sh        # skills-only plugin
 ```
 
-The bridge accepts only declared option names and writes mode-`0600` JSON to
+The bridge accepts only declared option names (read from the environment as
+`CLAUDE_PLUGIN_OPTION_<KEY>`) and writes mode-`0600` JSON to
 `~/.config/lab-<service>/config.json`. Fallback helpers parse a fixed allowlist
 of JSON keys. They never `source`, `eval`, or execute stored values. Shell
 syntax inside a value remains data.
 
-Codex does not run Claude lifecycle hooks. Gemini injects manifest settings via
-its `envVar` model and uses `${extensionPath}` for extension-relative files.
+Gemini injects manifest settings via its `envVar` model and uses
+`${extensionPath}` for extension-relative files. The full `yarr` plugin's MCP
+connection does not depend on the bridge at all — `.mcp.json` passes each
+`YARR_<NAME>_*` value to the stdio server straight from `userConfig`.
 
 ## Optional health monitor
 
@@ -136,7 +141,7 @@ the same strict per-service JSON contract and call only the matching upstream.
 2. Verify `npm view yarr-mcp@<version> version` before describing the pin as available.
 3. Keep full-plugin and skills-only boundaries explicit in every marketplace description.
 4. Keep manifests versionless and free of committed platform binaries.
-5. Update plugin docs whenever settings, hooks, monitor behavior, or fallback config changes.
+5. Update plugin docs whenever settings, setup-script, monitor behavior, or fallback config changes.
 6. Run the complete distribution checks below.
 
 ```bash

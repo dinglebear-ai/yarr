@@ -16,7 +16,6 @@
     "homelab"
   ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "userConfig": {
     "jellyfin_url": {
       "type": "string",

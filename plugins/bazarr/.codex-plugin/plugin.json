@@ -16,7 +16,6 @@
     "homelab"
   ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Bazarr",
     "shortDescription": "Managing subtitles in Bazarr",

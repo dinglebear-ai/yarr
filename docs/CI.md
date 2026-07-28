@@ -54,8 +54,6 @@ actionlint .github/workflows/unraid-plugin-ci.yml .github/workflows/unraid-plugi
 | `docker-publish.yml` | Quarantine, scan, and digest promotion for GHCR |
 | `unraid-plugin-ci.yml` | Audited Unraid API/web tests, contracts, and deterministic package reproduction |
 | `unraid-plugin-release.yml` | Independent `unraid-vVERSION-BUILD` package publication |
-| `check-no-mcp-drift.yml` | Prevent drift in the no-MCP variant |
-| `sync-marketplace-no-mcp.yml` | Synchronize no-MCP marketplace data |
 | `openwiki-update.yml` | Refresh generated OpenWiki orientation content |
 
 Third-party actions are pinned to immutable commit SHAs. Readable version

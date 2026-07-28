@@ -12,7 +12,6 @@
     "homelab"
   ],
   "skills": "./skills",
-  "hooks": "./hooks/hooks.json",
   "settings": [
     {
       "name": "Prowlarr URL",

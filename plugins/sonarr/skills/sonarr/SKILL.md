@@ -27,7 +27,7 @@ prompt of its own.
 
 ## Setup
 
-Credentials are configured in the **plugin settings** (userConfig). A `SessionStart` hook writes them to `~/.config/lab-sonarr/config.json`, which the scripts parse automatically — no manual file editing. Variables used:
+Credentials are configured in the **plugin settings** (userConfig). The plugin setup script writes them to `~/.config/lab-sonarr/config.json`, which the scripts parse automatically — no manual file editing. Variables used:
 
 ```bash
 SONARR_URL="http://localhost:8989"

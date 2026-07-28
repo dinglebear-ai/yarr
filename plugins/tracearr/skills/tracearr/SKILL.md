@@ -38,7 +38,7 @@ library metrics, trust scores, and account-sharing signals.
 ## Plugin Configuration
 
 Configure the Tracearr base URL through the `tracearr` plugin setting
-`tracearr_url`. The plugin `SessionStart`/`ConfigChange` hook writes configured
+`tracearr_url`. The plugin setup script writes configured
 values to:
 
 ```bash

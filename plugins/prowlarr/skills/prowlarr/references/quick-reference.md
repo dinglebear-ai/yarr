@@ -4,7 +4,7 @@ Common operations for quick copy-paste usage.
 
 ## Setup
 
-Credentials are configured in the plugin settings. The plugin `SessionStart` hook writes `~/.config/lab-prowlarr/config.json` for helper scripts and manual curl sessions:
+Credentials are configured in the plugin settings. The plugin setup script writes `~/.config/lab-prowlarr/config.json` for helper scripts and manual curl sessions:
 
 ```bash
 PROWLARR_URL="http://localhost:9696"

@@ -15,7 +15,6 @@
     "homelab"
   ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Plex",
     "shortDescription": "Querying Plex Media Server",

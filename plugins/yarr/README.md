@@ -13,8 +13,6 @@ plugins/yarr/
 │   └── README.md           # Codex manifest field reference
 ├── gemini-extension.json   # Gemini CLI extension manifest — inline mcpServers.yarr, stdio
 ├── .mcp.json               # Claude Code / Codex stdio via pinned npm launcher
-├── hooks/
-│   └── hooks.json          # SessionStart + ConfigChange hook definitions
 ├── monitors/
 │   └── monitors.json       # Background health monitor (requires Claude Code v2.1.105+)
 └── skills/
@@ -91,13 +89,17 @@ the exact package resolves.
 
 A user who instead wants to run `yarr` as a persistent HTTP server (e.g. for other MCP clients, or to share one server across machines) can still do so separately — that's what the `server_url`/`api_token` `userConfig`/`settings` fields and the health monitor (below) are for. That mode is independent of this plugin's own stdio MCP connection.
 
-## Hooks
+## Fallback-skill credential bridge
 
-`hooks/hooks.json` runs `${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh` on
-`SessionStart` and `ConfigChange`. It writes only declared fallback-service
-settings to mode-`0600` `~/.config/lab-<service>/config.json` files. Helpers
-parse those JSON objects using fixed allowlists; no stored value is sourced or
-evaluated.
+This plugin ships **no lifecycle hooks**. `scripts/plugin-setup.sh` is the
+credential bridge for the bundled fallback skills and is run on demand — either
+directly, or through `yarr setup plugin-hook`. It writes only declared
+fallback-service settings to mode-`0600` `~/.config/lab-<service>/config.json`
+files. Helpers parse those JSON objects using fixed allowlists; no stored value
+is sourced or evaluated.
+
+The MCP connection itself needs none of this: `.mcp.json` passes every
+`YARR_<NAME>_*` value straight to the stdio server from `userConfig`.
 
 ## Monitors
 

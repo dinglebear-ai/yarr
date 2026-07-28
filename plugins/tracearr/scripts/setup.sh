@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart / ConfigChange hook for the tracearr plugin.
+# Setup script for the tracearr plugin. Run it manually: no lifecycle hooks ship here.
 # Persists only manifest-declared options as non-executable JSON.
 set -euo pipefail
 

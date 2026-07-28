@@ -576,9 +576,11 @@ gateway when exposed outside loopback.
   environment, not in tool arguments.
 - `query-string secret rejected`: remove tokens from `--path` and put them in
   config.
-- plugin skill cannot reach a service: rerun the plugin setup hook or reinstall
-  the plugin so its strict per-service config JSON is refreshed under
-  `~/.config/lab-<service>/config.json`.
+- plugin skill cannot reach a service: rerun the plugin setup script
+  (`plugins/yarr/scripts/plugin-setup.sh`, or `plugins/<service>/scripts/setup.sh`
+  for a skills-only plugin) so its strict per-service config JSON is refreshed
+  under `~/.config/lab-<service>/config.json`. The plugins ship no lifecycle
+  hooks, so nothing refreshes that file automatically.
 - Code Mode cannot find a callable: use `codemode.search(...)` and
   `codemode.describe(...)`; generated names follow upstream OpenAPI operation
   IDs after normalization.
