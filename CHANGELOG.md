@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/dinglebear-ai/yarr/compare/v2.1.0...v2.2.0) (2026-07-28)
+
+
+### Added
+
+* **unraid:** add complete Yarr Unraid distribution ([#78](https://github.com/dinglebear-ai/yarr/issues/78)) ([5f618f9](https://github.com/dinglebear-ai/yarr/commit/5f618f9c1de83ef51aea72cc933b0d58f1e5631f))
+
+
+### Fixed
+
+* harden Yarr release auth and distribution contracts ([#79](https://github.com/dinglebear-ai/yarr/issues/79)) ([9715ea6](https://github.com/dinglebear-ai/yarr/commit/9715ea67a65bdf9d2c31dd92feaa024e2ae5add1))
+* **unraid:** prevent test service process leaks ([#82](https://github.com/dinglebear-ai/yarr/issues/82)) ([5bdf192](https://github.com/dinglebear-ai/yarr/commit/5bdf192a9c393e26f06cc003b7f6ebf361ebb8da))
+
 ## [Unreleased]
 
 ### Added
