@@ -34,6 +34,7 @@ expect_rejection_contains() {
 }
 
 bash "$test_dir/release-contract.sh"
+bash "$test_dir/test-service-cleanup-contract.sh"
 bash "$test_dir/lifecycle-contract.sh"
 bash "$test_dir/update-contract.sh"
 bash "$test_dir/classic-contract.sh"

@@ -8,8 +8,13 @@ rc="$repo_root/unraid-plugin/source/etc/rc.d/rc.yarr"
 fixture="$repo_root/unraid-plugin/tests/fixtures/releases.json"
 started="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/started"
 stopping="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/stopping_svcs"
+cleanup_helper="$repo_root/unraid-plugin/tests/test-service-cleanup.sh"
 tmp_dir=$(mktemp -d)
-trap 'rm -rf "$tmp_dir"' EXIT
+test_root="$tmp_dir/root"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=test-service-cleanup.sh
+source "$cleanup_helper"
+yarr_test_install_cleanup "$tmp_dir" "$test_root" "$rc"
 
 fail() {
     printf 'update contract: %s\n' "$1" >&2
@@ -39,7 +44,6 @@ if grep -Fq 'local releases=$1 version=$2 tag=' "$release_helper"; then
     fail 'release lookup depends on Bash dynamic scoping'
 fi
 
-test_root="$tmp_dir/root"
 YARR_TEST_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
 export YARR_TEST_PORT
 export YARR_PLUGIN_ROOT="$test_root/plugin"
@@ -1269,5 +1273,6 @@ unset YARR_TEST_FAIL_COMMAND YARR_TEST_FAIL_AT YARR_TEST_FAIL_COMMAND_2 \
     YARR_TEST_FAIL_AT_2 YARR_TEST_CORRUPT_INSTALL_AT \
     YARR_TEST_FAIL_RECOVERY_RM YARR_TEST_SIGNAL_COMMAND YARR_TEST_SIGNAL_AT
 "$rc" stop
+yarr_test_assert_no_owned_processes "$test_root" "$rc"
 
 printf 'update contract: PASS\n'

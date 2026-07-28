@@ -8,8 +8,13 @@ classic_uninstall="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr
 started="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/started"
 stopping="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/stopping_svcs"
 unmounting="$repo_root/unraid-plugin/source/usr/local/emhttp/plugins/yarr/event/unmounting_disks"
+cleanup_helper="$repo_root/unraid-plugin/tests/test-service-cleanup.sh"
 tmp_dir=$(mktemp -d)
-trap 'rm -rf "$tmp_dir"' EXIT
+test_root="$tmp_dir/root"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=test-service-cleanup.sh
+source "$cleanup_helper"
+yarr_test_install_cleanup "$tmp_dir" "$test_root" "$rc"
 
 fail() {
     printf 'lifecycle contract: %s\n' "$1" >&2
@@ -29,7 +34,6 @@ expect_eq() {
     [[ "$actual" == "$expected" ]] || fail "$label: expected $expected, got $actual"
 }
 
-test_root="$tmp_dir/root"
 YARR_STRONG_TOKEN=$(printf 'a%.0s' {1..64})
 YARR_TEST_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
 export YARR_TEST_PORT
@@ -629,5 +633,7 @@ yarr_with_lock yarr_restart_locked
 expect_eq $'stop\ncontender-blocked\nstart' "$(cat "$test_root/restart-lock-trace")" "restart lock trace"
 "$rc" restart
 "$rc" reload
+"$rc" stop
+yarr_test_assert_no_owned_processes "$test_root" "$rc"
 
 printf 'lifecycle contract: PASS\n'
