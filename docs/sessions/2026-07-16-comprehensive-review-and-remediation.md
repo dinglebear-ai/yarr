@@ -592,11 +592,11 @@ The final close reason for `rustarr-xsw` records distroless runtime, app-native 
 
 ## References
 
-- [PR #57 — comprehensive remediation](https://github.com/jmagar/yarr/pull/57)
-- [PR #59 — CodeQL and dependency security alignment](https://github.com/jmagar/yarr/pull/59)
-- [PR #61 — container publication hardening](https://github.com/jmagar/yarr/pull/61)
-- [PR #63 — Trivy SARIF severity enforcement](https://github.com/jmagar/yarr/pull/63)
-- [Production Docker Publish run 29503834462](https://github.com/jmagar/yarr/actions/runs/29503834462)
+- [PR #57 — comprehensive remediation](https://github.com/dinglebear-ai/yarr/pull/57)
+- [PR #59 — CodeQL and dependency security alignment](https://github.com/dinglebear-ai/yarr/pull/59)
+- [PR #61 — container publication hardening](https://github.com/dinglebear-ai/yarr/pull/61)
+- [PR #63 — Trivy SARIF severity enforcement](https://github.com/dinglebear-ai/yarr/pull/63)
+- [Production Docker Publish run 29503834462](https://github.com/dinglebear-ai/yarr/actions/runs/29503834462)
 - Local detailed report: `.full-review/05-final-report.md`
 
 ## Next Steps

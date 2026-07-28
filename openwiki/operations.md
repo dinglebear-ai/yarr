@@ -61,7 +61,7 @@ docker build -f config/Dockerfile -t yarr:dev .
 Production Compose requires a promoted immutable digest and `.env`:
 
 ```bash
-export YARR_MCP_IMAGE='ghcr.io/jmagar/yarr@sha256:<verified-digest>'
+export YARR_MCP_IMAGE='ghcr.io/dinglebear-ai/yarr@sha256:<verified-digest>'
 docker compose -f docker-compose.prod.yml up -d --wait yarr-mcp
 ```
 

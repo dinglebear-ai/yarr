@@ -2,7 +2,7 @@
   "name": "plex",
   "description": "Check server status, active sessions (who's watching), libraries, and recently added items in Plex via its API. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "plex",

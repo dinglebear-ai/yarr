@@ -65,7 +65,7 @@ Only required when `YARR_MCP_AUTH_MODE=oauth`:
 | Variable | Purpose |
 |---|---|
 | `DOCKER_NETWORK` | Docker network name (default: `mcp`). |
-| `YARR_MCP_IMAGE` | Required production image reference. Set an immutable `ghcr.io/jmagar/yarr@sha256:...` digest. |
+| `YARR_MCP_IMAGE` | Required production image reference. Set an immutable `ghcr.io/dinglebear-ai/yarr@sha256:...` digest. |
 | `YARR_MCP_HOST_PORT` | Host port mapped to container port 40070 (default `40070`). |
 
 ## Code Mode
@@ -103,7 +103,7 @@ YARR_MCP_TOKEN=your_bearer_token_here
 
 # Docker runtime
 DOCKER_NETWORK=mcp
-YARR_MCP_IMAGE=ghcr.io/jmagar/yarr@sha256:<verified-digest>
+YARR_MCP_IMAGE=ghcr.io/dinglebear-ai/yarr@sha256:<verified-digest>
 RUST_LOG=info
 ```
 

@@ -2,7 +2,7 @@
   "name": "prowlarr",
   "description": "List indexers, run searches across them, and check indexer health and stats in Prowlarr via its REST API. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "prowlarr",

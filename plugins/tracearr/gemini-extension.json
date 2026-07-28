@@ -2,7 +2,7 @@
   "name": "tracearr",
   "description": "Query Tracearr's public API for media tracing and analytics. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "tracearr",

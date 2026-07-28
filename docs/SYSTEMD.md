@@ -6,9 +6,9 @@ owner: "yarr"
 audience:
   - "contributors"
   - "agents"
-scope: "template"
+scope: "project"
 source_of_truth: false
-last_reviewed: "2026-05-15"
+last_reviewed: "2026-07-27"
 ---
 
 # systemd
@@ -23,20 +23,13 @@ cargo build --release
 install -m 755 target/release/yarr ~/.local/bin/yarr
 ```
 
-Or install through npm:
+The verified release installer is the recommended operator path:
 
 ```bash
-npm i -g yarr-mcp
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 ```
 
-Or use the release installer:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
-```
-
-The npm package and curl installer both expose `yarr`. Verify the command is in
-`$PATH`:
+The installer exposes `yarr`. Verify the command is in `$PATH`:
 
 ```bash
 yarr --version
@@ -63,8 +56,11 @@ WantedBy=default.target
 ```
 
 Key points:
-- The unit example assumes the curl installer. If you use `npm i -g yarr-mcp`, set
-  `ExecStart` to the absolute path returned by `command -v yarr`.
+- The unit example assumes the native installer. Use the absolute path returned
+  by `command -v yarr` if you install elsewhere.
+- The npm launcher is suitable only after `npm view yarr-mcp@2.1.0 version`
+  confirms the exact coupled version exists. It is currently missing; issue #80
+  tracks recovery, so do not use npm `latest` for this unit.
 - Use `EnvironmentFile` pointing at `~/.yarr/.env` — never hardcode tokens in unit files.
 - `%h` expands to the user home directory.
 - `serve mcp` is the canonical Streamable HTTP mode (see `docs/DEPLOYMENT.md`).

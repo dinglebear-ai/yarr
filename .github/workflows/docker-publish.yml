@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE_NAME: ghcr.io/jmagar/yarr
+  IMAGE_NAME: ghcr.io/dinglebear-ai/yarr
   SOURCE_REF: ${{ github.event.workflow_run.head_sha || inputs.ref || github.ref }}
 
 jobs:

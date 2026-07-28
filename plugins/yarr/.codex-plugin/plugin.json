@@ -1,8 +1,8 @@
 {
   "name": "yarr-mcp",
   "description": "MCP bridge to the yarr media-automation fleet (Sonarr, Radarr, Prowlarr, Plex, Jellyfin, qBittorrent, and more) for Codex.",
-  "homepage": "https://github.com/jmagar/yarr",
-  "repository": "https://github.com/jmagar/yarr",
+  "homepage": "https://github.com/dinglebear-ai/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "yarr",
@@ -27,7 +27,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/jmagar/yarr",
+    "websiteURL": "https://github.com/dinglebear-ai/yarr",
     "defaultPrompt": [
       "List the media services configured in yarr.",
       "Check the status of my Radarr service.",

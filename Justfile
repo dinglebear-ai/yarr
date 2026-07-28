@@ -179,6 +179,10 @@ schema-docs:
 schema-docs-check:
     python3 scripts/check-schema-docs.py --check
 
+# Validate every tracked Markdown relative link and heading anchor
+docs-links-check:
+    python3 scripts/check-doc-links.py
+
 # Check static contracts from docs/PATTERNS.md
 patterns-check:
     cargo xtask patterns
@@ -200,6 +204,7 @@ template-check:
     just patterns-check
     just validate-plugin
     just schema-docs-check
+    just docs-links-check
     just template-features
 
 # Run all local quality checks in sequence: fmt-check → lint → check → test
@@ -452,6 +457,20 @@ install-release: build-release
 # Validate all plugin manifests, MCP config, hooks, and skills
 validate-plugin:
     bash scripts/validate-plugin-layout.sh
+
+# Validate the independent Unraid plugin filesystem and release contracts.
+unraid-test:
+    bash unraid-plugin/tests/run.sh
+
+# Rebuild and verify the deterministic classic Unraid package.
+unraid-build version="2.1.0" build="1":
+    bash unraid-plugin/scripts/build-package.sh "{{version}}" "{{build}}"
+    bash unraid-plugin/scripts/verify-package.sh
+
+# Verify the committed classic package and coordinated release metadata.
+unraid-release-check:
+    bash unraid-plugin/tests/release-contract.sh
+    bash unraid-plugin/scripts/verify-package.sh
 
 # Validate all plugin skills have required SKILL.md fields
 validate-skills: validate-plugin

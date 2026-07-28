@@ -2,7 +2,7 @@
   "name": "radarr",
   "description": "Search, add, and monitor movies (and collections) in Radarr via its REST API. Check the download queue, quality profiles, and root folders. Skills-only, no MCP server required.",
   "author": "Jacob Magar",
-  "repository": "https://github.com/jmagar/yarr",
+  "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",
   "keywords": [
     "radarr",

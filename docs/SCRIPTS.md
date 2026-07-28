@@ -10,7 +10,7 @@ scope: "project"
 source_of_truth: false
 upstream_refs:
   - "scripts/README.md"
-last_reviewed: "2026-07-16"
+last_reviewed: "2026-07-27"
 ---
 
 # Scripts
@@ -22,8 +22,8 @@ Maintenance scripts live in `scripts/`. The authoritative per-script usage refer
 | Category | Scripts |
 |---|---|
 | Release gates | `pre-release-check.sh`, `check-version-sync.sh`, `check-blob-size.py`, `check-coupled-files.sh` |
-| Hygiene | `asciicheck.py`, `check-file-size.sh`, `block-env-commits.sh` |
-| MCP/plugin validation | `check-schema-docs.py`, `validate-plugin-layout.sh`, `check-plugin-hook-contract.py`, `test-mcp-auth.sh` |
+| Documentation and hygiene | `check-doc-links.py`, `check-schema-docs.py`, `asciicheck.py`, `check-file-size.sh`, `block-env-commits.sh` |
+| MCP/plugin validation | `validate-plugin-layout.sh`, `check-plugin-hook-contract.py`, `sync-plugin-manifests.js`, `test-mcp-auth.sh` |
 | Runtime/deploy | `check-runtime-current.sh`, `sync-cargo.sh`, `bump-version.sh` |
 | Install | `install.sh` |
 | Reference docs | `refresh-docs.sh` |
@@ -34,8 +34,9 @@ Maintenance scripts live in `scripts/`. The authoritative per-script usage refer
 ```bash
 scripts/pre-release-check.sh
 scripts/pre-release-check.sh --mcporter   # include live MCP tests
+python3 scripts/check-doc-links.py         # all tracked Markdown links/anchors
 cargo xtask live --suite all              # guarded shart live suite
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/scripts/install.sh | bash
 scripts/refresh-docs.sh --dry-run
 scripts/test-mcp-auth.sh --url http://localhost:40070/mcp --token <token>
 ```
@@ -44,13 +45,27 @@ scripts/test-mcp-auth.sh --url http://localhost:40070/mcp --token <token>
 
 The full release gate. Runs:
 1. `cargo xtask patterns`
-2. plugin layout validation
+2. plugin layout and npm distribution validation
 3. schema docs validation
-4. template feature smoke tests
-5. version sync
-6. blob-size check
-7. ASCII hygiene
-8. `just verify`
+4. tracked Markdown link and heading-anchor validation
+5. template feature smoke tests
+6. version sync
+7. blob-size check
+8. ASCII hygiene
+9. `just verify`
+
+## check-doc-links.py
+
+The checker walks every tracked Markdown file, ignores fenced examples and
+external URLs, and fails for root-relative or escaping links, missing files,
+directories without a README, and stale local heading anchors. It runs in
+`just template-check`, Repo Contracts CI, template smoke tests, and the
+pre-release gate.
+
+```bash
+python3 scripts/check-doc-links.py
+just docs-links-check
+```
 
 ## refresh-docs.sh
 
@@ -97,7 +112,7 @@ preflight() {
 
 One-line install:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jmagar/yarr/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 ```
 
 After install: `yarr doctor` to validate the environment.
