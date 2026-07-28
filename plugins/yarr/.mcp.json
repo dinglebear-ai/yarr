@@ -3,7 +3,7 @@
     "yarr": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "yarr-mcp@2.1.0", "mcp"],
+      "args": ["-y", "yarr-mcp@2.2.0", "mcp"],
       "env": {
         "YARR_SERVICES": "${user_config.yarr_services}",
         "YARR_SONARR_URL": "${user_config.sonarr_url}",
