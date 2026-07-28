@@ -57,6 +57,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      # Fails when Cargo.toml, package.json, server.json and friends disagree
+      # on the version. Previously reachable only by hand, which is how a
+      # sibling repo sat seven releases out of sync unnoticed.
+      - name: Check version sync
+        run: bash scripts/check-version-sync.sh
+
       - name: Install Rust + soldr
         uses: ./.github/actions/setup-rust-soldr
         with:
