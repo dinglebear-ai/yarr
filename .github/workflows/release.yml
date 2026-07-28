@@ -125,6 +125,15 @@ jobs:
       - name: Build release binary
         env:
           CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
+          # soldr exports a global CC (`zccache-soldr /usr/bin/cc`) for compile
+          # caching. In cc-rs precedence a bare CC outranks the target-specific
+          # default, so C dependencies such as aws-lc-sys would be built for the
+          # Windows target using the host Linux compiler. Naming the cross
+          # toolchain per-target restores correct cross-compilation, because
+          # cc-rs reads CC_<target> ahead of CC.
+          CC_x86_64_pc_windows_gnu: x86_64-w64-mingw32-gcc
+          CXX_x86_64_pc_windows_gnu: x86_64-w64-mingw32-g++
+          AR_x86_64_pc_windows_gnu: x86_64-w64-mingw32-ar
         run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Prepare checksummed archive
