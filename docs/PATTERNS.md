@@ -2765,7 +2765,7 @@ The web UI uses the Aurora design system — a shadcn-compatible registry of
 128 components designed for operator-grade AI products.
 
 Registry URL: `https://aurora.tootie.tv`
-GitHub: `https://github.com/jmagar/aurora-design-system`
+GitHub: `https://github.com/dinglebear-ai/aurora`
 
 ### Setup
 

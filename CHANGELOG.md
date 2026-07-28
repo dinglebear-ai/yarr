@@ -11,11 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **docs:** add role-based navigation, safe multi-path quickstarts, complete Unraid settings/GraphQL/recovery coverage, and a tracked Markdown link/anchor CI guard
 * **unraid:** add canonical settings/dashboard routes, original Yarr artwork, a persistent dashboard toggle, and a compact freshness-aware runtime widget
+* **auth:** add configurable static bearer scopes (`YARR_MCP_STATIC_TOKEN_SCOPES`) and fail closed when Code Mode is served by a read-only static bearer
 
 ### Fixed
 
 * **docs:** replace unpinned npm launcher guidance with exact-version availability checks and document the `v2.1.0` partial-release recovery boundary
 * **unraid:** enforce cache-busted page assets and canonical root-owned mode-0755 package directories
+* **auth:** honor explicit bearer/OAuth credentials on loopback binds instead of silently downgrading them to unauthenticated dev mode
+* **release:** make staged GitHub releases draft-aware and repository-explicit, and migrate the publication identity and `lab-auth` dependency to `dinglebear-ai`
+* **deploy:** separate shared, local, and production Compose policy and require immutable production image digests
 
 ## [2.1.0](https://github.com/dinglebear-ai/yarr/compare/v2.0.1...v2.1.0) (2026-07-20)
 
@@ -128,14 +132,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **rustarr-unc:** narrow library facade ([df86016](https://github.com/dinglebear-ai/yarr/commit/df860163514b8a466fb3de1e9b1fe9aa090fb910))
 * **Z2:** split 3 pre-existing &gt;500 LOC files ([2a33e04](https://github.com/dinglebear-ai/yarr/commit/2a33e04c105446c0aaf8cf5c4cfff6d731054098))
 
-## [Unreleased]
-
-### Added
-
-- Added guarded `cargo xtask shart start|stop|status|seed` lifecycle commands
-  and matching `just shart-*` recipes for the dedicated test stack, including
-  fleet-quiesced fail-closed seed, dry-run planning, and JSON status output.
-
 ## [1.1.1](https://github.com/dinglebear-ai/yarr/compare/v1.1.0...v1.1.1) (2026-07-16)
 
 ### Changed
@@ -247,7 +243,7 @@ historical `rustarr` names used by those releases.
 
 ### Added
 
-- `deny.toml` — `cargo-deny` configuration enforcing license allowlist, banning `openssl`/`openssl-sys`, denying yanked crates, and restricting dependency sources to crates.io and `github.com/jmagar/lab.git`. RUSTSEC-2023-0071 acknowledged with rationale.
+- `deny.toml` — `cargo-deny` configuration enforcing license allowlist, banning `openssl`/`openssl-sys`, denying yanked crates, and restricting dependency sources to crates.io and `github.com/dinglebear-ai/labby.git`. RUSTSEC-2023-0071 acknowledged with rationale.
 - `apps/web/CLAUDE.md` — guidance for using the Aurora design system shadcn registry in the Next.js web app: install commands, token conventions, full component catalog, and usage rules.
 - `.git/hooks/pre-commit` — enforces the no-`mod.rs` rule at commit time; blocks any staged `mod.rs` file with a clear error message.
 - `docs/PATTERNS.md` updated: §1/§1a module layouts reflect new `server`/`api` structure with all `mod.rs` references removed; §5 auth section headers updated; §45 No mod.rs section now includes the git hook script; §A1/§A2 advanced patterns updated to match actual file locations.

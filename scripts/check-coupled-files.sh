@@ -10,7 +10,11 @@ if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
   BASE="HEAD~1"
 fi
 
-mapfile -t CHANGED < <(git diff --name-only "$BASE" "$HEAD")
+if [[ "$HEAD" == "WORKTREE" ]]; then
+  mapfile -t CHANGED < <(git diff --name-only "$BASE")
+else
+  mapfile -t CHANGED < <(git diff --name-only "$BASE" "$HEAD")
+fi
 
 changed() {
   local pattern="$1"
@@ -23,6 +27,15 @@ changed() {
 }
 
 issues=()
+
+legacy_owner="jmagar"
+legacy_repo="yarr"
+legacy_identity="${legacy_owner}/${legacy_repo}"
+legacy_identity_matches="$(git grep -n "$legacy_identity" -- \
+  ':!CHANGELOG.md' ':!docs/sessions/**' ':!openwiki/**' || true)"
+if [[ -n "$legacy_identity_matches" ]]; then
+  issues+=("Legacy publication identity remains outside historical migration records:\n$legacy_identity_matches")
+fi
 
 if changed "Justfile" && ! changed "lefthook.yml"; then
   issues+=("Justfile changed but lefthook.yml did not; confirm hook/recipe parity.")

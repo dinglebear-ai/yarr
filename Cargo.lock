@@ -1518,7 +1518,7 @@ dependencies = [
 [[package]]
 name = "labby-auth"
 version = "1.7.0"
-source = "git+https://github.com/jmagar/lab.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
+source = "git+https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
 dependencies = [
  "axum",
  "base64",
@@ -1545,7 +1545,7 @@ dependencies = [
 [[package]]
 name = "labby-primitives"
 version = "1.7.0"
-source = "git+https://github.com/jmagar/lab.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
+source = "git+https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
 dependencies = [
  "thiserror 2.0.18",
  "url",

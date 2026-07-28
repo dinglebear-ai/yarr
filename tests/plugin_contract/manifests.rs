@@ -104,6 +104,8 @@ fn plugin_manifests_share_identity_and_connection_settings() {
     for key in [
         "server_url",
         "api_token",
+        "static_token_scopes",
+        "tool_mode",
         "yarr_services",
         "sonarr_url",
         "sonarr_api_key",

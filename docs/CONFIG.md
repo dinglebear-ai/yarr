@@ -8,7 +8,8 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 |---|---|---|
 | `YARR_MCP_HOST` | `127.0.0.1` | HTTP bind host (loopback by default; set `0.0.0.0` for external access, which requires auth) |
 | `YARR_MCP_PORT` | `40070` | HTTP bind port |
-| `YARR_MCP_TOKEN` | unset | Static read-only bearer token (`yarr:read`) |
+| `YARR_MCP_TOKEN` | unset | Static bearer token; enforced even on loopback when explicitly configured |
+| `YARR_MCP_STATIC_TOKEN_SCOPES` | `yarr:read` | Comma-separated static-token scopes (`yarr:read`, `yarr:write`) |
 | `YARR_MCP_NO_AUTH` | false | Disable auth on loopback only |
 | `YARR_NOAUTH` | false | Explicit trusted-gateway mode |
 | `YARR_MCP_ALLOWED_HOSTS` | unset | Extra Host header values |
@@ -49,8 +50,10 @@ Supported kinds: `sonarr`, `radarr`, `prowlarr`, `tautulli`, `overseerr`, `bazar
 |---|---|---|
 | `LoopbackDev` | loopback bind or explicit loopback no-auth | no auth, no scopes |
 | `TrustedGatewayUnscoped` | `YARR_NOAUTH=true` behind a trusted gateway | no local auth or scopes |
-| `Mounted` bearer | non-loopback with `YARR_MCP_TOKEN` | bearer auth with `yarr:read` only |
-| `Mounted` OAuth | `YARR_MCP_AUTH_MODE=oauth` | OAuth/JWT auth and scope checks |
+| `Mounted` bearer | any HTTP bind with `YARR_MCP_TOKEN` | bearer auth with the configured static-token scopes |
+| `Mounted` OAuth | `YARR_MCP_AUTH_MODE=oauth` on any HTTP bind | OAuth/JWT auth plus the optional static token |
+
+Bearer-only startup fails closed when `tool_mode = "codemode"` but the static token lacks `yarr:write`, because the single advertised `yarr` tool is write-scoped. Use `YARR_MCP_TOOL_MODE=flat` with the default read scope, or explicitly add `yarr:write` to `YARR_MCP_STATIC_TOKEN_SCOPES`.
 
 OAuth with the local SQLite backend supports exactly one process. Yarr locks
 `${sqlite_path}.instance.lock` exclusively for its lifetime and fails closed if

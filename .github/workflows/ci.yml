@@ -44,6 +44,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: stable
+          cache: false
 
       - name: actionlint
         run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
@@ -111,6 +112,12 @@ jobs:
         uses: taiki-e/install-action@95cc2373c3f00275e315c306e56fef1c7a8854c0 # cargo-nextest
 
       - name: cargo nextest run --profile ci
+        env:
+          # Self-hosted runners persist ~/.cargo. Give nextest a run-scoped
+          # dependency checkout so an interrupted Git clone cannot poison a
+          # later run, and use the system Git client for the pinned LABBY dep.
+          CARGO_HOME: ${{ runner.temp }}/yarr-nextest-cargo-${{ github.run_id }}-${{ github.run_attempt }}
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
         run: cargo nextest run --profile ci
 
   # ── npm: package launcher checks ────────────────────────────────────────────

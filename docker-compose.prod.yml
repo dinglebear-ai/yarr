@@ -2,62 +2,15 @@
 # docker-compose.prod.yml — Production deployment for yarr-mcp
 # =============================================================================
 
-
-x-common-service: &common-service
-  networks:
-    - mcp
-  restart: unless-stopped
-  extra_hosts:
-    - "host.docker.internal:host-gateway"
-  ulimits:
-    nofile:
-      soft: 65535
-      hard: 65535
-  logging:
-    driver: "json-file"
-    options:
-      max-size: "10m"
-      max-file: "3"
-      compress: "true"
-
 services:
   yarr-mcp:
-    <<: *common-service
+    extends:
+      file: docker-compose.common.yml
+      service: yarr-mcp
     # Production must name an immutable manifest digest. Example:
     # ghcr.io/dinglebear-ai/yarr@sha256:0123... (record it before every deployment).
     image: ${YARR_MCP_IMAGE:?Set YARR_MCP_IMAGE to an immutable ghcr.io/dinglebear-ai/yarr@sha256 digest}
     pull_policy: always
-    container_name: yarr
-    env_file:
-      - path: .env
-        required: true
-    environment:
-      YARR_MCP_HOST: 0.0.0.0
-      YARR_MCP_ALLOWED_HOSTS: "yarr.dinglebear.ai,yarr.tootie.tv,localhost,127.0.0.1"
-      YARR_MCP_ALLOWED_ORIGINS: "https://yarr.dinglebear.ai,https://yarr.tootie.tv"
-    ports:
-      - "${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
-    volumes:
-      - ${HOME}/.yarr:/data
-    # cap_drop:
-      # - ALL
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:40070/ready || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    stop_grace_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '0.5'
 
 networks:
   mcp:

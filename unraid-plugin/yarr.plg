@@ -6,8 +6,8 @@
   <!ENTITY launch     "Settings/Yarr">
   <!ENTITY txz        "yarr-2.1.0-x86_64-1.txz">
   <!ENTITY txzURL     "https://github.com/dinglebear-ai/yarr/releases/download/unraid-v2.1.0-1/yarr-2.1.0-x86_64-1.txz">
-  <!ENTITY md5        "57b0f14b00c185a9a4244a6fecc45797">
-  <!ENTITY sha256     "cc9297e2aa56b5c772d5cd8a3993eece01c510ade4190bdf174bd67e33bda09d">
+  <!ENTITY md5        "97cdc40737d93a9f2eba9bf2ed3e9cee">
+  <!ENTITY sha256     "5a28aa42f2924352498f8e68ea72be65c52e39d32d7813735688224dc69497ea">
   <!ENTITY plugin     "/boot/config/plugins/&name;">
   <!ENTITY emhttp     "/usr/local/emhttp/plugins/&name;">
 ]>

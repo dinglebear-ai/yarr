@@ -143,6 +143,8 @@ fn setup_repair_creates_env_file() {
     assert!(contents.contains("YARR_SERVICES=sonarr"));
     assert!(contents.contains("YARR_SONARR_URL=https://yarr.test/api"));
     assert!(contents.contains("YARR_SONARR_API_KEY=\"secret with spaces\""));
+    assert!(contents.contains("YARR_MCP_STATIC_TOKEN_SCOPES=yarr:read"));
+    assert!(contents.contains("YARR_MCP_TOOL_MODE=codemode"));
 
     #[cfg(unix)]
     {

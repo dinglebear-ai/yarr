@@ -86,7 +86,7 @@ scripts/check-coupled-files.sh origin/main HEAD
 just coupled-files-check
 ```
 
-CI-oriented guard for files that usually change together, such as script changes with `scripts/README.md`, schema changes with `docs/MCP_SCHEMA.md`, and automation changes with docs.
+CI-oriented guard for files that usually change together, such as script changes with `scripts/README.md`, schema changes with `docs/MCP_SCHEMA.md`, and automation changes with docs. It also rejects the retired personal publication identity outside historical changelogs, session logs, and generated OpenWiki history. Pass `WORKTREE` as the second argument to validate uncommitted changes against the base revision.
 
 ### `check-doc-links.py`
 

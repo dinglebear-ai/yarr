@@ -64,6 +64,20 @@
       "sensitive": true
     },
     {
+      "name": "static_token_scopes",
+      "description": "Comma-separated scopes for the optional HTTP bearer token. Keep yarr:read with flat mode; add yarr:write explicitly for Code Mode or writes.",
+      "required": false,
+      "default": "yarr:read",
+      "envVar": "YARR_MCP_STATIC_TOKEN_SCOPES"
+    },
+    {
+      "name": "tool_mode",
+      "description": "Optional HTTP server tool mode. flat is safe for read-only bearer auth; codemode requires yarr:write. The stdio MCP connection is unaffected.",
+      "required": false,
+      "default": "flat",
+      "envVar": "YARR_MCP_TOOL_MODE"
+    },
+    {
       "name": "yarr_services",
       "description": "Comma-separated Yarr services to configure. Maps to YARR_SERVICES.",
       "required": false,
