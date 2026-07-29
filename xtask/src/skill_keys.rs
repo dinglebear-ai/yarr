@@ -19,7 +19,7 @@
 //!
 //! This check makes that a red build instead.
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -48,8 +48,7 @@ fn strip_service_prefix(service: &str, var: &str) -> Option<String> {
 /// `sonarr_api_key` -> `API_KEY` for service `sonarr`.
 fn strip_service_prefix_lower(service: &str, key: &str) -> Option<String> {
     let prefix = format!("{service}_");
-    key.strip_prefix(&prefix)
-        .map(|rest| rest.to_uppercase())
+    key.strip_prefix(&prefix).map(|rest| rest.to_uppercase())
 }
 
 /// Copy 1 — the `allowed_skill_keys` match arms in the Rust source.
@@ -136,7 +135,10 @@ fn per_service_map(root: &Path) -> Result<BTreeMap<String, Vec<String>>> {
     for svc in SERVICES {
         let path = root.join(format!("plugins/{svc}/scripts/setup.sh"));
         let src = fs::read_to_string(&path)?;
-        let Some(line) = src.lines().find(|l| l.trim_start().starts_with("ALLOWED_KEYS=")) else {
+        let Some(line) = src
+            .lines()
+            .find(|l| l.trim_start().starts_with("ALLOWED_KEYS="))
+        else {
             bail!("ALLOWED_KEYS not found in {}", path.display());
         };
         let Some(open) = line.find('(') else {
@@ -187,9 +189,18 @@ pub fn run() -> Result<()> {
         .to_path_buf();
 
     let sources: [(&str, BTreeMap<String, Vec<String>>); 4] = [
-        ("src/cli/setup/plugin.rs (allowed_skill_keys)", rust_map(&root)?),
-        ("plugins/yarr/scripts/plugin-setup.sh (services)", umbrella_map(&root)?),
-        ("plugins/<svc>/scripts/setup.sh (ALLOWED_KEYS)", per_service_map(&root)?),
+        (
+            "src/cli/setup/plugin.rs (allowed_skill_keys)",
+            rust_map(&root)?,
+        ),
+        (
+            "plugins/yarr/scripts/plugin-setup.sh (services)",
+            umbrella_map(&root)?,
+        ),
+        (
+            "plugins/<svc>/scripts/setup.sh (ALLOWED_KEYS)",
+            per_service_map(&root)?,
+        ),
         (
             "plugins/<svc>/.claude-plugin/plugin.json (userConfig)",
             manifest_map(&root)?,
@@ -200,12 +211,7 @@ pub fn run() -> Result<()> {
     for svc in SERVICES {
         let per_source: Vec<(&str, Vec<String>)> = sources
             .iter()
-            .map(|(label, map)| {
-                (
-                    *label,
-                    sorted(map.get(*svc).cloned().unwrap_or_default()),
-                )
-            })
+            .map(|(label, map)| (*label, sorted(map.get(*svc).cloned().unwrap_or_default())))
             .collect();
 
         let baseline = &per_source[0].1;
@@ -230,6 +236,9 @@ pub fn run() -> Result<()> {
         );
     }
 
-    println!("skill-keys: all 4 copies agree across {} services", SERVICES.len());
+    println!(
+        "skill-keys: all 4 copies agree across {} services",
+        SERVICES.len()
+    );
     Ok(())
 }
