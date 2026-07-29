@@ -134,12 +134,10 @@ fn skill_config_base() -> Option<PathBuf> {
 fn allowed_skill_keys(service: &str) -> &'static [&'static str] {
     match service {
         "sonarr" | "radarr" => &["URL", "API_KEY", "DEFAULT_QUALITY_PROFILE"],
-        "prowlarr" | "overseerr" | "sabnzbd" | "jellyfin" | "tautulli" | "bazarr" => {
-            &["URL", "API_KEY"]
-        }
+        "prowlarr" | "overseerr" | "sabnzbd" | "jellyfin" | "tautulli" | "bazarr"
+        | "tracearr" => &["URL", "API_KEY"],
         "qbittorrent" => &["URL", "USERNAME", "PASSWORD"],
         "plex" => &["URL", "TOKEN"],
-        "tracearr" => &["URL"],
         _ => &[],
     }
 }
