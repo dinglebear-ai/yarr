@@ -13,11 +13,19 @@
 members = [".", "xtask"]
 resolver = "2"
 
+[workspace.package]
+
+# Fleet edition (ADR-0002). Members inherit via edition.workspace = true.
+edition = "2024"
+# Fleet MSRV — the floor this repo supports. A separate promise from
+# rust-toolchain.toml's channel, which is what we BUILD with. Both are
+# 1.97.1 as of 2026-07-29 (ADR-0001 toolchain, ADR-0024 MSRV).
+rust-version = "1.97.1"
 [package]
 name = "yarr"
 version = "2.2.1"
-edition = "2024"
-rust-version = "1.90"
+edition.workspace = true
+rust-version.workspace = true
 categories = ["command-line-utilities", "development-tools"]
 keywords = ["mcp", "media", "sonarr", "radarr", "plex"]
 repository = "https://github.com/dinglebear-ai/yarr"
@@ -44,7 +52,7 @@ tokio = { version = "1", features = [
 
 # HTTP / MCP transport
 axum = "0.8"
-rmcp = { version = "2.1.0", default-features = false, features = [
+rmcp = { version = "=3.0.0-beta.2", default-features = false, features = [
   "server",
   "macros",
   "transport-streamable-http-server",
@@ -109,7 +117,7 @@ test-support = []
 yarr = { path = ".", features = ["test-support"] }
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
-rmcp = { version = "2.1.0", default-features = false, features = [
+rmcp = { version = "=3.0.0-beta.2", default-features = false, features = [
   "client",
   "transport-child-process",
 ] }

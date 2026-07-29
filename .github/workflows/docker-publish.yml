@@ -83,7 +83,7 @@ jobs:
           required=(
             Actionlint Format Clippy Docs Test "NPM Package" "TOML Format"
             "Repo Contracts" "Cargo Deny" "Secret Scan"
-            "Minimum Supported Rust Version (1.90)"
+            "Minimum Supported Rust Version"
           )
           for attempt in {1..20}; do
             checks="$(gh api \
