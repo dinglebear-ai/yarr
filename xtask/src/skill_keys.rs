@@ -63,33 +63,47 @@ fn rust_map(root: &Path) -> Result<BTreeMap<String, Vec<String>>> {
     };
     let body = &body[..end];
 
-    // Flatten so wrapped arms parse the same as single-line ones. Each arm then
-    // reads: <patterns> => &["URL", "API_KEY"
+    // Format-independent parse. An earlier version split the flattened body on
+    // "]," and broke the first time rustfmt ran: for a long arm rustfmt emits a
+    // BLOCK body (`=> { &["URL", "API_KEY"] }`) with no comma after the `]`, so
+    // that arm and the next one merged into a single bogus entry. A `cargo fmt`
+    // silently defeating this check is precisely the failure it exists to catch,
+    // so scan for `&[ .. ]` groups instead of relying on punctuation.
     let flat = body.replace(['\n', '\r'], " ");
     let mut out = BTreeMap::new();
-    for arm in flat.split("],") {
-        let Some((patterns, keys_part)) = arm.split_once("=>") else {
-            continue;
+    let mut cursor = 0usize;
+    // Patterns for the current arm start after the previous arm's key list.
+    let mut arm_start = 0usize;
+    while let Some(rel) = flat[cursor..].find("&[") {
+        let open = cursor + rel;
+        let Some(close_rel) = flat[open..].find(']') else {
+            break;
         };
-        let Some(open) = keys_part.find("&[") else {
-            continue; // the `_ => &[]` fallback, or a non-list arm
-        };
-        let keys: Vec<String> = keys_part[open + 2..]
-            .trim_end_matches(']')
+        let close = open + close_rel;
+
+        // `patterns` is everything between the previous arm and this arm's `=>`.
+        let segment = &flat[arm_start..open];
+        let patterns = segment.rsplit_once("=>").map(|(lhs, _)| lhs).unwrap_or("");
+
+        let keys: Vec<String> = flat[open + 2..close]
             .split(',')
             .filter_map(|k| {
                 let k = k.trim().trim_matches('"').trim();
                 (!k.is_empty()).then(|| k.to_string())
             })
             .collect();
+
         // Patterns are the quoted service names. Take every double-quoted token
-        // (odd indices of a `"` split) rather than splitting on `|`, so the
-        // first arm's function prologue cannot swallow the leading name.
+        // (odd indices of a `"` split) rather than splitting on `|`, so neither
+        // the function prologue nor a block brace can swallow a name.
         for (i, token) in patterns.split('"').enumerate() {
             if i % 2 == 1 && SERVICES.contains(&token) {
                 out.insert(token.to_string(), keys.clone());
             }
         }
+
+        cursor = close + 1;
+        arm_start = cursor;
     }
     Ok(out)
 }
