@@ -17,7 +17,6 @@
     "homelab"
   ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Radarr",
     "shortDescription": "Managing movies in Radarr",

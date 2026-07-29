@@ -24,6 +24,8 @@ const MCP_FIELDS = new Set([
   "codemode_timeout_secs",
   "no_auth",
   "api_token",
+  "static_token_scopes",
+  "tool_mode",
   "allowed_hosts",
   "allowed_origins",
 ]);

@@ -20,8 +20,8 @@ subtitle file to download; this skill triggers the search and reports results.
 
 ## Setup
 
-Credentials are configured in the **bazarr plugin settings** (userConfig). A
-`SessionStart` hook writes them to `~/.config/lab-bazarr/config.json`, which the
+Credentials are configured in the **bazarr plugin settings** (userConfig). The
+plugin setup script writes them to `~/.config/lab-bazarr/config.json`, which the
 script loads automatically — no manual file editing. Variables used:
 
 ```bash

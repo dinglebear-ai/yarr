@@ -317,6 +317,17 @@ fn write_env(data_dir: &Path, config: &Config) -> Result<()> {
         dotenv_assignment("YARR_MCP_HOST", &config.mcp.host)?,
         dotenv_assignment("YARR_MCP_PORT", &config.mcp.port.to_string())?,
         dotenv_assignment("YARR_MCP_NO_AUTH", &config.mcp.no_auth.to_string())?,
+        dotenv_assignment(
+            "YARR_MCP_STATIC_TOKEN_SCOPES",
+            &config.mcp.static_token_scopes.join(","),
+        )?,
+        dotenv_assignment(
+            "YARR_MCP_TOOL_MODE",
+            match config.mcp.tool_mode {
+                crate::config::ToolMode::Codemode => "codemode",
+                crate::config::ToolMode::Flat => "flat",
+            },
+        )?,
     ];
     for service in &config.yarr.services {
         let prefix = service.name.to_ascii_uppercase().replace('-', "_");

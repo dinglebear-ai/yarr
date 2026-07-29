@@ -12,12 +12,14 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `bump-version.sh` | Update version-bearing files from the `Cargo.toml` version. |
 | `check-blob-size.py` | Block unexpectedly large changed blobs. |
 | `check-coupled-files.sh` | Warn when files that normally change together drift. The schema/docs pair defers to `check-schema-docs.py --check`, so formatting-only edits do not false-positive. |
+| `check-dist-contract.js` | Verify the npm launcher package's published file contract. |
 | `check-doc-links.py` | Validate every tracked Markdown relative link and heading anchor. |
 | `check-dependency-updates.sh` | Report lockfile-compatible and latest dependency updates. |
 | `check-file-size.sh` | Pre-commit source file size budget. |
-| `check-plugin-hook-contract.py` | Audit plugin setup hook contract across Rust MCP servers. |
+| `check-plugin-hook-contract.py` | Audit the binary-owned `setup plugin-hook` JSON contract across Rust MCP servers. |
 | `check-runtime-current.sh` | Detect stale Docker/systemd runtimes. |
 | `check-schema-docs.py` | Generate/check `docs/MCP_SCHEMA.md` and action docs. |
+| `check-security-exceptions.sh` | Verify recorded security exceptions are still justified and unexpired. |
 | `check-version-sync.sh` | Check version consistency. |
 | `generate-cli.sh` | Generate a standalone CLI for this server via mcporter (requires running server). |
 | `install.sh` | Install the latest GitHub Release binary and create a `yarr` symlink. |
@@ -28,7 +30,10 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `run-ascii-check.sh` | Collect tracked files and run `asciicheck.py`; pass `--fix` to rewrite in place. |
 | `sync-cargo.sh` | Sync `Cargo.lock` into plugin data directories. |
 | `sync-plugin-manifests.js` | Couple every `yarr-mcp@<version>` launcher pin to `packages/yarr-mcp/package.json`; `--check` fails on drift. |
+| `test-installers.js` | Exercise the install paths shipped with the npm launcher. |
 | `test-mcp-auth.sh` | Smoke-test HTTP MCP bearer auth. |
+| `test-plugin-distribution.js` | Assert standalone/bundled skill parity, pinned launchers, and the no-lifecycle-hooks rule. |
+| `test-plugin-http.js` | Smoke-test the plugin's HTTP surface. |
 | `test-template-features.sh` | Fast template invariant smoke tests. |
 | `validate-plugin-layout.sh` | Validate Claude/Codex/Gemini plugin package layout. |
 | `web-watch.sh` | Watch `apps/web` for changes and rebuild on save (requires watchexec). |
@@ -86,7 +91,7 @@ scripts/check-coupled-files.sh origin/main HEAD
 just coupled-files-check
 ```
 
-CI-oriented guard for files that usually change together, such as script changes with `scripts/README.md`, schema changes with `docs/MCP_SCHEMA.md`, and automation changes with docs.
+CI-oriented guard for files that usually change together, such as script changes with `scripts/README.md`, schema changes with `docs/MCP_SCHEMA.md`, and automation changes with docs. It also rejects the retired personal publication identity outside historical changelogs, session logs, and generated OpenWiki history. Pass `WORKTREE` as the second argument to validate uncommitted changes against the base revision.
 
 ### `check-doc-links.py`
 
@@ -345,13 +350,16 @@ PLUGIN_ROOT=plugins/yarr scripts/validate-plugin-layout.sh
 just validate-plugin
 ```
 
-Validates Claude, Codex, and Gemini plugin manifests, shared MCP config, hook config, skills, sensitive fields, and the rule that plugin manifests do not contain `version`.
+Validates Claude, Codex, and Gemini plugin manifests, shared MCP config, skills, sensitive fields, the rule that plugin manifests do not contain `version`, and the rule that no plugin ships lifecycle hooks (no `hooks` manifest key, no `hooks/` directory).
 
 ---
 
-## Hook integration
+## Git hook integration
 
-`block-env-commits.sh`, `check-version-sync.sh`, and `check-file-size.sh` are designed for `lefthook` pre-commit integration. Install hooks with:
+These are git hooks, unrelated to Claude Code plugin hooks (which this repository
+no longer ships). `block-env-commits.sh`, `check-version-sync.sh`, and
+`check-file-size.sh` are designed for `lefthook` pre-commit integration. Install
+them with:
 
 ```bash
 just install-hooks

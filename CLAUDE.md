@@ -1,19 +1,17 @@
 # yarr — Claude Code instructions
 
-## OpenWiki
-
-This repository has documentation located in the `/openwiki` directory.
-
-Start here:
-- [OpenWiki quickstart](openwiki/quickstart.md)
-
-OpenWiki includes repository overview, architecture notes, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
-
-When working in this repository, read the OpenWiki quickstart first, then follow its links to the relevant architecture, workflow, domain, operation, and testing notes.
-
 ## What this project is
 
-Rust MCP and CLI server for a media automation fleet: Sonarr, Radarr, Prowlarr, Tautulli, Overseerr, SABnzBD, qBittorrent, Plex, Jellyfin, and related services.
+Rust MCP and CLI server for a media automation fleet. It wraps **11 service kinds**: Sonarr, Radarr, Prowlarr, Overseerr, Jellyfin, Plex (spec-backed, generated) plus SABnzbd, qBittorrent, Tautulli, Bazarr, Tracearr (doc-backed, curated).
+
+| Fact | Value |
+|------|-------|
+| Repo | `git@github.com:dinglebear-ai/yarr.git`, default branch `main` |
+| Cargo workspace | 2 members — `.` (bin+lib `yarr`) and `xtask` |
+| Edition / MSRV | 2024 / Rust 1.90 |
+| MCP crate | `rmcp = "2.1.0"` (`server`, `macros`, `transport-streamable-http-server`, `transport-io`, `schemars`, `elicitation`) |
+| Service port | `40070` (`YARR_MCP_PORT`) |
+| npm launcher | `yarr-mcp@<Cargo version>`, pinned — never `latest` |
 
 The MCP surface is a single `yarr` tool that runs Code Mode (the `codemode` action). The 6 spec-backed services (sonarr/radarr/prowlarr/overseerr/jellyfin/plex) are reached through **generated** per-service callables (from vendored OpenAPI specs); download/stats/subtitles/trace keep curated commands; every service also has `service_status` + the `api_get/post/put/delete` generic passthrough. Services are declared via `YARR_SERVICES` plus per-service env (see Environment variables).
 
@@ -34,6 +32,7 @@ The MCP surface is a single `yarr` tool that runs Code Mode (the `codemode` acti
 | File | Role |
 |------|------|
 | `src/capability.rs` | `Capability` enum + `KindDescriptor` table (`ServiceKind::descriptor()`): api prefix, auth style, resource noun, path allowlist, `has_metadata_profiles`. SSOT for "what each kind can do" |
+| `src/config/services.rs` | The `ServiceKind` enum itself plus the `KindRow` table (canonical name, default status path, `FromStr` aliases). Adding a kind is a one-row edit + enum variant |
 
 **Business layer (`src/app*`) — all logic lives here, never in shims**
 
@@ -166,8 +165,11 @@ via `rename_all` + per-field renames (SABnzbd string-encoded numerics, etc.). Ea
 | `tests/cli_parse.rs` | CLI argument parsing |
 | `tests/tool_dispatch.rs` | MCP tool dispatch (service-layer, no real credentials) |
 | `tests/parity.rs` | Mechanical CLI ↔ MCP parity guard (see CLI ↔ MCP action parity) |
-| `tests/plugin_contract.rs` | Plugin manifest / setup-hook contract |
+| `tests/plugin_contract.rs` + `tests/plugin_contract/` | Plugin manifest, setup-script, and OAuth contract. Split into `common.rs` / `manifests.rs` / `oauth.rs` / `setup.rs`, included via `#[path]` |
 | `tests/template_invariants.rs` | Template-adaptation invariants + `schema_contract` doc test |
+
+`tests/live/service_matrix.json` and `tests/mcporter/test-mcp.sh` are data/harness
+files for the guarded live-read smoke checks, not `cargo test` targets.
 
 ## The thin-shim rule — enforce this hard
 
@@ -274,17 +276,34 @@ Upstream services are configured as a set, not a single endpoint. `YARR_SERVICES
 ## Build commands
 
 ```bash
-cargo build --release     # produces target/release/yarr
-cargo test                # all tests
-cargo clippy -- -D warnings  # lint (must pass)
-cargo fmt                 # format
+cargo build --release           # produces target/release/yarr
+cargo test                      # all tests
+cargo clippy --all-targets -- -D warnings   # lint (must pass)
+cargo fmt                       # format
+cargo xtask gen-openapi         # regenerate src/openapi/generated/ from specs/
+```
 
-just dev                  # YARR_MCP_HOST=127.0.0.1 YARR_MCP_NO_AUTH=true cargo run -- serve mcp (loopback only, no auth)
-just test                 # cargo test
-just lint                 # cargo clippy -- -D warnings
-just fmt                  # cargo fmt
-just gen-token            # openssl rand -hex 32
-just health               # curl http://localhost:40070/health | jq .
+The Justfile is the operator surface; its recipes are what CI mirrors, so prefer
+them over remembering flags:
+
+```bash
+just dev            # YARR_MCP_HOST=127.0.0.1 YARR_MCP_NO_AUTH=true cargo run -- serve mcp (loopback, no auth)
+just check          # cargo check
+just test           # cargo nextest run          (NOT plain cargo test)
+just test-ci        # cargo nextest run --profile ci — mirrors CI's fail-fast + retries
+just lint           # cargo clippy --all-targets -- -D warnings
+just fmt            # cargo fmt
+just fmt-check      # cargo fmt -- --check
+just verify         # fmt-check → lint → check → test (run before pushing)
+just ci             # cargo xtask ci — full suite incl. taplo + audit
+just patterns-check # cargo xtask patterns — repo-convention checks
+just deny           # cargo deny
+just validate-plugin        # scripts/validate-plugin-layout.sh
+just schema-docs-check      # docs/MCP_SCHEMA.md drift guard
+just docs-links-check       # every tracked Markdown link + anchor
+just coupled-files-check    # e.g. scripts/* requires a scripts/README.md update
+just gen-token      # openssl rand -hex 32
+just health         # curl http://localhost:40070/health | jq .
 ```
 
 ## Testing
@@ -297,9 +316,9 @@ just health               # curl http://localhost:40070/health | jq .
 mod tests;
 ```
 
-This keeps the `mod_module_files = "deny"` workspace lint happy while avoiding giant inline `#[cfg(test)]` blocks. When adding a module, add its `*_tests.rs` sibling and the `#[path]` include — don't write inline `mod tests { ... }`.
+This matches the family-wide `foo.rs`-beside-`foo/` module style (no `foo/mod.rs`) while avoiding giant inline `#[cfg(test)]` blocks. It is a **convention here, not a lint** — this workspace declares only `[lints.clippy] all = "warn"`, so nothing mechanically rejects `mod.rs` or an inline `mod tests`. Follow it anyway: when adding a module, add its `*_tests.rs` sibling and the `#[path]` include.
 
-**Integration tests** live in `tests/`: `cli_parse.rs`, `tool_dispatch.rs`, `parity.rs`, `plugin_contract.rs`, `template_invariants.rs`. Keep `tool_dispatch.rs` from growing past ~500 LOC — add new dispatch coverage thoughtfully and put cross-surface parity assertions in `parity.rs`.
+**Integration tests** live in `tests/`: `cli_parse.rs`, `tool_dispatch.rs`, `parity.rs`, `plugin_contract.rs` (+ `plugin_contract/`), `template_invariants.rs`. Keep `tool_dispatch.rs` from growing past ~500 LOC — add new dispatch coverage thoughtfully and put cross-surface parity assertions in `parity.rs`.
 
 `src/lib.rs` exports `testing::loopback_state()` and `testing::bearer_state(token)` (behind `features = ["test-support"]` or `cfg(test)`). Use these in integration tests — they build `AppState` without real credentials.
 
@@ -357,9 +376,45 @@ Representative summary (full set lives in the registry + `VERBS` tables):
 
 Both `api_get` and `api_post` require `yarr:write` (read scope is insufficient) — they are arbitrary upstream passthroughs.
 
-## Plugin versioning
+## Plugins
 
-Plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `gemini-extension.json`) do **not** contain a `version` field. The marketplace derives the version from the git commit SHA on every push — adding an explicit version causes every push to be treated as a new version and creates duplicate entries. Do not add `version` to any plugin manifest and do not run `scripts/bump-version.sh` targets against plugin manifests.
+`plugins/` ships 12 packages: the full `yarr` MCP plugin (stdio through the pinned
+`yarr-mcp` npm launcher, plus all 11 fallback skills) and 11 bare-named
+skills-only plugins (`sonarr`, `radarr`, `prowlarr`, `overseerr`, `sabnzbd`,
+`qbittorrent`, `plex`, `jellyfin`, `tautulli`, `tracearr`, `bazarr`) that drive
+one upstream REST API each with `curl`.
+
+**No versions.** Plugin manifests (`.claude-plugin/plugin.json`,
+`.codex-plugin/plugin.json`, `gemini-extension.json`) do **not** contain a
+`version` field. The marketplace derives the version from the git commit SHA on
+every push — adding an explicit version causes every push to be treated as a new
+version and creates duplicate entries. Do not add `version` to any plugin
+manifest and do not run `scripts/bump-version.sh` targets against plugin
+manifests.
+
+**No lifecycle hooks.** No plugin declares a `hooks` key and none ships a
+`hooks/` directory. The credential bridge (`plugins/yarr/scripts/plugin-setup.sh`,
+`plugins/<service>/scripts/setup.sh`) is run on demand, or through the
+binary-owned `yarr setup plugin-hook`. The absence is enforced by
+`scripts/validate-plugin-layout.sh`, `scripts/test-plugin-distribution.js`,
+`tests/plugin_contract/manifests.rs::plugins_ship_no_lifecycle_hooks`, and
+`cargo xtask patterns` — do not reintroduce hooks.
+
+**Standalone/bundled skills must stay byte-identical.** Every
+`plugins/<service>/skills/<service>/scripts/*` file is compared byte-for-byte
+against its `plugins/yarr/skills/<service>/scripts/*` copy by
+`scripts/test-plugin-distribution.js`. Edit both, or the check fails.
+
+Validate plugin changes with:
+
+```bash
+just validate-plugin                       # scripts/validate-plugin-layout.sh
+node scripts/test-plugin-distribution.js
+node scripts/sync-plugin-manifests.js --check
+cargo test --test plugin_contract
+cargo test --test template_invariants
+python3 scripts/check-doc-links.py
+```
 
 ## Common gotchas
 
@@ -368,7 +423,6 @@ Plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `ge
 - **`help` action is public** — `required_scope_for_action("help")` (in `actions.rs`) returns `None`. `service_status` needs `yarr:read`; `api_get`/`api_post`/`op`/`codemode` need `yarr:write`. Unknown actions get `DENY_SCOPE`.
 - **Default port is 40070** — set in `default_mcp_port()` in `config.rs`. Override with `YARR_MCP_PORT`.
 - **`watch`, `serve`, and `doctor` are CLI infrastructure** — they are not MCP actions and have no parity requirement. `watch` polls `/health` and emits state-change lines to stdout (used by the plugin monitor). `serve` starts the HTTP server. `doctor` runs pre-flight checks. None belong in the MCP parity table.
-
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 ## Beads Issue Tracker

@@ -27,6 +27,11 @@ pub struct McpConfig {
     pub trusted_gateway: bool,
     /// Static bearer token for simple auth (YARR_MCP_TOKEN).
     pub api_token: Option<String>,
+    /// Scopes granted to the static bearer token (YARR_MCP_STATIC_TOKEN_SCOPES).
+    /// Defaults to read-only. Grant `yarr:write` explicitly to use the default
+    /// Code Mode tool with a static token.
+    #[serde(default = "default_static_token_scopes")]
+    pub static_token_scopes: Vec<String>,
     /// Additional allowed Host header values (comma-separated in env).
     pub allowed_hosts: Vec<String>,
     /// Additional allowed CORS origins (comma-separated in env).
@@ -111,6 +116,9 @@ pub(super) fn default_mcp_port() -> u16 {
 fn default_server_name() -> String {
     "yarr".into()
 }
+fn default_static_token_scopes() -> Vec<String> {
+    vec![crate::actions::READ_SCOPE.into()]
+}
 
 impl Default for McpConfig {
     fn default() -> Self {
@@ -121,6 +129,7 @@ impl Default for McpConfig {
             no_auth: false,
             trusted_gateway: false,
             api_token: None,
+            static_token_scopes: default_static_token_scopes(),
             allowed_hosts: Vec::new(),
             allowed_origins: Vec::new(),
             auth: AuthConfig::default(),

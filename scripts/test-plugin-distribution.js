@@ -91,9 +91,23 @@ assert.equal(mcp.command, "npx");
 assert.deepEqual(mcp.args.slice(0, 3), ["-y", pinned, "mcp"]);
 assert.equal(gemini.command, "npx");
 assert.deepEqual(gemini.args.slice(0, 3), ["-y", pinned, "mcp"]);
-const hooks = JSON.parse(fs.readFileSync(path.join(root, "plugins", "yarr", "hooks", "hooks.json"), "utf8")).hooks;
-for (const hook of [hooks.SessionStart[0].hooks[0], hooks.ConfigChange[0].hooks[0]]) {
-  assert.equal(hook.command, "${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh");
+for (const plugin of fs.readdirSync(path.join(root, "plugins"), { withFileTypes: true })) {
+  if (!plugin.isDirectory()) continue;
+  const pluginRoot = path.join(root, "plugins", plugin.name);
+  assert.equal(
+    fs.existsSync(path.join(pluginRoot, "hooks")),
+    false,
+    `${plugin.name}: lifecycle hooks were removed and must not come back`,
+  );
+  for (const manifest of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "gemini-extension.json"]) {
+    const file = path.join(pluginRoot, manifest);
+    if (!fs.existsSync(file)) continue;
+    assert.equal(
+      Object.hasOwn(JSON.parse(fs.readFileSync(file, "utf8")), "hooks"),
+      false,
+      `${plugin.name}: ${manifest} must not declare a hooks key`,
+    );
+  }
 }
 assert.equal(fs.existsSync(path.join(root, "plugins", "yarr", "bin", "yarr")), false, "stale bundled binary must be removed");
 

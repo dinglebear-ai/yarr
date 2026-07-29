@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart / ConfigChange hook for the Yarr plugin.
+# Setup script for the Yarr plugin. Run it manually: no lifecycle hooks ship here.
 # Bridges only declared service settings into non-executable JSON files used by
 # the bundled fallback skills. The MCP process receives its env directly from
 # .mcp.json and does not need settings persisted here.

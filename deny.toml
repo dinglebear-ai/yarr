@@ -79,6 +79,6 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
-  # labby-auth is vendored from the labby mono-repo at a pinned rev
+  # lab-auth is vendored from the LABBY mono-repo at a pinned rev
   "https://github.com/dinglebear-ai/labby.git",
 ]

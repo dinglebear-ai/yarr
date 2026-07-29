@@ -6,9 +6,11 @@ media-automation stack:
 - **`yarr`** — the full MCP server plugin: one tool surface over the whole
   fleet, **plus** every per-service skill bundled as a direct-HTTP fallback for
   when the MCP server is unavailable.
-- **One plugin per service** — bare-named, **skills-only, no-MCP** plugins. Each
-  drives a single service's REST API directly with `curl`. Pick only the ones you
-  want (e.g. just `plex` + `sonarr` + `radarr`); no MCP server required.
+- **One plugin per service** — bare-named, **skills-only** plugins that need no
+  MCP server. Each drives a single service's REST API directly with `curl`. Pick
+  only the ones you want (e.g. just `plex` + `sonarr` + `radarr`).
+
+Neither kind ships Claude Code lifecycle hooks.
 
 ```
 plugins/
@@ -17,7 +19,7 @@ plugins/
 ├── radarr/                     │
 ├── prowlarr/                   │
 ├── overseerr/                  │
-├── sabnzbd/                    │  one standalone, no-MCP
+├── sabnzbd/                    │  one standalone, skills-only
 ├── qbittorrent/                ├─ plugin per service
 ├── plex/                       │
 ├── jellyfin/                   │
@@ -44,7 +46,6 @@ plugins/<service>/
 ├── .claude-plugin/plugin.json   # Claude manifest + per-service userConfig
 ├── .codex-plugin/plugin.json    # Codex manifest + interface block
 ├── gemini-extension.json        # Gemini manifest + settings (no mcpServers)
-├── hooks/hooks.json             # SessionStart + ConfigChange → scripts/setup.sh
 ├── scripts/setup.sh             # bridges userConfig → mode-0600 JSON settings
 ├── README.md  CHANGELOG.md
 └── skills/<service>/            # SKILL.md + helper scripts + references
@@ -52,17 +53,17 @@ plugins/<service>/
 
 ### Credential bridge
 
-Claude Code injects `userConfig` values only into plugin subprocesses (the hook),
-not into the agent's Bash tool. So each plugin's `SessionStart` / `ConfigChange`
-hook runs `scripts/setup.sh`, which writes only manifest-declared values to a
-private mode-`0600` JSON object. Skill helpers parse an explicit allowlist;
-the file is never sourced or evaluated:
+No plugin here ships lifecycle hooks — the credential bridge is a script you run
+on demand. `scripts/setup.sh` reads the manifest-declared `CLAUDE_PLUGIN_OPTION_*`
+values from its environment and writes only those into a private mode-`0600` JSON
+object. Skill helpers parse an explicit allowlist; the file is never sourced or
+evaluated:
 
 - standalone `<service>` plugin → `~/.config/lab-<service>/config.json`
 - `yarr` plugin → writes **all** `~/.config/lab-<service>/config.json` files
-  from the same binary-owned setup hook (`yarr setup plugin-hook`) so the
-  bundled fallback skills work with the credentials you already configured for
-  the MCP server.
+  from the same binary-owned setup command (`yarr setup plugin-hook`, wrapped by
+  `plugins/yarr/scripts/plugin-setup.sh`) so the bundled fallback skills work
+  with the credentials you already configured for the MCP server.
 
 Config dirs are per-service and isolated, so installing a standalone plugin and
 the `yarr` bundle side by side does not cause them to clobber each other.
@@ -71,11 +72,11 @@ the `yarr` bundle side by side does not cause them to clobber each other.
 
 In addition to the standalone layout above, `yarr/` ships `.mcp.json` and
 `gemini-extension.json`'s inline `mcpServers.yarr` (stdio through the pinned
-`yarr-mcp@2.1.0` npm launcher, no committed platform binary). Verify that
-exact package with `npm view yarr-mcp@2.1.0 version` before installation.
+`yarr-mcp@2.2.0` npm launcher, no committed platform binary). Verify that
+exact package with `npm view yarr-mcp@2.2.0 version` before installation.
 GitHub `v2.1.0` is public while the npm package is currently missing; issue #80
 tracks recovery, and operators must not loosen the pin to `latest`. The package also ships
-`monitors/monitors.json`, the safe local JSON setup hook, the consolidated
+`monitors/monitors.json`, the safe local JSON setup script, the consolidated
 `skills/yarr/SKILL.md`, and
 the 11 bundled fallback skills under `skills/<service>/`. See its
 [`.codex-plugin/README.md`](yarr/.codex-plugin/README.md) for the Codex field
@@ -99,4 +100,10 @@ When changing a plugin package:
 4. Verify all manifests still omit explicit `version` fields (`cargo test --test template_invariants`).
 5. Run `cargo test --test plugin_contract` after touching the `yarr` manifests.
 6. Run `node scripts/sync-plugin-manifests.js --check` and `python3 scripts/check-doc-links.py`.
-7. Do not describe a pinned launcher as available until the exact npm version resolves.
+7. Run `node scripts/test-plugin-distribution.js` — it byte-compares each
+   standalone `skills/<service>/scripts/*` against the bundled copy under
+   `plugins/yarr/skills/`, so edit both or it fails.
+8. Do not add lifecycle hooks. No manifest may declare a `hooks` key and no
+   plugin may contain a `hooks/` directory; the layout, distribution, and
+   `plugin_contract` checks all assert their absence.
+9. Do not describe a pinned launcher as available until the exact npm version resolves.

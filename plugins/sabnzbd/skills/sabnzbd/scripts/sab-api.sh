@@ -11,7 +11,7 @@ curl() {
     --max-time "${YARR_CURL_MAX_TIME:-30}" "$@"
 }
 
-# Credentials come from this plugin userConfig (written by its SessionStart hook).
+# Credentials come from this plugin userConfig (written by the plugin setup script).
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/lab-sabnzbd/config.json"
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/load-config.sh"

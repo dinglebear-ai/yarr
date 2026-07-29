@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SessionStart / ConfigChange hook for the prowlarr plugin.
+# Setup script for the prowlarr plugin. Run it manually: no lifecycle hooks ship here.
 # Persists only manifest-declared options as non-executable JSON.
 set -euo pipefail
 

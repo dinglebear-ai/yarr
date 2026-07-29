@@ -208,7 +208,7 @@ async fn build_auth_policy(config: &Config) -> Result<AuthPolicy> {
                 .session_cookie_name("yarr_mcp_session")
                 .scopes_supported(vec![READ_SCOPE.into(), WRITE_SCOPE.into()])
                 .default_scope("yarr:read")
-                .static_token_scopes(vec![READ_SCOPE.into()])
+                .static_token_scopes(config.mcp.static_token_scopes.clone())
                 .disable_static_token_with_oauth(config.mcp.auth.disable_static_token_with_oauth)
                 .resource_path("/mcp")
                 .enable_dynamic_registration(true)

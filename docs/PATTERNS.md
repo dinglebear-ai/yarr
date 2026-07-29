@@ -702,10 +702,8 @@ plugins/
     .claude-plugin/
       plugin.json         ← plugin manifest; no version field
     .mcp.json             ← pinned npm stdio launcher
-    hooks/
-      hooks.json          ← SessionStart + ConfigChange declarations
     scripts/
-      plugin-setup.sh     ← strict JSON config writer
+      plugin-setup.sh     ← strict JSON config writer (run on demand)
     skills/
       <service>/
         SKILL.md
@@ -725,18 +723,12 @@ package version must equal the Cargo/server version and must not float:
 }
 ```
 
-`SessionStart` and `ConfigChange` both run the repository-relative hook:
+Plugins ship **no lifecycle hooks**. No manifest declares a `hooks` key and no
+plugin contains a `hooks/` directory; `scripts/plugin-setup.sh` is invoked on
+demand instead (directly, or via the binary-owned `yarr setup plugin-hook`).
+Contract checks assert the absence, so a reintroduced hook fails CI.
 
-```json
-{
-  "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh" }] }],
-    "ConfigChange": [{ "matcher": "user_settings", "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh" }] }]
-  }
-}
-```
-
-The setup hook accepts only allowlisted string values, writes them atomically to
+The setup script accepts only allowlisted string values, writes them atomically to
 `~/.config/lab-<service>/config.json`, sets the directory to mode 0700 and the
 file to mode 0600, and rejects invalid input. Client scripts parse that JSON;
 they never `source` or `eval` configuration. Plugins contain no bundled ELF and
@@ -1451,7 +1443,6 @@ plugins/
     .codex-plugin/
       plugin.json     ← Codex plugin (this section)
     .mcp.json
-    hooks/
     skills/
 ```
 
@@ -2086,14 +2077,14 @@ match state.service.list_things().await {
 
 ---
 
-## 44. Plugin Hook Contract
+## 44. Plugin Setup Contract
 
 The normative plugin contract is defined in section 13: pinned npm stdio
-launch, repository-relative SessionStart/ConfigChange hook, allowlisted string
-options, atomic mode-0600 JSON in a mode-0700 directory, and JSON-only client
-loading. Contract tests must reject bundled executables, `config.env`,
-`source`/`eval`, floating npm versions, unsafe keys/types, and non-private file
-permissions.
+launch, no lifecycle hooks, a repository-relative on-demand setup script,
+allowlisted string options, atomic mode-0600 JSON in a mode-0700 directory, and
+JSON-only client loading. Contract tests must reject lifecycle hooks, bundled
+executables, `config.env`, `source`/`eval`, floating npm versions, unsafe
+keys/types, and non-private file permissions.
 
 ---
 
@@ -2765,7 +2756,7 @@ The web UI uses the Aurora design system — a shadcn-compatible registry of
 128 components designed for operator-grade AI products.
 
 Registry URL: `https://aurora.tootie.tv`
-GitHub: `https://github.com/jmagar/aurora-design-system`
+GitHub: `https://github.com/dinglebear-ai/aurora`
 
 ### Setup
 

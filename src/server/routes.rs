@@ -75,7 +75,12 @@ pub fn router(state: AppState) -> Router {
     } else {
         state.config.api_token.as_deref().map(Arc::<str>::from)
     };
-    let auth_layer = build_auth_layer(&state.auth_policy, static_token, resource_url);
+    let auth_layer = build_auth_layer(
+        &state.auth_policy,
+        static_token,
+        state.config.static_token_scopes.clone(),
+        resource_url,
+    );
 
     let api_and_mcp: Router<AppState> =
         Router::new().nest_service("/mcp", streamable_http_service(state.clone(), rmcp_config));

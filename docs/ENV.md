@@ -39,7 +39,8 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | `YARR_MCP_PORT` | `40070` | Bind port for HTTP transport. |
 | `YARR_MCP_NO_AUTH` | `false` | Disable local auth for loopback development only. |
 | `YARR_NOAUTH` | `false` | Trusted-gateway no-auth mode for non-loopback deployments. Requires explicit `YARR_MCP_ALLOWED_HOSTS` or `YARR_MCP_ALLOWED_ORIGINS` provenance. |
-| `YARR_MCP_TOKEN` | unset | Static bearer token. Required for bearer-only mounted HTTP. |
+| `YARR_MCP_TOKEN` | unset | Static bearer token. Explicit tokens are enforced on loopback and non-loopback binds. |
+| `YARR_MCP_STATIC_TOKEN_SCOPES` | `yarr:read` | Comma-separated scopes for the static token. Valid values: `yarr:read`, `yarr:write`. Bearer-only Code Mode requires `yarr:write`; keep the default and select `flat` for read-only bearer deployments. |
 | `YARR_MCP_ALLOWED_HOSTS` | unset | Extra accepted Host header values (comma-separated). |
 | `YARR_MCP_ALLOWED_ORIGINS` | unset | Extra CORS origins (comma-separated). |
 | `YARR_MCP_PUBLIC_URL` | unset | Public URL used for OAuth metadata endpoints. |
@@ -94,8 +95,10 @@ YARR_RADARR_API_KEY=your_radarr_key_here
 YARR_PLEX_URL=https://plex.internal
 YARR_PLEX_TOKEN=your_plex_token_here
 
-# MCP auth
+# MCP auth: read-only bearer with typed flat tools
 YARR_MCP_TOKEN=your_bearer_token_here
+YARR_MCP_STATIC_TOKEN_SCOPES=yarr:read
+YARR_MCP_TOOL_MODE=flat
 
 # OAuth (only when auth_mode=oauth in config.toml)
 # YARR_MCP_GOOGLE_CLIENT_ID=...

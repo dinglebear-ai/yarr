@@ -13,8 +13,6 @@ plugins/yarr/
 │   └── README.md           # Codex manifest field reference
 ├── gemini-extension.json   # Gemini CLI extension manifest — inline mcpServers.yarr, stdio
 ├── .mcp.json               # Claude Code / Codex stdio via pinned npm launcher
-├── hooks/
-│   └── hooks.json          # SessionStart + ConfigChange hook definitions
 ├── monitors/
 │   └── monitors.json       # Background health monitor (requires Claude Code v2.1.105+)
 └── skills/
@@ -25,7 +23,7 @@ plugins/yarr/
 ## Platform manifests
 
 All three platforms connect over **stdio** through the pinned
-`yarr-mcp@2.1.0` npm launcher. No Linux-only binary is committed. Claude Code
+`yarr-mcp@2.2.0` npm launcher. No Linux-only binary is committed. Claude Code
 and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
 `gemini-extension.json`. All three share the same `skills/` directory.
 
@@ -47,7 +45,7 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
     "yarr": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "yarr-mcp@2.1.0", "mcp"],
+      "args": ["-y", "yarr-mcp@2.2.0", "mcp"],
       "env": {
         "YARR_SERVICES": "${user_config.yarr_services}",
         "YARR_SONARR_URL": "${user_config.sonarr_url}",
@@ -67,7 +65,7 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "yarr-mcp@2.1.0", "mcp"],
+      "args": ["-y", "yarr-mcp@2.2.0", "mcp"],
       "env": {
         "YARR_SONARR_URL": "$YARR_SONARR_URL"
       }
@@ -80,7 +78,7 @@ The full plugin is self-starting only when the exact pinned launcher exists on n
 Verify it before installation or troubleshooting:
 
 ```bash
-npm view yarr-mcp@2.1.0 version
+npm view yarr-mcp@2.2.0 version
 ```
 
 GitHub release `v2.1.0` is currently public while that npm version is missing;
@@ -91,13 +89,17 @@ the exact package resolves.
 
 A user who instead wants to run `yarr` as a persistent HTTP server (e.g. for other MCP clients, or to share one server across machines) can still do so separately — that's what the `server_url`/`api_token` `userConfig`/`settings` fields and the health monitor (below) are for. That mode is independent of this plugin's own stdio MCP connection.
 
-## Hooks
+## Fallback-skill credential bridge
 
-`hooks/hooks.json` runs `${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh` on
-`SessionStart` and `ConfigChange`. It writes only declared fallback-service
-settings to mode-`0600` `~/.config/lab-<service>/config.json` files. Helpers
-parse those JSON objects using fixed allowlists; no stored value is sourced or
-evaluated.
+This plugin ships **no lifecycle hooks**. `scripts/plugin-setup.sh` is the
+credential bridge for the bundled fallback skills and is run on demand — either
+directly, or through `yarr setup plugin-hook`. It writes only declared
+fallback-service settings to mode-`0600` `~/.config/lab-<service>/config.json`
+files. Helpers parse those JSON objects using fixed allowlists; no stored value
+is sourced or evaluated.
+
+The MCP connection itself needs none of this: `.mcp.json` passes every
+`YARR_<NAME>_*` value straight to the stdio server from `userConfig`.
 
 ## Monitors
 

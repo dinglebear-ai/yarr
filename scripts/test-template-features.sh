@@ -106,6 +106,29 @@ expect_ok "Trivy SARIF keeps the HIGH/CRITICAL gate" bash -c '
   grep -Eq "^[[:space:]]+severity: CRITICAL,HIGH$" .github/workflows/docker-publish.yml
   grep -Eq "^[[:space:]]+limit-severities-for-sarif: true$" .github/workflows/docker-publish.yml
 '
+
+mkdir -p "$TMPDIR_ROOT/compose"
+cp docker-compose.common.yml docker-compose.yml docker-compose.prod.yml "$TMPDIR_ROOT/compose/"
+cat > "$TMPDIR_ROOT/compose/.env" <<'EOF'
+YARR_SERVICES=sonarr
+YARR_SONARR_URL=http://sonarr:8989
+YARR_SONARR_API_KEY=test
+YARR_MCP_NO_AUTH=true
+EOF
+expect_ok "local Compose does not require the production image variable" bash -c '
+  cd "$1"
+  env -u YARR_MCP_IMAGE docker compose -f docker-compose.yml config --quiet
+' _ "$TMPDIR_ROOT/compose"
+expect_fail "production Compose rejects a missing immutable image" bash -c '
+  cd "$1"
+  env -u YARR_MCP_IMAGE docker compose -f docker-compose.prod.yml config --quiet
+' _ "$TMPDIR_ROOT/compose"
+expect_ok "production Compose accepts an immutable image digest" bash -c '
+  cd "$1"
+  YARR_MCP_IMAGE=ghcr.io/dinglebear-ai/yarr@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+    docker compose -f docker-compose.prod.yml config --quiet
+' _ "$TMPDIR_ROOT/compose"
+
 # shellcheck disable=SC2016 # The child shell expands its own positional args.
 expect_ok "ascii checker catches allowed repo glyphs cleanly" bash -c '
   set -euo pipefail

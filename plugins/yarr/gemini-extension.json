@@ -18,11 +18,10 @@
   ],
   "contextFileName": "GEMINI.md",
   "skills": "./skills",
-  "hooks": "./hooks/hooks.json",
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "yarr-mcp@2.1.0", "mcp"],
+      "args": ["-y", "yarr-mcp@2.2.0", "mcp"],
       "env": {
         "YARR_SERVICES": "$YARR_SERVICES",
         "YARR_SONARR_URL": "$YARR_SONARR_URL",
@@ -62,6 +61,20 @@
       "description": "Bearer token for the optional self-hosted MCP HTTP server (see server_url). Not used by the stdio MCP connection. Generate one with: openssl rand -hex 32",
       "required": false,
       "sensitive": true
+    },
+    {
+      "name": "static_token_scopes",
+      "description": "Comma-separated scopes for the optional HTTP bearer token. Keep yarr:read with flat mode; add yarr:write explicitly for Code Mode or writes.",
+      "required": false,
+      "default": "yarr:read",
+      "envVar": "YARR_MCP_STATIC_TOKEN_SCOPES"
+    },
+    {
+      "name": "tool_mode",
+      "description": "Optional HTTP server tool mode. flat is safe for read-only bearer auth; codemode requires yarr:write. The stdio MCP connection is unaffected.",
+      "required": false,
+      "default": "flat",
+      "envVar": "YARR_MCP_TOOL_MODE"
     },
     {
       "name": "yarr_services",

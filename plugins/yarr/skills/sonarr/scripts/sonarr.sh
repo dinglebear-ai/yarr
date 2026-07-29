@@ -10,7 +10,7 @@ curl() {
 
 # Sonarr API wrapper
 
-# Credentials come from this plugin userConfig (written by its SessionStart hook).
+# Credentials come from this plugin userConfig (written by the plugin setup script).
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/lab-sonarr/config.json"
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/load-config.sh"

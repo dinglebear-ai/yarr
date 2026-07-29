@@ -18,7 +18,7 @@ When both are configured, each request is accepted if it satisfies either mechan
 
 All non-trivial actions require at least `yarr:read`. Mutating actions require `yarr:write`, which also satisfies read checks. The `help` action is always public.
 
-Static bearer tokens default to `yarr:read` only. OAuth tokens carry whatever scopes the OAuth flow issued.
+Static bearer tokens default to `yarr:read`. Set `YARR_MCP_STATIC_TOKEN_SCOPES=yarr:write` (or `yarr:read,yarr:write`) only when that shared token must call write-scoped operations or Code Mode. OAuth tokens carry the scopes issued by the OAuth flow.
 
 ---
 
@@ -31,13 +31,27 @@ export YARR_MCP_TOKEN=$(openssl rand -hex 32)
 # Or: just gen-token
 ```
 
-Set `YARR_MCP_TOKEN` in your environment or `.env` file. Clients authenticate with:
+Set `YARR_MCP_TOKEN` in your environment or `.env` file. An explicit token is enforced on both loopback and non-loopback HTTP binds. Clients authenticate with:
 
 ```
 Authorization: Bearer <token>
 ```
 
-That's all. The server validates the header on every request to `/mcp`.
+The safe default is read-only:
+
+```bash
+YARR_MCP_STATIC_TOKEN_SCOPES=yarr:read
+YARR_MCP_TOOL_MODE=flat
+```
+
+To use the default single-tool Code Mode surface with a static token, grant write explicitly:
+
+```bash
+YARR_MCP_STATIC_TOKEN_SCOPES=yarr:write
+YARR_MCP_TOOL_MODE=codemode
+```
+
+Bearer-only startup fails instead of advertising an unusable Code Mode tool when the token lacks `yarr:write`.
 
 ---
 
@@ -108,9 +122,9 @@ The guard passes when any of the following is true:
 
 | Condition | Variable | Notes |
 |---|---|---|
-| Loopback bind | `YARR_MCP_HOST=127.0.0.1` | Trust boundary is the network address |
-| Bearer token set | `YARR_MCP_TOKEN=<token>` | Auth middleware enforces it |
-| OAuth enabled | `YARR_MCP_AUTH_MODE=oauth` | Auth middleware enforces it |
+| Loopback bind without explicit auth | `YARR_MCP_HOST=127.0.0.1` | Trust boundary is the network address |
+| Bearer token set | `YARR_MCP_TOKEN=<token>` | Auth middleware enforces it on any HTTP bind |
+| OAuth enabled | `YARR_MCP_AUTH_MODE=oauth` | Auth middleware enforces it on any HTTP bind |
 | Auth disabled | `YARR_MCP_HOST=127.0.0.1` + `YARR_MCP_NO_AUTH=true` | Local dev — see below |
 | Gateway override | `YARR_NOAUTH=true` | Upstream handles auth — see below |
 
@@ -155,18 +169,17 @@ The `AuthPolicy` enum in `src/server.rs` controls what the router does:
 
 | Policy | When | Auth enforced? | Scope checks? |
 |---|---|---|---|
-| `LoopbackDev` | Loopback bind, or stdio mode. `YARR_MCP_NO_AUTH=true` also enables this policy for loopback development. | No | No |
+| `LoopbackDev` | Loopback bind with no explicit bearer/OAuth auth, or stdio mode. `YARR_MCP_NO_AUTH=true` also selects it for loopback development. | No | No |
 | `TrustedGatewayUnscoped` | Non-loopback no-auth deployment with `YARR_NOAUTH=true` | No | No |
-| `Mounted { auth_state: None }` | Bearer-only mode | Yes (token) | Yes |
-| `Mounted { auth_state: Some(_) }` | OAuth mode (+ optional token) | Yes (OAuth / token) | Yes |
+| `Mounted { auth_state: None }` | Bearer-only mode on any HTTP bind | Yes (token) | Yes |
+| `Mounted { auth_state: Some(_) }` | OAuth mode on any HTTP bind (+ optional token) | Yes (OAuth / token) | Yes |
 
 Public endpoints (`/health`, `/ready`, `/status`, `/metrics`) are never gated by
 auth, regardless of policy. `/ready` exposes only the configured-service count,
 `/status` returns redacted local metadata, and `/metrics` must be protected at
 the network or reverse-proxy layer if it is not intended for public scraping.
 
-Static bearer tokens receive `yarr:read`, not write. OAuth is the supported
-HTTP path for scoped write access. Destructive MCP calls require elicitation at
+Static bearer tokens receive the scopes in `YARR_MCP_STATIC_TOKEN_SCOPES`; the default remains `yarr:read`. `yarr:write` must be granted explicitly and still does not bypass destructive confirmation. Destructive MCP calls require elicitation at
 the point of dispatch, including nested calls made by Code Mode; clients that
 cannot elicit are denied rather than allowed through.
 
