@@ -29,6 +29,7 @@ mod gen_openapi;
 mod live;
 mod patterns;
 mod shart;
+mod skill_keys;
 mod tool_docs;
 
 fn main() -> Result<()> {
@@ -55,6 +56,7 @@ fn main() -> Result<()> {
         Some("patterns") => patterns_cmd(&args[1..]),
         Some("tool-docs") => tool_docs::run(&args[1..]),
         Some("check-test-siblings") => check_test_siblings(),
+        Some("skill-keys") => skill_keys::run(),
         Some("--help") | Some("-h") | Some("help") | None => {
             print_help();
             Ok(())

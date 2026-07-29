@@ -22,5 +22,5 @@ automatically — do not hand-edit or commit credentials.
 
 - `skills/jellyfin/` — the Jellyfin skill (SKILL.md + helper scripts + references)
 - `scripts/setup.sh` — bridges plugin settings to the skill config file (run it
-  yourself; this plugin ships no lifecycle hooks)
+  yourself; normally the SessionStart/ConfigChange hook does it)
 - `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `gemini-extension.json` — per-platform manifests

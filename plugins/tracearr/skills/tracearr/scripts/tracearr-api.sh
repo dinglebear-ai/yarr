@@ -18,7 +18,7 @@ source "${SCRIPT_DIR}/load-config.sh"
 load_config() {
   local config="${TRACEARR_CONFIG_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/lab-tracearr/config.json}"
   if [[ -f "$config" ]]; then
-    load_plugin_config "$config" TRACEARR_URL
+    load_plugin_config "$config" TRACEARR_URL TRACEARR_API_KEY
   elif [[ -f "$HOME/.lab/.env" ]]; then
     set -a
     # shellcheck source=/dev/null

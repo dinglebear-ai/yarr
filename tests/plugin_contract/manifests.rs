@@ -14,6 +14,7 @@ fn plugin_manifests_exist_for_all_supported_hosts() {
         "plugins/yarr/.claude-plugin/plugin.json",
         "plugins/yarr/.codex-plugin/plugin.json",
         "plugins/yarr/gemini-extension.json",
+        "plugins/yarr/hooks/hooks.json",
         "plugins/yarr/skills/yarr/SKILL.md",
         "plugins/yarr/.mcp.json",
         "plugins/yarr/scripts/plugin-setup.sh",
@@ -54,6 +55,7 @@ fn mcp_json_uses_the_pinned_npm_stdio_launcher() {
         ("YARR_TAUTULLI_URL", "tautulli_url"),
         ("YARR_TAUTULLI_API_KEY", "tautulli_api_key"),
         ("YARR_TRACEARR_URL", "tracearr_url"),
+        ("YARR_TRACEARR_API_KEY", "tracearr_api_key"),
         ("YARR_BAZARR_URL", "bazarr_url"),
         ("YARR_BAZARR_API_KEY", "bazarr_api_key"),
     ] {
@@ -159,36 +161,8 @@ fn gemini_extension_uses_the_same_pinned_npm_stdio_launcher() {
 }
 
 #[test]
-fn plugins_ship_no_lifecycle_hooks() {
-    for plugin in std::fs::read_dir("plugins").unwrap() {
-        let root = plugin.unwrap().path();
-        if !root.is_dir() {
-            continue;
-        }
-        assert!(
-            !root.join("hooks").exists(),
-            "{} must not ship a hooks directory",
-            root.display()
-        );
-        for manifest in [
-            root.join(".claude-plugin/plugin.json"),
-            root.join(".codex-plugin/plugin.json"),
-            root.join("gemini-extension.json"),
-        ] {
-            if !manifest.is_file() {
-                continue;
-            }
-            assert!(
-                json(manifest.to_str().unwrap()).get("hooks").is_none(),
-                "{} must not declare a hooks key",
-                manifest.display()
-            );
-        }
-    }
-}
-
-#[test]
-fn the_setup_script_is_tracked_and_executable_without_a_bundled_binary() {
+fn claude_hooks_run_the_safe_local_setup_script_without_a_bundled_binary() {
+    let hooks = json("plugins/yarr/hooks/hooks.json");
     let setup = std::path::Path::new("plugins/yarr/scripts/plugin-setup.sh");
     assert!(setup.is_file(), "plugin setup script must be tracked");
     #[cfg(unix)]
@@ -199,8 +173,14 @@ fn the_setup_script_is_tracked_and_executable_without_a_bundled_binary() {
             0
         );
     }
-    let body = std::fs::read_to_string(setup).unwrap();
-    assert!(!body.contains("systemctl"));
-    assert!(!body.contains("docker compose"));
     assert!(!std::path::Path::new("plugins/yarr/bin/yarr").exists());
+
+    for hook_name in ["SessionStart", "ConfigChange"] {
+        let command = hooks["hooks"][hook_name][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap();
+        assert_eq!(command, "${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh");
+        assert!(!command.contains("systemctl"));
+        assert!(!command.contains("docker compose"));
+    }
 }

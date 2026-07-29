@@ -26,6 +26,11 @@
 #   - security exception deadline → runs in CI and `just deny`
 #   - gitleaks        → heavy scan; runs in CI
 #   - cargo xtask patterns → full-repo contract scan; runs in CI and `just template-check`
+#   - cargo xtask skill-keys → compares the four copies of the service→skill-key
+#                       map; needs a cargo build, so it runs in CI and
+#                       `just skill-keys-check` (also folded into
+#                       `just template-check`). Deliberately NOT a hook: it is a
+#                       full-repo cross-file comparison, not a staged-file check.
 #   - ascii-check     → full-repo docs/source scan; runs in CI and `just template-features`
 #   - live suites     → `just test-mcporter` (now `cargo xtask live --suite mcp`) and the
 #                       other `cargo xtask live` suites need the shart stack; manual/CI only.

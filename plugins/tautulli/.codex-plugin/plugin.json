@@ -16,6 +16,7 @@
     "homelab"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Tautulli",
     "shortDescription": "Reading Plex stats from Tautulli",

@@ -186,6 +186,9 @@ jobs:
       - name: Check test sibling coverage
         run: cargo xtask check-test-siblings
 
+      - name: Check service->skill-key map agrees across its copies
+        run: cargo xtask skill-keys
+
       - name: Validate plugin layout
         run: bash scripts/validate-plugin-layout.sh
 

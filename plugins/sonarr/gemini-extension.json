@@ -13,6 +13,7 @@
     "homelab"
   ],
   "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
   "settings": [
     {
       "name": "Sonarr URL",

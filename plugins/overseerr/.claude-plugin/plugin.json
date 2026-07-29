@@ -17,6 +17,7 @@
     "homelab"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "userConfig": {
     "overseerr_url": {
       "type": "string",

@@ -18,6 +18,7 @@
     "homelab"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "userConfig": {
     "radarr_url": {
       "type": "string",
