@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Setup script for the Yarr plugin. Run it manually: no lifecycle hooks ship here.
+# Setup script for the Yarr plugin. Runs automatically on SessionStart and
+# ConfigChange via hooks/hooks.json; also safe to run manually.
 # Bridges only declared service settings into non-executable JSON files used by
 # the bundled fallback skills. The MCP process receives its env directly from
 # .mcp.json and does not need settings persisted here.
@@ -27,7 +28,7 @@ const services = {
   plex: ['PLEX_URL', 'PLEX_TOKEN'],
   jellyfin: ['JELLYFIN_URL', 'JELLYFIN_API_KEY'],
   tautulli: ['TAUTULLI_URL', 'TAUTULLI_API_KEY'],
-  tracearr: ['TRACEARR_URL'],
+  tracearr: ['TRACEARR_URL', 'TRACEARR_API_KEY'],
   bazarr: ['BAZARR_URL', 'BAZARR_API_KEY'],
 };
 

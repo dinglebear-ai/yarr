@@ -15,6 +15,7 @@
     "homelab"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Tracearr",
     "shortDescription": "Querying Tracearr analytics",

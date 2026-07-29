@@ -12,6 +12,7 @@
     "homelab"
   ],
   "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
   "settings": [
     {
       "name": "SABnzbd URL",

@@ -17,6 +17,7 @@
     "homelab"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "userConfig": {
     "bazarr_url": {
       "type": "string",

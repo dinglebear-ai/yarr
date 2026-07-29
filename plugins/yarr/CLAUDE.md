@@ -8,11 +8,11 @@ Multi-platform plugin package for the Yarr MCP server. Contains manifests for Cl
 
 | File | Role |
 |---|---|
-| `.claude-plugin/plugin.json` | Claude Code manifest — identity, skills, monitors, `userConfig`. Declares no hooks. |
+| `.claude-plugin/plugin.json` | Claude Code manifest — identity, skills, monitors, `userConfig`. Declares no `hooks` key — Claude/Codex auto-discover `hooks/hooks.json` from its default location. |
 | `.codex-plugin/plugin.json` | Codex manifest — same data + Codex UI fields (`interface`) |
 | `gemini-extension.json` | Gemini CLI manifest — `settings` array instead of `userConfig`, plus an inline `mcpServers.yarr` stdio block (see below) |
 | `.mcp.json` | Claude Code / Codex MCP connection — **stdio by default** through `npx -y yarr-mcp@2.2.0 mcp`, one `YARR_<NAME>_*` env var per `userConfig` field. No committed platform binary or separately-run server is required. |
-| `scripts/plugin-setup.sh` | Run-on-demand credential bridge for the bundled fallback skills (no lifecycle hook invokes it). Persists only allowlisted settings as mode-`0600` JSON; stored values are parsed, never sourced/evaluated. |
+| `scripts/plugin-setup.sh` | Credential bridge for the bundled fallback skills, run by the SessionStart/ConfigChange hook (also safe to run manually). Persists only allowlisted settings as mode-`0600` JSON; stored values are parsed, never sourced/evaluated. |
 | `monitors/monitors.json` | Background health monitor config (requires Claude Code v2.1.105+) |
 | `skills/yarr/SKILL.md` | Three-tier tool documentation shared by Claude and Codex |
 

@@ -85,8 +85,8 @@ install flow after validating the manifest and exact launcher availability.
 
 | File | Platform | MCP config | Settings model |
 |---|---|---|---|
-| `.claude-plugin/plugin.json` | Claude Code | `.mcp.json` | `userConfig`; no lifecycle hooks |
-| `.codex-plugin/plugin.json` | Codex | `.mcp.json` | Shared skills; no lifecycle hooks |
+| `.claude-plugin/plugin.json` | Claude Code | `.mcp.json` | `userConfig`; `SessionStart`/`ConfigChange` hook writes the skill config |
+| `.codex-plugin/plugin.json` | Codex | `.mcp.json` | Shared skills; same hook pair |
 | `gemini-extension.json` | Gemini CLI | Inline `mcpServers.yarr` | `envVar` plus `${extensionPath}` |
 
 Manifests intentionally omit a `version` field. Marketplace identity comes
@@ -95,13 +95,20 @@ duplicate or stale identities.
 
 ## Settings bridge and secret handling
 
-No plugin in this repository declares lifecycle hooks. The credential bridge for
-the skills is a script you run on demand:
+Every plugin in this repository declares a `SessionStart` + `ConfigChange`
+lifecycle hook. The hook is the credential bridge for the skills — it is the only
+channel that can carry a `sensitive: true` setting to a skill script, because
+`CLAUDE_PLUGIN_OPTION_*` reaches hook processes only and skill scripts run through
+the Bash tool. The hook runs one of:
 
 ```text
 plugins/yarr/scripts/plugin-setup.sh      # full plugin (wraps `yarr setup plugin-hook`)
 plugins/<service>/scripts/setup.sh        # skills-only plugin
 ```
+
+Both are also safe to run manually. A script that resolves zero values exits
+without writing, so an unconfigured standalone plugin cannot clobber config the
+umbrella plugin already wrote to the same path.
 
 The bridge accepts only declared option names (read from the environment as
 `CLAUDE_PLUGIN_OPTION_<KEY>`) and writes mode-`0600` JSON to

@@ -576,11 +576,23 @@ gateway when exposed outside loopback.
   environment, not in tool arguments.
 - `query-string secret rejected`: remove tokens from `--path` and put them in
   config.
-- plugin skill cannot reach a service: rerun the plugin setup script
-  (`plugins/yarr/scripts/plugin-setup.sh`, or `plugins/<service>/scripts/setup.sh`
-  for a skills-only plugin) so its strict per-service config JSON is refreshed
-  under `~/.config/lab-<service>/config.json`. The plugins ship no lifecycle
-  hooks, so nothing refreshes that file automatically.
+- plugin skill cannot reach a service: its per-service config JSON under
+  `~/.config/lab-<service>/config.json` is missing or stale. It is written by the
+  plugin's `SessionStart` / `ConfigChange` hook, so start a new session (or change
+  a plugin setting) to refresh it. To rebuild it by hand, export the settings
+  yourself — the scripts read `CLAUDE_PLUGIN_OPTION_*`, which only the hook sets:
+
+  ```bash
+  CLAUDE_PLUGIN_OPTION_SONARR_URL=https://sonarr.example.com \
+  CLAUDE_PLUGIN_OPTION_SONARR_API_KEY=… \
+    bash plugins/sonarr/scripts/setup.sh
+  ```
+
+  Skill scripts run through the Bash tool, which receives **no**
+  `CLAUDE_PLUGIN_OPTION_*` variables — only hook processes do. That is why these
+  plugins need the hook: it is the one channel that can carry a `sensitive: true`
+  value to a skill, since sensitive values are never substituted into skill prose
+  and these plugins have no MCP server to receive an `${user_config.*}` env block.
 - Code Mode cannot find a callable: use `codemode.search(...)` and
   `codemode.describe(...)`; generated names follow upstream OpenAPI operation
   IDs after normalization.

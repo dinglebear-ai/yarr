@@ -255,6 +255,13 @@
       "description": "Tracearr base URL for its public API, e.g. http://localhost:3000.",
       "required": false
     },
+    "tracearr_api_key": {
+      "type": "string",
+      "title": "Tracearr API key",
+      "description": "Bearer token for the Tracearr API. Optional — omit if your Tracearr exposes its public API unauthenticated.",
+      "required": false,
+      "sensitive": true
+    },
     "bazarr_url": {
       "type": "string",
       "title": "Bazarr URL",

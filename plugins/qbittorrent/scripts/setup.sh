@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Setup script for the qbittorrent plugin. Run it manually: no lifecycle hooks ship here.
+# Setup script for the qbittorrent plugin. Runs automatically on SessionStart and
+# ConfigChange via hooks/hooks.json; also safe to run manually.
 # Persists only manifest-declared options as non-executable JSON.
 set -euo pipefail
 
@@ -24,6 +25,9 @@ for (const key of allowed) {
     ?? process.env[`CLAUDE_PLUGIN_OPTION_${key.toLowerCase()}`];
   if (typeof value === "string" && value.length > 0) values[key] = value;
 }
+// Never overwrite an existing config with an empty object: the umbrella `yarr`
+// plugin may have already written real credentials to this same path.
+if (Object.keys(values).length === 0) process.exit(0);
 const temporary = `${file}.tmp.${process.pid}`;
 try {
   fs.writeFileSync(temporary, JSON.stringify(values, null, 2) + "\n", { mode: 0o600 });
