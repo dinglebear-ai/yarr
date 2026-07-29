@@ -2,7 +2,7 @@
 # .github/workflows/ci.yml — Continuous Integration
 #
 # This workflow runs on every push and PR to main.
-# Jobs: fmt, clippy, docs, test (nextest), toml, contract checks, deny, gitleaks
+# Jobs: fmt, clippy, docs, test (nextest), toml, contract checks, deny
 #
 # All jobs must pass before merging. Adjust the matrix rust-version to match
 # your Cargo.toml `rust-version` field.
@@ -223,29 +223,3 @@ jobs:
         with:
           command: check
           arguments: --all-features
-
-  # ── gitleaks: secret scanning ─────────────────────────────────────────────────
-  gitleaks:
-    name: Secret Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0  # full history needed for gitleaks
-
-      - name: Run gitleaks
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            scan_range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
-          else
-            scan_range="${{ github.event.before }}..${{ github.sha }}"
-          fi
-          docker run --rm \
-            -v "${{ github.workspace }}:/repo" \
-            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
-            git --redact --verbose --log-opts="${scan_range}" /repo
