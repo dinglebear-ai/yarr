@@ -162,6 +162,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+    outputs:
+      staged_assets: ${{ steps.staged-assets.outputs.names }}
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -214,6 +216,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "$RELEASE_TAG" artifacts/* --clobber --repo "$GITHUB_REPOSITORY"
 
+      # A draft release is invisible to the npm job (that job holds only
+      # contents:read, and drafts require push access), so hand the verified
+      # asset names down instead of widening the publishing job's permissions.
+      - name: Record staged asset names
+        id: staged-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          names="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '[.assets[].name] | join(",")')"
+          [[ -n "$names" ]] || { echo "::error::staged release has no assets"; exit 1; }
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+
   npm:
     name: Publish npm launcher
     needs: [verify, stage-release]
@@ -257,9 +273,13 @@ jobs:
 
       - name: Publish exact npm version
         if: steps.published.outputs.exists != 'true'
-        run: npm publish --provenance --access public ./packages/yarr-mcp
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # prepublishOnly verifies the release assets exist for this tag. They
+          # are still on the draft release at this point, so the public download
+          # URLs 404; consume the names the staging job already verified.
+          YARR_RELEASE_STAGED_ASSETS: ${{ needs.stage-release.outputs.staged_assets }}
+        run: npm publish --provenance --access public ./packages/yarr-mcp
 
   finalize:
     name: Publish verified GitHub Release
