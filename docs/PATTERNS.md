@@ -723,10 +723,13 @@ package version must equal the Cargo/server version and must not float:
 }
 ```
 
-Plugins ship **no lifecycle hooks**. No manifest declares a `hooks` key and no
-plugin contains a `hooks/` directory; `scripts/plugin-setup.sh` is invoked on
-demand instead (directly, or via the binary-owned `yarr setup plugin-hook`).
-Contract checks assert the absence, so a reintroduced hook fails CI.
+Plugins ship **lifecycle hooks by necessity**. Every manifest declares a `hooks`
+key and every plugin contains a `hooks/` directory with a `SessionStart` +
+`ConfigChange(user_settings)` pair. The hook is the only channel that can deliver
+a `sensitive: true` setting to a skill script: `CLAUDE_PLUGIN_OPTION_*` reaches
+hook processes only, sensitive values are never substituted into skill prose, and
+the skills-only plugins have no MCP server to carry an `${user_config.*}` env
+block. Contract checks assert their presence, so removing a hook fails CI.
 
 The setup script accepts only allowlisted string values, writes them atomically to
 `~/.config/lab-<service>/config.json`, sets the directory to mode 0700 and the
@@ -2080,11 +2083,11 @@ match state.service.list_things().await {
 ## 44. Plugin Setup Contract
 
 The normative plugin contract is defined in section 13: pinned npm stdio
-launch, no lifecycle hooks, a repository-relative on-demand setup script,
-allowlisted string options, atomic mode-0600 JSON in a mode-0700 directory, and
-JSON-only client loading. Contract tests must reject lifecycle hooks, bundled
-executables, `config.env`, `source`/`eval`, floating npm versions, unsafe
-keys/types, and non-private file permissions.
+launch, a `SessionStart`/`ConfigChange` hook pair driving a repository-relative
+setup script, allowlisted string options, atomic mode-0600 JSON in a mode-0700
+directory, and JSON-only client loading. Contract tests must require the hook
+pair, and must reject bundled executables, `config.env`, `source`/`eval`,
+floating npm versions, unsafe keys/types, and non-private file permissions.
 
 ---
 

@@ -26,6 +26,7 @@
         "YARR_TAUTULLI_URL": "${user_config.tautulli_url}",
         "YARR_TAUTULLI_API_KEY": "${user_config.tautulli_api_key}",
         "YARR_TRACEARR_URL": "${user_config.tracearr_url}",
+        "YARR_TRACEARR_API_KEY": "${user_config.tracearr_api_key}",
         "YARR_BAZARR_URL": "${user_config.bazarr_url}",
         "YARR_BAZARR_API_KEY": "${user_config.bazarr_api_key}"
       }

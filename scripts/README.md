@@ -32,7 +32,7 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `sync-plugin-manifests.js` | Couple every `yarr-mcp@<version>` launcher pin to `packages/yarr-mcp/package.json`; `--check` fails on drift. |
 | `test-installers.js` | Exercise the install paths shipped with the npm launcher. |
 | `test-mcp-auth.sh` | Smoke-test HTTP MCP bearer auth. |
-| `test-plugin-distribution.js` | Assert standalone/bundled skill parity, pinned launchers, and the no-lifecycle-hooks rule. |
+| `test-plugin-distribution.js` | Assert standalone/bundled skill parity, pinned launchers, and that every plugin ships its lifecycle hooks. |
 | `test-plugin-http.js` | Smoke-test the plugin's HTTP surface. |
 | `test-template-features.sh` | Fast template invariant smoke tests. |
 | `validate-plugin-layout.sh` | Validate Claude/Codex/Gemini plugin package layout. |
@@ -350,14 +350,25 @@ PLUGIN_ROOT=plugins/yarr scripts/validate-plugin-layout.sh
 just validate-plugin
 ```
 
-Validates Claude, Codex, and Gemini plugin manifests, shared MCP config, skills, sensitive fields, the rule that plugin manifests do not contain `version`, and the rule that no plugin ships lifecycle hooks (no `hooks` manifest key, no `hooks/` directory).
+Validates Claude, Codex, and Gemini plugin manifests, shared MCP config, skills,
+sensitive fields, the rule that plugin manifests do not contain `version`, and —
+since 2026-07-28 — the rule that **every plugin ships a `hooks/` directory**.
+
+That last rule was inverted. It previously asserted the opposite: that no plugin
+shipped lifecycle hooks. The hooks are the **credential bridge** — they read
+`CLAUDE_PLUGIN_OPTION_*` and write `~/.config/lab-<service>/config.json`, which is
+the only channel by which a `sensitive: true` `userConfig` value can reach a skill
+script. `${user_config.*}` does not substitute into skill prose, and
+`CLAUDE_PLUGIN_OPTION_*` is exported to hook processes only. Removing them in #89
+silently broke config delivery for all 12 plugins; the revert restored them and
+flipped this assertion so it cannot happen again.
 
 ---
 
 ## Git hook integration
 
 These are git hooks, unrelated to Claude Code plugin hooks (which this repository
-no longer ships). `block-env-commits.sh`, `check-version-sync.sh`, and
+does ship, one `hooks/` directory per plugin — see `validate-plugin-layout.sh`). `block-env-commits.sh`, `check-version-sync.sh`, and
 `check-file-size.sh` are designed for `lefthook` pre-commit integration. Install
 them with:
 

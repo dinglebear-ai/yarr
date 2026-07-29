@@ -11,12 +11,19 @@
     "homelab"
   ],
   "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
   "settings": [
     {
       "name": "Tracearr URL",
       "description": "Tracearr base URL for its public API, e.g. http://localhost:3000 (no trailing slash).",
       "envVar": "TRACEARR_URL",
       "sensitive": false
+    },
+    {
+      "name": "Tracearr API key",
+      "description": "Bearer token for the Tracearr API. Optional — omit if your Tracearr exposes its public API unauthenticated.",
+      "envVar": "TRACEARR_API_KEY",
+      "sensitive": true
     }
   ]
 }

@@ -18,6 +18,7 @@
   ],
   "contextFileName": "GEMINI.md",
   "skills": "./skills",
+  "hooks": "./hooks/hooks.json",
   "mcpServers": {
     "yarr": {
       "command": "npx",
@@ -44,6 +45,7 @@
         "YARR_TAUTULLI_URL": "$YARR_TAUTULLI_URL",
         "YARR_TAUTULLI_API_KEY": "$YARR_TAUTULLI_API_KEY",
         "YARR_TRACEARR_URL": "$YARR_TRACEARR_URL",
+        "YARR_TRACEARR_API_KEY": "$YARR_TRACEARR_API_KEY",
         "YARR_BAZARR_URL": "$YARR_BAZARR_URL",
         "YARR_BAZARR_API_KEY": "$YARR_BAZARR_API_KEY"
       }
@@ -222,6 +224,13 @@
       "description": "Tracearr base URL for its public API, e.g. http://localhost:3000.",
       "required": false,
       "envVar": "YARR_TRACEARR_URL"
+    },
+    {
+      "name": "tracearr_api_key",
+      "description": "Bearer token for the Tracearr API. Optional — omit if your Tracearr exposes its public API unauthenticated.",
+      "required": false,
+      "sensitive": true,
+      "envVar": "YARR_TRACEARR_API_KEY"
     },
     {
       "name": "bazarr_url",

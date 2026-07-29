@@ -10,7 +10,7 @@ media-automation stack:
   MCP server. Each drives a single service's REST API directly with `curl`. Pick
   only the ones you want (e.g. just `plex` + `sonarr` + `radarr`).
 
-Neither kind ships Claude Code lifecycle hooks.
+Both kinds ship a Claude Code `SessionStart` + `ConfigChange` lifecycle hook; it is the only channel that can deliver a `sensitive: true` setting to a skill script.
 
 ```
 plugins/
@@ -53,7 +53,7 @@ plugins/<service>/
 
 ### Credential bridge
 
-No plugin here ships lifecycle hooks — the credential bridge is a script you run
+Every plugin here ships a lifecycle hook — the credential bridge is a script the hook runs
 on demand. `scripts/setup.sh` reads the manifest-declared `CLAUDE_PLUGIN_OPTION_*`
 values from its environment and writes only those into a private mode-`0600` JSON
 object. Skill helpers parse an explicit allowlist; the file is never sourced or
@@ -103,7 +103,7 @@ When changing a plugin package:
 7. Run `node scripts/test-plugin-distribution.js` — it byte-compares each
    standalone `skills/<service>/scripts/*` against the bundled copy under
    `plugins/yarr/skills/`, so edit both or it fails.
-8. Do not add lifecycle hooks. No manifest may declare a `hooks` key and no
+8. Keep the lifecycle hooks. Each plugin ships `hooks/hooks.json` and the 11 skills-only manifests declare a `hooks` key; removing them breaks credential delivery. No
    plugin may contain a `hooks/` directory; the layout, distribution, and
    `plugin_contract` checks all assert their absence.
 9. Do not describe a pinned launcher as available until the exact npm version resolves.

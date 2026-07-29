@@ -15,6 +15,7 @@
     "homelab"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Jellyfin",
     "shortDescription": "Querying Jellyfin",

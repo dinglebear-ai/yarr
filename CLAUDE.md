@@ -392,13 +392,35 @@ version and creates duplicate entries. Do not add `version` to any plugin
 manifest and do not run `scripts/bump-version.sh` targets against plugin
 manifests.
 
-**No lifecycle hooks.** No plugin declares a `hooks` key and none ships a
-`hooks/` directory. The credential bridge (`plugins/yarr/scripts/plugin-setup.sh`,
-`plugins/<service>/scripts/setup.sh`) is run on demand, or through the
-binary-owned `yarr setup plugin-hook`. The absence is enforced by
-`scripts/validate-plugin-layout.sh`, `scripts/test-plugin-distribution.js`,
-`tests/plugin_contract/manifests.rs::plugins_ship_no_lifecycle_hooks`, and
-`cargo xtask patterns` — do not reintroduce hooks.
+**Lifecycle hooks are required here — do not remove them again.** All 12 plugins
+ship a `hooks/` directory with a `SessionStart` + `ConfigChange(user_settings)`
+pair. The 11 skills-only plugins declare `"hooks": "./hooks/hooks.json"` in all
+three manifests; `plugins/yarr` declares it only in `gemini-extension.json` and
+relies on Claude/Codex auto-discovery of the default `hooks/hooks.json` location
+(34 manifest keys total — this asymmetry predates PR #89 and is intentional). The
+hook runs
+`plugins/<service>/scripts/setup.sh` (or `plugins/yarr/scripts/plugin-setup.sh`).
+That hook is the **credential bridge**: it reads `CLAUDE_PLUGIN_OPTION_*` and
+writes `~/.config/lab-<service>/config.json` at mode 0600, which the skill scripts
+then read.
+
+There is no substitute, and this was verified against the official plugin
+reference:
+
+- `${user_config.*}` substitutes only in **MCP/LSP server configs and hook
+  commands**, plus **non-sensitive** values in skill/agent prose. Every service's
+  API key is `sensitive: true`, so prose substitution is unavailable.
+- `CLAUDE_PLUGIN_OPTION_*` is exported to **hook processes only**. Skill scripts
+  run through the Bash tool and receive none (verified empirically).
+- The 11 skills-only plugins ship no MCP server, so there is no `.mcp.json` `env`
+  block to carry config either.
+- Monitor commands **reject** `${user_config.*}` since Claude Code v2.1.207 and
+  get no `CLAUDE_PLUGIN_OPTION_*`, so a monitor cannot stand in.
+
+Hooks were briefly retired in #89; that broke config delivery for all 12 plugins
+and was reverted. Presence is enforced by `scripts/validate-plugin-layout.sh`,
+`scripts/test-plugin-distribution.js`, `tests/plugin_contract/manifests.rs`, and
+`cargo xtask patterns`.
 
 **Standalone/bundled skills must stay byte-identical.** Every
 `plugins/<service>/skills/<service>/scripts/*` file is compared byte-for-byte
