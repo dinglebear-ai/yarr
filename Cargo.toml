@@ -23,7 +23,7 @@ edition = "2024"
 rust-version = "1.97.1"
 [package]
 name = "yarr"
-version = "2.2.1"
+version = "2.2.2"
 edition.workspace = true
 rust-version.workspace = true
 categories = ["command-line-utilities", "development-tools"]
