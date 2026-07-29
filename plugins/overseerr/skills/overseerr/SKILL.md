@@ -20,7 +20,7 @@ This skill enables media request management through Overseerr:
 
 ## Setup
 
-Credentials are configured in the **plugin settings** (userConfig). A `SessionStart` hook writes them to `~/.config/lab-overseerr/config.json`, which the scripts parse automatically — no manual file editing. Variables used:
+Credentials are configured in the **plugin settings** (userConfig). The plugin setup script writes them to `~/.config/lab-overseerr/config.json`, which the scripts parse automatically — no manual file editing. Variables used:
 
 ```bash
 OVERSEERR_URL="http://localhost:5055"

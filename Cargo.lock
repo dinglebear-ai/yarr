@@ -1518,7 +1518,7 @@ dependencies = [
 [[package]]
 name = "labby-auth"
 version = "1.7.0"
-source = "git+https://github.com/jmagar/lab.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
+source = "git+https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
 dependencies = [
  "axum",
  "base64",
@@ -1545,7 +1545,7 @@ dependencies = [
 [[package]]
 name = "labby-primitives"
 version = "1.7.0"
-source = "git+https://github.com/jmagar/lab.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
+source = "git+https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc4798567f3cacc0f740b3b4de5839ca39133"
 dependencies = [
  "thiserror 2.0.18",
  "url",
@@ -4215,7 +4215,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "xtask"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "jsonschema",
@@ -4231,7 +4231,7 @@ dependencies = [
 
 [[package]]
 name = "yarr"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "axum",

@@ -22,7 +22,7 @@ Manage torrents via qBittorrent WebUI.
 
 ### 2. Configure Credentials
 
-Set these variables in the plugin settings. The plugin `SessionStart` hook writes `~/.config/lab-qbittorrent/config.json` for the helper script; do not commit or manually document real credentials:
+Set these variables in the plugin settings. The plugin setup script writes `~/.config/lab-qbittorrent/config.json` for the helper script; do not commit or manually document real credentials:
 
 ```bash
 QBITTORRENT_URL="http://localhost:8080"

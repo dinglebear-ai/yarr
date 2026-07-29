@@ -57,12 +57,21 @@ codemode_timeout_secs = 30
 # Never set to true in production. Use just dev for local no-auth mode.
 # no_auth = false
 
-# Static read-only bearer token for /mcp authentication (`yarr:read`). Use OAuth
-# with an issued `yarr:write` scope for write/Code Mode HTTP calls.
-# YARR_MCP_TOKEN env var overrides this.
-# Always set via env var, never in config.toml.
+# Static bearer token for /mcp authentication.
+# YARR_MCP_TOKEN env var overrides this. Always set the secret through env.
 #   Generate with: openssl rand -hex 32   or   just gen-token
 # api_token = ""
+
+# Scopes granted to the static bearer token. The safe default is read-only.
+# YARR_MCP_STATIC_TOKEN_SCOPES (comma-separated) overrides this.
+# A bearer-only Code Mode server must explicitly include yarr:write.
+static_token_scopes = ["yarr:read"]
+
+# Tool registration mode. `codemode` advertises one powerful `yarr` tool;
+# `flat` advertises one typed tool per configured service. Read-only static
+# bearer deployments must use flat mode.
+# YARR_MCP_TOOL_MODE env var overrides this.
+tool_mode = "codemode"
 
 # Extra Host header values allowed by the RMCP host-validation middleware.
 # YARR_MCP_ALLOWED_HOSTS env var (comma-separated) overrides this.

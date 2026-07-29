@@ -93,9 +93,11 @@ The data root is `YARR_HOME` when set, `/data` in a container, and `~/.yarr`
 otherwise. There is no `YARR_DATA_DIR` variable and no `.env.yarr` template.
 
 Non-loopback HTTP requires bearer auth, OAuth, or the explicit trusted-gateway
-contract. See [AUTH.md](AUTH.md). Local OAuth supports exactly one Yarr
-replica because startup holds an exclusive SQLite instance lock. Do not place
-the auth database on shared or network storage to simulate horizontal scaling.
+contract. Static bearer tokens default to read-only; grant `yarr:write`
+explicitly only when that token must use Code Mode or write actions. See
+[AUTH.md](AUTH.md). Local OAuth supports exactly one Yarr replica because
+startup holds an exclusive SQLite instance lock. Do not place the auth database
+on shared or network storage to simulate horizontal scaling.
 
 ## Local stdio deployment
 

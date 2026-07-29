@@ -23,8 +23,8 @@ All operations use the Sonarr API v3 and support monitor options and search-on-a
 
 ### 2. Configure Credentials
 
-Set the following values in the plugin settings. The plugin `SessionStart`
-hook writes them to `~/.config/lab-sonarr/config.json`; do not commit or edit real
+Set the following values in the plugin settings. The plugin setup script
+writes them to `~/.config/lab-sonarr/config.json`; do not commit or edit real
 credentials into this repository.
 
 ```bash

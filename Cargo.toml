@@ -15,7 +15,7 @@ resolver = "2"
 
 [package]
 name = "yarr"
-version = "2.1.0"
+version = "2.2.0"
 edition = "2024"
 rust-version = "1.90"
 categories = ["command-line-utilities", "development-tools"]
@@ -66,7 +66,7 @@ chrono = { version = "0.4", features = ["serde"] }
 toml = "1.1"
 
 # OAuth + JWT
-lab-auth = { git = "https://github.com/jmagar/lab.git", rev = "53dbc4798567f3cacc0f740b3b4de5839ca39133", package = "labby-auth", features = ["http-axum"] }
+lab-auth = { git = "https://github.com/dinglebear-ai/labby.git", rev = "53dbc4798567f3cacc0f740b3b4de5839ca39133", package = "labby-auth", features = ["http-axum"] }
 url = "2"
 
 # Logging

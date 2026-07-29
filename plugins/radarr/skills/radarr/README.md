@@ -24,7 +24,7 @@ All operations use the Radarr API v3 and support collection detection and search
 
 ### 2. Configure Plugin Settings
 
-Set these values in the plugin settings. The plugin `SessionStart` hook
+Set these values in the plugin settings. The plugin setup script
 writes `~/.config/lab-radarr/config.json`; do not commit or hand-edit credentials
 in this repo.
 

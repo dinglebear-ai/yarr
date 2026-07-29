@@ -16,7 +16,6 @@
     "homelab"
   ],
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "SABnzbd",
     "shortDescription": "Controlling the SABnzbd queue",

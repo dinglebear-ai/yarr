@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use crate::{
     app::YarrService,
-    config::{AuthMode, Config, McpConfig},
+    config::{AuthMode, Config, McpConfig, ToolMode},
 };
 
 pub mod routes;
@@ -64,16 +64,19 @@ pub enum AuthPolicyKind {
 pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Result<AuthPolicyKind> {
     validate_public_url(config)?;
 
-    if config.mcp.is_loopback() {
-        return Ok(AuthPolicyKind::LoopbackDev);
-    }
-
+    // No early loopback return: an operator who configures explicit bearer/OAuth
+    // credentials on a loopback bind gets that policy honored rather than silently
+    // downgraded to LoopbackDev.
+    let loopback = config.mcp.is_loopback();
     let bearer_token = config.mcp.api_token.as_deref();
     let has_token = bearer_token.is_some_and(|token| !token.is_empty());
     let has_strong_token = bearer_token.is_some_and(is_strong_bearer_token);
     let has_oauth = config.mcp.auth.mode == AuthMode::OAuth;
 
     if config.mcp.no_auth {
+        if loopback {
+            return Ok(AuthPolicyKind::LoopbackDev);
+        }
         if trusted_gateway && trusted_gateway_has_provenance(config) {
             return Ok(AuthPolicyKind::TrustedGatewayUnscoped);
         }
@@ -86,14 +89,33 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
         );
     }
 
+    if has_token
+        && !has_oauth
+        && config.mcp.tool_mode == ToolMode::Codemode
+        && !crate::actions::scopes_satisfy(
+            &config.mcp.static_token_scopes,
+            crate::actions::WRITE_SCOPE,
+        )
+    {
+        anyhow::bail!(
+            "Static bearer auth cannot use YARR_MCP_TOOL_MODE=codemode without yarr:write. \
+             Add yarr:write to YARR_MCP_STATIC_TOKEN_SCOPES or set YARR_MCP_TOOL_MODE=flat \
+             for a read-only bearer deployment."
+        );
+    }
+
     if has_oauth {
         Ok(AuthPolicyKind::MountedOAuth)
-    } else if has_strong_token {
+    } else if has_strong_token || (loopback && has_token) {
+        // Token strength is a network-exposure guard. A loopback bind is not
+        // reachable off-host, so an explicit token there is honored as-is.
         Ok(AuthPolicyKind::MountedBearer)
     } else if has_token {
         anyhow::bail!(
             "Refusing network exposure with a weak bearer token. Generate 256 bits of entropy with `openssl rand -hex 32`."
         );
+    } else if loopback {
+        Ok(AuthPolicyKind::LoopbackDev)
     } else if trusted_gateway && trusted_gateway_has_provenance(config) {
         Ok(AuthPolicyKind::TrustedGatewayUnscoped)
     } else if trusted_gateway {
@@ -179,6 +201,7 @@ pub struct AppState {
 pub fn build_auth_layer(
     policy: &AuthPolicy,
     static_token: Option<Arc<str>>,
+    static_token_scopes: Vec<String>,
     resource_url: Option<Arc<str>>,
 ) -> Option<AuthLayer> {
     match policy {
@@ -194,7 +217,7 @@ pub fn build_auth_layer(
                 AuthLayer::new()
                     .with_static_token(static_token)
                     .with_auth_state(auth_state.clone())
-                    .with_static_token_scopes(vec![crate::actions::READ_SCOPE.into()])
+                    .with_static_token_scopes(static_token_scopes)
                     .with_resource_url(resource_url)
                     .with_allow_session_cookie(false),
             )

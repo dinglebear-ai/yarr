@@ -22,7 +22,7 @@ Operations include both read and write actions. **Always confirm before deleting
 
 ## Setup
 
-Credentials are configured in the **plugin settings** (userConfig). A `SessionStart` hook writes them to `~/.config/lab-sabnzbd/config.json`, which the scripts parse automatically — no manual file editing. Variables used:
+Credentials are configured in the **plugin settings** (userConfig). The plugin setup script writes them to `~/.config/lab-sabnzbd/config.json`, which the scripts parse automatically — no manual file editing. Variables used:
 
 ```bash
 SABNZBD_URL="http://localhost:8080"

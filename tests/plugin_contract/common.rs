@@ -34,7 +34,9 @@ pub(super) fn setup_command(data_dir: &Path) -> Command {
         .env("YARR_SONARR_URL", "https://api.yarr.test")
         .env("YARR_SONARR_API_KEY", "yarr-secret")
         .env("YARR_MCP_PORT", "0")
-        .env("YARR_MCP_TOKEN", "mcp-secret");
+        .env("YARR_MCP_TOKEN", "mcp-secret")
+        .env("YARR_MCP_STATIC_TOKEN_SCOPES", "yarr:read")
+        .env("YARR_MCP_TOOL_MODE", "flat");
     cmd
 }
 

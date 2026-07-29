@@ -3,7 +3,7 @@
   "name": "ai.dinglebear/yarr-mcp",
   "title": "Yarr MCP",
   "description": "MCP server for querying and automating a configured media automation fleet.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "websiteUrl": "https://github.com/dinglebear-ai/yarr",
   "repository": {
     "url": "https://github.com/dinglebear-ai/yarr",
@@ -25,7 +25,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "yarr-mcp",
-      "version": "2.1.0",
+      "version": "2.2.0",
       "runtimeHint": "npx",
       "packageArguments": [
         {
@@ -90,7 +90,7 @@
           "format": "string",
           "isRequired": false,
           "isSecret": false,
-          "placeholder": "v2.1.0"
+          "placeholder": "v2.2.0"
         },
         {
           "name": "YARR_REPO",
@@ -128,11 +128,11 @@
       "namespace": "ai.dinglebear",
       "dnsDomain": "dinglebear.ai",
       "distribution": {
-        "npm": "yarr-mcp@2.1.0",
+        "npm": "yarr-mcp@2.2.0",
         "nodePackage": "yarr-mcp"
       },
       "buildInfo": {
-        "version": "2.1.0",
+        "version": "2.2.0",
         "repository": "https://github.com/dinglebear-ai/yarr"
       }
     }

@@ -53,7 +53,7 @@ check "Claude plugin manifest is valid JSON" "jq empty '${CLAUDE_PLUGIN_JSON}'"
 check "Claude plugin name is yarr" "test \"\$(jq -er '.name' '${CLAUDE_PLUGIN_JSON}')\" = 'yarr'"
 check "Claude plugin has no version field" "test \"\$(jq -er 'has(\"version\")' '${CLAUDE_PLUGIN_JSON}')\" = 'false'"
 check "Claude plugin keeps MCP config external" "jq -er 'has(\"mcpServers\") | not' '${CLAUDE_PLUGIN_JSON}'"
-check "Claude plugin keeps hooks config external" "jq -er 'has(\"hooks\") | not' '${CLAUDE_PLUGIN_JSON}'"
+check "Claude plugin declares no hooks" "jq -er 'has(\"hooks\") | not' '${CLAUDE_PLUGIN_JSON}'"
 check "Claude plugin points to skills directory" "test \"\$(jq -er '.skills' '${CLAUDE_PLUGIN_JSON}')\" = './skills'"
 check "Claude plugin points to monitors config" "test \"\$(jq -er '.experimental.monitors' '${CLAUDE_PLUGIN_JSON}')\" = './monitors/monitors.json'"
 check "Claude plugin declares server_url userConfig" "jq -er '.userConfig.server_url.default == \"http://localhost:40070\"' '${CLAUDE_PLUGIN_JSON}'"
@@ -67,12 +67,14 @@ check "Codex plugin name is yarr-mcp" "test \"\$(jq -er '.name' '${CODEX_PLUGIN_
 check "Codex plugin has no version field" "test \"\$(jq -er 'has(\"version\")' '${CODEX_PLUGIN_JSON}')\" = 'false'"
 check "Codex plugin keeps MCP config external" "jq -er 'has(\"mcpServers\") | not' '${CODEX_PLUGIN_JSON}'"
 check "Codex plugin points to skills directory" "test \"\$(jq -er '.skills' '${CODEX_PLUGIN_JSON}')\" = './skills/'"
+check "Codex plugin declares no hooks" "jq -er 'has(\"hooks\") | not' '${CODEX_PLUGIN_JSON}'"
 
 check "Gemini extension manifest exists" "test -f '${GEMINI_EXTENSION_JSON}'"
 check "Gemini extension manifest is valid JSON" "jq empty '${GEMINI_EXTENSION_JSON}'"
 check "Gemini extension name is yarr-mcp" "test \"\$(jq -er '.name' '${GEMINI_EXTENSION_JSON}')\" = 'yarr-mcp'"
 check "Gemini extension has no version field" "test \"\$(jq -er 'has(\"version\")' '${GEMINI_EXTENSION_JSON}')\" = 'false'"
 check "Gemini extension points to skills directory" "test \"\$(jq -er '.skills' '${GEMINI_EXTENSION_JSON}')\" = './skills'"
+check "Gemini extension declares no hooks" "jq -er 'has(\"hooks\") | not' '${GEMINI_EXTENSION_JSON}'"
 if [[ "${PLUGIN_ROOT}" == "plugins/yarr" ]]; then
   check "Gemini extension declares pinned npm stdio MCP server" "jq -er --arg spec '${EXPECTED_LAUNCHER}' '.mcpServers.yarr.command == \"npx\" and .mcpServers.yarr.args[0:3] == [\"-y\", \$spec, \"mcp\"]' '${GEMINI_EXTENSION_JSON}'"
 else
@@ -87,10 +89,8 @@ else
   check "MCP config is absent for skills-only standalone plugin" "test ! -f '${MCP_JSON}'"
 fi
 
-check "hooks config exists" "test -f '${HOOKS_JSON}'"
-check "hooks config is valid JSON" "jq empty '${HOOKS_JSON}'"
-check "SessionStart runs safe plugin setup" "jq -er '.hooks.SessionStart[]?.hooks[]?.command == \"\${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh\"' '${HOOKS_JSON}'"
-check "ConfigChange runs safe plugin setup" "jq -er '.hooks.ConfigChange[]? | select(.matcher == \"user_settings\") | .hooks[]?.command == \"\${CLAUDE_PLUGIN_ROOT}/scripts/plugin-setup.sh\"' '${HOOKS_JSON}'"
+check "plugin ships no hooks config" "test ! -e '${HOOKS_JSON}'"
+check "plugin ships no hooks directory" "test ! -d '${PLUGIN_ROOT}/hooks'"
 check "plugin setup script exists" "test -f '${PLUGIN_ROOT}/scripts/plugin-setup.sh'"
 check "plugin setup script is executable" "test -x '${PLUGIN_ROOT}/scripts/plugin-setup.sh'"
 check "plugin contains no committed binary" "test ! -e '${PLUGIN_ROOT}/bin/yarr'"
