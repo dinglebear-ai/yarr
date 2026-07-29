@@ -59,7 +59,9 @@ across all three.
 `yarr` on PATH. Plugin monitors must not assume a bundled binary in the
 plugin directory.
 
-The monitor command uses `${user_config.server_url}` substitution — this is resolved at runtime from the user's plugin settings. Do not hardcode URLs in `monitors.json`.
+The monitor command must **not** reference `${user_config.*}`. Claude Code v2.1.207+ rejects it in monitor commands (the command runs through a shell) and the monitor never starts — silently, since a monitor that fails to launch looks identical to one reporting healthy. Monitor processes also receive no `CLAUDE_PLUGIN_OPTION_*`.
+
+`watch.sh` therefore passes no URL; `yarr watch` resolves its own default from config (`http://localhost:{mcp.port}`). Do not hardcode URLs in `monitors.json` either — if a monitor ever needs a non-default URL, read it from a config file inside the script, which is the documented alternative.
 
 When adding a new monitor: add an entry to `monitors.json` and reference only
 scripts under `${CLAUDE_PLUGIN_ROOT}/scripts/`; those scripts should resolve the
