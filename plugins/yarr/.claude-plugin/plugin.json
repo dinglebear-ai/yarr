@@ -52,20 +52,6 @@
       "required": true,
       "default": "flat"
     },
-    "static_token_scopes": {
-      "type": "string",
-      "title": "Static token scopes",
-      "description": "Comma-separated scopes for the optional HTTP bearer token. Keep yarr:read with flat tool mode for read-only access. Add yarr:write explicitly only when the token must use Code Mode or write actions.",
-      "required": true,
-      "default": "yarr:read"
-    },
-    "tool_mode": {
-      "type": "string",
-      "title": "HTTP tool mode",
-      "description": "Tool registration for the optional self-hosted HTTP server. flat is the safe default for a read-only bearer token; codemode requires yarr:write. This does not affect the plugin's stdio MCP connection.",
-      "required": true,
-      "default": "flat"
-    },
     "no_auth": {
       "type": "boolean",
       "title": "Disable service auth",

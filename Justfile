@@ -199,9 +199,14 @@ patterns-json:
 template-features:
     bash scripts/test-template-features.sh
 
+# Check the service->skill-key map agrees across all four copies
+skill-keys-check:
+    cargo xtask skill-keys
+
 # Run fast template-specific checks
 template-check:
     just patterns-check
+    just skill-keys-check
     just validate-plugin
     just schema-docs-check
     just docs-links-check
