@@ -388,6 +388,88 @@ function requestText(url, redirects = 0) {
   });
 }
 
+// The release workflow stages assets on a DRAFT release and only publishes it
+// after npm succeeds, so during `npm publish` the public
+// releases/download/<tag>/... URLs still 404. When the workflow supplies a token
+// we verify the staged assets through the API instead, which can see drafts, and
+// otherwise fall back to the stricter public-URL check below.
+function stagedAssetNamesFromEnv() {
+  const raw = process.env.YARR_RELEASE_STAGED_ASSETS;
+  if (!raw) {
+    return null;
+  }
+  const names = raw
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return names.length > 0 ? new Set(names) : null;
+}
+
+function releaseApiContext() {
+  const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (!token || !repository) {
+    return null;
+  }
+  const tag = process.env.RELEASE_TAG || `v${packageJson.version}`;
+  return { token, repository, tag };
+}
+
+function requestJson(url, token) {
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      url,
+      {
+        method: "GET",
+        headers: {
+          accept: "application/vnd.github+json",
+          authorization: `Bearer ${token}`,
+          "user-agent": "yarr-mcp-package-check",
+          "x-github-api-version": "2022-11-28",
+        },
+      },
+      (response) => {
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          response.resume();
+          reject(new Error(`${url} returned ${response.statusCode}`));
+          return;
+        }
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+        response.on("end", () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    request.setTimeout(15000, () => {
+      request.destroy(new Error(`timeout checking ${url}`));
+    });
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+// A draft release is NOT retrievable through /releases/tags/<tag> — that endpoint
+// 404s until the release is published — so discover it by listing releases and
+// matching tag_name, which is the same reason release.yml uses `gh release view`
+// rather than the public tag API.
+async function stagedAssetNames(context) {
+  const url = `https://api.github.com/repos/${context.repository}/releases?per_page=100`;
+  const releases = await requestJson(url, context.token);
+  const release = (Array.isArray(releases) ? releases : []).find((entry) => entry.tag_name === context.tag);
+  if (!release) {
+    throw new Error(`no release found for ${context.tag}`);
+  }
+  return new Set((release.assets || []).map((asset) => asset.name));
+}
+
 function checksumManifestUrl(assetUrl) {
   return assetUrl.replace(/\/[^/]+$/, "/SHA256SUMS");
 }
@@ -426,7 +508,35 @@ async function checkReleaseAssets() {
     return;
   }
 
+  // Preferred: the staging job already listed the draft's assets with a token
+  // that has push access, and hands the names down as a job output. Falling back
+  // to the API keeps manual/local `--release` runs working.
+  let staged = stagedAssetNamesFromEnv();
+  const apiContext = staged ? null : releaseApiContext();
+  if (apiContext) {
+    try {
+      staged = await stagedAssetNames(apiContext);
+    } catch (error) {
+      // Fall through to the public-URL check, which is stricter, rather than
+      // treating an API problem as a passing verification.
+      staged = null;
+    }
+  }
+  const stagedSource = apiContext ? apiContext.tag : "the staged release";
+
   for (const { osName, arch, target } of supportedTargets(platform)) {
+    if (staged) {
+      assert(
+        staged.has(target.asset),
+        `release asset missing for ${osName}/${arch}: ${target.asset} is not attached to ${stagedSource}`,
+      );
+      assert(
+        staged.has(`${target.asset}.sha256`) || staged.has("SHA256SUMS"),
+        `release checksum missing for ${osName}/${arch}: ${target.asset}`,
+      );
+      continue;
+    }
+
     const url = platform.downloadUrl(target);
     const status = await requestHead(url);
     assert(status >= 200 && status < 300, `release asset missing for ${osName}/${arch}: ${url} returned ${status}`);
