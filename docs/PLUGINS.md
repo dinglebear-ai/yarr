@@ -38,7 +38,7 @@ stdio through the same exact launcher specification:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "yarr-mcp@2.2.1", "mcp"]
+  "args": ["-y", "yarr-mcp@2.2.2", "mcp"]
 }
 ```
 
@@ -52,11 +52,11 @@ A manifest pin proves intent, not registry availability. Verify the exact
 package before installing or debugging the full plugin:
 
 ```bash
-npm view yarr-mcp@2.2.1 version
+npm view yarr-mcp@2.2.2 version
 ```
 
 At this documentation revision, GitHub release `v2.1.0` is public but
-`yarr-mcp@2.2.1` returns `E404`; recovery is tracked in
+`yarr-mcp@2.2.2` returns `E404`; recovery is tracked in
 [issue #80](https://github.com/dinglebear-ai/yarr/issues/80). The full plugin
 cannot start from npm until that exact version resolves. Do not loosen the pin
 or silently use npm `latest` (currently an older launcher). Install the native
