@@ -22,7 +22,7 @@ use super::rmcp_server::{YarrRmcpServer, rmcp_server as make_server};
 
 pub fn streamable_http_config(config: &McpConfig) -> StreamableHttpServerConfig {
     StreamableHttpServerConfig::default()
-        .with_stateful_mode(false)
+        .with_legacy_session_mode(false)
         .with_json_response(true)
         .with_allowed_hosts(allowed_hosts(config))
         .with_allowed_origins(allowed_origins(config))

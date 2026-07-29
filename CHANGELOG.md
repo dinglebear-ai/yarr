@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* **deps:** pin `rmcp` to an exact `=3.0.0-beta.2` (was a caret `"2.1.0"` that had already drifted to `2.2.0` in the lockfile). `ServerHandler::call_tool`/`read_resource`/`get_prompt` now return the `CallToolResponse`/`ReadResourceResponse`/`GetPromptResponse` wrappers, and `StreamableHttpServerConfig::with_stateful_mode` is now `with_legacy_session_mode`; both are behaviour-preserving. The elicitation API is unchanged, so destructive-delete gating stays fail-closed
+
 ### Removed
 
 * **plugins:** drop Claude Code lifecycle hooks from all 12 plugins — `hooks/hooks.json` and every manifest `hooks` key are gone. The credential bridge (`scripts/setup.sh`, `scripts/plugin-setup.sh`, `yarr setup plugin-hook`) is now run on demand; contract checks assert hooks stay absent

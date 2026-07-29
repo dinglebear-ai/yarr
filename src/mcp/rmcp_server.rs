@@ -14,10 +14,11 @@ use lab_auth::AuthContext;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResult, ContentBlock, GetPromptRequestParams,
-        GetPromptResult, Implementation, ListPromptsResult, ListResourcesResult, ListToolsResult,
-        PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResult, Resource,
-        ResourceContents, ServerCapabilities, ServerInfo, Tool,
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
+        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
+        ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+        ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
+        ServerInfo, Tool,
     },
     service::{Peer, RequestContext},
 };
@@ -92,7 +93,7 @@ impl ServerHandler for YarrRmcpServer {
         &self,
         request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, ErrorData> {
+    ) -> Result<CallToolResponse, ErrorData> {
         let tool_name = request.name.to_string();
         let auth = require_auth_context(&self.state, &context)?;
         // Tool identity is authoritative. The default `yarr` tool always means
@@ -141,7 +142,7 @@ impl ServerHandler for YarrRmcpServer {
                 action = %action,
                 "destructive action declined via elicitation; nothing changed"
             );
-            return declined_result(&action);
+            return declined_result(&action).map(Into::into);
         }
 
         let started = Instant::now();
@@ -154,7 +155,7 @@ impl ServerHandler for YarrRmcpServer {
                     elapsed_ms = started.elapsed().as_millis(),
                     "MCP tool execution completed"
                 );
-                tool_result_from_json(result)
+                tool_result_from_json(result).map(Into::into)
             }
             Err(error) if crate::actions::is_validation_error(&error) => {
                 tracing::warn!(
@@ -171,7 +172,7 @@ impl ServerHandler for YarrRmcpServer {
                     error = %error,
                     "MCP tool execution failed"
                 );
-                Ok(tool_error_result(&tool_name, &action, &error))
+                Ok(tool_error_result(&tool_name, &action, &error).into())
             }
         }
     }
@@ -194,7 +195,7 @@ impl ServerHandler for YarrRmcpServer {
         &self,
         request: ReadResourceRequestParams,
         context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, ErrorData> {
+    ) -> Result<ReadResourceResponse, ErrorData> {
         require_auth_context(&self.state, &context)?;
         if request.uri != SCHEMA_RESOURCE_URI {
             return Err(ErrorData::invalid_params(
@@ -207,7 +208,8 @@ impl ServerHandler for YarrRmcpServer {
             .map_err(|e| ErrorData::internal_error(format!("serialization error: {e}"), None))?;
         Ok(ReadResourceResult::new(vec![
             ResourceContents::text(text, SCHEMA_RESOURCE_URI).with_mime_type("application/json"),
-        ]))
+        ])
+        .into())
     }
 
     // ── prompts ───────────────────────────────────────────────────────────────
@@ -225,9 +227,11 @@ impl ServerHandler for YarrRmcpServer {
         &self,
         request: GetPromptRequestParams,
         context: RequestContext<RoleServer>,
-    ) -> Result<GetPromptResult, ErrorData> {
+    ) -> Result<GetPromptResponse, ErrorData> {
         require_auth_context(&self.state, &context)?;
-        prompts::get_prompt(request).map_err(|e| ErrorData::invalid_params(e.to_string(), None))
+        prompts::get_prompt(request)
+            .map(Into::into)
+            .map_err(|e| ErrorData::invalid_params(e.to_string(), None))
     }
 
     // ── server info ───────────────────────────────────────────────────────────

@@ -12,9 +12,11 @@
 # =============================================================================
 
 [package]
+
+rust-version.workspace = true
 name = "xtask"
 version = "2.2.1"
-edition = "2024"
+edition.workspace = true
 # Exclude from crates.io — this is a private automation crate.
 publish = false
 
