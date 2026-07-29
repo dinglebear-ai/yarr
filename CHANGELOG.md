@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1](https://github.com/dinglebear-ai/yarr/compare/v2.2.0...v2.2.1) (2026-07-29)
+
+
+### Fixed
+
+* **ci:** use the mingw cross-compiler for the Windows release build ([#87](https://github.com/dinglebear-ai/yarr/issues/87)) ([76472b8](https://github.com/dinglebear-ai/yarr/commit/76472b82d0ceff5756ddc67675ca4dfda326cfef))
+* **release:** verify staged draft assets so the npm publish can proceed ([#93](https://github.com/dinglebear-ai/yarr/issues/93)) ([a62e3a8](https://github.com/dinglebear-ai/yarr/commit/a62e3a8e709761b0e3712d53221860bd3f6041b4))
+
 ## [2.2.0](https://github.com/dinglebear-ai/yarr/compare/v2.1.0...v2.2.0) (2026-07-28)
 
 
