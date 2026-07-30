@@ -11,18 +11,17 @@ permissions:
 
 env:
   CARGO_INCREMENTAL: "0"
-  SOLDR_CACHE_DIR: ${{ github.workspace }}/../.soldr-cache
 
 jobs:
   msrv:
     name: Minimum Supported Rust Version
-    runs-on: [self-hosted, unraid]
+    runs-on: [self-hosted, ci-pool-rust]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
         with:
           toolchain: "1.97.1"
 

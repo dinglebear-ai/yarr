@@ -29,7 +29,6 @@ env:
   CARGO_HTTP_MULTIPLEXING: false
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: "0"
-  SOLDR_CACHE_DIR: ${{ github.workspace }}/../.soldr-cache
 
 jobs:
   # -- actionlint: GitHub Actions workflow syntax and shell checks -------------
@@ -52,7 +51,7 @@ jobs:
   # ── fmt: cargo fmt --check ──────────────────────────────────────────────────
   fmt:
     name: Format
-    runs-on: [self-hosted, unraid]
+    runs-on: [self-hosted, ci-pool-rust]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -63,8 +62,8 @@ jobs:
       - name: Check version sync
         run: bash scripts/check-version-sync.sh
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
         with:
           components: rustfmt
 
@@ -74,13 +73,13 @@ jobs:
   # ── clippy: zero warnings ────────────────────────────────────────────────────
   clippy:
     name: Clippy
-    runs-on: [self-hosted, unraid]
+    runs-on: [self-hosted, ci-pool-rust]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
         with:
           components: clippy
 
@@ -90,13 +89,13 @@ jobs:
   # ── docs: rustdoc with zero warnings (broken/ambiguous intra-doc links) ──────
   docs:
     name: Docs
-    runs-on: [self-hosted, unraid]
+    runs-on: [self-hosted, ci-pool-rust]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
 
       - name: cargo doc (deny warnings)
         env:
@@ -106,13 +105,13 @@ jobs:
   # ── test: cargo nextest run --profile ci ─────────────────────────────────────
   test:
     name: Test
-    runs-on: [self-hosted, unraid]
+    runs-on: [self-hosted, ci-pool-rust]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@95cc2373c3f00275e315c306e56fef1c7a8854c0 # cargo-nextest
@@ -170,15 +169,15 @@ jobs:
   # ── contracts: generated docs, plugin layout, coupled files ─────────────────
   template:
     name: Repo Contracts
-    runs-on: [self-hosted, unraid]
+    runs-on: [self-hosted, ci-pool-ops]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
 
       - name: Check PATTERNS.md contracts
         run: cargo xtask patterns
