@@ -1,3 +1,9 @@
+---
+title: "rmcp-server Patterns"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
 # rmcp-server Patterns
 
 Canonical reference for all patterns used across the Rust MCP server family:
@@ -820,7 +826,10 @@ INSTALL_DIR="${HOME}/.local/bin"
 # Detect platform
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
-case "${ARCH}" in x86_64) ARCH="x86_64" ;; aarch64|arm64) ARCH="aarch64" ;; esac
+case "${ARCH}" in
+  x86_64|amd64) ARCH="x86_64" ;;
+  *) echo "Unsupported architecture: ${ARCH}; only x86_64 release binaries are published" >&2; exit 1 ;;
+esac
 
 echo "Installing ${BINARY} from ${REPO}..."
 mkdir -p "${INSTALL_DIR}"
@@ -2376,9 +2385,8 @@ preflight() {
     os="$(uname -s | tr '[:upper:]' '[:lower:]')"
     arch="$(uname -m)"
     case "${arch}" in
-        x86_64)  arch="amd64" ;;
-        aarch64|arm64) arch="arm64" ;;
-        *) echo "✗ Unsupported arch: ${arch}"; (( errors++ )) ;;
+        x86_64|amd64) arch="amd64" ;;
+        *) echo "✗ Unsupported arch: ${arch}; only x86_64 is supported"; (( errors++ )) ;;
     esac
     [[ "${os}" == "linux" ]] || { echo "✗ Only Linux is supported (got: ${os})"; (( errors++ )); }
     echo "✓ Platform: ${os}/${arch}"

@@ -242,7 +242,7 @@ fn check_lifecycles(report: &mut report::Report, yarr: &process::YarrProcess) ->
 }
 
 fn check_stdio_mcp(report: &mut report::Report, yarr: &process::YarrProcess) -> Result<()> {
-    let init_line = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"yarr-live-stdio\",\"version\":\"1\"}}}\n";
+    let init_line = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"yarr-live-stdio\",\"version\":\"1\"}}}\n";
     let stdio = yarr.output_with_stdin(&["mcp"], init_line, Duration::from_secs(5))?;
     if !stdio.status.success() {
         bail!(

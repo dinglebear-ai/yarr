@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.dinglebear/yarr-mcp",
   "title": "Yarr MCP",
-  "description": "MCP server for querying and automating a configured media automation fleet.",
+  "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
   "version": "2.2.1",
   "websiteUrl": "https://github.com/dinglebear-ai/yarr",
   "repository": {

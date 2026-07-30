@@ -1,8 +1,8 @@
 # yarr
 
-Rust MCP and CLI server for a media automation fleet: Sonarr, Radarr, Prowlarr,
-Tautulli, Overseerr, Bazarr, Tracearr, SABnzbd, qBittorrent, Plex, and
-Jellyfin.
+MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr,
+Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and
+Tracearr.
 
 If you run Claude Code, Codex, or Gemini CLI against a self-hosted media stack,
 `yarr` gives an agent one consistent way to query and control all of it instead
@@ -247,7 +247,7 @@ curl --fail http://127.0.0.1:40070/mcp \
   -H "Authorization: Bearer $YARR_MCP_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
 ```
 
 Use an MCP client such as mcporter for session-aware `tools/list` and Code Mode

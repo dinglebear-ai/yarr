@@ -70,7 +70,7 @@ test("launcher preserves the MCP stdio initialize contract", async () => {
 const readline = require('node:readline');
 readline.createInterface({ input: process.stdin }).once('line', (line) => {
   const request = JSON.parse(line);
-  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: { protocolVersion: '2025-06-18', serverInfo: { name: 'yarr', version: '1.1.1' }, capabilities: {} } }) + '\\n');
+  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result: { protocolVersion: '2025-11-25', serverInfo: { name: 'yarr', version: '1.1.1' }, capabilities: {} } }) + '\\n');
   process.exit(0);
 });
 `);

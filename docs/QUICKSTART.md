@@ -1,4 +1,10 @@
 ---
+title: "yarr quickstart"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
+---
 title: "Quickstart"
 doc_type: "guide"
 status: "active"
@@ -154,7 +160,7 @@ curl --fail http://127.0.0.1:40070/mcp \
   -H "Authorization: Bearer $YARR_MCP_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
 ```
 
 Use an MCP client such as mcporter for session-aware `tools/list`, resources,
