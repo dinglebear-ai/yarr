@@ -5,6 +5,7 @@
 *.env.*
 !.env.example
 !**/.env.example
+!unraid-plugin/source/usr/local/emhttp/plugins/yarr/default.env
 # Use /config.toml (root-anchored) so .cargo/config.toml is NOT excluded.
 /config.toml
 

@@ -1,4 +1,12 @@
 self-hosted-runner:
-  labels: [unraid]
+  labels:
+    - unraid
+    - ci-pool-rust
+    - ci-pool-python
+    - ci-pool-typescript
+    - ci-pool-go
+    - ci-pool-ops
+    - ci-pool-jvm
+    - ci-pool-system
 
 config-variables: null

@@ -1,5 +1,11 @@
 ---
 title: "Rust Build Setup"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
+---
+title: "Rust Build Setup"
 doc_type: "guide"
 status: "active"
 owner: "yarr"
@@ -10,7 +16,7 @@ scope: "service"
 source_of_truth: false
 upstream_refs:
   - "https://github.com/dinglebear-ai/soma/blob/main/docs/RUST.md"
-last_reviewed: "2026-07-13"
+last_reviewed: "2026-07-30"
 ---
 
 # Rust Build Setup
@@ -29,7 +35,7 @@ config cannot express (xtask alias, repo-specific linker overrides).
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| Rust stable ≥ 1.90 | Compiler | `rustup update stable` |
+| Rust 1.97.1 | Compiler | `rustup toolchain install 1.97.1 --component rustfmt,clippy` |
 | `clang` | Linker driver for the mold integration | `apt install clang` |
 | `mold` | High-speed linker; 5-10× faster than GNU `ld` on Linux | `apt install mold` |
 | `mingw-w64` | Cross-compiler for `x86_64-pc-windows-gnu` targets | `apt install mingw-w64` |
@@ -51,19 +57,12 @@ machine. **This file is not committed to any repo** — it lives only in
 `~/.cargo/config.toml`.
 
 ```toml
-# sccache is enabled globally. The user service owns the long-lived server; keep
-# dev incremental disabled so Rust artifacts are cacheable across worktrees.
+# kache is enabled globally through Cargo's standard rustc-wrapper setting.
+# Keep dev incremental disabled so compiler outputs remain cacheable.
 
 [build]
-# Fallback for callers that bypass ~/.local/bin/cargo. The cargo wrapper computes
-# CARGO_BUILD_JOBS dynamically from the active build count, so a solo wrapper-run
-# build gets more parallelism while concurrent builds divide the CPU budget.
-jobs = 8
-rustc-wrapper = "/home/jmagar/.local/bin/sccache-wrapper"
-
-[env]
-SCCACHE_SERVER_UDS = "/home/jmagar/.local/state/sccache/sccache.sock"
-SCCACHE_BASEDIRS = "/home/jmagar/workspace:/home/jmagar/.codex/worktrees"
+jobs = 12
+rustc-wrapper = "kache"
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
@@ -73,18 +72,18 @@ rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 linker = "x86_64-w64-mingw32-gcc"
 
 [profile.dev]
-debug = 1
-codegen-units = 8
-split-debuginfo = "unpacked"
+debug = 0
+codegen-units = 256
+split-debuginfo = "off"
 incremental = false
 opt-level = 0
 
 [profile.test]
-debug = 1
-codegen-units = 8
+debug = 0
+codegen-units = 256
 
 [profile.dev.package."*"]
-opt-level = 1
+opt-level = 0
 ```
 
 ### Why mold?
@@ -100,13 +99,13 @@ config is needed. **Do not add `rustflags` to `[target.x86_64-unknown-linux-gnu]
 in a per-repo config** — that would replace, not extend, the global rustflags
 and silently drop the mold flag.
 
-### Why sccache globally?
+### Why kache globally?
 
-The host-level Cargo config enables `sccache-wrapper` once, and the user systemd
-service owns the long-lived cache daemon. That keeps dependency compilation
-cacheable across all worktrees without asking each repo to carry its own wrapper
-hook. Plugin manifests launch a pinned npm package and do not synchronize
-repository binaries.
+The host-level Cargo config enables `kache` once through Cargo's supported
+`rustc-wrapper` hook. Kache provides a fail-open, content-addressed compiler
+cache across worktrees without a repository-local Cargo wrapper. Use
+`KACHE_DISABLED=1 cargo ...` or `RUSTC_WRAPPER="" cargo ...` for a true
+passthrough, and use `kache stats` to verify cache health.
 
 ### Profile settings rationale
 

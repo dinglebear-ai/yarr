@@ -1,4 +1,10 @@
 ---
+title: "Plugin distribution"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
+---
 title: "Plugin Distribution"
 doc_type: "guide"
 status: "active"

@@ -1,6 +1,6 @@
 {
   "name": "yarr",
-  "description": "Connects Claude Code to the yarr MCP server — one tool surface over a media-automation fleet (Sonarr, Radarr, Prowlarr, Tautulli, Overseerr, qBittorrent, SABnzbd, Plex, Jellyfin, and more). Also bundles standalone per-service skills (sonarr, radarr, prowlarr, overseerr, sabnzbd, qbittorrent, plex, jellyfin, tautulli, tracearr, bazarr) that drive each service's REST API directly as an offline fallback when the MCP server is unavailable.",
+  "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
   "author": {
     "name": "jmagar"
   },

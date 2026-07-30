@@ -1,3 +1,9 @@
+---
+title: "Dependency advisory response"
+created: 2026-07-16
+updated: 2026-07-30
+---
+
 # Dependency advisory response
 
 Owner: `@jmagar`

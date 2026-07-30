@@ -9,7 +9,7 @@ Rust MCP and CLI server for a media automation fleet. It wraps **11 service kind
 | Repo | `git@github.com:dinglebear-ai/yarr.git`, default branch `main` |
 | Cargo workspace | 2 members — `.` (bin+lib `yarr`) and `xtask` |
 | Edition / MSRV | 2024 / Rust 1.97.1 |
-| MCP crate | `rmcp = "=3.0.0-beta.2"` — exact pin (`server`, `macros`, `transport-streamable-http-server`, `transport-io`, `schemars`, `elicitation`) |
+| MCP crate | `rmcp = "=3.0.0-beta.2"` via `[workspace.dependencies]` (`server`, `macros`, `transport-streamable-http-server`, `transport-io`, `schemars`, `elicitation`) |
 | Service port | `40070` (`YARR_MCP_PORT`) |
 | npm launcher | `yarr-mcp@<Cargo version>`, pinned — never `latest` |
 

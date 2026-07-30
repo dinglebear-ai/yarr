@@ -1,3 +1,9 @@
+---
+title: "Bad image and deployment rollback"
+created: 2026-07-16
+updated: 2026-07-30
+---
+
 # Bad image and deployment rollback
 
 Owner: `@jmagar`

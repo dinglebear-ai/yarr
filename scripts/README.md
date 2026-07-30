@@ -23,6 +23,8 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `check-version-sync.sh` | Check version consistency. |
 | `generate-cli.sh` | Generate a standalone CLI for this server via mcporter (requires running server). |
 | `install.sh` | Install the latest GitHub Release binary and create a `yarr` symlink. |
+| `kache-gate.sh` | Fail the build when the kache compiler cache silently degrades: snapshot counters with `--baseline` before the build, diff after, enforce hit-rate floor / remote-hit / daemon thresholds from `KACHE_GATE_*` env. kache is fail-open, so this gate is the only red signal. Fleet-copied from soma; keep pure ASCII. |
+| `kache-gate-selftest.sh` | Prove `kache-gate.sh` actually rejects a degraded build (cold all-miss profile) and accepts a clean one, so the gate cannot rot into a no-op. |
 | `live-read-smoke.sh` | Run legacy guarded shart read-only CLI and upstream `get` checks. |
 | `pre-release-check.sh` | Full release-readiness gate, including schema and runtime contract drift checks. |
 | `refresh-docs.sh` | Refresh ignored reference docs with Axon/Repomix. |

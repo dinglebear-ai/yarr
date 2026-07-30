@@ -1,6 +1,6 @@
 {
   "name": "yarr-mcp",
-  "description": "MCP bridge to the yarr media-automation fleet (Sonarr, Radarr, Prowlarr, Plex, Jellyfin, qBittorrent, and more) for Codex.",
+  "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
   "homepage": "https://github.com/dinglebear-ai/yarr",
   "repository": "https://github.com/dinglebear-ai/yarr",
   "license": "MIT",

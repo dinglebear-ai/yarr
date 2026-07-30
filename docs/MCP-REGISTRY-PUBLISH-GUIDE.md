@@ -1,3 +1,9 @@
+---
+title: "MCP Registry publishing"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
 # MCP Registry publishing
 
 `server.json` is the authoritative MCP Registry manifest. Yarr is published as

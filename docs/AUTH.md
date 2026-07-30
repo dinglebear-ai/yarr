@@ -1,3 +1,9 @@
+---
+title: "Authentication"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
 # Authentication
 
 This server supports two authentication mechanisms simultaneously: **static bearer tokens** and **OAuth 2.0**. They serve different audiences and can be active at the same time.

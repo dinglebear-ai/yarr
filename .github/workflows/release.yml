@@ -22,7 +22,6 @@ env:
   BINARY_NAME: yarr
   RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
   CARGO_INCREMENTAL: "0"
-  SOLDR_CACHE_DIR: ${{ github.workspace }}/../.soldr-cache
 
 jobs:
   verify:
@@ -101,8 +100,8 @@ jobs:
           ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
 
-      - name: Install Rust + soldr
-        uses: ./.github/actions/setup-rust-soldr
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
         with:
           targets: ${{ matrix.target }}
 
@@ -125,7 +124,7 @@ jobs:
       - name: Build release binary
         env:
           CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
-          # soldr exports a global CC (`zccache-soldr /usr/bin/cc`) for compile
+          # kache exports a global CC (`zccache-kache /usr/bin/cc`) for compile
           # caching. In cc-rs precedence a bare CC outranks the target-specific
           # default, so C dependencies such as aws-lc-sys would be built for the
           # Windows target using the host Linux compiler. Naming the cross
