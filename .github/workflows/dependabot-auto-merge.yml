@@ -14,7 +14,7 @@ permissions:
 jobs:
   auto-merge:
     name: Merge verified patch/minor updates
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-pool-ops]
     timeout-minutes: 45
     if: github.actor == 'dependabot[bot]'
     steps:

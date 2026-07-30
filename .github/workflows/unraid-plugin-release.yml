@@ -1,22 +1,14 @@
 name: Release Unraid plugin
 
 on:
-  push:
-    tags:
-      - "unraid-v*"
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Existing package tag in unraid-vVERSION-BUILD form
-        required: true
-        type: string
-        default: "unraid-v2.1.0-1"
+  release:
+    types: [published]
 
 permissions:
   contents: read
 
 concurrency:
-  group: unraid-plugin-release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+  group: unraid-plugin-release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
 env:
@@ -25,6 +17,7 @@ env:
 jobs:
   prepare:
     name: Resolve and validate frozen release
+    if: startsWith(github.event.release.tag_name, 'unraid-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -36,7 +29,7 @@ jobs:
       package_sha256: ${{ steps.identity.outputs.package_sha256 }}
       upstream_sha256: ${{ steps.identity.outputs.upstream_sha256 }}
     env:
-      PACKAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      PACKAGE_TAG: ${{ github.event.release.tag_name }}
     steps:
       - name: Resolve immutable package tag
         id: resolve

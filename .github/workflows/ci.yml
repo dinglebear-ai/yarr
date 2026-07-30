@@ -34,73 +34,30 @@ jobs:
   # -- actionlint: GitHub Actions workflow syntax and shell checks -------------
   actionlint:
     name: Actionlint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    uses: dinglebear-ai/workflows/.github/workflows/fast-ops.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      policy-command: bash scripts/check-version-sync.sh
 
-      - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: stable
-          cache: false
-
-      - name: actionlint
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
-
-  # ── fmt: cargo fmt --check ──────────────────────────────────────────────────
-  fmt:
-    name: Format
-    runs-on: [self-hosted, ci-pool-rust]
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      # Fails when Cargo.toml, package.json, server.json and friends disagree
-      # on the version. Previously reachable only by hand, which is how a
-      # sibling repo sat seven releases out of sync unnoticed.
-      - name: Check version sync
-        run: bash scripts/check-version-sync.sh
-
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
-        with:
-          components: rustfmt
-
-      - name: cargo fmt --check
-        run: cargo fmt --all -- --check
-
-  # ── clippy: zero warnings ────────────────────────────────────────────────────
-  clippy:
-    name: Clippy
-    runs-on: [self-hosted, ci-pool-rust]
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
-        with:
-          components: clippy
-
-      - name: cargo clippy -- -D warnings
-        run: cargo clippy --all-targets -- -D warnings
+  rust:
+    name: Fast Rust
+    uses: dinglebear-ai/workflows/.github/workflows/fast-rust.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      toolchain: "1.97.1"
+      check-command: cargo check --all-targets --locked
+      clippy-command: cargo clippy --all-targets --locked -- -D warnings
+      test-command: cargo test --workspace --locked --no-run
+      kache-manifest-key: yarr-fast-rust
+    secrets:
+      KACHE_S3_ACCESS_KEY: ${{ secrets.KACHE_S3_ACCESS_KEY }}
+      KACHE_S3_SECRET_KEY: ${{ secrets.KACHE_S3_SECRET_KEY }}
 
   # ── docs: rustdoc with zero warnings (broken/ambiguous intra-doc links) ──────
   docs:
     name: Docs
-    runs-on: [self-hosted, ci-pool-rust]
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
-
-      - name: cargo doc (deny warnings)
-        env:
-          RUSTDOCFLAGS: -D warnings
-        run: cargo doc --no-deps --document-private-items
+    uses: dinglebear-ai/workflows/.github/workflows/rust-docs.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      toolchain: "1.97.1"
+      command: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --locked
 
   # ── test: cargo nextest run --profile ci ─────────────────────────────────────
   test:
@@ -128,32 +85,22 @@ jobs:
   # ── npm: package launcher checks ────────────────────────────────────────────
   npm:
     name: NPM Package
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Install Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-
-      - name: npm test
-        run: npm test --prefix packages/yarr-mcp
-
-      - name: npm run check
-        run: npm run check --prefix packages/yarr-mcp
-
-      - name: Plugin manifest launcher pins are in sync
-        run: node scripts/sync-plugin-manifests.js --check
-
-      - name: npm pack dry run
-        run: npm pack --dry-run --json ./packages/yarr-mcp
+    uses: dinglebear-ai/workflows/.github/workflows/fast-node.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      node-version: "22"
+      working-directory: packages/yarr-mcp
+      enable-cache: false
+      install-command: ""
+      audit-command: ""
+      lint-command: npm run check
+      typecheck-command: ""
+      test-command: npm test
+      contract-command: node ../../scripts/sync-plugin-manifests.js --check && npm pack --dry-run --json
 
   # ── toml: taplo check ─────────────────────────────────────────────────────────
   toml:
     name: TOML Format
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ci-pool-ops]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -212,16 +159,46 @@ jobs:
   # ── deny: dependency advisories, licenses, bans, sources ─────────────────────
   audit:
     name: Cargo Deny
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    uses: dinglebear-ai/workflows/.github/workflows/rust-security.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      toolchain: "1.97.1"
+      command: bash scripts/check-security-exceptions.sh && cargo deny check --all-features
+
+  fleet-policy:
+    name: Fleet Policy
+    uses: dinglebear-ai/workflows/.github/workflows/fleet-policy.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      release-file-regex: '(^|/)(release|docker-publish|unraid-plugin-release)\.ya?ml$'
+
+  fleet-contract:
+    name: Fleet Contract
+    uses: dinglebear-ai/workflows/.github/workflows/fleet-contract.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      profile: rust
+      implementation-ref: eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+
+  ci-gate:
+    name: CI Gate
+    if: always()
+    runs-on: [self-hosted, ci-pool-ops]
+    timeout-minutes: 10
+    needs:
+      - actionlint
+      - rust
+      - docs
+      - test
+      - npm
+      - toml
+      - template
+      - audit
+      - fleet-policy
+      - fleet-contract
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Check security exception deadlines
-        run: bash scripts/check-security-exceptions.sh
-
-      - name: cargo deny check
-        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
-        with:
-          command: check
-          arguments: --all-features
+      - name: Require all CI lanes
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          for result in $RESULTS; do
+            [[ "$result" == success || "$result" == skipped ]]
+          done

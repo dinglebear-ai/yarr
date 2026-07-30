@@ -9,24 +9,10 @@ on:
 permissions:
   contents: read
 
-env:
-  CARGO_INCREMENTAL: "0"
-
 jobs:
   msrv:
     name: Minimum Supported Rust Version
-    runs-on: [self-hosted, ci-pool-rust]
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
-        with:
-          toolchain: "1.97.1"
-
-      - name: cargo check (MSRV)
-        run: cargo check --all-targets --locked
-
-      - name: cargo test --no-run (MSRV)
-        run: cargo test --no-run --all-targets --locked
+    uses: dinglebear-ai/workflows/.github/workflows/rust-msrv.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      msrv: "1.97.1"
+      command: cargo check --all-targets --locked && cargo test --no-run --all-targets --locked

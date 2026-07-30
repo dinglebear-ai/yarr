@@ -89,33 +89,33 @@ for (const target of contract.targets) {
     asset: target.asset,
     binary: target.archiveBinary,
   });
-  const matrixText = "- target: " + target.rustTarget + "\n            arch: " + target.releaseMatrixArch + "\n            ext: \"" + target.exeExtension + "\"";
-  assert.ok(workflow.includes(matrixText), "release matrix is missing " + target.rustTarget);
+  assert.ok(workflow.includes(target.rustTarget), "release matrix is missing " + target.rustTarget);
+  assert.ok(workflow.includes(target.asset), "release packaging is missing " + target.asset);
   assert.ok(installer.includes(target.asset), "shell installer is missing " + target.asset);
 }
 for (const required of [
   "Verify coupled versions",
-  "sha256sum -- *.tar.gz > SHA256SUMS",
-  "SHA256SUMS",
+  "hosted-rust-platform-release.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267",
+  "github-release.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267",
+  "npm-trusted-publish.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267",
   "npm test",
   "npm run check",
-  "npm publish --provenance",
-  'gh release view "$RELEASE_TAG"',
-  '--repo "$GITHUB_REPOSITORY"',
+  "release:",
+  "types: [published]",
 ]) {
   assert.ok(workflow.includes(required), "release workflow is missing contract step: " + required);
 }
-assert.equal(
-  workflow.includes('releases/tags/${RELEASE_TAG}'),
-  false,
-  "draft release discovery must use gh release view rather than the public tag API",
-);
+assert.equal(workflow.includes("self-hosted"), false, "heavy release jobs must be GitHub-hosted");
 
 const dockerWorkflow = read(".github/workflows/docker-publish.yml");
 const composeCommon = read("docker-compose.common.yml");
 const composeDev = read("docker-compose.yml");
 const composeProd = read("docker-compose.prod.yml");
-assert.ok(dockerWorkflow.includes("IMAGE_NAME: ghcr.io/dinglebear-ai/yarr"));
+assert.ok(dockerWorkflow.includes("image: ghcr.io/dinglebear-ai/yarr"));
+assert.ok(
+  dockerWorkflow.includes("hosted-container-release.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267"),
+  "container publication must use the pinned workflow library",
+);
 assert.ok(composeProd.includes("${YARR_MCP_IMAGE:?Set YARR_MCP_IMAGE"));
 assert.ok(composeProd.includes("file: docker-compose.common.yml"));
 assert.ok(composeDev.includes("file: docker-compose.common.yml"));

@@ -1,60 +1,41 @@
-# Stage binaries and npm while the GitHub Release remains private, then publish.
-name: Release
+name: Release artifacts
 
 on:
-  push:
-    tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing vX.Y.Z tag to stage or resume
-        required: true
-        type: string
+  release:
+    types: [published]
 
 permissions:
-  contents: read
+  contents: write
+  attestations: write
+  id-token: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref_name || inputs.tag }}
+  group: release-artifacts-${{ github.event.release.tag_name }}
   cancel-in-progress: false
-
-env:
-  BINARY_NAME: yarr
-  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
-  CARGO_INCREMENTAL: "0"
 
 jobs:
   verify:
     name: Verify release contract
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - name: Validate tag format
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-            echo "::error::Release tag must match vMAJOR.MINOR.PATCH"
-            exit 1
-          }
-
-      - name: Check out immutable tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ github.event.release.tag_name }}
           persist-credentials: false
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-
-      - name: Verify coupled versions
-        id: version
-        shell: bash
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: "1.97.1"
+      - id: version
+        name: Verify coupled versions
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          tag_version="${RELEASE_TAG#v}"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          expected="${RELEASE_TAG#v}"
           cargo_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "yarr") | .version')"
           xtask_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "xtask") | .version')"
           package_version="$(jq -r '.version' packages/yarr-mcp/package.json)"
@@ -62,296 +43,69 @@ jobs:
           registry_version="$(jq -r '.version' server.json)"
           registry_package_version="$(jq -r '.packages[0].version' server.json)"
           for value in "$cargo_version" "$xtask_version" "$package_version" "$manifest_version" "$registry_version" "$registry_package_version"; do
-            if [[ "$value" != "$tag_version" ]]; then
-              echo "::error::Release versions must all equal ${tag_version}; found ${value}"
-              exit 1
-            fi
+            [[ "$value" == "$expected" ]]
           done
           jq -e '
             .name == "ai.dinglebear/yarr-mcp" and
             .packages[0].registryType == "npm" and
             .packages[0].identifier == "yarr-mcp" and
             .packages[0].transport.type == "stdio"
-          ' server.json >/dev/null || {
-            echo "::error::server.json distribution identity is not the reviewed npm stdio contract"
-            exit 1
-          }
-          echo "version=$tag_version" >> "$GITHUB_OUTPUT"
+          ' server.json >/dev/null
+          printf 'version=%s\n' "$expected" >> "$GITHUB_OUTPUT"
 
-  build:
-    name: Build ${{ matrix.target }}
-    needs: verify
-    runs-on: [self-hosted, unraid]
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            arch: x86_64
-            ext: ""
-          - target: x86_64-pc-windows-gnu
-            arch: windows-x86_64
-            ext: ".exe"
-    steps:
-      - name: Check out immutable tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ env.RELEASE_TAG }}
-          persist-credentials: false
+  artifacts:
+    name: Build hosted x86_64 artifacts
+    needs: [verify]
+    uses: dinglebear-ai/workflows/.github/workflows/hosted-rust-platform-release.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      checkout-ref: ${{ github.event.release.tag_name }}
+      toolchain: "1.97.1"
+      targets-json: >-
+        [{"runner":"ubuntu-24.04","target":"x86_64-unknown-linux-gnu","suffix":"x86_64","ext":""},
+         {"runner":"ubuntu-24.04","target":"x86_64-pc-windows-gnu","suffix":"windows-x86_64","ext":".exe"}]
+      build-command: |
+        set -euo pipefail
+        if [[ "$TARGET" == "x86_64-pc-windows-gnu" ]]; then
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+          export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+          export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
+          export CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++
+          export AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar
+        fi
+        cargo build --release --locked --target "$TARGET" --bin yarr
+      package-command: |
+        set -euo pipefail
+        mkdir -p package dist
+        ext=""
+        archive="dist/yarr-x86_64.tar.gz"
+        if [[ "$TARGET" == "x86_64-pc-windows-gnu" ]]; then
+          ext=".exe"
+          archive="dist/yarr-windows-x86_64.tar.gz"
+        fi
+        cp "target/$TARGET/release/yarr$ext" "package/yarr$ext"
+        tar -C package -czf "$archive" "yarr$ext"
+        filename="${archive##*/}"
+        (cd dist && sha256sum "$filename" > "$filename.sha256")
+      artifact-path: dist/*
+      artifact-prefix: yarr
 
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
-        with:
-          targets: ${{ matrix.target }}
-
-      # Base build deps (cc, pkg-config, libssl-dev) are installed by the
-      # composite above when missing; only the mingw cross-linker is extra.
-      # The runner may be root (no sudo binary), so pick the escalation path.
-      - name: Install cross-compilation dependencies
-        if: matrix.target == 'x86_64-pc-windows-gnu'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "$(id -u)" == "0" ]]; then
-            apt-get update
-            apt-get install -y gcc-mingw-w64-x86-64
-          else
-            sudo apt-get update
-            sudo apt-get install -y gcc-mingw-w64-x86-64
-          fi
-
-      - name: Build release binary
-        env:
-          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
-          # kache exports a global CC (`zccache-kache /usr/bin/cc`) for compile
-          # caching. In cc-rs precedence a bare CC outranks the target-specific
-          # default, so C dependencies such as aws-lc-sys would be built for the
-          # Windows target using the host Linux compiler. Naming the cross
-          # toolchain per-target restores correct cross-compilation, because
-          # cc-rs reads CC_<target> ahead of CC.
-          CC_x86_64_pc_windows_gnu: x86_64-w64-mingw32-gcc
-          CXX_x86_64_pc_windows_gnu: x86_64-w64-mingw32-g++
-          AR_x86_64_pc_windows_gnu: x86_64-w64-mingw32-ar
-        run: cargo build --release --locked --target ${{ matrix.target }}
-
-      - name: Prepare checksummed archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p package artifacts
-          cp "target/${{ matrix.target }}/release/${BINARY_NAME}${{ matrix.ext }}" \
-            "package/${BINARY_NAME}${{ matrix.ext }}"
-          chmod +x "package/${BINARY_NAME}${{ matrix.ext }}"
-          archive="artifacts/${BINARY_NAME}-${{ matrix.arch }}.tar.gz"
-          tar -C package -czf "$archive" "${BINARY_NAME}${{ matrix.ext }}"
-          sha256sum -- "$archive" > "${archive}.sha256"
-
-      - name: Upload staged artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ env.BINARY_NAME }}-${{ matrix.arch }}
-          path: artifacts/
-          if-no-files-found: error
-
-  stage-release:
-    name: Stage draft release assets
-    needs: [verify, build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    outputs:
-      staged_assets: ${{ steps.staged-assets.outputs.names }}
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Generate aggregate checksum
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd artifacts
-          sha256sum -- *.tar.gz > SHA256SUMS
-          sha256sum --check SHA256SUMS
-
-      - name: Create or validate draft release
-        id: release-state
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.verify.outputs.version }}
-        run: |
-          set -euo pipefail
-          if is_draft="$(gh release view "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json isDraft \
-            --jq '.isDraft' 2>/dev/null)"; then
-            if [[ "$is_draft" != "true" ]]; then
-              published="$(npm view "yarr-mcp@${VERSION}" version 2>/dev/null || true)"
-              [[ "$published" == "$VERSION" ]] || {
-                echo "::error::GitHub Release is public before npm yarr-mcp@${VERSION} exists"
-                exit 1
-              }
-              echo "public=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "public=false" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            gh release create "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --draft \
-              --verify-tag \
-              --generate-notes
-            echo "public=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload assets to draft release
-        if: steps.release-state.outputs.public != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" artifacts/* --clobber --repo "$GITHUB_REPOSITORY"
-
-      # A draft release is invisible to the npm job (that job holds only
-      # contents:read, and drafts require push access), so hand the verified
-      # asset names down instead of widening the publishing job's permissions.
-      - name: Record staged asset names
-        id: staged-assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          names="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-            --json assets --jq '[.assets[].name] | join(",")')"
-          [[ -n "$names" ]] || { echo "::error::staged release has no assets"; exit 1; }
-          echo "names=$names" >> "$GITHUB_OUTPUT"
+  github-release:
+    name: Attach verified artifacts
+    needs: [artifacts]
+    uses: dinglebear-ai/workflows/.github/workflows/github-release.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      release-tag: ${{ github.event.release.tag_name }}
+      artifact-pattern: yarr-*
 
   npm:
     name: Publish npm launcher
-    needs: [verify, stage-release]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Check out immutable tag
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ env.RELEASE_TAG }}
-          persist-credentials: false
-
-      - name: Install Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-
-      - name: Verify npm package
-        run: |
-          npm test --prefix packages/yarr-mcp
-          npm run check --prefix packages/yarr-mcp
-          npm pack --dry-run --json ./packages/yarr-mcp
-
-      - name: Check whether exact version is already published
-        id: published
-        shell: bash
-        env:
-          VERSION: ${{ needs.verify.outputs.version }}
-        run: |
-          set -euo pipefail
-          found="$(npm view "yarr-mcp@${VERSION}" version 2>/dev/null || true)"
-          if [[ "$found" == "$VERSION" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish exact npm version
-        if: steps.published.outputs.exists != 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # prepublishOnly verifies the release assets exist for this tag. They
-          # are still on the draft release at this point, so the public download
-          # URLs 404; consume the names the staging job already verified.
-          YARR_RELEASE_STAGED_ASSETS: ${{ needs.stage-release.outputs.staged_assets }}
-        run: npm publish --provenance --access public ./packages/yarr-mcp
-
-  finalize:
-    name: Publish verified GitHub Release
-    needs: [verify, stage-release, npm]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - name: Verify staged release and npm package
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.verify.outputs.version }}
-        run: |
-          set -euo pipefail
-          published="$(npm view "yarr-mcp@${VERSION}" version)"
-          [[ "$published" == "$VERSION" ]]
-
-          assets="$(gh release view "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --json assets \
-            --jq '.assets[].name')"
-          for required in \
-            yarr-x86_64.tar.gz \
-            yarr-x86_64.tar.gz.sha256 \
-            yarr-windows-x86_64.tar.gz \
-            yarr-windows-x86_64.tar.gz.sha256 \
-            SHA256SUMS; do
-            grep -Fxq "$required" <<< "$assets" || {
-              echo "::error::Draft release is missing ${required}"
-              exit 1
-            }
-          done
-
-      - name: Publish draft release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$RELEASE_TAG" --draft=false --latest --repo "$GITHUB_REPOSITORY"
-
-  failure-summary:
-    name: Release recovery summary
-    if: ${{ always() && (needs.verify.result == 'failure' || needs.build.result == 'failure' || needs.stage-release.result == 'failure' || needs.npm.result == 'failure' || needs.finalize.result == 'failure') }}
-    needs: [verify, build, stage-release, npm, finalize]
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-    steps:
-      - name: Record recovery procedure
-        run: |
-          {
-            echo "## Release staging stopped safely"
-            echo
-            echo "The GitHub Release remains a draft unless every stage succeeded."
-            echo "Fix the failed stage, then rerun this workflow with tag \`${RELEASE_TAG}\`."
-            echo "Published npm versions and uploaded assets are detected and reused."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Create or reuse release incident issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          existing="$(gh issue list \
-            --repo "$GITHUB_REPOSITORY" \
-            --state open \
-            --search 'Staged release failed in:title' \
-            --json number \
-            --jq '.[0].number // empty')"
-          body="Release ${RELEASE_TAG} stopped in staging: ${RUN_URL}\n\nRunbook: docs/runbooks/partial-release.md"
-          if [[ -n "$existing" ]]; then
-            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
-          else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "Staged release failed" --body "$body"
-          fi
+    needs: [verify, github-release]
+    uses: dinglebear-ai/workflows/.github/workflows/npm-trusted-publish.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    with:
+      checkout-ref: ${{ github.event.release.tag_name }}
+      expected-version: ${{ needs.verify.outputs.version }}
+      working-directory: packages/yarr-mcp
+      enable-cache: false
+      install-command: ""
+      verify-command: npm test && npm run check && node ../../scripts/sync-plugin-manifests.js --check && npm pack --dry-run --json

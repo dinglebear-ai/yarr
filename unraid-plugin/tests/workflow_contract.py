@@ -148,7 +148,10 @@ def check_ci(workflow: dict[str, Any]) -> None:
         require("unraid-plugin/**" in paths, f"CI {trigger} is not path-scoped to unraid-plugin")
     verify = jobs(workflow).get("verify")
     require(isinstance(verify, dict), "CI verify job is missing")
-    require(verify.get("runs-on") == "ubuntu-24.04", "CI runner generation is not fixed")
+    require(
+        verify.get("runs-on") == ["self-hosted", "ci-pool-system"],
+        "CI must use the runner-farm system pool",
+    )
 
     api = named_step(verify, "Test and build API extension", "CI.verify")
     web = named_step(verify, "Test and build settings and dashboard elements", "CI.verify")
@@ -185,14 +188,20 @@ def check_release(workflow: dict[str, Any]) -> None:
     }
     check_token_scope(workflow, allowed_tokens, "release")
     event = triggers(workflow)
-    require("workflow_dispatch" in event, "release workflow lacks manual trigger")
-    require("unraid-v*" in event.get("push", {}).get("tags", []), "release workflow does not isolate unraid-v* tags")
+    require(
+        event.get("release", {}).get("types") == ["published"],
+        "release workflow must run only after a GitHub Release is published",
+    )
 
     release_jobs = jobs(workflow)
     prepare = release_jobs.get("prepare")
     build = release_jobs.get("build")
     publish = release_jobs.get("publish")
     require(all(isinstance(job, dict) for job in (prepare, build, publish)), "release jobs are incomplete")
+    require(
+        prepare.get("if") == "startsWith(github.event.release.tag_name, 'unraid-v')",
+        "release workflow does not isolate unraid-v tags",
+    )
     require(build.get("needs") == "prepare", "release build job must depend on prepare")
     publish_needs = publish.get("needs")
     require(
