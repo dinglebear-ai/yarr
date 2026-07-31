@@ -103,7 +103,7 @@ expect_fail "documentation link checker rejects missing targets" \
   python3 scripts/check-doc-links.py --root "$TMPDIR_ROOT/link-repo"
 
 expect_ok "container security stays on the fleet release workflow" bash -c '
-  grep -Fq "dinglebear-ai/workflows/.github/workflows/hosted-container-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec" \
+  grep -Fq "dinglebear-ai/workflows/.github/workflows/hosted-container-release.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d" \
     .github/workflows/docker-publish.yml
 '
 

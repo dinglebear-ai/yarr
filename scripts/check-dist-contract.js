@@ -95,9 +95,9 @@ for (const target of contract.targets) {
 }
 for (const required of [
   "Verify coupled versions",
-  "hosted-rust-platform-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec",
-  "github-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec",
-  "npm-trusted-publish.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec",
+  "hosted-rust-platform-release.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d",
+  "github-release.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d",
+  "npm-trusted-publish.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d",
   "npm test",
   "npm run check",
   "release:",
@@ -113,7 +113,7 @@ const composeDev = read("docker-compose.yml");
 const composeProd = read("docker-compose.prod.yml");
 assert.ok(dockerWorkflow.includes("image: ghcr.io/dinglebear-ai/yarr"));
 assert.ok(
-  dockerWorkflow.includes("hosted-container-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec"),
+  dockerWorkflow.includes("hosted-container-release.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d"),
   "container publication must use the pinned workflow library",
 );
 assert.ok(composeProd.includes("${YARR_MCP_IMAGE:?Set YARR_MCP_IMAGE"));

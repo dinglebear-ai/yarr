@@ -56,7 +56,7 @@ jobs:
   artifacts:
     name: Build hosted x86_64 artifacts
     needs: [verify]
-    uses: dinglebear-ai/workflows/.github/workflows/hosted-rust-platform-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
+    uses: dinglebear-ai/workflows/.github/workflows/hosted-rust-platform-release.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d
     with:
       checkout-ref: ${{ github.event.release.tag_name }}
       toolchain: "1.97.1"
@@ -93,7 +93,7 @@ jobs:
   github-release:
     name: Attach verified artifacts
     needs: [artifacts]
-    uses: dinglebear-ai/workflows/.github/workflows/github-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
+    uses: dinglebear-ai/workflows/.github/workflows/github-release.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d
     with:
       release-tag: ${{ github.event.release.tag_name }}
       artifact-pattern: yarr-*
@@ -101,7 +101,7 @@ jobs:
   npm:
     name: Publish npm launcher
     needs: [verify, github-release]
-    uses: dinglebear-ai/workflows/.github/workflows/npm-trusted-publish.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
+    uses: dinglebear-ai/workflows/.github/workflows/npm-trusted-publish.yml@66e64b9f31de7ac1f9aa8c9f87ede9bbec5eae1d
     with:
       checkout-ref: ${{ github.event.release.tag_name }}
       expected-version: ${{ needs.verify.outputs.version }}
