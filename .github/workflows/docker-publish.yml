@@ -17,7 +17,7 @@ concurrency:
 jobs:
   container:
     name: Build, verify, and publish x86_64 image
-    uses: dinglebear-ai/workflows/.github/workflows/hosted-container-release.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/hosted-container-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       checkout-ref: ${{ github.event.release.tag_name }}
       image: ghcr.io/dinglebear-ai/yarr

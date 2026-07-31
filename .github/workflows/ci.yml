@@ -34,13 +34,13 @@ jobs:
   # -- actionlint: GitHub Actions workflow syntax and shell checks -------------
   actionlint:
     name: Actionlint
-    uses: dinglebear-ai/workflows/.github/workflows/fast-ops.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/fast-ops.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       policy-command: bash scripts/check-version-sync.sh
 
   rust:
     name: Fast Rust
-    uses: dinglebear-ai/workflows/.github/workflows/fast-rust.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/fast-rust.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       toolchain: "1.97.1"
       check-command: cargo check --all-targets --locked
@@ -54,7 +54,7 @@ jobs:
   # ── docs: rustdoc with zero warnings (broken/ambiguous intra-doc links) ──────
   docs:
     name: Docs
-    uses: dinglebear-ai/workflows/.github/workflows/rust-docs.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/rust-docs.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       toolchain: "1.97.1"
       command: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items --locked
@@ -85,7 +85,7 @@ jobs:
   # ── npm: package launcher checks ────────────────────────────────────────────
   npm:
     name: NPM Package
-    uses: dinglebear-ai/workflows/.github/workflows/fast-node.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/fast-node.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       node-version: "22"
       working-directory: packages/yarr-mcp
@@ -159,23 +159,23 @@ jobs:
   # ── deny: dependency advisories, licenses, bans, sources ─────────────────────
   audit:
     name: Cargo Deny
-    uses: dinglebear-ai/workflows/.github/workflows/rust-security.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/rust-security.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       toolchain: "1.97.1"
       command: bash scripts/check-security-exceptions.sh && cargo deny check --all-features
 
   fleet-policy:
     name: Fleet Policy
-    uses: dinglebear-ai/workflows/.github/workflows/fleet-policy.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/fleet-policy.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       release-file-regex: '(^|/)(release|docker-publish|unraid-plugin-release)\.ya?ml$'
 
   fleet-contract:
     name: Fleet Contract
-    uses: dinglebear-ai/workflows/.github/workflows/fleet-contract.yml@eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+    uses: dinglebear-ai/workflows/.github/workflows/fleet-contract.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
       profile: rust
-      implementation-ref: eb5f36cf517ffc949aca1c81e2ccbc71b5a85267
+      implementation-ref: 542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
 
   ci-gate:
     name: CI Gate
