@@ -36,6 +36,7 @@ jobs:
     name: Actionlint
     uses: dinglebear-ai/workflows/.github/workflows/fast-ops.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec
     with:
+      shell-globs: scripts/*.sh
       policy-command: bash scripts/check-version-sync.sh
 
   rust:

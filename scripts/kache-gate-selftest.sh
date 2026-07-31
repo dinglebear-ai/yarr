@@ -22,9 +22,13 @@ baseline="$probe/baseline.json"
 # Env assignments go in "$@" (before the script); script flags go in $GATE_ARGS
 # (after it). Passing a flag through "$@" would make `env` consume it.
 gate_run() {
+  local gate_args=()
+  if [ -n "${GATE_ARGS:-}" ]; then
+    read -r -a gate_args <<< "$GATE_ARGS"
+  fi
   set +e
   env KACHE_CACHE_DIR="$probe/store" KACHE_GATE_ROOT="$probe/cold" \
-      KACHE_GATE_BASELINE="$baseline" "$@" "$gate" ${GATE_ARGS:-}
+      KACHE_GATE_BASELINE="$baseline" "$@" "$gate" "${gate_args[@]}"
   local rc=$?
   set -e
   return "$rc"

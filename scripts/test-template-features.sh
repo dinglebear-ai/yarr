@@ -102,9 +102,9 @@ mkdir -p "$TMPDIR_ROOT/link-repo/scripts"
 expect_fail "documentation link checker rejects missing targets" \
   python3 scripts/check-doc-links.py --root "$TMPDIR_ROOT/link-repo"
 
-expect_ok "Trivy SARIF keeps the HIGH/CRITICAL gate" bash -c '
-  grep -Eq "^[[:space:]]+severity: CRITICAL,HIGH$" .github/workflows/docker-publish.yml
-  grep -Eq "^[[:space:]]+limit-severities-for-sarif: true$" .github/workflows/docker-publish.yml
+expect_ok "container security stays on the fleet release workflow" bash -c '
+  grep -Fq "dinglebear-ai/workflows/.github/workflows/hosted-container-release.yml@542ea7b7e5ca2d4e21f3277bfcf158584fee90ec" \
+    .github/workflows/docker-publish.yml
 '
 
 mkdir -p "$TMPDIR_ROOT/compose"
@@ -115,14 +115,17 @@ YARR_SONARR_URL=http://sonarr:8989
 YARR_SONARR_API_KEY=test
 YARR_MCP_NO_AUTH=true
 EOF
+# shellcheck disable=SC2016 # The inner shell expands these fixture variables.
 expect_ok "local Compose does not require the production image variable" bash -c '
   cd "$1"
   env -u YARR_MCP_IMAGE docker compose -f docker-compose.yml config --quiet
 ' _ "$TMPDIR_ROOT/compose"
+# shellcheck disable=SC2016 # The inner shell expands these fixture variables.
 expect_fail "production Compose rejects a missing immutable image" bash -c '
   cd "$1"
   env -u YARR_MCP_IMAGE docker compose -f docker-compose.prod.yml config --quiet
 ' _ "$TMPDIR_ROOT/compose"
+# shellcheck disable=SC2016 # The inner shell expands these fixture variables.
 expect_ok "production Compose accepts an immutable image digest" bash -c '
   cd "$1"
   YARR_MCP_IMAGE=ghcr.io/dinglebear-ai/yarr@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \

@@ -1,6 +1,6 @@
 ---
-title: "MCP Schema Contract"
-created: 2026-05-22
+title: MCP Schema Contract
+created: 2026-07-30
 updated: 2026-07-30
 ---
 

@@ -93,7 +93,7 @@ else
   echo "kache-gate: WARNING: not this build. Run 'kache-gate.sh --baseline' before the build." >&2
 fi
 
-read -r d_local d_prefetch d_remote d_miss d_err d_fall d_total d_saved <<EOJ
+read -r d_local d_prefetch d_remote d_miss d_err d_fall _d_total d_saved <<EOJ
 $(jq -rn --argjson a "$after" --argjson b "$before" '
   [ ($a.local_hits    - $b.local_hits),
     ($a.prefetch_hits - $b.prefetch_hits),
