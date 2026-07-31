@@ -12,19 +12,19 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `bump-version.sh` | Update version-bearing files from the `Cargo.toml` version. |
 | `check-blob-size.py` | Block unexpectedly large changed blobs. |
 | `check-coupled-files.sh` | Warn when files that normally change together drift. The schema/docs pair defers to `check-schema-docs.py --check`, so formatting-only edits do not false-positive. |
-| `check-dist-contract.js` | Verify the npm launcher package's published file contract. |
+| `check-dist-contract.js` | Verify the npm launcher package's published file contract, including the x86_64-only release asset contract. |
 | `check-doc-links.py` | Validate every tracked Markdown relative link and heading anchor. |
 | `check-dependency-updates.sh` | Report lockfile-compatible and latest dependency updates. |
 | `check-file-size.sh` | Pre-commit source file size budget. |
 | `check-plugin-hook-contract.py` | Audit the binary-owned `setup plugin-hook` JSON contract across Rust MCP servers. |
 | `check-runtime-current.sh` | Detect stale Docker/systemd runtimes. |
-| `check-schema-docs.py` | Generate/check `docs/MCP_SCHEMA.md` and action docs. |
+| `check-schema-docs.py` | Generate/check `docs/MCP_SCHEMA.md` and action docs, including the required documentation frontmatter. |
 | `check-security-exceptions.sh` | Verify recorded security exceptions are still justified and unexpired. |
 | `check-version-sync.sh` | Check version consistency. |
 | `generate-cli.sh` | Generate a standalone CLI for this server via mcporter (requires running server). |
 | `install.sh` | Install the latest GitHub Release binary and create a `yarr` symlink. |
-| `kache-gate.sh` | Fail the build when the kache compiler cache silently degrades: snapshot counters with `--baseline` before the build, diff after, enforce hit-rate floor / remote-hit / daemon thresholds from `KACHE_GATE_*` env. kache is fail-open, so this gate is the only red signal. Fleet-copied from soma; keep pure ASCII. |
-| `kache-gate-selftest.sh` | Prove `kache-gate.sh` actually rejects a degraded build (cold all-miss profile) and accepts a clean one, so the gate cannot rot into a no-op. |
+| `kache-gate.sh` | Fail the build when the kache compiler cache silently degrades: snapshot counters with `--baseline` before the build, diff after, enforce hit-rate floor / remote-hit / daemon thresholds from `KACHE_GATE_*` env. The gate ignores the intermediate aggregate counter and derives the enforced totals from individual hit/miss deltas. kache is fail-open, so this gate is the only red signal. Fleet-copied from soma; keep pure ASCII. |
+| `kache-gate-selftest.sh` | Prove `kache-gate.sh` actually rejects a degraded build (cold all-miss profile) and accepts a clean one. Optional gate arguments are parsed into a Bash array so test flags retain argument boundaries. |
 | `live-read-smoke.sh` | Run legacy guarded shart read-only CLI and upstream `get` checks. |
 | `pre-release-check.sh` | Full release-readiness gate, including schema and runtime contract drift checks. |
 | `refresh-docs.sh` | Refresh ignored reference docs with Axon/Repomix. |
@@ -36,7 +36,7 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `test-mcp-auth.sh` | Smoke-test HTTP MCP bearer auth. |
 | `test-plugin-distribution.js` | Assert standalone/bundled skill parity, pinned launchers, and that every plugin ships its lifecycle hooks. |
 | `test-plugin-http.js` | Smoke-test the plugin's HTTP surface. |
-| `test-template-features.sh` | Fast template invariant smoke tests. |
+| `test-template-features.sh` | Fast template invariant smoke tests, including the centralized hosted container-release security contract and immutable production Compose image requirements. |
 | `validate-plugin-layout.sh` | Validate Claude/Codex/Gemini plugin package layout. |
 | `web-watch.sh` | Watch `apps/web` for changes and rebuild on save (requires watchexec). |
 
@@ -157,7 +157,7 @@ just schema-docs
 just schema-docs-check
 ```
 
-Treats the action registry as canonical and verifies schema docs, help text, README, and plugin skill mentions. Generated output lives in `docs/MCP_SCHEMA.md`. Since the descriptor-table refactor, `ACTION_SPECS` lives in `src/actions/registry.rs` (with `src/actions.rs` a thin facade), so the checker scans the `src/actions/` tree recursively rather than the single `src/actions.rs` file. The required-params contract is `service`/`path` for the generic passthroughs: there is no `confirm` param anywhere, and the destructive `api_delete` runs immediately on the CLI/Code Mode — on MCP it's instead gated out-of-band via elicitation (not via a required schema param).
+Treats the action registry as canonical and verifies schema docs, help text, README, and plugin skill mentions. Generated output lives in `docs/MCP_SCHEMA.md` and carries the fleet-standard `title`, `created`, and `updated` frontmatter. Since the descriptor-table refactor, `ACTION_SPECS` lives in `src/actions/registry.rs` (with `src/actions.rs` a thin facade), so the checker scans the `src/actions/` tree recursively rather than the single `src/actions.rs` file. The required-params contract is `service`/`path` for the generic passthroughs: there is no `confirm` param anywhere, and the destructive `api_delete` runs immediately on the CLI/Code Mode — on MCP it's instead gated out-of-band via elicitation (not via a required schema param).
 
 ### `build-web.sh`
 
