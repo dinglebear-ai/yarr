@@ -51,7 +51,7 @@ jobs:
   # ── fmt: cargo fmt --check ──────────────────────────────────────────────────
   fmt:
     name: Format
-    runs-on: [self-hosted, ci-pool-rust]
+    runs-on: ci-pool-rust
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -73,7 +73,7 @@ jobs:
   # ── clippy: zero warnings ────────────────────────────────────────────────────
   clippy:
     name: Clippy
-    runs-on: [self-hosted, ci-pool-rust]
+    runs-on: ci-pool-rust
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -89,7 +89,7 @@ jobs:
   # ── docs: rustdoc with zero warnings (broken/ambiguous intra-doc links) ──────
   docs:
     name: Docs
-    runs-on: [self-hosted, ci-pool-rust]
+    runs-on: ci-pool-rust
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -105,7 +105,7 @@ jobs:
   # ── test: cargo nextest run --profile ci ─────────────────────────────────────
   test:
     name: Test
-    runs-on: [self-hosted, ci-pool-rust]
+    runs-on: ci-pool-rust
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -169,7 +169,7 @@ jobs:
   # ── contracts: generated docs, plugin layout, coupled files ─────────────────
   template:
     name: Repo Contracts
-    runs-on: [self-hosted, ci-pool-ops]
+    runs-on: ci-pool-ops
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
