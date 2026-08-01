@@ -24,7 +24,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "@dinglebear/yarr-mcp",
+      "identifier": "@dinglebear/yarr",
       "version": "2.2.1",
       "runtimeHint": "npx",
       "packageArguments": [
@@ -128,8 +128,8 @@
       "namespace": "ai.dinglebear",
       "dnsDomain": "dinglebear.ai",
       "distribution": {
-        "npm": "@dinglebear/yarr-mcp@2.2.1",
-        "nodePackage": "@dinglebear/yarr-mcp"
+        "npm": "@dinglebear/yarr@2.2.1",
+        "nodePackage": "@dinglebear/yarr"
       },
       "buildInfo": {
         "version": "2.2.1",

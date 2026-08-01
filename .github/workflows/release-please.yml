@@ -49,7 +49,7 @@ jobs:
 
       # release-please bumps JSON scalar version fields (package.json, server.json)
       # but cannot template the version embedded in launcher-arg strings such as
-      # `["-y", "@dinglebear/yarr-mcp@1.1.1", "mcp"]`. Re-couple those pins on the open release
+      # `["-y", "@dinglebear/yarr@1.1.1", "mcp"]`. Re-couple those pins on the open release
       # PR so its CI (coupled-version contract, plugin_contract) stays green.
       - name: Check out release PR branch
         if: ${{ steps.release.outputs.pr }}

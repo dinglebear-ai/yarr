@@ -26,7 +26,7 @@ Before publishing, verify these coupled values:
 | `_meta...dnsDomain` | `dinglebear.ai` |
 
 The package argument must launch `mcp`, and the distribution metadata must name
-the exact `@dinglebear/yarr-mcp@<version>` release. `cargo xtask tool-docs --check`, repo
+the exact `@dinglebear/yarr@<version>` release. `cargo xtask tool-docs --check`, repo
 contract tests, and release version checks guard related generated/coupled files.
 
 ## Install the publisher deliberately
@@ -59,7 +59,7 @@ installable:
 ```bash
 version="$(jq -r '.version' server.json)"
 test "$(jq -r '.packages[0].version' server.json)" = "$version"
-test "$(npm view "@dinglebear/yarr-mcp@${version}" version)" = "$version"
+test "$(npm view "@dinglebear/yarr@${version}" version)" = "$version"
 ./mcp-publisher publish
 ```
 

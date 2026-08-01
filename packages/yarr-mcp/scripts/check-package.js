@@ -11,7 +11,7 @@ const packageRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(packageRoot, "..", "..");
 const packageJsonPath = path.join(packageRoot, "package.json");
 const packageJson = readJson(packageJsonPath);
-const expectedPackageName = "@dinglebear/yarr-mcp";
+const expectedPackageName = "@dinglebear/yarr";
 const releaseMode = process.argv.includes("--release");
 const skipReleaseAssets = process.argv.includes("--skip-release-assets");
 
@@ -433,7 +433,7 @@ function requestJson(url, token) {
         headers: {
           accept: "application/vnd.github+json",
           authorization: `Bearer ${token}`,
-          "user-agent": "@dinglebear/yarr-mcp-package-check",
+          "user-agent": "@dinglebear/yarr-package-check",
           "x-github-api-version": "2022-11-28",
         },
       },

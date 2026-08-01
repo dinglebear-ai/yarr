@@ -723,7 +723,7 @@ package version must equal the Cargo/server version and must not float:
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "@dinglebear/yarr-mcp@<repo-version>", "mcp"]
+      "args": ["-y", "@dinglebear/yarr@<repo-version>", "mcp"]
     }
   }
 }
@@ -1433,7 +1433,7 @@ Every server must have a `server.json` in the repo root for publishing to the
 Yarr's checked-in contract is npm stdio, not OCI or a hosted remote:
 
 - name `ai.dinglebear/yarr`, proved through DNS for `dinglebear.ai`;
-- package `@dinglebear/yarr-mcp@<repo-version>` with positional `mcp` argument;
+- package `@dinglebear/yarr@<repo-version>` with positional `mcp` argument;
 - version coupled to Cargo, npm, release-please, and the registry manifest.
 
 Install a specific, checksum-verified `mcp-publisher` release and publish only
@@ -2255,7 +2255,7 @@ echo "  Run: yarr --version # verify install"
 
 ### Plugin launcher
 
-Plugins launch the exact repository-coupled `@dinglebear/yarr-mcp@<version>` npm package
+Plugins launch the exact repository-coupled `@dinglebear/yarr@<version>` npm package
 through `npx -y`; SessionStart never installs or symlinks a bundled binary.
 
 ---

@@ -45,7 +45,7 @@ assert.equal(contract.schemaVersion, 1);
 assert.deepEqual(contract.identity, {
   binaryName: "yarr",
   canonicalRepo: "dinglebear-ai/yarr",
-  npmPackage: "@dinglebear/yarr-mcp",
+  npmPackage: "@dinglebear/yarr",
   mcpName: "ai.dinglebear/yarr",
 });
 assert.equal(contract.versionContract.mode, "coupled-release-tag");

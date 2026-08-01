@@ -43,7 +43,7 @@ and the command parser for supported flags.
 |---|---|---|
 | Linux x86-64 | Native installer | Verifies release archive and SHA-256; installs to `~/.local/bin` |
 | Contributor checkout | `cargo build --release --locked` | Uses committed Rust lockfile |
-| Node-managed client | Exact `@dinglebear/yarr-mcp@VERSION` | Use only after `npm view` proves that exact version exists |
+| Node-managed client | Exact `@dinglebear/yarr@VERSION` | Use only after `npm view` proves that exact version exists |
 | Container | Immutable GHCR digest | Never deploy mutable `latest` as rollback state |
 | Unraid | Classic `.plg` package | Independent checksummed `unraid-vVERSION-BUILD` release |
 
@@ -58,14 +58,14 @@ yarr --version
 
 ```bash
 YARR_VERSION=2.1.0
-npm view "@dinglebear/yarr-mcp@${YARR_VERSION}" version
-npm install --global "@dinglebear/yarr-mcp@${YARR_VERSION}"
+npm view "@dinglebear/yarr@${YARR_VERSION}" version
+npm install --global "@dinglebear/yarr@${YARR_VERSION}"
 ```
 
 The npm launcher and runtime release are a coupled contract. Do not use
 unpinned `npx yarr-mcp` or `@latest` in production, plugin manifests, or
 reproducibility instructions. GitHub release `v2.1.0` is currently public
-while `@dinglebear/yarr-mcp@2.1.0` is absent from npm; use the native binary until
+while `@dinglebear/yarr@2.1.0` is absent from npm; use the native binary until
 [issue #80](https://github.com/dinglebear-ai/yarr/issues/80) is resolved.
 
 ### Source checkout
