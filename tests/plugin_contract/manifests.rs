@@ -5,7 +5,11 @@ use serde_json::Value;
 use super::common::{json, package_version};
 
 fn expected_npx_args() -> Value {
-    serde_json::json!(["-y", format!("yarr-mcp@{}", package_version()), "mcp"])
+    serde_json::json!([
+        "-y",
+        format!("@dinglebear/yarr@{}", package_version()),
+        "mcp"
+    ])
 }
 
 #[test]

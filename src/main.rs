@@ -124,8 +124,8 @@ async fn serve_mcp(config: Config) -> Result<()> {
 
 /// Start the MCP stdio transport (for local/subprocess MCP clients).
 ///
-/// Stdio is always LoopbackDev — it's a local trusted pipe between parent and
-/// child process. HTTP auth middleware doesn't apply; forcing Mounted here
+/// Stdio is always `LoopbackDev` — it's a local trusted pipe between parent and
+/// child process. HTTP auth middleware doesn't apply; forcing `Mounted` here
 /// breaks all stdio clients with "forbidden: missing http context".
 async fn serve_stdio_mcp(config: Config) -> Result<()> {
     let mut service = YarrService::new(YarrClient::new(&config.yarr)?, config.yarr.clone())

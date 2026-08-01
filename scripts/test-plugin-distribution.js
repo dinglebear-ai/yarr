@@ -84,7 +84,7 @@ for (const service of services) {
 }
 
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, "packages", "yarr-mcp", "package.json"), "utf8"));
-const pinned = `yarr-mcp@${packageJson.version}`;
+const pinned = `@dinglebear/yarr@${packageJson.version}`;
 const mcp = JSON.parse(fs.readFileSync(path.join(root, "plugins", "yarr", ".mcp.json"), "utf8")).mcpServers.yarr;
 const gemini = JSON.parse(fs.readFileSync(path.join(root, "plugins", "yarr", "gemini-extension.json"), "utf8")).mcpServers.yarr;
 assert.equal(mcp.command, "npx");

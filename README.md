@@ -46,13 +46,13 @@ This repository is published at `github.com/dinglebear-ai/yarr`.
 The Rust package and installed binary are both `yarr`. The npm launcher package
 is `yarr-mcp` because the shorter `yarr` name is occupied on npm; installing the
 launcher still gives you a `yarr` command. The MCP registry name is
-`ai.dinglebear/yarr-mcp`, and Docker images use `ghcr.io/dinglebear-ai/yarr`.
+`ai.dinglebear/yarr`, and Docker images use `ghcr.io/dinglebear-ai/yarr`.
 Production Compose deployments select that image by immutable manifest digest.
 
 Plugin naming is intentionally split:
 
 - `yarr` is the full MCP server plugin. It launches the repository-coupled
-  `yarr-mcp` npm package over stdio and includes every per-service fallback
+  `@dinglebear/yarr` npm package over stdio and includes every per-service fallback
   skill; it does not commit a platform-specific binary.
 - `sonarr`, `radarr`, `prowlarr`, `overseerr`, `sabnzbd`, `qbittorrent`, `plex`,
   `jellyfin`, `tautulli`, `tracearr`, and `bazarr` are skills-only plugins with
@@ -104,16 +104,16 @@ before using it:
 
 ```bash
 YARR_VERSION=2.1.0
-npm view "yarr-mcp@${YARR_VERSION}" version
-npx -y "yarr-mcp@${YARR_VERSION}" mcp
+npm view "@dinglebear/yarr@${YARR_VERSION}" version
+npx -y "@dinglebear/yarr@${YARR_VERSION}" mcp
 # Or, after the same availability check:
-npm i -g "yarr-mcp@${YARR_VERSION}"
+npm i -g "@dinglebear/yarr@${YARR_VERSION}"
 ```
 
-Never use an unpinned `npx yarr-mcp` or `@latest` in an MCP manifest: npm may
+Never use an unpinned `npx @dinglebear/yarr` or `@latest` in an MCP manifest: npm may
 still point at an older launcher after a partial release. At the time of this
 documentation refresh, GitHub release `v2.1.0` is public but
-`yarr-mcp@2.1.0` is not yet available on npm; recovery is tracked in
+`@dinglebear/yarr@2.1.0` is not yet available on npm; recovery is tracked in
 [issue #80](https://github.com/dinglebear-ai/yarr/issues/80). Use the native
 installer, a verified release archive, a source build, or the independent
 Unraid package until the exact npm version resolves.
@@ -182,7 +182,7 @@ The full plugin starts the exact launcher pinned in its manifest. Confirm that
 version exists before installing or debugging the plugin:
 
 ```bash
-npm view yarr-mcp@2.1.0 version
+npm view @dinglebear/yarr@2.1.0 version
 ```
 
 Until issue #80 is resolved, the full plugin cannot start from npm. The
@@ -483,7 +483,7 @@ not patched by hand:
   the git commit SHA.
 - The npm package version and the GitHub Release tag must match.
 - `server.json` must name the exact `yarr-mcp` npm version and stdio launch
-  contract under the `ai.dinglebear/yarr-mcp` registry identity.
+  contract under the `ai.dinglebear/yarr` registry identity.
 - The Docker image path is `ghcr.io/dinglebear-ai/yarr`; production deployment uses a
   promoted immutable `@sha256:` digest.
 
@@ -538,8 +538,8 @@ curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh 
 yarr --version
 
 YARR_VERSION=2.1.0
-npm view "yarr-mcp@${YARR_VERSION}" version
-npx -y "yarr-mcp@${YARR_VERSION}" mcp
+npm view "@dinglebear/yarr@${YARR_VERSION}" version
+npx -y "@dinglebear/yarr@${YARR_VERSION}" mcp
 ```
 
 Documentation changes also require the repository-local link and anchor guard:
@@ -597,7 +597,7 @@ gateway when exposed outside loopback.
   `codemode.describe(...)`; generated names follow upstream OpenAPI operation
   IDs after normalization.
 - `npm` or the full plugin reports `E404`/`ETARGET`: check the exact pinned
-  launcher with `npm view yarr-mcp@2.1.0 version`. Do not fall back to unpinned
+  launcher with `npm view @dinglebear/yarr@2.1.0 version`. Do not fall back to unpinned
   `latest`; use the native binary while issue #80 is open.
 
 ## Related Servers
