@@ -3,7 +3,7 @@
   "name": "ai.dinglebear/yarr",
   "title": "Yarr MCP",
   "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
-  "version": "2.2.2",
+  "version": "2.2.1",
   "websiteUrl": "https://github.com/dinglebear-ai/yarr",
   "repository": {
     "url": "https://github.com/dinglebear-ai/yarr",
@@ -25,7 +25,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@dinglebear/yarr",
-      "version": "2.2.2",
+      "version": "2.2.1",
       "runtimeHint": "npx",
       "packageArguments": [
         {
@@ -90,7 +90,7 @@
           "format": "string",
           "isRequired": false,
           "isSecret": false,
-          "placeholder": "v2.2.2"
+          "placeholder": "v2.2.1"
         },
         {
           "name": "YARR_REPO",
@@ -128,11 +128,11 @@
       "namespace": "ai.dinglebear",
       "dnsDomain": "dinglebear.ai",
       "distribution": {
-        "npm": "@dinglebear/yarr@2.2.2",
+        "npm": "@dinglebear/yarr@2.2.1",
         "nodePackage": "@dinglebear/yarr"
       },
       "buildInfo": {
-        "version": "2.2.2",
+        "version": "2.2.1",
         "repository": "https://github.com/dinglebear-ai/yarr"
       }
     }
