@@ -29,7 +29,7 @@ for Claude Code, Codex, and Gemini CLI. The classic filesystem package under
 
 | Package | Includes | Runtime dependency | Best for |
 |---|---|---|---|
-| `yarr` | Full MCP connection plus all fallback skills | Exact pinned `yarr-mcp@VERSION` | One agent surface for the fleet |
+| `yarr` | Full MCP connection plus all fallback skills | Exact pinned `@dinglebear/yarr-mcp@VERSION` | One agent surface for the fleet |
 | `sonarr`, `radarr`, etc. | One direct-service skill | No Yarr MCP launcher | Narrow direct upstream workflows |
 
 The full plugin and skills-only packages can coexist. The skills call strict
@@ -44,7 +44,7 @@ stdio through the same exact launcher specification:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "yarr-mcp@2.2.1", "mcp"]
+  "args": ["-y", "@dinglebear/yarr-mcp@2.2.1", "mcp"]
 }
 ```
 
@@ -58,11 +58,11 @@ A manifest pin proves intent, not registry availability. Verify the exact
 package before installing or debugging the full plugin:
 
 ```bash
-npm view yarr-mcp@2.2.1 version
+npm view @dinglebear/yarr-mcp@2.2.1 version
 ```
 
 At this documentation revision, GitHub release `v2.1.0` is public but
-`yarr-mcp@2.2.1` returns `E404`; recovery is tracked in
+`@dinglebear/yarr-mcp@2.2.1` returns `E404`; recovery is tracked in
 [issue #80](https://github.com/dinglebear-ai/yarr/issues/80). The full plugin
 cannot start from npm until that exact version resolves. Do not loosen the pin
 or silently use npm `latest` (currently an older launcher). Install the native
@@ -150,8 +150,8 @@ the same strict per-service JSON contract and call only the matching upstream.
 
 ## Maintainer checklist
 
-1. Keep every `yarr-mcp@<version>` pin equal to `packages/yarr-mcp/package.json`.
-2. Verify `npm view yarr-mcp@<version> version` before describing the pin as available.
+1. Keep every `@dinglebear/yarr-mcp@<version>` pin equal to `packages/yarr-mcp/package.json`.
+2. Verify `npm view @dinglebear/yarr-mcp@<version> version` before describing the pin as available.
 3. Keep full-plugin and skills-only boundaries explicit in every marketplace description.
 4. Keep manifests versionless and free of committed platform binaries.
 5. Update plugin docs whenever settings, setup-script, monitor behavior, or fallback config changes.

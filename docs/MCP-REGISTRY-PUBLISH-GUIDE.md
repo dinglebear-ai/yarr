@@ -7,7 +7,7 @@ updated: 2026-07-30
 # MCP Registry publishing
 
 `server.json` is the authoritative MCP Registry manifest. Yarr is published as
-`ai.dinglebear/yarr-mcp`, proved through the `dinglebear.ai` DNS domain, and its
+`ai.dinglebear/yarr`, proved through the `dinglebear.ai` DNS domain, and its
 runtime package is the npm stdio launcher `yarr-mcp`.
 
 ## Manifest contract
@@ -16,7 +16,7 @@ Before publishing, verify these coupled values:
 
 | Field | Required value |
 |---|---|
-| `name` | `ai.dinglebear/yarr-mcp` |
+| `name` | `ai.dinglebear/yarr` |
 | `version` | Same version as Cargo and npm |
 | `packages[0].registryType` | `npm` |
 | `packages[0].identifier` | `yarr-mcp` |
@@ -26,7 +26,7 @@ Before publishing, verify these coupled values:
 | `_meta...dnsDomain` | `dinglebear.ai` |
 
 The package argument must launch `mcp`, and the distribution metadata must name
-the exact `yarr-mcp@<version>` release. `cargo xtask tool-docs --check`, repo
+the exact `@dinglebear/yarr-mcp@<version>` release. `cargo xtask tool-docs --check`, repo
 contract tests, and release version checks guard related generated/coupled files.
 
 ## Install the publisher deliberately
@@ -59,7 +59,7 @@ installable:
 ```bash
 version="$(jq -r '.version' server.json)"
 test "$(jq -r '.packages[0].version' server.json)" = "$version"
-test "$(npm view "yarr-mcp@${version}" version)" = "$version"
+test "$(npm view "@dinglebear/yarr-mcp@${version}" version)" = "$version"
 ./mcp-publisher publish
 ```
 

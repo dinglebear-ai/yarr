@@ -1,5 +1,5 @@
 {
-  "name": "yarr-mcp",
+  "name": "@dinglebear/yarr-mcp",
   "version": "2.2.1",
   "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
   "license": "MIT",
@@ -57,9 +57,12 @@
     "bazarr",
     "automation"
   ],
-  "mcpName": "ai.dinglebear/yarr-mcp",
+  "mcpName": "ai.dinglebear/yarr",
   "author": {
     "name": "dinglebear.ai",
     "url": "https://dinglebear.ai"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

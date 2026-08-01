@@ -145,7 +145,7 @@ fn plugin_manifests_do_not_have_version_fields() {
 #[test]
 fn registry_and_deploy_metadata_are_yarr_specific() {
     let server = json("server.json");
-    assert_eq!(server["name"], "ai.dinglebear/yarr-mcp");
+    assert_eq!(server["name"], "ai.dinglebear/yarr");
     assert_eq!(
         server["description"],
         "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr."

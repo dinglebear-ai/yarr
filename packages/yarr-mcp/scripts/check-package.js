@@ -11,6 +11,7 @@ const packageRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(packageRoot, "..", "..");
 const packageJsonPath = path.join(packageRoot, "package.json");
 const packageJson = readJson(packageJsonPath);
+const expectedPackageName = "@dinglebear/yarr-mcp";
 const releaseMode = process.argv.includes("--release");
 const skipReleaseAssets = process.argv.includes("--skip-release-assets");
 
@@ -118,6 +119,14 @@ function checkMetadata() {
   const serverWebsite = normalizeHomepage(serverJson.websiteUrl);
 
   assert(packageJson.name, "package.json must include name");
+  assert(
+    packageJson.name === expectedPackageName,
+    "package.json name must match the dinglebear organization package",
+  );
+  assert(
+    packageJson.publishConfig && packageJson.publishConfig.access === "public",
+    "scoped npm package must publish with public access",
+  );
   assert(packageJson.version, "package.json must include version");
   assert(packageJson.description, "package.json must include description");
   assert(packageJson.license, "package.json must include license");
@@ -424,7 +433,7 @@ function requestJson(url, token) {
         headers: {
           accept: "application/vnd.github+json",
           authorization: `Bearer ${token}`,
-          "user-agent": "yarr-mcp-package-check",
+          "user-agent": "@dinglebear/yarr-mcp-package-check",
           "x-github-api-version": "2022-11-28",
         },
       },
@@ -550,7 +559,8 @@ async function main() {
   assertRuntimeScriptsDoNotEscapePackage();
   run(process.execPath, [path.join(repoRoot, "scripts", "check-dist-contract.js")], { cwd: repoRoot });
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `${packageJson.name}-package-check-`));
+  const packageTempLabel = packageJson.name.replace(/[^A-Za-z0-9._-]/g, "-");
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `${packageTempLabel}-package-check-`));
   try {
     const tarball = packTarball(tempDir);
     checkPacklist(tarball);

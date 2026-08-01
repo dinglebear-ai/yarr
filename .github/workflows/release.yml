@@ -68,9 +68,9 @@ jobs:
             fi
           done
           jq -e '
-            .name == "ai.dinglebear/yarr-mcp" and
+            .name == "ai.dinglebear/yarr" and
             .packages[0].registryType == "npm" and
-            .packages[0].identifier == "yarr-mcp" and
+            .packages[0].identifier == "@dinglebear/yarr-mcp" and
             .packages[0].transport.type == "stdio"
           ' server.json >/dev/null || {
             echo "::error::server.json distribution identity is not the reviewed npm stdio contract"
@@ -191,9 +191,9 @@ jobs:
             --json isDraft \
             --jq '.isDraft' 2>/dev/null)"; then
             if [[ "$is_draft" != "true" ]]; then
-              published="$(npm view "yarr-mcp@${VERSION}" version 2>/dev/null || true)"
+              published="$(npm view "@dinglebear/yarr-mcp@${VERSION}" version 2>/dev/null || true)"
               [[ "$published" == "$VERSION" ]] || {
-                echo "::error::GitHub Release is public before npm yarr-mcp@${VERSION} exists"
+                echo "::error::GitHub Release is public before npm @dinglebear/yarr-mcp@${VERSION} exists"
                 exit 1
               }
               echo "public=true" >> "$GITHUB_OUTPUT"
@@ -250,6 +250,11 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      - name: Validate npm publication identity
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm whoami >/dev/null
+
       - name: Verify npm package
         run: |
           npm test --prefix packages/yarr-mcp
@@ -263,7 +268,7 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          found="$(npm view "yarr-mcp@${VERSION}" version 2>/dev/null || true)"
+          found="$(npm view "@dinglebear/yarr-mcp@${VERSION}" version 2>/dev/null || true)"
           if [[ "$found" == "$VERSION" ]]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -295,7 +300,7 @@ jobs:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
-          published="$(npm view "yarr-mcp@${VERSION}" version)"
+          published="$(npm view "@dinglebear/yarr-mcp@${VERSION}" version)"
           [[ "$published" == "$VERSION" ]]
 
           assets="$(gh release view "$RELEASE_TAG" \

@@ -11,7 +11,7 @@ Rust MCP and CLI server for a media automation fleet. It wraps **11 service kind
 | Edition / MSRV | 2024 / Rust 1.97.1 |
 | MCP crate | `rmcp = "=3.0.0-beta.2"` via `[workspace.dependencies]` (`server`, `macros`, `transport-streamable-http-server`, `transport-io`, `schemars`, `elicitation`) |
 | Service port | `40070` (`YARR_MCP_PORT`) |
-| npm launcher | `yarr-mcp@<Cargo version>`, pinned — never `latest` |
+| npm launcher | `@dinglebear/yarr-mcp@<Cargo version>`, pinned — never `latest` |
 
 The MCP surface is a single `yarr` tool that runs Code Mode (the `codemode` action). The 6 spec-backed services (sonarr/radarr/prowlarr/overseerr/jellyfin/plex) are reached through **generated** per-service callables (from vendored OpenAPI specs); download/stats/subtitles/trace keep curated commands; every service also has `service_status` + the `api_get/post/put/delete` generic passthrough. Services are declared via `YARR_SERVICES` plus per-service env (see Environment variables).
 

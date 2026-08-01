@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 "use strict";
 
-// sync-plugin-manifests.js — keep every hard-coded `yarr-mcp@<version>` launcher
+// sync-plugin-manifests.js — keep every hard-coded `@dinglebear/yarr-mcp@<version>` launcher
 // pin coupled to packages/yarr-mcp/package.json, the single version release-please
 // bumps on a release. release-please can update JSON scalar fields (server.json
 // $.version, package.json $.version) but cannot template a version embedded inside
-// a launcher-arg string such as `["-y", "yarr-mcp@1.1.1", "mcp"]`, so those pins
+// a launcher-arg string such as `["-y", "@dinglebear/yarr-mcp@1.1.1", "mcp"]`, so those pins
 // drift on every release and break the coupled-version contract checks.
 //
 // Usage:
@@ -22,9 +22,9 @@ const packageJson = JSON.parse(
   fs.readFileSync(path.join(root, "packages/yarr-mcp/package.json"), "utf8"),
 );
 const { name, version } = packageJson;
-const spec = `${name}@${version}`; // e.g. yarr-mcp@2.0.0
+const spec = `${name}@${version}`; // e.g. @dinglebear/yarr-mcp@2.0.0
 
-// Files that pin the npm launcher spec `yarr-mcp@<semver>`. Listed explicitly so
+// Files that pin the npm launcher spec `@dinglebear/yarr-mcp@<semver>`. Listed explicitly so
 // an unrelated match can never be rewritten by accident.
 // NB: deliberately excludes scripts/validate-plugin-layout.sh — that checker
 // derives the expected pin from package.json at runtime, so it never needs

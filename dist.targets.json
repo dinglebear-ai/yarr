@@ -4,8 +4,8 @@
   "identity": {
     "binaryName": "yarr",
     "canonicalRepo": "dinglebear-ai/yarr",
-    "npmPackage": "yarr-mcp",
-    "mcpName": "ai.dinglebear/yarr-mcp"
+    "npmPackage": "@dinglebear/yarr-mcp",
+    "mcpName": "ai.dinglebear/yarr"
   },
   "versionContract": {
     "mode": "coupled-release-tag",

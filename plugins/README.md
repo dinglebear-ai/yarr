@@ -72,8 +72,8 @@ the `yarr` bundle side by side does not cause them to clobber each other.
 
 In addition to the standalone layout above, `yarr/` ships `.mcp.json` and
 `gemini-extension.json`'s inline `mcpServers.yarr` (stdio through the pinned
-`yarr-mcp@2.2.1` npm launcher, no committed platform binary). Verify that
-exact package with `npm view yarr-mcp@2.2.1 version` before installation.
+`@dinglebear/yarr-mcp@2.2.1` npm launcher, no committed platform binary). Verify that
+exact package with `npm view @dinglebear/yarr-mcp@2.2.1 version` before installation.
 GitHub `v2.1.0` is public while the npm package is currently missing; issue #80
 tracks recovery, and operators must not loosen the pin to `latest`. The package also ships
 `monitors/monitors.json`, the safe local JSON setup script, the consolidated

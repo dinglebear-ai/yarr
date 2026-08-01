@@ -32,7 +32,7 @@ For version `VERSION`, all of these must agree:
 - Cargo, lockfile, npm package, and `server.json` versions equal `VERSION`;
 - the GitHub Release contains every checksummed platform archive;
 - `SHA256SUMS` and sidecars match redownloaded assets;
-- `yarr-mcp@VERSION` exists on npm with expected provenance;
+- `@dinglebear/yarr-mcp@VERSION` exists on npm with expected provenance;
 - the GitHub Release is public only after every prior condition passes.
 
 The classic Unraid release is independent. It uses
@@ -60,8 +60,8 @@ REPO=dinglebear-ai/yarr
 TAG="v${VERSION}"
 gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isPrerelease,publishedAt,targetCommitish,assets,url
 gh api "repos/${REPO}/git/ref/tags/${TAG}"
-npm view "yarr-mcp@${VERSION}" version dist.integrity dist.tarball --json
-npm view yarr-mcp version --json
+npm view "@dinglebear/yarr-mcp@${VERSION}" version dist.integrity dist.tarball --json
+npm view @dinglebear/yarr-mcp version --json
 ```
 
 Record the UTC time, operator, source commit, failed workflow URL, tag object
@@ -108,9 +108,9 @@ paths. Keep the downloaded checksums as incident evidence.
 ## 5. Verify npm without changing it
 
 ```bash
-npm view "yarr-mcp@${VERSION}" --json
-npm view "yarr-mcp@${VERSION}" dist.integrity --json
-npm pack "yarr-mcp@${VERSION}" --dry-run --json
+npm view "@dinglebear/yarr-mcp@${VERSION}" --json
+npm view "@dinglebear/yarr-mcp@${VERSION}" dist.integrity --json
+npm pack "@dinglebear/yarr-mcp@${VERSION}" --dry-run --json
 ```
 
 If the exact version is absent, do not use `latest` as a substitute. Plugin
@@ -151,7 +151,7 @@ This is the current `v2.1.0` incident tracked in
 3. Identify why GitHub was published before npm existed.
 4. Obtain explicit authorization for either exact-version npm publication or another documented recovery strategy.
 5. Re-run all distribution contracts and verify both public surfaces after the authorized action.
-6. Close the incident only when `npm view yarr-mcp@VERSION version` and GitHub assets both verify.
+6. Close the incident only when `npm view @dinglebear/yarr-mcp@VERSION version` and GitHub assets both verify.
 
 ## 8. Post-recovery verification
 
@@ -162,15 +162,15 @@ npm run check --prefix packages/yarr-mcp
 npm pack --dry-run --json ./packages/yarr-mcp
 python3 scripts/check-doc-links.py
 gh release view "$TAG" --repo "$REPO" --json isDraft,publishedAt,assets,url
-npm view "yarr-mcp@${VERSION}" version --json
+npm view "@dinglebear/yarr-mcp@${VERSION}" version --json
 ```
 
 Install the native archive in a disposable environment and, only when the npm
 version exists, test the exact launcher:
 
 ```bash
-npx -y "yarr-mcp@${VERSION}" --version
-npx -y "yarr-mcp@${VERSION}" mcp
+npx -y "@dinglebear/yarr-mcp@${VERSION}" --version
+npx -y "@dinglebear/yarr-mcp@${VERSION}" mcp
 ```
 
 ## 9. Closeout

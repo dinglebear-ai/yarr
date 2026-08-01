@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "ai.dinglebear/yarr-mcp",
+  "name": "ai.dinglebear/yarr",
   "title": "Yarr MCP",
   "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
   "version": "2.2.1",
@@ -24,7 +24,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "yarr-mcp",
+      "identifier": "@dinglebear/yarr-mcp",
       "version": "2.2.1",
       "runtimeHint": "npx",
       "packageArguments": [
@@ -128,8 +128,8 @@
       "namespace": "ai.dinglebear",
       "dnsDomain": "dinglebear.ai",
       "distribution": {
-        "npm": "yarr-mcp@2.2.1",
-        "nodePackage": "yarr-mcp"
+        "npm": "@dinglebear/yarr-mcp@2.2.1",
+        "nodePackage": "@dinglebear/yarr-mcp"
       },
       "buildInfo": {
         "version": "2.2.1",

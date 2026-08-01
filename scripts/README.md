@@ -31,7 +31,7 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `repair.sh` | Stop, rebuild, and restart the service via systemd or Docker Compose. |
 | `run-ascii-check.sh` | Collect tracked files and run `asciicheck.py`; pass `--fix` to rewrite in place. |
 | `sync-cargo.sh` | Sync `Cargo.lock` into plugin data directories. |
-| `sync-plugin-manifests.js` | Couple every `yarr-mcp@<version>` launcher pin to `packages/yarr-mcp/package.json`; `--check` fails on drift. |
+| `sync-plugin-manifests.js` | Couple every `@dinglebear/yarr-mcp@<version>` launcher pin to `packages/yarr-mcp/package.json`; `--check` fails on drift. |
 | `test-installers.js` | Exercise the install paths shipped with the npm launcher. |
 | `test-mcp-auth.sh` | Smoke-test HTTP MCP bearer auth. |
 | `test-plugin-distribution.js` | Assert standalone/bundled skill parity, pinned launchers, and that every plugin ships its lifecycle hooks. |
@@ -314,7 +314,7 @@ node scripts/sync-plugin-manifests.js          # rewrite pins in place
 node scripts/sync-plugin-manifests.js --check   # fail (non-zero) on drift
 ```
 
-Rewrites every hard-coded `yarr-mcp@<version>` npm launcher pin (in `plugins/yarr/.mcp.json`, `plugins/yarr/gemini-extension.json`, `server.json`, and the plugin docs) plus `server.json`'s `_meta.buildInfo.version` and its `YARR_VERSION` example placeholder (`v<version>`) to match `packages/yarr-mcp/package.json` — the single version release-please bumps. release-please cannot template a version embedded inside a launcher-arg string, so the release workflow runs this on the release PR and CI runs `--check` to block drift on `main`. `validate-plugin-layout.sh` derives the expected pin from `package.json` directly, so it is intentionally not rewritten here.
+Rewrites every hard-coded `@dinglebear/yarr-mcp@<version>` npm launcher pin (in `plugins/yarr/.mcp.json`, `plugins/yarr/gemini-extension.json`, `server.json`, and the plugin docs) plus `server.json`'s `_meta.buildInfo.version` and its `YARR_VERSION` example placeholder (`v<version>`) to match `packages/yarr-mcp/package.json` — the single version release-please bumps. release-please cannot template a version embedded inside a launcher-arg string, so the release workflow runs this on the release PR and CI runs `--check` to block drift on `main`. `validate-plugin-layout.sh` derives the expected pin from `package.json` directly, so it is intentionally not rewritten here.
 
 ### `test-mcp-auth.sh`
 

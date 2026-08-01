@@ -723,7 +723,7 @@ package version must equal the Cargo/server version and must not float:
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "yarr-mcp@<repo-version>", "mcp"]
+      "args": ["-y", "@dinglebear/yarr-mcp@<repo-version>", "mcp"]
     }
   }
 }
@@ -758,7 +758,7 @@ no `config.env` compatibility path.
   provisioned with matching ownership before deployment;
 - port 40070 is exposed and the application-native one-shot health check probes
   `GET /ready` without a shell or curl;
-- the MCP registry label matches `server.json` (`ai.dinglebear/yarr-mcp`).
+- the MCP registry label matches `server.json` (`ai.dinglebear/yarr`).
 
 Refresh base digests deliberately and review the upstream image diff. Do not
 replace a digest with a mutable tag-only reference.
@@ -1432,8 +1432,8 @@ Every server must have a `server.json` in the repo root for publishing to the
 
 Yarr's checked-in contract is npm stdio, not OCI or a hosted remote:
 
-- name `ai.dinglebear/yarr-mcp`, proved through DNS for `dinglebear.ai`;
-- package `yarr-mcp@<repo-version>` with positional `mcp` argument;
+- name `ai.dinglebear/yarr`, proved through DNS for `dinglebear.ai`;
+- package `@dinglebear/yarr-mcp@<repo-version>` with positional `mcp` argument;
 - version coupled to Cargo, npm, release-please, and the registry manifest.
 
 Install a specific, checksum-verified `mcp-publisher` release and publish only
@@ -2255,7 +2255,7 @@ echo "  Run: yarr --version # verify install"
 
 ### Plugin launcher
 
-Plugins launch the exact repository-coupled `yarr-mcp@<version>` npm package
+Plugins launch the exact repository-coupled `@dinglebear/yarr-mcp@<version>` npm package
 through `npx -y`; SessionStart never installs or symlinks a bundled binary.
 
 ---
