@@ -81,7 +81,7 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     needs: verify
-    runs-on: [self-hosted, unraid]
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -324,6 +324,7 @@ jobs:
     if: ${{ always() && (needs.verify.result == 'failure' || needs.build.result == 'failure' || needs.stage-release.result == 'failure' || needs.npm.result == 'failure' || needs.finalize.result == 'failure') }}
     needs: [verify, build, stage-release, npm, finalize]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       issues: write
     steps:
