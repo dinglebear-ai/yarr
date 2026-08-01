@@ -157,7 +157,7 @@ just schema-docs
 just schema-docs-check
 ```
 
-Treats the action registry as canonical and verifies schema docs, help text, README, and plugin skill mentions. Generated output lives in `docs/MCP_SCHEMA.md`. Since the descriptor-table refactor, `ACTION_SPECS` lives in `src/actions/registry.rs` (with `src/actions.rs` a thin facade), so the checker scans the `src/actions/` tree recursively rather than the single `src/actions.rs` file. The required-params contract is `service`/`path` for the generic passthroughs: there is no `confirm` param anywhere, and the destructive `api_delete` runs immediately on the CLI/Code Mode — on MCP it's instead gated out-of-band via elicitation (not via a required schema param).
+Treats the action registry as canonical and verifies schema docs, help text, README, and plugin skill mentions. Generated output lives in `docs/MCP_SCHEMA.md` and preserves its required title and created/updated frontmatter. Since the descriptor-table refactor, `ACTION_SPECS` lives in `src/actions/registry.rs` (with `src/actions.rs` a thin facade), so the checker scans the `src/actions/` tree recursively rather than the single `src/actions.rs` file. The required-params contract is `service`/`path` for the generic passthroughs: there is no `confirm` param anywhere, and the destructive `api_delete` runs immediately on the CLI/Code Mode — on MCP it's instead gated out-of-band via elicitation (not via a required schema param).
 
 ### `build-web.sh`
 

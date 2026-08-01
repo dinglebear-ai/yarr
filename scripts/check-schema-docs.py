@@ -91,6 +91,12 @@ def render() -> str:
     actions = extract_actions()
     scopes = extract_scope_for_actions()
     lines = [
+        "---",
+        'title: "MCP Schema Contract"',
+        "created: 2026-05-22",
+        "updated: 2026-07-30",
+        "---",
+        "",
         "# MCP Schema Contract",
         "",
         "Generated from `src/actions/` and checked against the schema, README, skill docs, help text, and scope routing.",
