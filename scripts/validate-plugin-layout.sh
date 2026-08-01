@@ -22,7 +22,7 @@ SKILLS_DIR="${PLUGIN_ROOT}/skills"
 # stays coupled without being hand-edited (and without tripping the scripts/ ->
 # scripts/README.md coupled-file guard on the release PR).
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EXPECTED_LAUNCHER="yarr-mcp@$(jq -r '.version' "${REPO_ROOT}/packages/yarr-mcp/package.json" 2>/dev/null)"
+EXPECTED_LAUNCHER="@dinglebear/yarr@$(jq -r '.version' "${REPO_ROOT}/packages/yarr-mcp/package.json" 2>/dev/null)"
 
 check() {
   local test_name="$1"

@@ -19,8 +19,15 @@ function tomlPackageVersion(relative) {
   const section = /\[package\]([\s\S]*?)(?=\n\[|$)/.exec(read(relative));
   assert.ok(section, relative + " is missing [package]");
   const version = /^version\s*=\s*"([^"]+)"/m.exec(section[1]);
-  assert.ok(version, relative + " package is missing version");
-  return version[1];
+  if (version) {
+    return version[1];
+  }
+  assert.match(section[1], /^version\.workspace\s*=\s*true$/m, relative + " package is missing version");
+  const workspace = /\[workspace\.package\]([\s\S]*?)(?=\n\[|$)/.exec(read("Cargo.toml"));
+  assert.ok(workspace, "Cargo.toml is missing [workspace.package]");
+  const workspaceVersion = /^version\s*=\s*"([^"]+)"/m.exec(workspace[1]);
+  assert.ok(workspaceVersion, "Cargo.toml workspace package is missing version");
+  return workspaceVersion[1];
 }
 
 function cargoLockVersion(name) {
@@ -38,8 +45,8 @@ assert.equal(contract.schemaVersion, 1);
 assert.deepEqual(contract.identity, {
   binaryName: "yarr",
   canonicalRepo: "dinglebear-ai/yarr",
-  npmPackage: "yarr-mcp",
-  mcpName: "ai.dinglebear/yarr-mcp",
+  npmPackage: "@dinglebear/yarr",
+  mcpName: "ai.dinglebear/yarr",
 });
 assert.equal(contract.versionContract.mode, "coupled-release-tag");
 assert.equal(contract.versionContract.tagPrefix, "v");

@@ -131,7 +131,7 @@ fn check_mcp_handshake(report: &mut report::Report, base: &str) -> Result<()> {
         base,
         "initialize",
         Some(json!({
-            "protocolVersion": "2025-03-26",
+            "protocolVersion": "2025-11-25",
             "capabilities": {},
             "clientInfo": {"name": "yarr-live-test", "version": "1.0.0"}
         })),

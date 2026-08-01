@@ -1,3 +1,9 @@
+---
+title: "yarr API"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
 # yarr API
 
 `yarr` exposes **one MCP tool named `yarr`** and a service-grouped CLI. Both

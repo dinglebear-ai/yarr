@@ -1,3 +1,9 @@
+---
+title: "rmcp-server Patterns"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
 # rmcp-server Patterns
 
 Canonical reference for all patterns used across the Rust MCP server family:
@@ -717,7 +723,7 @@ package version must equal the Cargo/server version and must not float:
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "yarr-mcp@<repo-version>", "mcp"]
+      "args": ["-y", "@dinglebear/yarr@<repo-version>", "mcp"]
     }
   }
 }
@@ -752,7 +758,7 @@ no `config.env` compatibility path.
   provisioned with matching ownership before deployment;
 - port 40070 is exposed and the application-native one-shot health check probes
   `GET /ready` without a shell or curl;
-- the MCP registry label matches `server.json` (`ai.dinglebear/yarr-mcp`).
+- the MCP registry label matches `server.json` (`ai.dinglebear/yarr`).
 
 Refresh base digests deliberately and review the upstream image diff. Do not
 replace a digest with a mutable tag-only reference.
@@ -820,7 +826,10 @@ INSTALL_DIR="${HOME}/.local/bin"
 # Detect platform
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
-case "${ARCH}" in x86_64) ARCH="x86_64" ;; aarch64|arm64) ARCH="aarch64" ;; esac
+case "${ARCH}" in
+  x86_64|amd64) ARCH="x86_64" ;;
+  *) echo "Unsupported architecture: ${ARCH}; only x86_64 release binaries are published" >&2; exit 1 ;;
+esac
 
 echo "Installing ${BINARY} from ${REPO}..."
 mkdir -p "${INSTALL_DIR}"
@@ -1423,8 +1432,8 @@ Every server must have a `server.json` in the repo root for publishing to the
 
 Yarr's checked-in contract is npm stdio, not OCI or a hosted remote:
 
-- name `ai.dinglebear/yarr-mcp`, proved through DNS for `dinglebear.ai`;
-- package `yarr-mcp@<repo-version>` with positional `mcp` argument;
+- name `ai.dinglebear/yarr`, proved through DNS for `dinglebear.ai`;
+- package `@dinglebear/yarr@<repo-version>` with positional `mcp` argument;
 - version coupled to Cargo, npm, release-please, and the registry manifest.
 
 Install a specific, checksum-verified `mcp-publisher` release and publish only
@@ -2246,7 +2255,7 @@ echo "  Run: yarr --version # verify install"
 
 ### Plugin launcher
 
-Plugins launch the exact repository-coupled `yarr-mcp@<version>` npm package
+Plugins launch the exact repository-coupled `@dinglebear/yarr@<version>` npm package
 through `npx -y`; SessionStart never installs or symlinks a bundled binary.
 
 ---
@@ -2376,9 +2385,8 @@ preflight() {
     os="$(uname -s | tr '[:upper:]' '[:lower:]')"
     arch="$(uname -m)"
     case "${arch}" in
-        x86_64)  arch="amd64" ;;
-        aarch64|arm64) arch="arm64" ;;
-        *) echo "✗ Unsupported arch: ${arch}"; (( errors++ )) ;;
+        x86_64|amd64) arch="amd64" ;;
+        *) echo "✗ Unsupported arch: ${arch}; only x86_64 is supported"; (( errors++ )) ;;
     esac
     [[ "${os}" == "linux" ]] || { echo "✗ Only Linux is supported (got: ${os})"; (( errors++ )); }
     echo "✓ Platform: ${os}/${arch}"

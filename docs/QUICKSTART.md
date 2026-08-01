@@ -1,4 +1,10 @@
 ---
+title: "yarr quickstart"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
+---
 title: "Quickstart"
 doc_type: "guide"
 status: "active"
@@ -50,13 +56,13 @@ The launcher and native release use one version. Never use an unpinned
 
 ```bash
 YARR_VERSION=2.1.0
-npm view "yarr-mcp@${YARR_VERSION}" version
-npx -y "yarr-mcp@${YARR_VERSION}" --version
+npm view "@dinglebear/yarr@${YARR_VERSION}" version
+npx -y "@dinglebear/yarr@${YARR_VERSION}" --version
 ```
 
 If `npm view` returns `E404` or `ETARGET`, stop. Use the native binary or
 source build instead of falling back to another npm version. GitHub release
-`v2.1.0` currently exists while `yarr-mcp@2.1.0` is missing; recovery is
+`v2.1.0` currently exists while `@dinglebear/yarr@2.1.0` is missing; recovery is
 tracked in [issue #80](https://github.com/dinglebear-ai/yarr/issues/80).
 
 ### Unraid
@@ -154,7 +160,7 @@ curl --fail http://127.0.0.1:40070/mcp \
   -H "Authorization: Bearer $YARR_MCP_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"curl-smoke","version":"1"}}}'
 ```
 
 Use an MCP client such as mcporter for session-aware `tools/list`, resources,

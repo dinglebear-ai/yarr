@@ -23,13 +23,15 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `check-version-sync.sh` | Check version consistency. |
 | `generate-cli.sh` | Generate a standalone CLI for this server via mcporter (requires running server). |
 | `install.sh` | Install the latest GitHub Release binary and create a `yarr` symlink. |
+| `kache-gate.sh` | Fail the build when the kache compiler cache silently degrades: snapshot counters with `--baseline` before the build, diff after, enforce hit-rate floor / remote-hit / daemon thresholds from `KACHE_GATE_*` env. kache is fail-open, so this gate is the only red signal. Fleet-copied from soma; keep pure ASCII. |
+| `kache-gate-selftest.sh` | Prove `kache-gate.sh` actually rejects a degraded build (cold all-miss profile) and accepts a clean one, so the gate cannot rot into a no-op. |
 | `live-read-smoke.sh` | Run legacy guarded shart read-only CLI and upstream `get` checks. |
 | `pre-release-check.sh` | Full release-readiness gate, including schema and runtime contract drift checks. |
 | `refresh-docs.sh` | Refresh ignored reference docs with Axon/Repomix. |
 | `repair.sh` | Stop, rebuild, and restart the service via systemd or Docker Compose. |
 | `run-ascii-check.sh` | Collect tracked files and run `asciicheck.py`; pass `--fix` to rewrite in place. |
 | `sync-cargo.sh` | Sync `Cargo.lock` into plugin data directories. |
-| `sync-plugin-manifests.js` | Couple every `yarr-mcp@<version>` launcher pin to `packages/yarr-mcp/package.json`; `--check` fails on drift. |
+| `sync-plugin-manifests.js` | Couple every `@dinglebear/yarr@<version>` launcher pin to `packages/yarr-mcp/package.json`; `--check` fails on drift. |
 | `test-installers.js` | Exercise the install paths shipped with the npm launcher. |
 | `test-mcp-auth.sh` | Smoke-test HTTP MCP bearer auth. |
 | `test-plugin-distribution.js` | Assert standalone/bundled skill parity, pinned launchers, and that every plugin ships its lifecycle hooks. |
@@ -155,7 +157,7 @@ just schema-docs
 just schema-docs-check
 ```
 
-Treats the action registry as canonical and verifies schema docs, help text, README, and plugin skill mentions. Generated output lives in `docs/MCP_SCHEMA.md`. Since the descriptor-table refactor, `ACTION_SPECS` lives in `src/actions/registry.rs` (with `src/actions.rs` a thin facade), so the checker scans the `src/actions/` tree recursively rather than the single `src/actions.rs` file. The required-params contract is `service`/`path` for the generic passthroughs: there is no `confirm` param anywhere, and the destructive `api_delete` runs immediately on the CLI/Code Mode — on MCP it's instead gated out-of-band via elicitation (not via a required schema param).
+Treats the action registry as canonical and verifies schema docs, help text, README, and plugin skill mentions. Generated output lives in `docs/MCP_SCHEMA.md` and preserves its required title and created/updated frontmatter. Since the descriptor-table refactor, `ACTION_SPECS` lives in `src/actions/registry.rs` (with `src/actions.rs` a thin facade), so the checker scans the `src/actions/` tree recursively rather than the single `src/actions.rs` file. The required-params contract is `service`/`path` for the generic passthroughs: there is no `confirm` param anywhere, and the destructive `api_delete` runs immediately on the CLI/Code Mode — on MCP it's instead gated out-of-band via elicitation (not via a required schema param).
 
 ### `build-web.sh`
 
@@ -312,7 +314,7 @@ node scripts/sync-plugin-manifests.js          # rewrite pins in place
 node scripts/sync-plugin-manifests.js --check   # fail (non-zero) on drift
 ```
 
-Rewrites every hard-coded `yarr-mcp@<version>` npm launcher pin (in `plugins/yarr/.mcp.json`, `plugins/yarr/gemini-extension.json`, `server.json`, and the plugin docs) plus `server.json`'s `_meta.buildInfo.version` and its `YARR_VERSION` example placeholder (`v<version>`) to match `packages/yarr-mcp/package.json` — the single version release-please bumps. release-please cannot template a version embedded inside a launcher-arg string, so the release workflow runs this on the release PR and CI runs `--check` to block drift on `main`. `validate-plugin-layout.sh` derives the expected pin from `package.json` directly, so it is intentionally not rewritten here.
+Rewrites every hard-coded `@dinglebear/yarr@<version>` npm launcher pin (in `plugins/yarr/.mcp.json`, `plugins/yarr/gemini-extension.json`, `server.json`, and the plugin docs) plus `server.json`'s `_meta.buildInfo.version` and its `YARR_VERSION` example placeholder (`v<version>`) to match `packages/yarr-mcp/package.json` — the single version release-please bumps. release-please cannot template a version embedded inside a launcher-arg string, so the release workflow runs this on the release PR and CI runs `--check` to block drift on `main`. `validate-plugin-layout.sh` derives the expected pin from `package.json` directly, so it is intentionally not rewritten here.
 
 ### `test-mcp-auth.sh`
 

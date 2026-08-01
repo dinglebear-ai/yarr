@@ -15,6 +15,9 @@
 // torrent row) are single `serde_json::json!` literals that exceed the default
 // macro recursion limit of 128.
 #![recursion_limit = "256"]
+// This internal application crate predates Clippy's documentation style lints.
+// Keep new code warning-clean without requiring a bulk public-API documentation rewrite.
+#![allow(clippy::doc_markdown, clippy::missing_errors_doc)]
 
 mod actions;
 mod app;

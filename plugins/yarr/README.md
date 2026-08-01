@@ -23,7 +23,7 @@ plugins/yarr/
 ## Platform manifests
 
 All three platforms connect over **stdio** through the pinned
-`yarr-mcp@2.2.2` npm launcher. No Linux-only binary is committed. Claude Code
+`@dinglebear/yarr@2.2.2` npm launcher. No Linux-only binary is committed. Claude Code
 and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
 `gemini-extension.json`. All three share the same `skills/` directory.
 
@@ -45,7 +45,7 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
     "yarr": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "yarr-mcp@2.2.2", "mcp"],
+      "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"],
       "env": {
         "YARR_SERVICES": "${user_config.yarr_services}",
         "YARR_SONARR_URL": "${user_config.sonarr_url}",
@@ -65,7 +65,7 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "yarr-mcp@2.2.2", "mcp"],
+      "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"],
       "env": {
         "YARR_SONARR_URL": "$YARR_SONARR_URL"
       }
@@ -78,7 +78,7 @@ The full plugin is self-starting only when the exact pinned launcher exists on n
 Verify it before installation or troubleshooting:
 
 ```bash
-npm view yarr-mcp@2.2.2 version
+npm view @dinglebear/yarr@2.2.2 version
 ```
 
 GitHub release `v2.1.0` is currently public while that npm version is missing;
@@ -132,8 +132,8 @@ Disabling the plugin mid-session does not stop an already-running monitor; it st
 
 ## Packaging checklist
 
-1. Keep the pinned `yarr-mcp@<version>` spec equal to the coupled runtime/package release version.
-2. Verify `npm view yarr-mcp@<version> version`; a manifest pin is not proof of registry availability.
+1. Keep the pinned `@dinglebear/yarr@<version>` spec equal to the coupled runtime/package release version.
+2. Verify `npm view @dinglebear/yarr@<version> version`; a manifest pin is not proof of registry availability.
 3. Confirm the native `yarr` binary is installed separately on PATH when testing the optional health monitor (`watch.sh`).
 4. Run `node scripts/test-plugin-distribution.js`, `scripts/validate-plugin-layout.sh`, and `python3 scripts/check-doc-links.py`.
 5. Verify all manifests still omit explicit `version` fields.

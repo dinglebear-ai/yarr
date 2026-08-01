@@ -1,4 +1,10 @@
 ---
+title: "Agents-first design"
+created: 2026-05-22
+updated: 2026-07-30
+---
+
+---
 title: "Agents-First Design"
 doc_type: "guide"
 status: "active"

@@ -1,7 +1,7 @@
 {
-  "name": "yarr-mcp",
+  "name": "@dinglebear/yarr",
   "version": "2.2.2",
-  "description": "Node launcher for the yarr Rust MCP server and CLI for self-hosted media automation fleets.",
+  "description": "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr.",
   "license": "MIT",
   "homepage": "https://github.com/dinglebear-ai/yarr#readme",
   "repository": {
@@ -57,9 +57,12 @@
     "bazarr",
     "automation"
   ],
-  "mcpName": "ai.dinglebear/yarr-mcp",
+  "mcpName": "ai.dinglebear/yarr",
   "author": {
     "name": "dinglebear.ai",
     "url": "https://dinglebear.ai"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,3 +1,9 @@
+---
+title: "Upstream and qBittorrent failures"
+created: 2026-07-16
+updated: 2026-07-30
+---
+
 # Upstream and qBittorrent failures
 
 Owner: `@jmagar`

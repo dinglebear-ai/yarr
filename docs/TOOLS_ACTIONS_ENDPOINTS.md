@@ -1,5 +1,11 @@
 ---
 title: "Tools, Actions, Params, and Endpoints"
+created: 2026-06-18
+updated: 2026-07-30
+---
+
+---
+title: "Tools, Actions, Params, and Endpoints"
 doc_type: "reference"
 status: "active"
 owner: "yarr"
