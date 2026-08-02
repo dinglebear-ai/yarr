@@ -210,7 +210,7 @@ runs:
         daemon_is_running() {
           local status
           status="$(kache daemon status 2>&1)"
-          grep -q "running" <<< "$status"
+          grep -q "Daemon:" <<< "$status" && ! grep -q "not running" <<< "$status"
         }
 
         # Persistent hosts own kache through a user systemd unit. Never
