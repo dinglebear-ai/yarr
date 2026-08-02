@@ -120,6 +120,30 @@ fn codemode_rejects_read_only_static_bearer() {
 }
 
 #[test]
+fn oauth_codemode_rejects_read_only_static_gateway_token() {
+    let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("a".repeat(64));
+    config.mcp.auth.mode = AuthMode::OAuth;
+
+    let error = resolve_auth_policy_kind(&config, false).unwrap_err();
+    assert!(error.to_string().contains("YARR_MCP_STATIC_TOKEN_SCOPES"));
+    assert!(error.to_string().contains("yarr:write"));
+}
+
+#[test]
+fn oauth_codemode_accepts_write_scoped_static_gateway_token() {
+    let mut config = config("0.0.0.0");
+    config.mcp.api_token = Some("a".repeat(64));
+    config.mcp.static_token_scopes = vec![crate::actions::WRITE_SCOPE.into()];
+    config.mcp.auth.mode = AuthMode::OAuth;
+
+    assert_eq!(
+        resolve_auth_policy_kind(&config, false).unwrap(),
+        AuthPolicyKind::MountedOAuth
+    );
+}
+
+#[test]
 fn non_loopback_oauth_mounts_oauth_policy() {
     let mut config = config("0.0.0.0");
     config.mcp.auth = AuthConfig {
