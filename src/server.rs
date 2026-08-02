@@ -89,7 +89,11 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
         );
     }
 
+    // OAuth owns its own scoped break-glass token policy. This bearer-only
+    // exposure guard must not reject an OAuth deployment merely because a
+    // retained static token is read-only.
     if has_token
+        && !has_oauth
         && config.mcp.tool_mode == ToolMode::Codemode
         && !crate::actions::scopes_satisfy(
             &config.mcp.static_token_scopes,
