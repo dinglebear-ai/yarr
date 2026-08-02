@@ -162,11 +162,11 @@ runs:
         # the gate enforces. Do not move enforcement into this step.
         remote_dir=/home/runner/kache-remote
         mkdir -p "$HOME/.config/kache"
-        # The farm image bakes a config carrying local_store + the remote;
-        # the container daemon read it at boot. Never overwrite it — a
-        # per-job rewrite would race the daemon's view of the store.
-        if grep -qs "^local_store" "$HOME/.config/kache/config.toml"; then
-          echo "baked kache config present — leaving it alone"
+        # An existing config may belong to a persistent host or to the farm
+        # image. Never overwrite it from a job: doing so can silently strip the
+        # host's remote and daemon lifetime settings after the workflow exits.
+        if [ -s "$HOME/.config/kache/config.toml" ]; then
+          echo "existing kache config present - leaving it alone"
         elif [ -w "$remote_dir" ]; then
           cat > "$HOME/.config/kache/config.toml" <<TOML
         [cache]
