@@ -90,7 +90,6 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
     }
 
     if has_token
-        && !has_oauth
         && config.mcp.tool_mode == ToolMode::Codemode
         && !crate::actions::scopes_satisfy(
             &config.mcp.static_token_scopes,
