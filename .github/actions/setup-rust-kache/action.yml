@@ -105,12 +105,12 @@ runs:
         KACHE_VERSION: "0.12.0"
       run: |
         set -euo pipefail
-        # The farm image bakes an exactly-pinned kache at /usr/local/bin/kache
-        # (and runs the daemon for the container lifetime). Download only when
-        # the baked binary is absent or the wrong version — e.g. a runner
-        # image that predates the bake, or a non-farm self-hosted box.
-        if [ -x /usr/local/bin/kache ] && /usr/local/bin/kache --version | grep -q " ${KACHE_VERSION}\$"; then
-          echo "kache ${KACHE_VERSION} baked into the runner image — skipping download"
+        # Reuse any already-installed binary at the pinned version. Persistent
+        # hosts may manage kache through mise/systemd; reinstalling the same
+        # bytes changes the executable mtime, which kache treats as a protocol
+        # epoch and can force the managed daemon into a restart loop.
+        if command -v kache >/dev/null 2>&1 && kache --version | grep -q " ${KACHE_VERSION}\$"; then
+          echo "kache ${KACHE_VERSION} already available at $(command -v kache) - skipping download"
           exit 0
         fi
         target=x86_64-unknown-linux-musl
@@ -215,7 +215,16 @@ runs:
         # artifacts and the ONLY path that performs remote lookups — and kache
         # is fail-open, so wrappers that race daemon initialization silently
         # skip the remote and compile. Wait until it answers.
-        kache daemon status >/dev/null 2>&1 || kache daemon start
+        # A persistent host may own the daemon with a user systemd unit. Never
+        # launch a detached competitor when that unit exists; let systemd retain
+        # the run lock and lifecycle ownership. Farm/ephemeral runners fall back
+        # to kache's detached daemon management.
+        if command -v systemctl >/dev/null 2>&1 && systemctl --user cat kache.service >/dev/null 2>&1; then
+          echo "host-managed kache.service found - using systemd"
+          systemctl --user is-active --quiet kache.service || systemctl --user start kache.service
+        else
+          kache daemon status >/dev/null 2>&1 || kache daemon start
+        fi
         for _ in $(seq 1 30); do
           kache daemon status >/dev/null 2>&1 && break
           sleep 1
