@@ -22,7 +22,7 @@
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "@dinglebear/yarr@2.2.1", "mcp"],
+      "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"],
       "env": {
         "YARR_SERVICES": "$YARR_SERVICES",
         "YARR_SONARR_URL": "$YARR_SONARR_URL",
