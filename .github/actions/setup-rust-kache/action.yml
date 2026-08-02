@@ -207,29 +207,27 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        # The farm image supervises a container-lifetime daemon (started at
-        # boot, outside job process groups, so the post-job orphan reaper
-        # cannot kill it and the upload queue survives job end). This step is
-        # therefore normally a no-op verification; the start covers non-farm
-        # runners. The daemon is the ONLY path that uploads dependency
-        # artifacts and the ONLY path that performs remote lookups — and kache
-        # is fail-open, so wrappers that race daemon initialization silently
-        # skip the remote and compile. Wait until it answers.
-        # A persistent host may own the daemon with a user systemd unit. Never
-        # launch a detached competitor when that unit exists; let systemd retain
-        # the run lock and lifecycle ownership. Farm/ephemeral runners fall back
-        # to kache's detached daemon management.
+        daemon_is_running() {
+          local status
+          status="$(kache daemon status 2>&1)"
+          grep -q "running" <<< "$status"
+        }
+
+        # Persistent hosts own kache through a user systemd unit. Never
+        # launch a detached competitor there. Farm and ephemeral runners
+        # use kache daemon restart, which also clears stale daemon state.
         if command -v systemctl >/dev/null 2>&1 && systemctl --user cat kache.service >/dev/null 2>&1; then
           echo "host-managed kache.service found - using systemd"
           systemctl --user is-active --quiet kache.service || systemctl --user start kache.service
         else
-          kache daemon status >/dev/null 2>&1 || kache daemon start
+          daemon_is_running || kache daemon restart
         fi
+
         for _ in $(seq 1 30); do
-          kache daemon status >/dev/null 2>&1 && break
+          daemon_is_running && break
           sleep 1
         done
-        kache daemon status >/dev/null 2>&1 || { echo "::error::kache daemon is not answering"; exit 1; }
+        daemon_is_running || { echo "::error::kache daemon is not answering"; kache daemon status; exit 1; }
         kache daemon
 
     - name: Print cache evidence
