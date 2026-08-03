@@ -84,12 +84,10 @@ pub(super) fn tool_result_from_json(value: Value) -> Result<CallToolResult, Erro
     Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
-/// Whether `arguments` dispatches a generated DELETE operation via the `op`
-/// action (e.g. `{"action": "op", "op": "delete_series_by_id"}` against the
-/// `sonarr` tool in `flat` mode). `action_is_destructive` has no notion of
-/// `op`'s underlying HTTP method, so this is checked separately — otherwise a
-/// generated DELETE op would dispatch through `call_tool` with no elicitation
-/// prompt at all.
+/// Whether `arguments` dispatches a generated operation whose reviewed safety
+/// classification requires elicitation. DELETE is always destructive; the
+/// explicit safety table also covers high-impact POST/PUT operations such as
+/// Plex session termination and library scans.
 pub(super) fn is_destructive_op_call(state: &AppState, tool_name: &str, arguments: &Value) -> bool {
     let Some(op_name) = arguments.get("op").and_then(Value::as_str) else {
         return false;
@@ -97,7 +95,8 @@ pub(super) fn is_destructive_op_call(state: &AppState, tool_name: &str, argument
     let Ok(Some(kind)) = state.service.kind_of(tool_name) else {
         return false;
     };
-    crate::openapi::find_operation(kind, op_name).is_some_and(|spec| spec.method.is_delete())
+    crate::openapi::classify_operation(kind, op_name)
+        == Some(crate::openapi::OperationSafety::Destructive)
 }
 
 /// Result returned when a destructive action is declined at the elicitation

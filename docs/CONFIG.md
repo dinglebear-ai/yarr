@@ -25,6 +25,8 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 | `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum concurrently executing Code Mode runtimes; must be at least 1 |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Maximum admission-queue wait before failing busy; must be non-zero |
 | `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `30` | Execution deadline for one Code Mode run; must be non-zero |
+| `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Maximum instances in one destructive fleet dispatch; must be at least 1 |
+| `YARR_FLEET_READONLY` | unset | Comma-separated configured service names that reject every mutation on CLI and MCP |
 
 ## Unauthenticated endpoints
 
@@ -49,6 +51,24 @@ YARR_PLEX_TOKEN=...
 ```
 
 Supported kinds: `sonarr`, `radarr`, `prowlarr`, `tautulli`, `overseerr`, `bazarr`, `tracearr`, `sabnzbd`, `qbittorrent`, `plex`, and `jellyfin`.
+
+### Fleet write safety
+
+Set `YARR_FLEET_READONLY` to configured instance names that must never accept a
+mutation, even when the caller has `yarr:write` or uses the trusted local CLI:
+
+```bash
+YARR_FLEET_READONLY=plex_prod,tautulli_prod
+```
+
+Unknown names fail startup. Generated operations are classified from a reviewed
+operation table: every HTTP DELETE is destructive, and high-impact non-DELETE
+operations such as Plex `terminate_session`, metadata edits, section changes,
+and scans are also destructive. MCP dispatch elicits once with every affected
+instance named. A destructive fleet call above
+`YARR_MCP_DESTRUCTIVE_FANOUT_MAX` is refused; target smaller groups explicitly.
+The generated classification report is in
+[Tools, Actions, Params, and Endpoints](TOOLS_ACTIONS_ENDPOINTS.md).
 
 ## Auth Policy
 

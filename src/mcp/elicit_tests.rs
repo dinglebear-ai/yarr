@@ -12,10 +12,35 @@ use super::*;
 
 #[test]
 fn confirm_message_names_action_and_service() {
-    let msg = confirm_message("delete", "sonarr");
+    let msg = confirm_message("delete", &["sonarr".to_owned()]);
     assert!(msg.contains("delete"));
     assert!(msg.contains("sonarr"));
     assert!(msg.contains("cannot be undone"));
+}
+
+#[test]
+fn fleet_confirmation_is_single_sorted_prompt_naming_every_instance() {
+    let msg = confirm_message(
+        "terminate_session",
+        &["plex_den".to_owned(), "plex_4k".to_owned()],
+    );
+    assert!(msg.contains("2 instances"), "{msg}");
+    assert!(msg.contains("plex_4k, plex_den"), "{msg}");
+}
+
+#[test]
+fn destructive_target_cap_fails_closed_before_prompting() {
+    let error = validate_destructive_targets(
+        &[
+            "plex_a".to_owned(),
+            "plex_b".to_owned(),
+            "plex_c".to_owned(),
+        ],
+        2,
+    )
+    .unwrap_err();
+    assert!(error.contains("maximum is 2"));
+    assert!(error.contains("target explicitly"));
 }
 
 // ── normalize: rmcp Ok result → ElicitOutcome (Err arms not constructible) ───────

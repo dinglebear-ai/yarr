@@ -82,6 +82,12 @@ pub async fn execute_service_action(service: &YarrService, action: &YarrAction) 
     // on both the CLI and MCP paths. No-op for generic/infra actions.
     if let Some(service_name) = target_service(action) {
         validate_action_for_service(service, action.name(), service_name)?;
+        if action_mutates(service, action)? && service.is_read_only(service_name)? {
+            anyhow::bail!(
+                "service `{service_name}` is read-only via YARR_FLEET_READONLY; mutating action `{}` was refused",
+                action.name()
+            );
+        }
     }
     match action {
         YarrAction::ServiceStatus { service: name } => service.service_status(name).await,
@@ -144,6 +150,24 @@ pub async fn execute_service_action(service: &YarrService, action: &YarrAction) 
             (cmd.handler)(service, params).await
         }
     }
+}
+
+fn action_mutates(service: &YarrService, action: &YarrAction) -> Result<bool> {
+    Ok(match action {
+        YarrAction::ApiPost { .. } | YarrAction::ApiPut { .. } | YarrAction::ApiDelete { .. } => {
+            true
+        }
+        YarrAction::Op {
+            service: service_name,
+            op,
+            ..
+        } => service
+            .kind_of(service_name)?
+            .and_then(|kind| crate::openapi::classify_operation(kind, op))
+            .is_some_and(|safety| safety != crate::openapi::OperationSafety::Read),
+        YarrAction::Curated { name, .. } => curated_command(name).is_some_and(|cmd| cmd.mutates),
+        _ => false,
+    })
 }
 
 #[cfg(test)]

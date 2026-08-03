@@ -128,3 +128,20 @@ fn load_services_bails_when_url_missing() {
     );
     assert!(msg.contains("sonarr"), "error should name the service");
 }
+
+#[test]
+fn readonly_list_marks_names_case_insensitively_and_rejects_unknown_names() {
+    let mut services = vec![ServiceConfig {
+        name: "plex_den".into(),
+        kind: ServiceKind::Plex,
+        base_url: "http://localhost:32400".into(),
+        ..ServiceConfig::default()
+    }];
+
+    apply_readonly_services(&mut services, "PLEX_DEN").unwrap();
+    assert!(services[0].read_only);
+
+    let error = apply_readonly_services(&mut services, "plex_missing").unwrap_err();
+    assert!(error.to_string().contains("plex_missing"));
+    assert!(error.to_string().contains("not configured"));
+}

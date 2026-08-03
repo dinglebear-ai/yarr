@@ -15,6 +15,7 @@ use endpoints::{
 const OUTPUT: &str = "docs/TOOLS_ACTIONS_ENDPOINTS.md";
 
 pub fn run(args: &[String]) -> Result<()> {
+    yarr::openapi::validate_write_inventory().map_err(anyhow::Error::msg)?;
     let check = args.iter().any(|arg| arg == "--check");
     let doc = render();
     let path = Path::new(OUTPUT);
@@ -199,6 +200,31 @@ client elicitation for DELETEs; clients without elicitation support fail closed.
     out.push_str(
         "\nThe generator omits an operation only when its OpenAPI serialization cannot be represented losslessly. Omitted rows are not callable through `op`; use a reviewed generic passthrough only when the service path allowlist permits it.\n\n",
     );
+    out.push_str(
+        "### Generated-operation safety coverage\n\nEvery generated operation is classified below. `destructive (elicited)` includes every DELETE plus explicitly audited high-impact non-DELETE operations. `cargo xtask tool-docs --check` fails when the reviewed write inventory changes.\n\n| Operation | Method | Safety |\n|---|---|---|\n",
+    );
+    for kind in ServiceKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| yarr::openapi::is_generated(*kind))
+    {
+        for operation in yarr::openapi::operations_for_kind(kind) {
+            let safety = match yarr::openapi::operation_safety(kind, operation) {
+                yarr::openapi::OperationSafety::Read => "read",
+                yarr::openapi::OperationSafety::Mutating => "mutating",
+                yarr::openapi::OperationSafety::Destructive => "destructive (elicited)",
+            };
+            let _ = writeln!(
+                out,
+                "| `{}.{}` | `{}` | {} |",
+                kind.as_str(),
+                operation.name,
+                operation.method.as_str(),
+                safety
+            );
+        }
+    }
+    out.push('\n');
 }
 
 fn render_capabilities(out: &mut String) {

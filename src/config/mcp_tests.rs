@@ -18,6 +18,7 @@ fn mcp_config_defaults() {
     assert_eq!(cfg.codemode_max_concurrent, 4);
     assert_eq!(cfg.codemode_queue_timeout_ms, 500);
     assert_eq!(cfg.codemode_timeout_secs, 30);
+    assert_eq!(cfg.destructive_fanout_max, 3);
 }
 
 #[test]

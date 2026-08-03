@@ -175,6 +175,21 @@ fn destructive_op_call_flags_generated_delete_ops() {
 }
 
 #[test]
+fn destructive_op_call_flags_non_delete_high_impact_ops() {
+    let state = plex_only_state();
+    assert!(is_destructive_op_call(
+        &state,
+        "plex_den",
+        &json!({ "op": "terminate_session" })
+    ));
+    assert!(is_destructive_op_call(
+        &state,
+        "plex_den",
+        &json!({ "op": "scan" })
+    ));
+}
+
+#[test]
 fn destructive_op_call_ignores_non_delete_ops() {
     let state = sonarr_only_state();
     assert!(!is_destructive_op_call(

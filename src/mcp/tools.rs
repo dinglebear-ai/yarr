@@ -134,7 +134,13 @@ impl CodeModeCallGuard for McpCodeModeGuard {
                     action.name()
                 ));
             }
-            if super::elicit::gate_destructive(&self.peer, action.name(), service_name).await
+            if super::elicit::gate_destructive(
+                &self.peer,
+                action.name(),
+                &[service_name.to_owned()],
+                self.state.config.destructive_fanout_max,
+            )
+            .await
                 == super::elicit::DeleteGate::Declined
             {
                 return Err(format!(
@@ -161,18 +167,20 @@ fn destructive_inner_call<'a>(state: &AppState, action: &'a YarrAction) -> (bool
             .unwrap_or(YARR_TOOL_NAME),
         _ => YARR_TOOL_NAME,
     };
-    let generated_delete = match action {
-        YarrAction::Op { service, op, .. } => state
-            .service
-            .kind_of(service)
-            .ok()
-            .flatten()
-            .and_then(|kind| crate::openapi::find_operation(kind, op))
-            .is_some_and(|spec| spec.method.is_delete()),
+    let generated_destructive = match action {
+        YarrAction::Op { service, op, .. } => {
+            state
+                .service
+                .kind_of(service)
+                .ok()
+                .flatten()
+                .and_then(|kind| crate::openapi::classify_operation(kind, op))
+                == Some(crate::openapi::OperationSafety::Destructive)
+        }
         _ => false,
     };
     (
-        crate::actions::action_is_destructive(action.name()) || generated_delete,
+        crate::actions::action_is_destructive(action.name()) || generated_destructive,
         service,
     )
 }

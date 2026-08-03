@@ -134,7 +134,13 @@ impl ServerHandler for YarrRmcpServer {
         // `is_destructive_op_call`.
         if (crate::actions::action_is_destructive(&action)
             || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments)))
-            && elicit::gate_destructive(&peer, &action, &tool_name).await
+            && elicit::gate_destructive(
+                &peer,
+                &action,
+                std::slice::from_ref(&tool_name),
+                self.state.config.destructive_fanout_max,
+            )
+            .await
                 == elicit::DeleteGate::Declined
         {
             tracing::info!(

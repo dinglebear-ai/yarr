@@ -46,6 +46,8 @@ pub struct McpConfig {
     pub codemode_queue_timeout_ms: u64,
     /// Absolute Code Mode wall-clock deadline in seconds.
     pub codemode_timeout_secs: u64,
+    /// Maximum targets allowed in one destructive fleet dispatch.
+    pub destructive_fanout_max: usize,
 }
 
 /// MCP tool-registration mode (YARR_MCP_TOOL_MODE).
@@ -137,6 +139,7 @@ impl Default for McpConfig {
             codemode_max_concurrent: crate::codemode::CODEMODE_MAX_CONCURRENT,
             codemode_queue_timeout_ms: crate::codemode::CODEMODE_QUEUE_TIMEOUT.as_millis() as u64,
             codemode_timeout_secs: crate::codemode::CODEMODE_TIMEOUT.as_secs(),
+            destructive_fanout_max: 3,
         }
     }
 }

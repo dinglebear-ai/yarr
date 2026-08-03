@@ -205,6 +205,12 @@ impl YarrService {
             .map(|service| service.map(|s| s.kind))
     }
 
+    pub(crate) fn is_read_only(&self, name: &str) -> Result<bool> {
+        Ok(self
+            .find_service(name)?
+            .is_some_and(|service| service.read_only))
+    }
+
     /// Single source of truth for name/kind → service resolution. Trims and
     /// lowercases `name`, then matches a configured service by its name or kind.
     /// Returns `None` for an empty name or no match. Callers that additionally

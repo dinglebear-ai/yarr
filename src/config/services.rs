@@ -15,6 +15,8 @@ pub struct ServiceConfig {
     pub username: Option<String>,
     pub password: Option<String>,
     pub token: Option<String>,
+    /// Instance policy: reject every mutating action on every transport.
+    pub read_only: bool,
 }
 
 impl Default for ServiceConfig {
@@ -27,6 +29,7 @@ impl Default for ServiceConfig {
             username: None,
             password: None,
             token: None,
+            read_only: false,
         }
     }
 }
@@ -267,11 +270,39 @@ pub(super) fn load_services_from_env(config: &mut super::YarrConfig) -> anyhow::
             username: env_optional(&format!("YARR_{env_name}_USERNAME")),
             password: env_optional(&format!("YARR_{env_name}_PASSWORD")),
             token: env_optional(&format!("YARR_{env_name}_TOKEN")),
+            read_only: false,
         };
         services.push(service);
     }
     if !services.is_empty() {
         config.services = services;
+    }
+    Ok(())
+}
+
+pub(super) fn apply_readonly_services(
+    services: &mut [ServiceConfig],
+    raw_names: &str,
+) -> anyhow::Result<()> {
+    for raw_name in raw_names
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        let Some(service) = services
+            .iter_mut()
+            .find(|service| service.name.eq_ignore_ascii_case(raw_name))
+        else {
+            anyhow::bail!(
+                "YARR_FLEET_READONLY service {raw_name:?} is not configured; configured services: {}",
+                services
+                    .iter()
+                    .map(|service| service.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        };
+        service.read_only = true;
     }
     Ok(())
 }

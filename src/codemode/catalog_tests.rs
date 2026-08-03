@@ -50,6 +50,14 @@ fn each_entry_carries_its_service() {
         .find(|e| e.path() == "sonarr.delete_series_by_id")
         .unwrap();
     assert!(del.destructive());
+    let terminate = cat
+        .iter()
+        .find(|e| e.path() == "plex.terminate_session")
+        .unwrap();
+    assert!(
+        terminate.destructive(),
+        "non-DELETE high-impact operations must advertise elicitation"
+    );
 }
 
 #[test]

@@ -430,11 +430,18 @@ bearer or OAuth transport auth. `service_status` requires `yarr:read`.
 Credentialed passthrough, generated operations, curated write operations, and
 Code Mode require `yarr:write`; write satisfies read.
 
-Generated DELETE operations, `api_delete`, `download_remove`,
+Generated operations use a reviewed safety classification: every DELETE plus
+high-impact non-DELETE operations such as Plex session termination, metadata
+edits, section changes, and scans are destructive. `api_delete`, `download_remove`,
 `stats_delete_image_cache`, and `trace_terminate_stream` are destructive. CLI
 commands dispatch them immediately. MCP callers get an interactive elicitation
 prompt at the actual dispatch point, including inside Code Mode, with no call
 argument or nested `callTool` path that can skip it.
+
+`YARR_FLEET_READONLY` rejects all mutations for named instances regardless of
+scope or transport. Destructive fleet dispatch is capped by
+`YARR_MCP_DESTRUCTIVE_FANOUT_MAX` (default `3`) and uses one confirmation naming
+all targets.
 
 Responses are capped by the shared token-limit layer before they are returned to
 MCP clients.

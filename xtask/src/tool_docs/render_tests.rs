@@ -13,3 +13,12 @@ fn small_render_helpers_are_stable() {
     assert_eq!(yes_no(true), "yes");
     assert_eq!(yes_no(false), "no");
 }
+
+#[test]
+fn generated_operation_report_includes_reviewed_safety_classification() {
+    let rendered = render();
+    assert!(rendered.contains("`plex.terminate_session`"));
+    assert!(rendered.contains("destructive (elicited)"));
+    assert!(rendered.contains("`sonarr.get_series`"));
+    assert!(rendered.contains("read"));
+}

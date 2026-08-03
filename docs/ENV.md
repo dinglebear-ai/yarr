@@ -36,6 +36,7 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | `YARR_<SERVICE>_TOKEN` | Bearer/token auth for services such as Plex or Jellyfin. |
 | `YARR_HTTP_TIMEOUT_SECS` | Per-request upstream timeout in seconds (default `30`). Raise for stacks with slow upstreams (e.g. a Prowlarr `/indexer` read that fans out to many trackers). `0`/unparseable falls back to `30`. |
 | `YARR_HOME` | Runtime data root. Defaults to `/data` in a container and `~/.yarr` otherwise. |
+| `YARR_FLEET_READONLY` | Comma-separated configured instance names that reject every mutating action on every transport. Unknown names fail startup. |
 
 ## MCP HTTP server
 
@@ -55,6 +56,7 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum active Code Mode runtimes. |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Admission wait in milliseconds before returning busy. |
 | `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `30` | Per-run Code Mode execution deadline. |
+| `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Hard maximum instance count for one destructive fleet call. Larger calls fail closed and must be targeted in smaller groups. |
 
 ## OAuth mode
 

@@ -204,7 +204,7 @@ pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
             // The per-service `service_status` callable is still synthesized.
             out.push(service_entry(name, "service_status"));
             for op in crate::openapi::operations_for_kind(*kind) {
-                out.push(operation_entry(name, op));
+                out.push(operation_entry(name, *kind, op));
             }
         } else {
             for action in service_action_names(*kind) {
@@ -221,7 +221,11 @@ pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
 /// `write`, and DELETE ops `destructive` — metadata only, they dispatch
 /// immediately like any other write (see `docs/API.md`). The OpenAPI `tag` is
 /// surfaced as the capability for grouping.
-fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> CatalogEntry {
+fn operation_entry(
+    service: &str,
+    kind: ServiceKind,
+    op: &crate::openapi::OperationSpec,
+) -> CatalogEntry {
     let mut required: Vec<&'static str> = op.path_params.to_vec();
     if op.has_body {
         required.push("body");
@@ -232,16 +236,17 @@ fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> Catalog
     } else {
         op.summary
     };
+    let safety = crate::openapi::operation_safety(kind, op);
     CatalogEntry::Operation {
         path: format!("{service}.{}", op.name),
         service: service.to_string(),
         method: op.name,
-        scope: if op.method.is_read() {
+        scope: if safety == crate::openapi::OperationSafety::Read {
             CatalogScope::Read
         } else {
             CatalogScope::Write
         },
-        destructive: op.method.is_delete(),
+        destructive: safety == crate::openapi::OperationSafety::Destructive,
         capability: op.tag.to_string(),
         required_params: required,
         description,

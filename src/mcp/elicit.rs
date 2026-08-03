@@ -65,11 +65,47 @@ enum ElicitOutcome {
 }
 
 /// The elicitation prompt shown to the user before a destructive delete.
-pub(crate) fn confirm_message(action: &str, service: &str) -> String {
+pub(crate) fn confirm_message(action: &str, services: &[String]) -> String {
+    let mut names = services.to_vec();
+    names.sort();
+    names.dedup();
+    if names.len() == 1 {
+        return format!(
+            "Confirm destructive action '{action}' on service '{}'. This operation has high \
+             impact or permanently deletes data and cannot be undone. Approve to proceed.",
+            names[0]
+        );
+    }
     format!(
-        "Confirm destructive action '{action}' on service '{service}'. This permanently \
-         deletes data and cannot be undone. Approve to proceed."
+        "Confirm destructive fleet action '{action}' on {} instances: {}. This operation has \
+         high impact or permanently deletes data and cannot be undone. Approve once to dispatch \
+         to every named instance.",
+        names.len(),
+        names.join(", ")
     )
+}
+
+pub(crate) fn validate_destructive_targets(
+    services: &[String],
+    maximum: usize,
+) -> Result<Vec<String>, String> {
+    let mut names = services
+        .iter()
+        .map(|name| name.trim().to_ascii_lowercase())
+        .filter(|name| !name.is_empty())
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    if names.is_empty() {
+        return Err("destructive action has no target instances".to_owned());
+    }
+    if names.len() > maximum {
+        return Err(format!(
+            "destructive fleet action targets {} instances but the configured maximum is {maximum}; target explicitly in groups of at most {maximum}",
+            names.len()
+        ));
+    }
+    Ok(names)
 }
 
 /// Pure decision: map a normalized [`ElicitOutcome`] to a [`DeleteGate`]. Fully
@@ -106,14 +142,18 @@ fn normalize(result: Result<Option<DeleteConfirmation>, ElicitationError>) -> El
 pub(crate) async fn gate_destructive(
     peer: &Peer<RoleServer>,
     action: &str,
-    service: &str,
+    services: &[String],
+    maximum: usize,
 ) -> DeleteGate {
+    let Ok(services) = validate_destructive_targets(services, maximum) else {
+        return DeleteGate::Declined;
+    };
     if peer.supported_elicitation_modes().is_empty() {
         return DeleteGate::Declined;
     }
     let result = peer
         .elicit_with_timeout::<DeleteConfirmation>(
-            confirm_message(action, service),
+            confirm_message(action, &services),
             Some(ELICIT_TIMEOUT),
         )
         .await;

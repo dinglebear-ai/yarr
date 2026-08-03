@@ -33,6 +33,24 @@ fn sonarr_only_state() -> AppState {
     }
 }
 
+fn plex_only_state() -> AppState {
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "plex_den".into(),
+            kind: ServiceKind::Plex,
+            base_url: "http://localhost:32400".into(),
+            token: Some("test".into()),
+            ..ServiceConfig::default()
+        }],
+    };
+    let client = YarrClient::new(&config).expect("client builds");
+    AppState {
+        config: McpConfig::default(),
+        auth_policy: AuthPolicy::LoopbackDev,
+        service: YarrService::new(client, config),
+    }
+}
+
 fn scopes(s: &[&str]) -> Vec<String> {
     s.iter().map(|x| x.to_string()).collect()
 }

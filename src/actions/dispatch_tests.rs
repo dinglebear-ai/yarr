@@ -78,3 +78,36 @@ fn shared_guard_skips_unknown_service_name() {
     validate_action_for_service(&state.service, "set_quality", "not-configured")
         .expect("guard is a no-op for unknown service names");
 }
+
+#[tokio::test]
+async fn readonly_instance_refuses_mutation_before_upstream_dispatch() {
+    use crate::{
+        app::YarrService,
+        config::{ServiceConfig, ServiceKind, YarrConfig},
+        yarr::YarrClient,
+    };
+
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "plex_prod".into(),
+            kind: ServiceKind::Plex,
+            base_url: "http://127.0.0.1:9".into(),
+            read_only: true,
+            ..ServiceConfig::default()
+        }],
+    };
+    let service = YarrService::new(YarrClient::new(&config).unwrap(), config);
+    let error = execute_service_action(
+        &service,
+        &YarrAction::ApiPost {
+            service: "plex_prod".into(),
+            path: "/library/sections/1/refresh".into(),
+            body: serde_json::json!({}),
+        },
+    )
+    .await
+    .unwrap_err();
+
+    assert!(error.to_string().contains("read-only"));
+    assert!(error.to_string().contains("plex_prod"));
+}

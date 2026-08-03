@@ -30,7 +30,7 @@ pub(crate) use environment::env_value;
 pub(crate) use environment::install_plugin_env_overlay;
 use environment::{EnvOverlayGuard, load_env_overlay};
 use mcp::{env_bool, env_list, env_opt_str, env_parse, env_str};
-use services::{SERVICE_HOME_DIRNAME, load_services_from_env};
+use services::{SERVICE_HOME_DIRNAME, apply_readonly_services, load_services_from_env};
 
 /// Top-level config (maps to `config.toml` sections).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -109,6 +109,10 @@ impl Config {
             "YARR_MCP_CODEMODE_TIMEOUT_SECS",
             &mut config.mcp.codemode_timeout_secs,
         )?;
+        env_parse(
+            "YARR_MCP_DESTRUCTIVE_FANOUT_MAX",
+            &mut config.mcp.destructive_fanout_max,
+        )?;
         env_opt_str("YARR_MCP_PUBLIC_URL", &mut config.mcp.auth.public_url);
         env_str(
             "YARR_MCP_AUTH_ADMIN_EMAIL",
@@ -186,6 +190,9 @@ impl Config {
         }
 
         load_services_from_env(&mut config.yarr)?;
+        if let Some(readonly) = env_value("YARR_FLEET_READONLY") {
+            apply_readonly_services(&mut config.yarr.services, &readonly)?;
+        }
 
         if config.mcp.static_token_scopes.is_empty() {
             anyhow::bail!("YARR_MCP_STATIC_TOKEN_SCOPES must contain at least one scope");
@@ -205,6 +212,9 @@ impl Config {
         }
         if config.mcp.codemode_queue_timeout_ms == 0 || config.mcp.codemode_timeout_secs == 0 {
             anyhow::bail!("Code Mode queue and execution timeouts must be greater than zero");
+        }
+        if config.mcp.destructive_fanout_max == 0 {
+            anyhow::bail!("YARR_MCP_DESTRUCTIVE_FANOUT_MAX must be at least 1");
         }
 
         Ok(config)
