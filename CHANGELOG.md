@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add review-only `yarr discover plex` scaffolding with owned-server defaults,
+  identifier-pinned drift detection, private token output, and Tautulli pairing.
 - Scale the Code Mode deadline for fleet workloads and preserve per-instance
   truncation signals instead of silently cutting a multi-server result.
 

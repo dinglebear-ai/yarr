@@ -122,6 +122,7 @@ rquickjs = "0.12"
 # Errors
 anyhow = "1"
 thiserror = "2"
+sha2 = "0.10"
 
 [profile.release]
 lto = "thin"

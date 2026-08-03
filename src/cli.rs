@@ -166,7 +166,10 @@ pub async fn run(cmd: Command, cfg: &YarrConfig) -> Result<()> {
             };
             crate::actions::execute_service_action(&service, &parsed).await?
         }
-        Command::Doctor { .. } | Command::Watch { .. } | Command::Setup(_) => {
+        Command::Doctor { .. }
+        | Command::Watch { .. }
+        | Command::Setup(_)
+        | Command::DiscoverPlex { .. } => {
             unreachable!("dispatched directly in main.rs::run_cli")
         }
     };

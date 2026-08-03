@@ -12,6 +12,7 @@ pub(super) fn parse_infra_command(verb: &str, rest: &[String]) -> Result<Command
         }
         "codemode" => parse_codemode_command(rest),
         "snippet" => parse_snippet_command(rest),
+        "discover" => parse_discover_command(rest),
         "doctor" => Ok(Command::Doctor {
             json: parse_bool_flag(rest, "doctor", "--json")?,
         }),
@@ -39,6 +40,39 @@ pub(super) fn parse_infra_command(verb: &str, rest: &[String]) -> Result<Command
         )),
         other => Err(anyhow!("unknown infra command `{other}`")),
     }
+}
+
+fn parse_discover_command(rest: &[String]) -> Result<Command> {
+    let [kind, flags @ ..] = rest else {
+        return Err(anyhow!("discover requires `plex`"));
+    };
+    if kind != "plex" {
+        return Err(anyhow!("unknown discovery kind `{kind}` (expected `plex`)"));
+    }
+    let mut owned_only = true;
+    let mut token_env = "PLEX_ACCOUNT_TOKEN".to_owned();
+    let mut output = std::path::PathBuf::from("fleet.yaml");
+    let mut env_output = std::path::PathBuf::from("fleet.env");
+    let mut diff = false;
+    let mut iter = flags.iter();
+    while let Some(flag) = iter.next() {
+        match flag.as_str() {
+            "--owned-only" => owned_only = true,
+            "--include-shared" => owned_only = false,
+            "--token-env" => token_env = flag_value(&mut iter, "--token-env")?,
+            "--output" => output = flag_value(&mut iter, "--output")?.into(),
+            "--env-output" => env_output = flag_value(&mut iter, "--env-output")?.into(),
+            "--diff" => diff = true,
+            other => return Err(anyhow!("unknown discover plex flag `{other}`")),
+        }
+    }
+    Ok(Command::DiscoverPlex {
+        owned_only,
+        token_env,
+        output,
+        env_output,
+        diff,
+    })
 }
 
 fn parse_codemode_command(rest: &[String]) -> Result<Command> {

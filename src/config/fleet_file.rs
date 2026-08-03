@@ -181,7 +181,17 @@ pub(crate) fn merge_service_sources(
     validate_service_identities(&lower_precedence)?;
     validate_service_identities(&higher_precedence)?;
     let mut merged = BTreeMap::<String, ServiceConfig>::new();
-    for service in lower_precedence.into_iter().chain(higher_precedence) {
+    for service in lower_precedence {
+        merged.insert(service.name.to_ascii_lowercase(), service);
+    }
+    for mut service in higher_precedence {
+        if let Some(lower) = merged.get(&service.name.to_ascii_lowercase()) {
+            service.client_identifier = service
+                .client_identifier
+                .or_else(|| lower.client_identifier.clone());
+            service.plex = service.plex.or_else(|| lower.plex.clone());
+            service.relay_only |= lower.relay_only;
+        }
         merged.insert(service.name.to_ascii_lowercase(), service);
     }
     let services = merged.into_values().collect::<Vec<_>>();

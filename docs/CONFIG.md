@@ -172,6 +172,40 @@ Optional `client_identifier`, `plex`, and `relay_only` fields retain discovery
 identity, Tautulli pairing, and relay-selection metadata. They do not affect
 authentication.
 
+### Plex account discovery
+
+Scaffold owned Plex servers from a plex.tv account token without putting that
+token or any per-server token in a tool argument:
+
+```bash
+export PLEX_ACCOUNT_TOKEN=...
+yarr discover plex --owned-only --output fleet.yaml --env-output fleet.env
+```
+
+Owned servers are the default; use `--include-shared` only after reviewing the
+authority implications. Discovery filters resources to those whose `provides`
+list contains `server`, selects a local connection first, then direct HTTPS,
+then relay, and flags relay-only instances. Names are deterministic
+`plex_<server_slug>` identifiers; colliding slugs receive a stable short hash of
+the Plex `clientIdentifier`. The fleet file pins that identifier and contains
+only `token_env` references. `fleet.env` contains the per-resource tokens and is
+created with mode 0600 on Unix.
+
+Discovery never overwrites either output. Review and commit the fleet YAML, then
+load the companion secrets into the process environment (or merge them into
+your existing secret-managed `.env`). On subsequent runs use:
+
+```bash
+yarr discover plex --diff --output fleet.yaml
+```
+
+The diff is keyed by `clientIdentifier`, reports added, removed, renamed, and
+URL-changed servers, and exits 2 when drift exists. Configured Tautulli
+instances are queried with `get_server_info`; matches on `pms_identifier` are
+emitted as `plex: <name>` pairing hints, and the report names unpaired instances
+on both sides. An environment-declared Tautulli of the same name still
+overrides its URL and credential while retaining the file's pairing metadata.
+
 ### Fleet write safety
 
 Set `YARR_FLEET_READONLY` to configured instance names that must never accept a

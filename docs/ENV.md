@@ -34,6 +34,7 @@ access, ambiguity errors, and reserved globals.
 |---|---|
 | `YARR_SERVICES` | Comma-separated configured service names, for example `sonarr,radarr,plex`. |
 | `YARR_FLEET_FILE` | Additive `.yaml`, `.yml`, or `.toml` fleet definition. File entries use credential `*_env` references; environment services override same-named entries. |
+| `PLEX_ACCOUNT_TOKEN` | Account token used only by `yarr discover plex`; override the variable name with `--token-env`. It is never written to fleet YAML. |
 | `YARR_<SERVICE>_KIND` | Optional service kind override. Defaults to the service name. |
 | `YARR_<SERVICE>_URL` | Upstream service base URL. Required for each configured service. |
 | `YARR_<SERVICE>_API_KEY` | API key for services that use `X-Api-Key`, query API keys, or token-compatible auth. |

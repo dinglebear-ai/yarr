@@ -35,3 +35,25 @@ fn snippet_infra_requires_a_name_and_valid_json_input() {
             if name == "demo" && input["ok"] == serde_json::json!(true)
     ));
 }
+
+#[test]
+fn plex_discovery_is_owned_only_and_reviewable_by_default() {
+    assert_eq!(
+        parse_infra_command("discover", &args(&["plex"])).unwrap(),
+        Command::DiscoverPlex {
+            owned_only: true,
+            token_env: "PLEX_ACCOUNT_TOKEN".into(),
+            output: "fleet.yaml".into(),
+            env_output: "fleet.env".into(),
+            diff: false,
+        }
+    );
+    assert!(matches!(
+        parse_infra_command("discover", &args(&["plex", "--include-shared", "--diff"])).unwrap(),
+        Command::DiscoverPlex {
+            owned_only: false,
+            diff: true,
+            ..
+        }
+    ));
+}

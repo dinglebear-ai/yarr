@@ -400,6 +400,8 @@ tools.
 See [Multiple instances of one kind](docs/CONFIG.md#multiple-instances-of-one-kind)
 for named Plex/Tautulli fleets, `YARR_<NAME>_KIND`, environment-namespace
 mapping, Code Mode naming, ambiguity behavior, and reserved globals.
+For account-scaffolded fleets, see
+[Plex account discovery](docs/CONFIG.md#plex-account-discovery).
 
 ## Authentication
 

@@ -17,6 +17,7 @@
 //! them as run modes before `parse_args` is called.
 
 use super::setup::SetupCommand;
+use std::path::PathBuf;
 
 // `Eq` is intentionally not derived: the `Curated` variant carries a
 // `serde_json::Value` (which is `PartialEq` but not `Eq`). `PartialEq` is all the
@@ -64,6 +65,14 @@ pub enum Command {
     },
     /// `yarr help` — structured JSON action reference.
     Help,
+    /// `yarr discover plex` — scaffold a reviewable Plex fleet from plex.tv.
+    DiscoverPlex {
+        owned_only: bool,
+        token_env: String,
+        output: PathBuf,
+        env_output: PathBuf,
+        diff: bool,
+    },
     /// `yarr codemode --code JS` / `--file PATH` — run a JS script that calls
     /// yarr actions. Infra, service-less; dispatched through the same
     /// `execute_service_action` path as the MCP `codemode` action.

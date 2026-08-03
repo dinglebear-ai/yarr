@@ -95,6 +95,29 @@ fn environment_source_overrides_same_name_and_preserves_union() {
 }
 
 #[test]
+fn higher_precedence_credentials_preserve_discovery_pairing_metadata() {
+    let lower = ServiceConfig {
+        name: "tautulli_den".into(),
+        kind: ServiceKind::Tautulli,
+        base_url: "http://file".into(),
+        plex: Some("plex_den".into()),
+        ..ServiceConfig::default()
+    };
+    let higher = ServiceConfig {
+        name: "tautulli_den".into(),
+        kind: ServiceKind::Tautulli,
+        base_url: "http://environment".into(),
+        api_key: Some("secret".into()),
+        ..ServiceConfig::default()
+    };
+
+    let merged = merge_service_sources(vec![lower], vec![higher]).unwrap();
+    assert_eq!(merged[0].base_url, "http://environment");
+    assert_eq!(merged[0].api_key.as_deref(), Some("secret"));
+    assert_eq!(merged[0].plex.as_deref(), Some("plex_den"));
+}
+
+#[test]
 fn twenty_four_instance_yaml_loads_in_stable_name_order() {
     let mut yaml = String::from("services:\n");
     for index in (0..24).rev() {
