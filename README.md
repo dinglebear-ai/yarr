@@ -397,6 +397,10 @@ login. Plex and Jellyfin token headers are handled separately.
 `YARR_MCP_TOOL_MODE=flat` only when a gateway should see separate per-service
 tools.
 
+See [Multiple instances of one kind](docs/CONFIG.md#multiple-instances-of-one-kind)
+for named Plex/Tautulli fleets, `YARR_<NAME>_KIND`, environment-namespace
+mapping, Code Mode naming, ambiguity behavior, and reserved globals.
+
 ## Authentication
 
 `YARR_MCP_TOKEN` authenticates `/mcp` on any HTTP bind, including loopback.

@@ -85,3 +85,19 @@ fn invalid_static_token_scope_is_rejected() {
     let error = Config::load().unwrap_err();
     assert!(error.to_string().contains("yarr:admin"));
 }
+
+#[test]
+fn config_load_rejects_reserved_service_identity() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut env = TestEnv::new();
+    env.set("YARR_HOME", dir.path());
+    env.set("HOME", dir.path());
+    env.remove("YARR_CONFIG");
+    env.set("YARR_SERVICES", "console");
+    env.set("YARR_CONSOLE_KIND", "plex");
+    env.set("YARR_CONSOLE_URL", "http://localhost:32400");
+
+    let error = Config::load().unwrap_err();
+    assert!(error.to_string().contains("reserved Code Mode global"));
+    assert!(error.to_string().contains("console"));
+}

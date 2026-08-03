@@ -46,12 +46,11 @@ fn no_flat_tools_namespace() {
 }
 
 #[test]
-fn reserved_global_name_is_not_clobbered() {
-    // A service literally named `api` must not get a top-level binding that would
-    // overwrite the raw-API client; the client itself is still present.
-    let pre = build_preamble(&[("api".to_string(), ServiceKind::Sonarr)]);
-    assert!(!pre.contains(r#"globalThis["api"] = {"#));
-    assert!(pre.contains("globalThis.api = {};"));
+#[should_panic(expected = "collides with a reserved Code Mode global")]
+fn reserved_global_cannot_reach_preamble_generation() {
+    // Startup validation is authoritative. This assertion protects direct
+    // programmatic construction from silently hiding the configured service.
+    let _ = build_preamble(&[("api".to_string(), ServiceKind::Sonarr)]);
 }
 
 #[test]

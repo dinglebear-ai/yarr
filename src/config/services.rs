@@ -5,6 +5,19 @@ use serde::{Deserialize, Serialize};
 
 pub(super) const SERVICE_HOME_DIRNAME: &str = ".yarr";
 
+/// Global JavaScript bindings owned by the Code Mode runtime. Configured
+/// service names may not collide with these names because doing so would either
+/// hide the service or clobber a safety/runtime primitive.
+pub(crate) const CODEMODE_RESERVED_GLOBALS: &[&str] = &[
+    "api",
+    "callTool",
+    "codemode",
+    "console",
+    "globalThis",
+    "input",
+    "writeArtifact",
+];
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default)]
 pub struct ServiceConfig {
@@ -303,6 +316,39 @@ pub(super) fn apply_readonly_services(
             );
         };
         service.read_only = true;
+    }
+    Ok(())
+}
+
+pub(super) fn validate_service_identities(services: &[ServiceConfig]) -> anyhow::Result<()> {
+    let mut names = std::collections::BTreeMap::<String, &str>::new();
+    let mut env_namespaces = std::collections::BTreeMap::<String, &str>::new();
+    for service in services {
+        let name = service.name.trim();
+        if name.is_empty() {
+            anyhow::bail!("configured service name must not be empty");
+        }
+        let normalized = name.to_ascii_lowercase();
+        if let Some(previous) = names.insert(normalized, name) {
+            anyhow::bail!(
+                "duplicate configured service name: {previous:?} and {name:?} differ only by case"
+            );
+        }
+        if CODEMODE_RESERVED_GLOBALS
+            .iter()
+            .any(|reserved| reserved.eq_ignore_ascii_case(name))
+        {
+            anyhow::bail!(
+                "configured service name {name:?} collides with a reserved Code Mode global; reserved names: {}",
+                CODEMODE_RESERVED_GLOBALS.join(", ")
+            );
+        }
+        let namespace = service_env_name(name);
+        if let Some(previous) = env_namespaces.insert(namespace.clone(), name) {
+            anyhow::bail!(
+                "configured service names {previous:?} and {name:?} collide in environment namespace YARR_{namespace}_*; rename one service (underscores are recommended)"
+            );
+        }
     }
     Ok(())
 }

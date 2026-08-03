@@ -52,6 +52,56 @@ YARR_PLEX_TOKEN=...
 
 Supported kinds: `sonarr`, `radarr`, `prowlarr`, `tautulli`, `overseerr`, `bazarr`, `tracearr`, `sabnzbd`, `qbittorrent`, `plex`, and `jellyfin`.
 
+### Multiple instances of one kind
+
+Each item in `YARR_SERVICES` is a configured **name**, not necessarily a service
+kind. Set `YARR_<NAME>_KIND` when the name differs from its kind:
+
+```bash
+YARR_SERVICES=plex_den,tautulli_den,plex_4k,tautulli_4k,sonarr,radarr
+
+YARR_PLEX_DEN_KIND=plex
+YARR_PLEX_DEN_URL=http://10.0.0.11:32400
+YARR_PLEX_DEN_TOKEN=...
+
+YARR_TAUTULLI_DEN_KIND=tautulli
+YARR_TAUTULLI_DEN_URL=http://10.0.0.11:8181
+YARR_TAUTULLI_DEN_API_KEY=...
+
+YARR_PLEX_4K_KIND=plex
+YARR_PLEX_4K_URL=http://10.0.0.12:32400
+YARR_PLEX_4K_TOKEN=...
+
+YARR_TAUTULLI_4K_KIND=tautulli
+YARR_TAUTULLI_4K_URL=http://10.0.0.12:8181
+YARR_TAUTULLI_4K_API_KEY=...
+
+YARR_SONARR_URL=http://10.0.0.20:8989
+YARR_SONARR_API_KEY=...
+YARR_RADARR_URL=http://10.0.0.20:7878
+YARR_RADARR_API_KEY=...
+```
+
+Configured names determine both environment namespaces and Code Mode globals:
+
+- Environment mapping uppercases the name and replaces every non-ASCII
+  alphanumeric character with `_`. Both `plex-den` and `plex_den` map to
+  `YARR_PLEX_DEN_*`, so configuring both fails with a duplicate-namespace error.
+- Prefer lowercase names with underscores. `plex_den` is a valid JavaScript
+  identifier and supports `plex_den.get_sessions()`. A name such as `plex-den`
+  requires bracket access: `globalThis["plex-den"].get_sessions()`.
+- Exact configured names always win during service resolution. A bare kind such
+  as `plex` is a convenience only while exactly one Plex instance exists. With
+  two Plex instances it is intentionally ambiguous, and the error lists the
+  configured names to use instead.
+- The Code Mode runtime owns these reserved globals: `api`, `callTool`,
+  `codemode`, `console`, `globalThis`, `input`, and `writeArtifact`. A service
+  name colliding with one of them fails startup and lists the reserved names.
+
+Names are matched case-insensitively for identity and must be unique. These
+rules are validated at startup so a configured service can never disappear
+silently from Code Mode.
+
 ### Fleet write safety
 
 Set `YARR_FLEET_READONLY` to configured instance names that must never accept a

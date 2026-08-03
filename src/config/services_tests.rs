@@ -145,3 +145,67 @@ fn readonly_list_marks_names_case_insensitively_and_rejects_unknown_names() {
     assert!(error.to_string().contains("plex_missing"));
     assert!(error.to_string().contains("not configured"));
 }
+
+#[test]
+fn reserved_codemode_global_fails_identity_validation() {
+    let error = validate_service_identities(&[ServiceConfig {
+        name: "console".into(),
+        kind: ServiceKind::Plex,
+        base_url: "http://localhost:32400".into(),
+        ..ServiceConfig::default()
+    }])
+    .unwrap_err();
+
+    assert!(error.to_string().contains("reserved Code Mode global"));
+    for reserved in CODEMODE_RESERVED_GLOBALS {
+        assert!(error.to_string().contains(reserved), "{error}");
+    }
+}
+
+#[test]
+fn normalized_environment_namespaces_must_be_unique() {
+    let error = validate_service_identities(&[
+        ServiceConfig {
+            name: "plex-den".into(),
+            kind: ServiceKind::Plex,
+            base_url: "http://localhost:32400".into(),
+            ..ServiceConfig::default()
+        },
+        ServiceConfig {
+            name: "plex_den".into(),
+            kind: ServiceKind::Plex,
+            base_url: "http://localhost:32401".into(),
+            ..ServiceConfig::default()
+        },
+    ])
+    .unwrap_err();
+
+    assert!(error.to_string().contains("YARR_PLEX_DEN_*"));
+    assert!(error.to_string().contains("plex-den"));
+    assert!(error.to_string().contains("plex_den"));
+}
+
+#[test]
+fn configured_names_must_be_unique_case_insensitively() {
+    let error = validate_service_identities(&[
+        ServiceConfig {
+            name: "Plex_Den".into(),
+            kind: ServiceKind::Plex,
+            base_url: "http://localhost:32400".into(),
+            ..ServiceConfig::default()
+        },
+        ServiceConfig {
+            name: "plex_den".into(),
+            kind: ServiceKind::Plex,
+            base_url: "http://localhost:32401".into(),
+            ..ServiceConfig::default()
+        },
+    ])
+    .unwrap_err();
+
+    assert!(
+        error
+            .to_string()
+            .contains("duplicate configured service name")
+    );
+}

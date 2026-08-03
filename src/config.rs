@@ -30,7 +30,10 @@ pub(crate) use environment::env_value;
 pub(crate) use environment::install_plugin_env_overlay;
 use environment::{EnvOverlayGuard, load_env_overlay};
 use mcp::{env_bool, env_list, env_opt_str, env_parse, env_str};
-use services::{SERVICE_HOME_DIRNAME, apply_readonly_services, load_services_from_env};
+use services::{
+    SERVICE_HOME_DIRNAME, apply_readonly_services, load_services_from_env,
+    validate_service_identities,
+};
 
 /// Top-level config (maps to `config.toml` sections).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -193,6 +196,7 @@ impl Config {
         if let Some(readonly) = env_value("YARR_FLEET_READONLY") {
             apply_readonly_services(&mut config.yarr.services, &readonly)?;
         }
+        validate_service_identities(&config.yarr.services)?;
 
         if config.mcp.static_token_scopes.is_empty() {
             anyhow::bail!("YARR_MCP_STATIC_TOKEN_SCOPES must contain at least one scope");

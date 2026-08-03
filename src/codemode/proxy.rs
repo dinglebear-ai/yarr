@@ -100,20 +100,6 @@ pub fn build_preamble(services: &[(String, ServiceKind)]) -> String {
     out
 }
 
-/// Global names the runtime/discovery layer owns — a configured service whose name
-/// collides with one of these does NOT get a top-level binding (it would clobber
-/// the runtime). Such a service is still fully reachable via `callTool` and, for
-/// raw HTTP, `api.<name>`.
-const RESERVED_GLOBALS: &[&str] = &[
-    "api",
-    "callTool",
-    "codemode",
-    "console",
-    "globalThis",
-    "input",
-    "writeArtifact",
-];
-
 /// Render the per-service callable namespaces. For each configured service, emit a
 /// `globalThis.<name>` object whose methods are the actions valid for that kind
 /// (`service_status` + the kind's curated commands). Each method bakes the service
@@ -122,9 +108,12 @@ const RESERVED_GLOBALS: &[&str] = &[
 fn render_service_namespaces(services: &[(String, ServiceKind)]) -> String {
     let mut out = String::new();
     for (name, kind) in services {
-        if RESERVED_GLOBALS.contains(&name.as_str()) {
-            continue;
-        }
+        assert!(
+            !crate::config::services::CODEMODE_RESERVED_GLOBALS
+                .iter()
+                .any(|reserved| reserved.eq_ignore_ascii_case(name)),
+            "configured service `{name}` collides with a reserved Code Mode global; configuration validation must run before preamble generation"
+        );
         // `{name:?}` emits a quoted, escaped JS string literal. `service` is merged
         // LAST so a script can never override the baked-in binding.
         out.push_str(&format!("globalThis[{name:?}] = {{\n"));

@@ -25,6 +25,11 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 
 ## Upstream services
 
+For two or more instances of the same kind, see
+[Multiple instances of one kind](CONFIG.md#multiple-instances-of-one-kind). That
+section documents configured-name mapping, namespace collisions, Code Mode
+access, ambiguity errors, and reserved globals.
+
 | Variable | Purpose |
 |---|---|
 | `YARR_SERVICES` | Comma-separated configured service names, for example `sonarr,radarr,plex`. |

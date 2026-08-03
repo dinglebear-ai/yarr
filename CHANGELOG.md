@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* **config:** reject reserved Code Mode service names and normalized environment-namespace collisions at startup instead of silently hiding a service
 * **docs:** replace unpinned npm launcher guidance with exact-version availability checks and document the `v2.1.0` partial-release recovery boundary
 * **unraid:** enforce cache-busted page assets and canonical root-owned mode-0755 package directories
 * **auth:** honor explicit bearer/OAuth credentials on loopback binds instead of silently downgrading them to unauthenticated dev mode
