@@ -118,6 +118,7 @@ pub async fn run(cmd: Command, cfg: &YarrConfig) -> Result<()> {
             args,
         } => service.execute_operation(name, op, args).await?,
         Command::Help => rest_help(),
+        Command::FleetStatus => service.fleet_status().await?,
         // Code Mode runs through the SAME shared dispatch path as the MCP
         // `codemode` action, so CLI↔MCP behaviour is identical.
         Command::CodeMode { code } => {

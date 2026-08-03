@@ -46,7 +46,8 @@ Yarr-owned domain metrics use bounded labels only:
 
 | Metric | Labels | Meaning |
 |---|---|---|
-| `yarr_upstream_requests_total` | `service`, `kind`, `outcome` | Upstream results: `success`, `transport_error`, `http_error`, or `oversized` |
+| `yarr_upstream_requests_total` | `service`, `kind`, `outcome` | Upstream results: `success`, `transport_error`, `http_error`, `body_error`, `decode_error`, `oversized`, or `internal_error` |
+| `yarr_upstream_request_duration_seconds` | `service`, `kind`, `outcome` | End-to-end upstream request latency, including bounded response collection |
 | `yarr_codemode_runs_total` | `outcome` | Run lifecycle events: `started`, `completed`, or `failed` |
 | `yarr_codemode_active` | none | Currently active Code Mode runs |
 | `yarr_auth_failures_total` | `reason` | MCP context/scope rejection: `missing_http_context`, `missing_auth_context`, or `insufficient_scope` |
@@ -78,6 +79,15 @@ corrupt command or JSON-RPC output.
 
 `RUST_LOG` controls both server log destinations. Secrets, authorization
 headers, cookies, signing keys, and query credentials must never be logged.
+Every completed upstream attempt carries structured `service`, `kind`,
+`method`, credential-free URL `path`, `outcome`, and `latency_ms` fields. The
+`service` label is the configured instance name, so fleet cardinality is bounded
+by configuration rather than user input.
+
+For an on-demand fleet snapshot, `yarr fleet status` and Code Mode
+`fleet.status()` use the same bounded dispatcher and return name, kind,
+reachability, discovered version, latency, error, and truncation state for every
+configured instance.
 
 The local JSON log is checked at startup and truncated if already at least 10
 MiB. It is not rotated or rechecked while the process runs, so ship stderr or

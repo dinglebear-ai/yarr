@@ -57,3 +57,12 @@ fn plex_discovery_is_owned_only_and_reviewable_by_default() {
         }
     ));
 }
+
+#[test]
+fn fleet_status_is_an_infrastructure_command() {
+    assert_eq!(
+        parse_infra_command("fleet", &args(&["status"])).unwrap(),
+        Command::FleetStatus
+    );
+    assert!(parse_infra_command("fleet", &[]).is_err());
+}

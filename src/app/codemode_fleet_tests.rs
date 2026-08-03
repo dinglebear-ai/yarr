@@ -149,3 +149,32 @@ fn destructive_generated_fanout_exposes_all_targets_to_the_guard() {
     assert_eq!(authorization.action, "terminate_session");
     assert_eq!(authorization.targets, vec!["plex_a", "plex_z"]);
 }
+
+#[tokio::test]
+async fn fleet_status_shapes_reachability_version_and_latency() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let app = axum::Router::new().route(
+        "/identity",
+        axum::routing::get(|| async { axum::Json(serde_json::json!({"version": "1.2.3"})) }),
+    );
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "plex_den".into(),
+            kind: ServiceKind::Plex,
+            base_url: format!("http://{address}"),
+            token: Some("test".into()),
+            ..Default::default()
+        }],
+    };
+    let service = YarrService::new(YarrClient::new(&config).unwrap(), config);
+
+    let status = service.fleet_status().await.unwrap();
+    assert_eq!(status[0]["name"], "plex_den");
+    assert_eq!(status[0]["kind"], "plex");
+    assert_eq!(status[0]["reachable"], true);
+    assert_eq!(status[0]["version"], "1.2.3");
+    assert!(status[0]["latency_ms"].is_number());
+    server.abort();
+}

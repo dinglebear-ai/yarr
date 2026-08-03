@@ -117,7 +117,40 @@ impl YarrService {
         .collect::<Vec<_>>()
         .await;
         results.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+        if request.kind == "*" && request.method == "service_status" {
+            return Ok(Value::Array(
+                results
+                    .into_iter()
+                    .map(|row| self.status_row(row))
+                    .collect(),
+            ));
+        }
         Ok(Value::Array(results))
+    }
+
+    /// Per-instance reachability, version, and latency over the same bounded
+    /// dispatcher used by Code Mode `fleet.status()`.
+    pub async fn fleet_status(&self) -> Result<Value> {
+        self.fleet_map(&FleetMapRequest {
+            kind: "*".into(),
+            method: "service_status".into(),
+            args: json!({}),
+        })
+        .await
+    }
+
+    fn status_row(&self, row: Value) -> Value {
+        let name = row["name"].as_str().unwrap_or("<unknown>");
+        let kind = self.kind_of(name).ok().flatten().map(|kind| kind.as_str());
+        json!({
+            "name": name,
+            "kind": kind,
+            "reachable": row["ok"],
+            "version": find_version(&row["value"]),
+            "latency_ms": row["elapsed_ms"],
+            "error": row.get("error").cloned().unwrap_or(Value::Null),
+            "truncated": row["truncated"],
+        })
     }
 
     fn fleet_action(&self, service_name: &str, request: &FleetMapRequest) -> Result<YarrAction> {
@@ -157,5 +190,16 @@ impl YarrService {
         params.insert("action".into(), Value::String(request.method.clone()));
         params.insert("service".into(), Value::String(service_name.to_owned()));
         YarrAction::from_mcp_args(&Value::Object(params))
+    }
+}
+
+fn find_version(value: &Value) -> Option<&str> {
+    match value {
+        Value::Object(object) => ["version", "productVersion", "pms_version"]
+            .iter()
+            .find_map(|field| object.get(*field).and_then(Value::as_str))
+            .or_else(|| object.values().find_map(find_version)),
+        Value::Array(items) => items.iter().find_map(find_version),
+        _ => None,
     }
 }

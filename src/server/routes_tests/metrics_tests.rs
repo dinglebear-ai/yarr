@@ -97,3 +97,29 @@ async fn domain_metrics_are_not_double_prefixed() {
         "{text}"
     );
 }
+
+#[tokio::test]
+async fn upstream_metrics_include_bounded_instance_labels_and_latency() {
+    let state = super::metrics_state();
+    let app = router(state.clone());
+    let _ = state.service.service_status("sonarr").await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/metrics")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(
+        text.contains("yarr_upstream_request_duration_seconds"),
+        "{text}"
+    );
+    assert!(text.contains("service=\"sonarr\""), "{text}");
+    assert!(text.contains("kind=\"sonarr\""), "{text}");
+}

@@ -402,6 +402,8 @@ for named Plex/Tautulli fleets, `YARR_<NAME>_KIND`, environment-namespace
 mapping, Code Mode naming, ambiguity behavior, and reserved globals.
 For account-scaffolded fleets, see
 [Plex account discovery](docs/CONFIG.md#plex-account-discovery).
+Use `yarr fleet status` for a bounded per-instance reachability, version, and
+latency snapshot.
 
 ## Authentication
 

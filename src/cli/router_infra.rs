@@ -13,6 +13,13 @@ pub(super) fn parse_infra_command(verb: &str, rest: &[String]) -> Result<Command
         "codemode" => parse_codemode_command(rest),
         "snippet" => parse_snippet_command(rest),
         "discover" => parse_discover_command(rest),
+        "fleet" => match rest {
+            [status] if status == "status" => Ok(Command::FleetStatus),
+            [] => Err(anyhow!("fleet requires `status`")),
+            [other, ..] => Err(anyhow!(
+                "unknown fleet command `{other}` (expected `status`)"
+            )),
+        },
         "doctor" => Ok(Command::Doctor {
             json: parse_bool_flag(rest, "doctor", "--json")?,
         }),

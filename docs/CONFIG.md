@@ -61,6 +61,7 @@ await fleet.map("plex", server => server.list_sessions())
 //  { name, ok: false, error, truncated: false, elapsed_ms }]
 
 await fleet.status()
+// [{ name, kind, reachable, version, latency_ms, error, truncated }, ...]
 ```
 
 `fleet.map` records exactly one service method from its callback and dispatches

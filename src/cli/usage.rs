@@ -34,6 +34,9 @@ fn build_usage() -> String {
     out.push_str("  yarr codemode --code JS|--file P  Run a JS script that calls yarr actions\n");
     out.push_str("  yarr snippet list|save|run|delete  Manage saved Code Mode snippets\n");
     out.push_str("  yarr discover plex [--owned-only|--include-shared] [--diff]  Scaffold or audit a Plex fleet\n");
+    out.push_str(
+        "  yarr fleet status              Show reachability, version, and latency per instance\n",
+    );
     out.push_str("  yarr doctor [--json]           Run environment pre-flight checks\n");
     out.push_str(
         "  yarr watch [--url URL] [--interval N] [--once]  Poll server health; --once exits non-zero unless healthy\n",

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add CLI/Code Mode fleet status, per-instance upstream latency histograms, and
+  structured instance fields on every upstream completion log.
 - Add bounded, failure-isolated `fleet.map`/`fleet.status` Code Mode primitives
   and four immutable canonical fleet snippets.
 - Add review-only `yarr discover plex` scaffolding with owned-server defaults,

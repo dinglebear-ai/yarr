@@ -73,6 +73,8 @@ pub enum Command {
         env_output: PathBuf,
         diff: bool,
     },
+    /// `yarr fleet status` — reachability, version, and latency for every instance.
+    FleetStatus,
     /// `yarr codemode --code JS` / `--file PATH` — run a JS script that calls
     /// yarr actions. Infra, service-less; dispatched through the same
     /// `execute_service_action` path as the MCP `codemode` action.
