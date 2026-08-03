@@ -61,6 +61,11 @@ pub fn fit_response(response: &mut Value) {
         return;
     }
 
+    summarize_fleet_result(response);
+    if within_budget(response) {
+        return;
+    }
+
     // Pull logs out so we can measure the rest of the envelope on its own.
     let logs = take_array(response, "logs");
 
@@ -90,6 +95,70 @@ pub fn fit_response(response: &mut Value) {
             "[logs truncated to fit response budget — {dropped} line(s) dropped]"
         ))
     });
+}
+
+/// Preserve the shape and completeness signal of a `fleet.map` result. Each
+/// member receives an explicit `truncated` flag; values that cannot fit their
+/// fair share of the response budget are replaced with a compact summary.
+fn summarize_fleet_result(response: &mut Value) {
+    let Some(results) = response.get_mut("result").and_then(Value::as_array_mut) else {
+        return;
+    };
+    if results.is_empty()
+        || !results.iter().all(|item| {
+            item.get("name").and_then(Value::as_str).is_some()
+                && item.get("ok").and_then(Value::as_bool).is_some()
+        })
+    {
+        return;
+    }
+
+    // Leave room for the envelope, calls, logs, and JSON punctuation. This is a
+    // byte budget (like the final transport cap), not an estimated token count.
+    let per_instance_budget = RESPONSE_BUDGET
+        .saturating_sub(2 * 1024)
+        .checked_div(results.len())
+        .unwrap_or(0)
+        .max(256);
+
+    for item in results {
+        let original_len = serialized_len(item);
+        if original_len <= per_instance_budget {
+            if let Some(object) = item.as_object_mut() {
+                object.insert("truncated".into(), Value::Bool(false));
+            }
+            continue;
+        }
+
+        let Some(object) = item.as_object_mut() else {
+            continue;
+        };
+        let value = object.remove("value").unwrap_or(Value::Null);
+        let value_len = serialized_len(&value);
+        let value_type = match &value {
+            Value::Null => "null",
+            Value::Bool(_) => "boolean",
+            Value::Number(_) => "number",
+            Value::String(_) => "string",
+            Value::Array(_) => "array",
+            Value::Object(_) => "object",
+        };
+        let item_count = match &value {
+            Value::Array(items) => Some(items.len()),
+            Value::Object(fields) => Some(fields.len()),
+            _ => None,
+        };
+        let mut summary = serde_json::Map::from_iter([
+            ("type".into(), Value::String(value_type.into())),
+            ("original_bytes".into(), json!(value_len)),
+        ]);
+        if let Some(count) = item_count {
+            summary.insert("item_count".into(), json!(count));
+        }
+        object.insert("value".into(), Value::Null);
+        object.insert("truncated".into(), Value::Bool(true));
+        object.insert("summary".into(), Value::Object(summary));
+    }
 }
 
 /// True iff the compact serialization of `value` is within budget.

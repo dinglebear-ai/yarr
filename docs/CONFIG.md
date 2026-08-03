@@ -22,11 +22,26 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 | `YARR_MCP_ALLOWED_ORIGINS` | unset | Extra CORS origins |
 | `YARR_MCP_AUTH_MODE` | `bearer` | `bearer` or `oauth` |
 | `YARR_MCP_TOOL_MODE` | `codemode` | `codemode` (one `yarr` tool; the fleet is reached inside a Code Mode script) or `flat` (one action-dispatched tool per configured service, no Code Mode layer; useful behind gateways that already provide dynamic discovery/Code Mode) |
-| `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum concurrently executing Code Mode runtimes; must be at least 1 |
+| `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum concurrently executing Code Mode runtimes (whole scripts, not requests within one script); must be at least 1 |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Maximum admission-queue wait before failing busy; must be non-zero |
-| `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `30` | Execution deadline for one Code Mode run; must be non-zero |
+| `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `120` | Execution deadline for one Code Mode run; fleet fanout must fit inside it; must be non-zero |
 | `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Maximum instances in one destructive fleet dispatch; must be at least 1 |
 | `YARR_FLEET_READONLY` | unset | Comma-separated configured service names that reject every mutation on CLI and MCP |
+
+### Fleet runtime sizing
+
+`YARR_MCP_CODEMODE_MAX_CONCURRENT` limits whole QuickJS runtimes admitted by the
+server; it does not throttle calls made inside one script. Fleet fanout has its
+own bounded concurrency and per-instance timeout (see Fleet Code Mode below),
+and every wave must finish inside `YARR_MCP_CODEMODE_TIMEOUT_SECS`.
+
+The shared HTTP client maintains a pool per upstream host (up to eight idle
+connections per host), so a slow Plex server does not consume a global
+connection pool. The QuickJS heap remains 64 MiB: fleet responses are bounded
+and summarized before they can be returned to the client. If one instance's
+value exceeds its share of the response budget, that instance is returned with
+`truncated: true`, a type/item-count/byte summary, and `value: null`; other
+instances retain independent completeness flags.
 
 ## Unauthenticated endpoints
 

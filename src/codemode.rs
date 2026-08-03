@@ -41,8 +41,10 @@ pub use engine::{ArtifactWriter, EmbedCaller, EngineLimits, EngineOutcome, ToolC
 pub use proxy::build_preamble;
 pub use semantic::{SemanticCache, semantic_scores, tei_url};
 
-/// Wall-clock budget for a single Code Mode execution (matches lab's default).
-pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(30);
+/// Wall-clock budget for a single Code Mode execution. Fleet fanout may wait on
+/// several bounded waves of upstream requests, so this is deliberately longer
+/// than the per-request HTTP timeout.
+pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(120);
 /// Maximum number of QuickJS runtimes admitted concurrently by one service.
 pub const CODEMODE_MAX_CONCURRENT: usize = 4;
 /// Maximum time a Code Mode request waits for an execution slot.

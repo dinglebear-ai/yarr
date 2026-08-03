@@ -126,3 +126,46 @@ fn utf8_prefix_never_splits_a_codepoint() {
         assert!(std::str::from_utf8(p.as_bytes()).is_ok());
     }
 }
+
+#[test]
+fn oversized_fleet_values_are_marked_per_instance() {
+    let huge = "x".repeat(RESPONSE_BUDGET);
+    let mut env = envelope(
+        json!([
+            {"name": "plex_01", "ok": true, "value": {"sessions": [huge]}},
+            {"name": "plex_02", "ok": true, "value": {"sessions": ["small"]}},
+        ]),
+        vec![],
+    );
+
+    fit_response(&mut env);
+
+    let results = env["result"]
+        .as_array()
+        .expect("fleet result remains an array");
+    assert_eq!(results[0]["name"], "plex_01");
+    assert_eq!(results[0]["truncated"], true);
+    assert_eq!(results[0]["value"], Value::Null);
+    assert_eq!(results[0]["summary"]["type"], "object");
+    assert!(results[0]["summary"]["original_bytes"].as_u64().unwrap() > 0);
+    assert_eq!(results[1]["name"], "plex_02");
+    assert_eq!(results[1]["truncated"], false);
+    assert_eq!(results[1]["value"]["sessions"][0], "small");
+    assert!(serialized_len(&env) <= RESPONSE_BUDGET);
+}
+
+#[test]
+fn fleet_array_summary_reports_item_count() {
+    let sessions: Vec<Value> = (0..2_000)
+        .map(|i| json!({"session": i, "title": "x".repeat(32)}))
+        .collect();
+    let mut env = envelope(
+        json!([{"name": "plex_den", "ok": true, "value": sessions}]),
+        vec![],
+    );
+
+    fit_response(&mut env);
+
+    assert_eq!(env["result"][0]["truncated"], true);
+    assert_eq!(env["result"][0]["summary"]["item_count"], 2_000);
+}
