@@ -89,7 +89,13 @@ pub fn resolve_auth_policy_kind(config: &Config, trusted_gateway: bool) -> Resul
         );
     }
 
+    // OAuth may keep a weak break-glass token or retire the static token
+    // entirely. A strong, still-active static gateway token remains an
+    // alternate network credential and must carry yarr:write in codemode.
+    let static_token_needs_codemode_write =
+        !has_oauth || (has_strong_token && !config.mcp.auth.disable_static_token_with_oauth);
     if has_token
+        && static_token_needs_codemode_write
         && config.mcp.tool_mode == ToolMode::Codemode
         && !crate::actions::scopes_satisfy(
             &config.mcp.static_token_scopes,

@@ -1,5 +1,5 @@
 name: Setup Rust with kache
-description: Install a Rust toolchain plus a pinned kache, point it at the shared filesystem remote, start the daemon, and print cache evidence.
+description: Install a Rust toolchain plus a pinned kache, connect it to the shared MinIO remote, start the daemon, and print cache evidence.
 
 inputs:
   toolchain:
@@ -94,10 +94,10 @@ runs:
           fi
         done
 
-    # Pinned exactly. The filesystem remote is new in 0.12.0 (PR #593) and is
-    # SILENTLY IGNORED by 0.11.0 — it reports "Remote: not configured" with no
-    # error. Floating this version would degrade the shared cache without any
-    # failure signal. Bump deliberately, never via tag drift.
+    # Pinned exactly. The private fleet and hosted CI share the 0.12.0 S3
+    # object layout and daemon protocol. Floating this version could split cache
+    # epochs or layouts without an obvious workflow failure. Bump deliberately,
+    # never via tag drift.
     - name: Install kache
       if: inputs.enable-cache == 'true' && runner.os == 'Linux'
       shell: bash
@@ -105,12 +105,12 @@ runs:
         KACHE_VERSION: "0.12.0"
       run: |
         set -euo pipefail
-        # The farm image bakes an exactly-pinned kache at /usr/local/bin/kache
-        # (and runs the daemon for the container lifetime). Download only when
-        # the baked binary is absent or the wrong version — e.g. a runner
-        # image that predates the bake, or a non-farm self-hosted box.
-        if [ -x /usr/local/bin/kache ] && /usr/local/bin/kache --version | grep -q " ${KACHE_VERSION}\$"; then
-          echo "kache ${KACHE_VERSION} baked into the runner image — skipping download"
+        # Reuse any already-installed binary at the pinned version. Persistent
+        # hosts may manage kache through mise/systemd; reinstalling the same
+        # bytes changes the executable mtime, which kache treats as a protocol
+        # epoch and can force the managed daemon into a restart loop.
+        if command -v kache >/dev/null 2>&1 && kache --version | grep -q " ${KACHE_VERSION}\$"; then
+          echo "kache ${KACHE_VERSION} already available at $(command -v kache) - skipping download"
           exit 0
         fi
         target=x86_64-unknown-linux-musl
@@ -136,55 +136,61 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        # ONE local store per runner container at /_work/.kache — /_work is
-        # this runner's PRIVATE persistent host mount, so the store survives
-        # jobs and recycles without ever crossing an OS boundary (the
-        # forbidden case is cross-CONTAINER sharing, not cross-repo: a single
-        # store dedups every repo on this runner and is the store the
-        # container-lifetime daemon serves). Fall back to the old
-        # workspace-parent path only where /_work does not exist.
-        if [ -d /_work ] && [ -w /_work ]; then
+        config_file="$HOME/.config/kache/config.toml"
+        credentials_file="$HOME/.aws/credentials"
+        mkdir -p "$HOME/.config/kache"
+
+        # Persistent hosts own their default store through systemd. Farm
+        # containers use their private /_work bind mount. Other ephemeral
+        # runners keep a job-adjacent store that survives steps in the job.
+        if command -v systemctl >/dev/null 2>&1 &&
+           systemctl --user cat kache.service >/dev/null 2>&1; then
+          cache_dir="$HOME/.cache/kache"
+        elif [ -d /_work ] && [ -w /_work ]; then
           cache_dir=/_work/.kache
         else
           cache_dir="$(cd "$GITHUB_WORKSPACE/.." && pwd)/.kache"
         fi
-        mkdir -p "$cache_dir"
 
-        # The REMOTE is the shared surface: one directory on tootie's raidz1
-        # cache pool, bind-mounted into every runner.
-        #
-        # A missing mount degrades to local-only rather than failing the job:
-        # runners are rolled out one image build at a time, so hard-failing here
-        # would break every runner that has not been recreated yet. The
-        # DEGRADATION IS NOT SILENT — it is annotated here and enforced by
-        # scripts/kache-gate.sh, which fails the job when
-        # KACHE_GATE_REQUIRE_REMOTE=1 and no remote hit occurred. Setup degrades;
-        # the gate enforces. Do not move enforcement into this step.
-        remote_dir=/home/runner/kache-remote
-        mkdir -p "$HOME/.config/kache"
-        # The farm image bakes a config carrying local_store + the remote;
-        # the container daemon read it at boot. Never overwrite it — a
-        # per-job rewrite would race the daemon's view of the store.
-        if grep -qs "^local_store" "$HOME/.config/kache/config.toml"; then
-          echo "baked kache config present — leaving it alone"
-        elif [ -w "$remote_dir" ]; then
-          cat > "$HOME/.config/kache/config.toml" <<TOML
+        # An existing config may belong to a persistent host or to the farm
+        # image. Never overwrite it from a job: doing so can silently strip the
+        # host's remote and daemon lifetime settings after the workflow exits.
+        if [ -s "$config_file" ]; then
+          echo "existing kache config present - leaving it alone"
+          configured_store="$(
+            sed -n 's/^[[:space:]]*local_store[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+              "$config_file" | head -n1
+          )"
+          [ -z "$configured_store" ] || cache_dir="$configured_store"
+        elif [ -r "$credentials_file" ] &&
+             grep -Eq '^[[:space:]]*\[kache\][[:space:]]*$' "$credentials_file"; then
+          cat > "$config_file" <<TOML
         [cache]
+        local_store = "$cache_dir"
+        daemon_idle_timeout_secs = 0
+        prefetch_max_bytes = "8GiB"
         local_max_size = "40GiB"
 
         [cache.remote]
-        type = "filesystem"
-        path = "$remote_dir"
-        prefix = "artifacts"
+        type = "s3"
+        bucket = "kache"
+        endpoint = "http://10.1.0.2:9000"
+        region = "us-east-1"
+        prefix = "rust"
+        profile = "kache"
         TOML
-          echo "kache remote: $remote_dir"
+          echo "kache remote: s3://kache/rust via Tootie MinIO"
         else
-          cat > "$HOME/.config/kache/config.toml" <<TOML
+          cat > "$config_file" <<TOML
         [cache]
+        local_store = "$cache_dir"
+        daemon_idle_timeout_secs = 0
+        prefetch_max_bytes = "8GiB"
         local_max_size = "40GiB"
         TOML
-          echo "::warning::shared kache remote $remote_dir is missing or not writable — running LOCAL-ONLY. This runner neither reads from nor contributes to the shared cache."
+          echo "::warning::AWS profile 'kache' is unavailable - running LOCAL-ONLY. This runner neither reads from nor contributes to the shared cache."
         fi
+        mkdir -p "$cache_dir"
 
         {
           echo "RUSTC_WRAPPER=kache"
@@ -192,14 +198,8 @@ runs:
           echo "KACHE_CACHE_DIR=$cache_dir"
           # Incremental compilation and a compile wrapper do not compose.
           echo "CARGO_INCREMENTAL=0"
-          # Runners are long-lived. The default 600s idle exit would leave the
-          # daemon dead between jobs, and the remote-check path never starts it
-          # — a dead daemon means zero remote hits and zero uploads, silently.
-          echo "KACHE_DAEMON_IDLE_TIMEOUT=0"
-          # A full cold soma build stores well over the 2 GiB default prefetch
-          # budget. Raise it so a warm runner is not truncated mid-plan.
-          echo "KACHE_PREFETCH_MAX_BYTES=8GiB"
-          echo "KACHE_MAX_SIZE=40GiB"
+          # Capacity and daemon policy live in the preserved or generated TOML.
+          # Do not override a persistent host's larger L1 through GITHUB_ENV.
         } >> "$GITHUB_ENV"
 
     - name: Ensure kache daemon
@@ -207,20 +207,27 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        # The farm image supervises a container-lifetime daemon (started at
-        # boot, outside job process groups, so the post-job orphan reaper
-        # cannot kill it and the upload queue survives job end). This step is
-        # therefore normally a no-op verification; the start covers non-farm
-        # runners. The daemon is the ONLY path that uploads dependency
-        # artifacts and the ONLY path that performs remote lookups — and kache
-        # is fail-open, so wrappers that race daemon initialization silently
-        # skip the remote and compile. Wait until it answers.
-        kache daemon status >/dev/null 2>&1 || kache daemon start
+        daemon_is_running() {
+          local status
+          status="$(kache daemon status 2>&1)"
+          grep -q "Daemon:" <<< "$status" && ! grep -q "not running" <<< "$status"
+        }
+
+        # Persistent hosts own kache through a user systemd unit. Never
+        # launch a detached competitor there. Farm and ephemeral runners
+        # use kache daemon restart, which also clears stale daemon state.
+        if command -v systemctl >/dev/null 2>&1 && systemctl --user cat kache.service >/dev/null 2>&1; then
+          echo "host-managed kache.service found - using systemd"
+          systemctl --user is-active --quiet kache.service || systemctl --user start kache.service
+        else
+          daemon_is_running || kache daemon restart
+        fi
+
         for _ in $(seq 1 30); do
-          kache daemon status >/dev/null 2>&1 && break
+          daemon_is_running && break
           sleep 1
         done
-        kache daemon status >/dev/null 2>&1 || { echo "::error::kache daemon is not answering"; exit 1; }
+        daemon_is_running || { echo "::error::kache daemon is not answering"; kache daemon status; exit 1; }
         kache daemon
 
     - name: Print cache evidence
