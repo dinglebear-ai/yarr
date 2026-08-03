@@ -32,9 +32,12 @@ async fn save_list_run_delete_roundtrip() {
         .snippet_save("greet", "async () => ({ hi: input.who })", Some("greets"))
         .await
         .unwrap();
-    assert_eq!(
-        service.snippet_list().await.unwrap()["snippets"][0]["name"],
-        "greet"
+    assert!(
+        service.snippet_list().await.unwrap()["snippets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|snippet| snippet["name"] == "greet")
     );
     assert_eq!(
         service
@@ -51,7 +54,8 @@ async fn save_list_run_delete_roundtrip() {
         service.snippet_list().await.unwrap()["snippets"]
             .as_array()
             .unwrap()
-            .is_empty()
+            .iter()
+            .all(|snippet| snippet["built_in"] == true)
     );
 }
 
@@ -99,4 +103,26 @@ async fn snippets_are_disabled_without_data_dir() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn canonical_fleet_snippets_are_available_without_a_data_dir() {
+    let service = loopback_state().service;
+    let listed = service.snippet_list().await.unwrap();
+    let names = listed["snippets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(names.contains(&"fleet_activity"));
+    assert!(names.contains(&"fleet_health"));
+    assert!(names.contains(&"fleet_library_sizes"));
+    assert!(names.contains(&"fleet_transcode_load"));
+    let health = service
+        .snippet_run("fleet_health", &serde_json::Value::Null)
+        .await
+        .unwrap();
+    assert!(health["result"].is_array());
+    assert!(service.snippet_delete("fleet_health").await.is_err());
 }

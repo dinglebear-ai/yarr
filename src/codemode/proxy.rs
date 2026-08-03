@@ -86,6 +86,7 @@ pub fn build_preamble(services: &[(String, ServiceKind)]) -> String {
     out.push_str(&render_service_namespaces(services));
     let service_names: Vec<String> = services.iter().map(|(name, _)| name.clone()).collect();
     out.push_str(&render_api_namespace(&service_names));
+    out.push_str(&render_fleet_namespace(services));
     // Discovery: inject the per-service ACTION catalog + the per-service TYPE
     // catalog (response-shape TS interfaces), then the pure-JS search/describe
     // helpers. Types are surfaced ON DEMAND — only what the agent describes is
@@ -98,6 +99,70 @@ pub fn build_preamble(services: &[(String, ServiceKind)]) -> String {
     out.push_str(";\n");
     out.push_str(DISCOVERY_JS);
     out
+}
+
+fn render_fleet_namespace(services: &[(String, ServiceKind)]) -> String {
+    let mut inventory = services
+        .iter()
+        .map(|(name, kind)| serde_json::json!({"name": name, "kind": kind.as_str()}))
+        .collect::<Vec<_>>();
+    inventory.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+    let inventory = serde_json::to_string(&inventory).unwrap_or_else(|_| "[]".to_owned());
+    format!(
+        r#"
+const __yarr_fleet_services = Object.freeze({inventory});
+globalThis.fleet = Object.freeze({{
+    all: () => __yarr_fleet_services.map((service) => Object.assign({{}}, service)),
+    of: (kind) => {{
+        if (typeof kind !== "string" || kind.trim() === "") {{
+            throw new TypeError("fleet.of(kind): kind must be a non-empty string");
+        }}
+        return __yarr_fleet_services
+            .filter((service) => service.kind === kind.trim().toLowerCase())
+            .map((service) => service.name);
+    }},
+    map: async (kind, mapper) => {{
+        if (typeof kind !== "string" || kind.trim() === "") {{
+            throw new TypeError("fleet.map(kind, mapper): kind must be a non-empty string");
+        }}
+        if (typeof mapper !== "function") {{
+            throw new TypeError("fleet.map(kind, mapper): mapper must be a function");
+        }}
+        let captured = null;
+        const marker = Object.freeze({{ __yarrFleetCapture: true }});
+        const recorder = new Proxy({{}}, {{
+            get: (_target, property) => (...callArgs) => {{
+                if (typeof property !== "string" || property.trim() === "") {{
+                    throw new TypeError("fleet.map mapper selected an invalid method");
+                }}
+                if (captured !== null) {{
+                    throw new Error("fleet.map mapper must call exactly one service method");
+                }}
+                if (callArgs.length > 1) {{
+                    throw new TypeError("fleet.map service methods accept at most one params object");
+                }}
+                const args = callArgs.length === 0 || callArgs[0] == null ? {{}} : callArgs[0];
+                if (typeof args !== "object" || Array.isArray(args)) {{
+                    throw new TypeError("fleet.map service method params must be an object");
+                }}
+                captured = {{ method: property, args: args }};
+                return marker;
+            }},
+        }});
+        const mapped = await mapper(recorder);
+        if (captured === null || mapped !== marker) {{
+            throw new Error("fleet.map mapper must return exactly one service method call");
+        }}
+        return callTool("__fleet_map", {{
+            kind: kind.trim().toLowerCase(),
+            method: captured.method,
+            args: captured.args,
+        }});
+    }},
+    status: () => callTool("__fleet_map", {{ kind: "*", method: "service_status", args: {{}} }}),
+}});
+"#
+    )
 }
 
 /// Render the per-service callable namespaces. For each configured service, emit a

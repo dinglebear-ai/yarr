@@ -35,6 +35,8 @@ static ARTIFACT_WRITE_LOCK: Mutex<()> = Mutex::new(());
 mod artifacts;
 #[path = "codemode_dispatch.rs"]
 mod dispatch;
+#[path = "codemode_fleet.rs"]
+mod fleet;
 #[path = "codemode_runtime.rs"]
 mod runtime;
 #[path = "codemode_snippets.rs"]
@@ -43,12 +45,25 @@ mod snippets;
 use artifacts::{prune_artifact_runs, write_codemode_artifact};
 use runtime::{ActiveRunMetric, ArtifactRequest, EmbedRequest, ToolRequest};
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub(crate) struct FleetMapRequest {
+    pub kind: String,
+    pub method: String,
+    #[serde(default)]
+    pub args: Value,
+}
+
 /// MCP-supplied defense-in-depth policy for every action emitted by a Code
 /// Mode script. CLI runs use no guard and retain their local-trust behavior.
 pub(crate) trait CodeModeCallGuard: Send + Sync {
     fn authorize<'a>(
         &'a self,
         action: &'a YarrAction,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
+
+    fn authorize_fleet<'a>(
+        &'a self,
+        request: &'a FleetMapRequest,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
 }
 
@@ -335,3 +350,7 @@ impl YarrService {
 #[cfg(test)]
 #[path = "codemode_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "codemode_fleet_tests.rs"]
+mod fleet_tests;

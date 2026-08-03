@@ -4266,6 +4266,7 @@ dependencies = [
  "chrono",
  "dirs",
  "fs2",
+ "futures-util",
  "labby-auth",
  "reqwest",
  "rmcp",

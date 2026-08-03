@@ -131,6 +131,14 @@ impl Config {
             "YARR_MCP_DESTRUCTIVE_FANOUT_MAX",
             &mut config.mcp.destructive_fanout_max,
         )?;
+        env_parse(
+            "YARR_FLEET_MAX_CONCURRENT",
+            &mut config.mcp.fleet_max_concurrent,
+        )?;
+        env_parse(
+            "YARR_FLEET_INSTANCE_TIMEOUT_SECS",
+            &mut config.mcp.fleet_instance_timeout_secs,
+        )?;
         env_opt_str("YARR_MCP_PUBLIC_URL", &mut config.mcp.auth.public_url);
         env_str(
             "YARR_MCP_AUTH_ADMIN_EMAIL",
@@ -234,6 +242,12 @@ impl Config {
         }
         if config.mcp.destructive_fanout_max == 0 {
             anyhow::bail!("YARR_MCP_DESTRUCTIVE_FANOUT_MAX must be at least 1");
+        }
+        if config.mcp.fleet_max_concurrent == 0 {
+            anyhow::bail!("YARR_FLEET_MAX_CONCURRENT must be at least 1");
+        }
+        if config.mcp.fleet_instance_timeout_secs == 0 {
+            anyhow::bail!("YARR_FLEET_INSTANCE_TIMEOUT_SECS must be at least 1");
         }
 
         Ok(config)

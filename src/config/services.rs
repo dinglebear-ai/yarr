@@ -15,6 +15,7 @@ pub(crate) const CODEMODE_RESERVED_GLOBALS: &[&str] = &[
     "console",
     "globalThis",
     "input",
+    "fleet",
     "writeArtifact",
 ];
 

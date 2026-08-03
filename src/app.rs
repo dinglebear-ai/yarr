@@ -41,6 +41,8 @@ pub struct YarrService {
     codemode_slots: std::sync::Arc<tokio::sync::Semaphore>,
     codemode_queue_timeout: std::time::Duration,
     codemode_execution_timeout: std::time::Duration,
+    fleet_max_concurrent: usize,
+    fleet_instance_timeout: std::time::Duration,
 }
 
 impl YarrService {
@@ -62,7 +64,19 @@ impl YarrService {
             )),
             codemode_queue_timeout: crate::codemode::CODEMODE_QUEUE_TIMEOUT,
             codemode_execution_timeout: crate::codemode::CODEMODE_TIMEOUT,
+            fleet_max_concurrent: crate::codemode::FLEET_MAX_CONCURRENT,
+            fleet_instance_timeout: crate::codemode::FLEET_INSTANCE_TIMEOUT,
         }
+    }
+
+    pub fn with_fleet_limits(
+        mut self,
+        max_concurrent: usize,
+        instance_timeout: std::time::Duration,
+    ) -> Self {
+        self.fleet_max_concurrent = max_concurrent.max(1);
+        self.fleet_instance_timeout = instance_timeout;
+        self
     }
 
     /// Enable Code Mode `writeArtifact` by setting the artifacts root (typically

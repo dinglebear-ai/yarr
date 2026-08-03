@@ -47,6 +47,10 @@ pub use semantic::{SemanticCache, semantic_scores, tei_url};
 pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(120);
 /// Maximum number of QuickJS runtimes admitted concurrently by one service.
 pub const CODEMODE_MAX_CONCURRENT: usize = 4;
+/// Maximum upstream calls concurrently dispatched by one fleet operation.
+pub const FLEET_MAX_CONCURRENT: usize = 8;
+/// Deadline applied independently to each upstream in a fleet operation.
+pub const FLEET_INSTANCE_TIMEOUT: Duration = Duration::from_secs(8);
 /// Maximum time a Code Mode request waits for an execution slot.
 pub const CODEMODE_QUEUE_TIMEOUT: Duration = Duration::from_millis(500);
 /// QuickJS heap cap (matches lab's 64 MiB).

@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value};
 
-use super::CodeModeCallGuard;
+use super::{CodeModeCallGuard, FleetMapRequest};
 use crate::{
     actions::{YarrAction, execute_service_action},
     app::YarrService,
@@ -23,6 +23,19 @@ impl YarrService {
             return Err(
                 "a snippet cannot run another snippet (codemode.run is one level deep)".to_owned(),
             );
+        }
+        if id == "__fleet_map" {
+            let request: FleetMapRequest = serde_json::from_str(params_json)
+                .map_err(|error| format!("invalid fleet.map request: {error}"))?;
+            if let Some(guard) = guard.as_ref() {
+                guard.authorize_fleet(&request).await?;
+            }
+            let value = self
+                .fleet_map(&request)
+                .await
+                .map_err(|error| error.to_string())?;
+            return serde_json::to_string(&value)
+                .map_err(|error| format!("could not serialize fleet.map result: {error}"));
         }
         let params: Value = serde_json::from_str(params_json)
             .map_err(|error| format!("invalid params for `{id}`: {error}"))?;

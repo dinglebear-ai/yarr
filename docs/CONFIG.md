@@ -26,6 +26,8 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Maximum admission-queue wait before failing busy; must be non-zero |
 | `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `120` | Execution deadline for one Code Mode run; fleet fanout must fit inside it; must be non-zero |
 | `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Maximum instances in one destructive fleet dispatch; must be at least 1 |
+| `YARR_FLEET_MAX_CONCURRENT` | `8` | Maximum upstream calls running concurrently inside one `fleet.map`; must be at least 1 |
+| `YARR_FLEET_INSTANCE_TIMEOUT_SECS` | `8` | Independent deadline for each instance in a fleet operation; must be at least 1 |
 | `YARR_FLEET_READONLY` | unset | Comma-separated configured service names that reject every mutation on CLI and MCP |
 
 ### Fleet runtime sizing
@@ -42,6 +44,38 @@ and summarized before they can be returned to the client. If one instance's
 value exceeds its share of the response budget, that instance is returned with
 `truncated: true`, a type/item-count/byte summary, and `value: null`; other
 instances retain independent completeness flags.
+
+### Fleet Code Mode
+
+The Code Mode preamble exposes configured names and bounded host-backed fanout:
+
+```js
+fleet.of("plex")
+// ["plex_4k", "plex_den"]
+
+fleet.all()
+// [{ name: "plex_4k", kind: "plex" }, ...]
+
+await fleet.map("plex", server => server.list_sessions())
+// [{ name, ok: true, value, truncated: false, elapsed_ms },
+//  { name, ok: false, error, truncated: false, elapsed_ms }]
+
+await fleet.status()
+```
+
+`fleet.map` records exactly one service method from its callback and dispatches
+that method in Rust with bounded parallelism. An individual failure or timeout
+never rejects the map; results are sorted by configured name. Invalid kinds or
+methods reject before dispatch. Destructive methods are classified before any
+request begins: MCP elicits once with every target named, and the destructive
+fanout cap is enforced before the prompt. Read-only instances still reject
+mutations independently.
+
+Four built-in snippets are always listed by `codemode.snippets()` and run with
+`codemode.run(name)`: `fleet_activity`, `fleet_health`,
+`fleet_library_sizes`, and `fleet_transcode_load`. Built-ins cannot be
+overwritten or deleted and work even when no writable snippet directory is
+configured.
 
 ## Unauthenticated endpoints
 

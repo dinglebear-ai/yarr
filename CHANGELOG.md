@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add bounded, failure-isolated `fleet.map`/`fleet.status` Code Mode primitives
+  and four immutable canonical fleet snippets.
 - Add review-only `yarr discover plex` scaffolding with owned-server defaults,
   identifier-pinned drift detection, private token output, and Tautulli pairing.
 - Scale the Code Mode deadline for fleet workloads and preserve per-instance

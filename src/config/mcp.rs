@@ -48,6 +48,10 @@ pub struct McpConfig {
     pub codemode_timeout_secs: u64,
     /// Maximum targets allowed in one destructive fleet dispatch.
     pub destructive_fanout_max: usize,
+    /// Maximum concurrently dispatched upstreams within one fleet operation.
+    pub fleet_max_concurrent: usize,
+    /// Independent per-instance fleet request deadline.
+    pub fleet_instance_timeout_secs: u64,
 }
 
 /// MCP tool-registration mode (YARR_MCP_TOOL_MODE).
@@ -140,6 +144,8 @@ impl Default for McpConfig {
             codemode_queue_timeout_ms: crate::codemode::CODEMODE_QUEUE_TIMEOUT.as_millis() as u64,
             codemode_timeout_secs: crate::codemode::CODEMODE_TIMEOUT.as_secs(),
             destructive_fanout_max: 3,
+            fleet_max_concurrent: crate::codemode::FLEET_MAX_CONCURRENT,
+            fleet_instance_timeout_secs: crate::codemode::FLEET_INSTANCE_TIMEOUT.as_secs(),
         }
     }
 }

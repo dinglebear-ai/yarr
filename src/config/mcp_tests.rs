@@ -19,6 +19,8 @@ fn mcp_config_defaults() {
     assert_eq!(cfg.codemode_queue_timeout_ms, 500);
     assert_eq!(cfg.codemode_timeout_secs, 120);
     assert_eq!(cfg.destructive_fanout_max, 3);
+    assert_eq!(cfg.fleet_max_concurrent, 8);
+    assert_eq!(cfg.fleet_instance_timeout_secs, 8);
 }
 
 #[test]

@@ -73,6 +73,35 @@ fn calltool_round_trips_through_on_call() {
 }
 
 #[test]
+fn fleet_inventory_and_map_capture_are_available_in_javascript() {
+    let services = vec![
+        ("plex_b".to_owned(), crate::config::ServiceKind::Plex),
+        ("sonarr".to_owned(), crate::config::ServiceKind::Sonarr),
+        ("plex_a".to_owned(), crate::config::ServiceKind::Plex),
+    ];
+    let out = run(
+        r#"async () => ({
+            names: fleet.of("plex"),
+            all: fleet.all(),
+            mapped: await fleet.map("plex", s => s.get_sessions({ limit: 2 }))
+        })"#,
+        &build_preamble(&services),
+        &limits(Duration::from_secs(5)),
+        echo_caller(),
+        no_write(),
+        no_embed(),
+        None,
+    )
+    .unwrap();
+    assert_eq!(out.result["names"], serde_json::json!(["plex_a", "plex_b"]));
+    assert_eq!(out.result["all"][0]["name"], "plex_a");
+    assert_eq!(out.result["mapped"]["echo"], "__fleet_map");
+    assert_eq!(out.result["mapped"]["params"]["kind"], "plex");
+    assert_eq!(out.result["mapped"]["params"]["method"], "get_sessions");
+    assert_eq!(out.result["mapped"]["params"]["args"]["limit"], 2);
+}
+
+#[test]
 fn console_output_is_captured() {
     let code = r#"async () => { console.log("hello", 1); console.error("boom"); return "ok"; }"#;
     let out = run(

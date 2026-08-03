@@ -99,3 +99,11 @@ fn snippet_verbs_are_not_callable_namespaces() {
     // And `input` is wired (defaults to null for non-snippet runs).
     assert!(pre.contains("globalThis.input ="));
 }
+
+#[test]
+fn fleet_global_contains_stable_inventory_and_host_backed_map() {
+    let pre = build_preamble(&services());
+    assert!(pre.contains("globalThis.fleet ="));
+    assert!(pre.contains("__yarr_fleet_services"));
+    assert!(pre.contains(r#"callTool("__fleet_map""#));
+}

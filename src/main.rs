@@ -133,6 +133,10 @@ async fn serve_stdio_mcp(config: Config) -> Result<()> {
             config.mcp.codemode_max_concurrent,
             Duration::from_millis(config.mcp.codemode_queue_timeout_ms),
             Duration::from_secs(config.mcp.codemode_timeout_secs),
+        )
+        .with_fleet_limits(
+            config.mcp.fleet_max_concurrent,
+            Duration::from_secs(config.mcp.fleet_instance_timeout_secs),
         );
     // Enable Code Mode `writeArtifact` under the data dir (best-effort).
     if let Ok(dir) = resolve_data_dir() {
@@ -205,6 +209,10 @@ async fn build_state(config: Config) -> Result<AppState> {
             config.mcp.codemode_max_concurrent,
             Duration::from_millis(config.mcp.codemode_queue_timeout_ms),
             Duration::from_secs(config.mcp.codemode_timeout_secs),
+        )
+        .with_fleet_limits(
+            config.mcp.fleet_max_concurrent,
+            Duration::from_secs(config.mcp.fleet_instance_timeout_secs),
         );
     // Enable Code Mode `writeArtifact` under the data dir (best-effort).
     if let Ok(dir) = resolve_data_dir() {

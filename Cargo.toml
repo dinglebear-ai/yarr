@@ -123,6 +123,7 @@ rquickjs = "0.12"
 anyhow = "1"
 thiserror = "2"
 sha2 = "0.10"
+futures-util = "0.3"
 
 [profile.release]
 lto = "thin"

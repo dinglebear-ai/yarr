@@ -7,7 +7,7 @@ use rmcp::{RoleServer, service::Peer};
 use serde_json::{Map, Value};
 
 use crate::actions::{YarrAction, execute_service_action, required_scope_for_action};
-use crate::app::codemode::CodeModeCallGuard;
+use crate::app::codemode::{CodeModeCallGuard, FleetMapRequest};
 use crate::server::AppState;
 
 use super::schemas::YARR_TOOL_NAME;
@@ -146,6 +146,57 @@ impl CodeModeCallGuard for McpCodeModeGuard {
                 return Err(format!(
                     "destructive inner Code Mode action `{}` was not confirmed; nothing changed",
                     action.name()
+                ));
+            }
+            Ok(())
+        })
+    }
+
+    fn authorize_fleet<'a>(
+        &'a self,
+        request: &'a FleetMapRequest,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move {
+            let authorization = self
+                .state
+                .service
+                .fleet_authorization(request)
+                .map_err(|error| error.to_string())?;
+            if let (Some(auth), Some(required)) = (
+                self.auth.as_ref(),
+                required_scope_for_action(authorization.scope_action),
+            ) && !crate::actions::scopes_satisfy(&auth.scopes, required)
+            {
+                return Err(format!(
+                    "forbidden fleet action `{}`: requires scope {required}",
+                    authorization.action
+                ));
+            }
+            if !authorization.destructive || authorization.targets.is_empty() {
+                return Ok(());
+            }
+            let targets = super::elicit::validate_destructive_targets(
+                &authorization.targets,
+                self.state.config.destructive_fanout_max,
+            )?;
+            if self.peer.supported_elicitation_modes().is_empty() {
+                return Err(format!(
+                    "destructive fleet action `{}` requires an elicitation-capable MCP client; nothing changed",
+                    authorization.action
+                ));
+            }
+            if super::elicit::gate_destructive(
+                &self.peer,
+                &authorization.action,
+                &targets,
+                self.state.config.destructive_fanout_max,
+            )
+            .await
+                == super::elicit::DeleteGate::Declined
+            {
+                return Err(format!(
+                    "destructive fleet action `{}` was not confirmed; nothing changed",
+                    authorization.action
                 ));
             }
             Ok(())

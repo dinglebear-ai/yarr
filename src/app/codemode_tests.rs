@@ -35,6 +35,19 @@ fn multi_service(kinds: &[(&str, crate::config::ServiceKind)]) -> crate::app::Ya
 }
 
 #[tokio::test]
+async fn fleet_map_runs_through_the_host_dispatch_bridge() {
+    let output = loopback_state()
+        .service
+        .with_fleet_limits(8, std::time::Duration::from_millis(100))
+        .codemode(r#"async () => fleet.map("sonarr", s => s.service_status())"#)
+        .await
+        .unwrap();
+    assert_eq!(output["result"][0]["name"], "sonarr");
+    assert_eq!(output["result"][0]["ok"], false);
+    assert_eq!(output["result"][0]["truncated"], false);
+}
+
+#[tokio::test]
 async fn codemode_roundtrips_a_local_action() {
     let service = loopback_state().service;
     let code = r#"

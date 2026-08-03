@@ -260,14 +260,19 @@ async fn codemode_requires_code_param() {
 
 #[tokio::test]
 async fn snippet_list_is_a_routed_action() {
-    // The loopback stub has no data dir, so snippet_list routes to the handler and
-    // errors with a data-dir message (proving it's recognized, not "unknown action").
+    // Built-in fleet snippets remain available without a writable data dir.
     let state = loopback_state();
-    let err =
+    let listed =
         execute_tool_without_peer_for_test(&state, "sonarr", json!({ "action": "snippet_list" }))
             .await
-            .expect_err("snippet_list without a data dir should error");
-    assert!(err.to_string().contains("data dir"), "got: {err}");
+            .expect("snippet_list should expose built-ins");
+    assert!(
+        listed["snippets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|snippet| snippet["name"] == "fleet_health" && snippet["built_in"] == true)
+    );
 }
 
 #[tokio::test]
