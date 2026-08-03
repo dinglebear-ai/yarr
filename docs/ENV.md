@@ -33,6 +33,7 @@ access, ambiguity errors, and reserved globals.
 | Variable | Purpose |
 |---|---|
 | `YARR_SERVICES` | Comma-separated configured service names, for example `sonarr,radarr,plex`. |
+| `YARR_FLEET_FILE` | Additive `.yaml`, `.yml`, or `.toml` fleet definition. File entries use credential `*_env` references; environment services override same-named entries. |
 | `YARR_<SERVICE>_KIND` | Optional service kind override. Defaults to the service name. |
 | `YARR_<SERVICE>_URL` | Upstream service base URL. Required for each configured service. |
 | `YARR_<SERVICE>_API_KEY` | API key for services that use `X-Api-Key`, query API keys, or token-compatible auth. |
@@ -101,6 +102,8 @@ Only required when `YARR_MCP_AUTH_MODE=oauth`:
 ```bash
 # .env — secrets and URLs ONLY
 YARR_SERVICES=sonarr,radarr,plex
+# Optional reviewable topology file; secrets referenced by it remain below.
+# YARR_FLEET_FILE=/data/fleet.yaml
 YARR_SONARR_URL=https://sonarr.internal
 YARR_SONARR_API_KEY=your_sonarr_key_here
 YARR_RADARR_URL=https://radarr.internal

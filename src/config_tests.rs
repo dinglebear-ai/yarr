@@ -101,3 +101,47 @@ fn config_load_rejects_reserved_service_identity() {
     assert!(error.to_string().contains("reserved Code Mode global"));
     assert!(error.to_string().contains("console"));
 }
+
+#[test]
+fn config_load_merges_fleet_file_with_environment_precedence() {
+    let dir = tempfile::tempdir().unwrap();
+    let fleet_path = dir.path().join("fleet.yaml");
+    std::fs::write(
+        &fleet_path,
+        "services:\n  - name: plex_den\n    kind: plex\n    url: http://file:32400\n    token_env: PLEX_DEN_TOKEN\n  - name: plex_4k\n    kind: plex\n    url: http://4k:32400\n",
+    )
+    .unwrap();
+    let mut env = TestEnv::new();
+    env.set("YARR_HOME", dir.path());
+    env.set("HOME", dir.path());
+    env.remove("YARR_CONFIG");
+    env.set("YARR_FLEET_FILE", &fleet_path);
+    env.set("PLEX_DEN_TOKEN", "file-secret-reference");
+    env.set("YARR_SERVICES", "plex_den,sonarr");
+    env.set("YARR_PLEX_DEN_KIND", "plex");
+    env.set("YARR_PLEX_DEN_URL", "http://environment:32400");
+    env.set("YARR_PLEX_DEN_TOKEN", "environment-secret");
+    env.set("YARR_SONARR_URL", "http://sonarr:8989");
+    env.set("YARR_FLEET_READONLY", "plex_4k");
+
+    let loaded = Config::load().unwrap();
+
+    assert_eq!(loaded.yarr.services.len(), 3);
+    let den = loaded
+        .yarr
+        .services
+        .iter()
+        .find(|service| service.name == "plex_den")
+        .unwrap();
+    assert_eq!(den.base_url, "http://environment:32400");
+    assert_eq!(den.token.as_deref(), Some("environment-secret"));
+    assert!(
+        loaded
+            .yarr
+            .services
+            .iter()
+            .find(|service| service.name == "plex_4k")
+            .unwrap()
+            .read_only
+    );
+}

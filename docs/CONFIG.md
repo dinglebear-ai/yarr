@@ -102,6 +102,61 @@ Names are matched case-insensitively for identity and must be unique. These
 rules are validated at startup so a configured service can never disappear
 silently from Code Mode.
 
+### Fleet configuration file
+
+For larger fleets, set `YARR_FLEET_FILE` to a `.yaml`, `.yml`, or `.toml` file.
+The file is additive: its entries are combined with `config.toml` and
+`YARR_SERVICES`. Environment-declared entries replace a same-named file entry;
+unique entries from both sources remain. The final union is sorted by configured
+name and passes the same duplicate-name, namespace-collision, reserved-global,
+and read-only validation as environment-only configuration.
+
+YAML example:
+
+```yaml
+services:
+  - name: plex_den
+    kind: plex
+    url: http://10.0.0.11:32400
+    token_env: PLEX_DEN_TOKEN
+    client_identifier: 0123456789abcdef
+  - name: tautulli_den
+    kind: tautulli
+    url: http://10.0.0.11:8181
+    api_key_env: TAUTULLI_DEN_KEY
+    plex: plex_den
+```
+
+Equivalent TOML:
+
+```toml
+[[services]]
+name = "plex_den"
+kind = "plex"
+url = "http://10.0.0.11:32400"
+token_env = "PLEX_DEN_TOKEN"
+client_identifier = "0123456789abcdef"
+
+[[services]]
+name = "tautulli_den"
+kind = "tautulli"
+url = "http://10.0.0.11:8181"
+api_key_env = "TAUTULLI_DEN_KEY"
+plex = "plex_den"
+```
+
+Fleet files never contain credential values. They may reference only
+`token_env`, `api_key_env`, `username_env`, and `password_env`; each value is an
+environment variable name resolved at startup. Inline fields such as `token`,
+`api_key`, `username`, or `password` are rejected with the source file, entry
+name, and line. A referenced variable that is unset or empty also fails startup.
+This keeps reviewable topology in the fleet file and secrets in `.env` or the
+process environment.
+
+Optional `client_identifier`, `plex`, and `relay_only` fields retain discovery
+identity, Tautulli pairing, and relay-selection metadata. They do not affect
+authentication.
+
 ### Fleet write safety
 
 Set `YARR_FLEET_READONLY` to configured instance names that must never accept a

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod auth;
 mod environment;
+mod fleet_file;
 pub mod mcp;
 pub mod services;
 
@@ -34,6 +35,14 @@ use services::{
     SERVICE_HOME_DIRNAME, apply_readonly_services, load_services_from_env,
     validate_service_identities,
 };
+
+#[cfg(test)]
+pub(crate) use fleet_file::FleetFormat;
+pub(crate) use fleet_file::{load_fleet_file, merge_service_sources};
+
+#[cfg(test)]
+#[path = "config/fleet_file_tests.rs"]
+mod fleet_file_tests;
 
 /// Top-level config (maps to `config.toml` sections).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -86,6 +95,12 @@ impl Config {
         }
 
         let _overlay = EnvOverlayGuard::install(load_env_overlay()?);
+
+        if let Some(path) = env_value("YARR_FLEET_FILE").filter(|path| !path.is_empty()) {
+            let fleet_services = load_fleet_file(std::path::Path::new(&path))?;
+            config.yarr.services =
+                merge_service_sources(fleet_services, std::mem::take(&mut config.yarr.services))?;
+        }
 
         // Env overrides — YARR_MCP_* for server config.
         env_str("YARR_MCP_HOST", &mut config.mcp.host);

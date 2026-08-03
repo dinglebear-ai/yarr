@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **config:** load additive YAML/TOML fleets through `YARR_FLEET_FILE` with strict environment-only secret indirection and environment-over-file precedence
 * **safety:** classify high-impact generated operations explicitly, elicit non-DELETE Plex session/library mutations, cap destructive fleet targets, and support per-instance `YARR_FLEET_READONLY`
 * **docs:** add role-based navigation, safe multi-path quickstarts, complete Unraid settings/GraphQL/recovery coverage, and a tracked Markdown link/anchor CI guard
 * **unraid:** add canonical settings/dashboard routes, original Yarr artwork, a persistent dashboard toggle, and a compact freshness-aware runtime widget

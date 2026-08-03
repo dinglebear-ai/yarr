@@ -30,6 +30,12 @@ pub struct ServiceConfig {
     pub token: Option<String>,
     /// Instance policy: reject every mutating action on every transport.
     pub read_only: bool,
+    /// Stable Plex machine identity used by discovery and Tautulli pairing.
+    pub client_identifier: Option<String>,
+    /// Optional configured Plex service paired with this Tautulli instance.
+    pub plex: Option<String>,
+    /// Discovery selected a bandwidth-limited Plex relay connection.
+    pub relay_only: bool,
 }
 
 impl Default for ServiceConfig {
@@ -43,6 +49,9 @@ impl Default for ServiceConfig {
             password: None,
             token: None,
             read_only: false,
+            client_identifier: None,
+            plex: None,
+            relay_only: false,
         }
     }
 }
@@ -284,11 +293,17 @@ pub(super) fn load_services_from_env(config: &mut super::YarrConfig) -> anyhow::
             password: env_optional(&format!("YARR_{env_name}_PASSWORD")),
             token: env_optional(&format!("YARR_{env_name}_TOKEN")),
             read_only: false,
+            client_identifier: None,
+            plex: None,
+            relay_only: false,
         };
         services.push(service);
     }
     if !services.is_empty() {
-        config.services = services;
+        config.services = super::fleet_file::merge_service_sources(
+            std::mem::take(&mut config.services),
+            services,
+        )?;
     }
     Ok(())
 }
