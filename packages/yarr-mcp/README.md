@@ -1,8 +1,6 @@
 # yarr
 
-MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr,
-Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and
-Tracearr.
+Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI.
 
 If you run Claude Code, Codex, or Gemini CLI against a self-hosted media stack,
 `yarr` gives an agent one consistent way to query and control all of it instead

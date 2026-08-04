@@ -148,8 +148,13 @@ fn registry_and_deploy_metadata_are_yarr_specific() {
     assert_eq!(server["name"], "ai.dinglebear/yarr");
     assert_eq!(
         server["description"],
-        "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr."
+        "Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI."
     );
+    let registry = read(".github/workflows/mcp-registry.yml");
+    assert!(registry.contains("mcp-registry-publish.yml@befa67c7b7f976235bf3fbced6ede93293a7f405"));
+    assert!(!registry.contains("auth-method:"));
+    assert!(registry.contains("MCP_PRIVATE_KEY"));
+    assert!(registry.contains("manifest-path: server.json"));
 
     for path in [
         "server.json",

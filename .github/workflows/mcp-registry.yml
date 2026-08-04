@@ -1,0 +1,32 @@
+name: MCP Registry
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref containing the canonical manifest
+        required: true
+        default: main
+        type: string
+      expected-version:
+        description: Optional exact version or release tag
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
+    uses: dinglebear-ai/workflows/.github/workflows/mcp-registry-publish.yml@befa67c7b7f976235bf3fbced6ede93293a7f405
+    with:
+      checkout-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.release.tag_name }}
+      expected-version: ${{ github.event_name == 'workflow_dispatch' && inputs.expected-version || github.event.release.tag_name }}
+      manifest-path: server.json
+      version-prefix: v
+    secrets:
+      MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
