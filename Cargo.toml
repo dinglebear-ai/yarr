@@ -51,7 +51,7 @@ homepage.workspace = true
 repository.workspace = true
 categories = ["command-line-utilities", "api-bindings", "multimedia", "network-programming", "development-tools"]
 keywords = ["mcp", "media", "sonarr", "radarr", "plex"]
-description = "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr."
+description = "Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI."
 publish = false
 autobins = false
 
