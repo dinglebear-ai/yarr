@@ -21,14 +21,15 @@ services:
         max-file: "3"
         compress: "true"
     env_file:
-      - path: .env
+      - path: ${YARR_ENV_FILE:-${HOME}/.yarr/.env}
         required: true
     environment:
       YARR_MCP_HOST: 0.0.0.0
       YARR_MCP_ALLOWED_HOSTS: "yarr.dinglebear.ai,yarr.tootie.tv,localhost,127.0.0.1"
       YARR_MCP_ALLOWED_ORIGINS: "https://yarr.dinglebear.ai,https://yarr.tootie.tv"
     ports:
-      - "${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
+      - "100.88.16.79:${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
+      - "10.1.0.6:${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
     volumes:
       - ${HOME}/.yarr:/data
     # cap_drop:
