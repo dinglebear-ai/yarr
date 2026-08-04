@@ -94,7 +94,7 @@ runs:
           fi
         done
 
-    # Pinned exactly. The private fleet and hosted CI share the 0.12.0 S3
+    # Pinned exactly. The private fleet and hosted CI share the 0.13.0 S3
     # object layout and daemon protocol. Floating this version could split cache
     # epochs or layouts without an obvious workflow failure. Bump deliberately,
     # never via tag drift.
@@ -102,7 +102,7 @@ runs:
       if: inputs.enable-cache == 'true' && runner.os == 'Linux'
       shell: bash
       env:
-        KACHE_VERSION: "0.12.0"
+        KACHE_VERSION: "0.13.0"
       run: |
         set -euo pipefail
         # Reuse any already-installed binary at the pinned version. Persistent

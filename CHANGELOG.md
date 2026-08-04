@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* **ci:** pin the shared Rust cache action to upstream Kache 0.13.0 so hosted and self-hosted jobs use the same daemon protocol and S3 cache epoch
 * **deps:** pin `rmcp` to an exact `=3.0.0-beta.2` (was a caret `"2.1.0"` that had already drifted to `2.2.0` in the lockfile). `ServerHandler::call_tool`/`read_resource`/`get_prompt` now return the `CallToolResponse`/`ReadResourceResponse`/`GetPromptResponse` wrappers, and `StreamableHttpServerConfig::with_stateful_mode` is now `with_legacy_session_mode`; both are behaviour-preserving. The elicitation API is unchanged, so destructive-delete gating stays fail-closed
 
 ### Removed
