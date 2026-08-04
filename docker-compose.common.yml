@@ -22,7 +22,7 @@ services:
         compress: "true"
     env_file:
       - path: ${YARR_ENV_FILE:-${HOME}/.yarr/.env}
-        required: true
+        required: false
     environment:
       YARR_MCP_HOST: 0.0.0.0
       YARR_MCP_ALLOWED_HOSTS: "yarr.dinglebear.ai,yarr.tootie.tv,localhost,127.0.0.1"

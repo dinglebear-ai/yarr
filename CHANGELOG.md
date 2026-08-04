@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
+
 ### Changed
 
 - Allow Compose deployments to select the service env file with `YARR_ENV_FILE`.
