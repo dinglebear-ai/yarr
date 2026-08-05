@@ -259,6 +259,8 @@ jobs:
           version = "0.0.0"
           edition = "2024"
           publish = false
+
+          [workspace]
           TOML
           cat > .ci/kache-hosted-canary/src/main.rs <<'RS'
           fn main() {
@@ -297,6 +299,8 @@ jobs:
           version = "0.0.0"
           edition = "2024"
           publish = false
+
+          [workspace]
           TOML
           cat > .ci/kache-hosted-canary/src/main.rs <<'RS'
           fn main() {
