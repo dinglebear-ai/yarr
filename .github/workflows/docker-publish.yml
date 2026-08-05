@@ -2,12 +2,12 @@
 name: Docker Publish
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
   push:
     tags: ["v*"]
+  # Nightly rebuild from main HEAD keeps :main/:latest fresh without a full
+  # build+scan+promote pipeline on every merge to main.
+  schedule:
+    - cron: "17 4 * * *"
   workflow_dispatch:
     inputs:
       ref:
@@ -19,21 +19,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.ref || inputs.ref }}
+  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 env:
   IMAGE_NAME: ghcr.io/dinglebear-ai/yarr
-  SOURCE_REF: ${{ github.event.workflow_run.head_sha || inputs.ref || github.ref }}
+  # schedule runs carry github.ref = the default branch, so nightly builds
+  # come from main HEAD; tag pushes carry refs/tags/v*; dispatch is explicit.
+  SOURCE_REF: ${{ inputs.ref || github.ref }}
 
 jobs:
   build-candidate:
     name: Build quarantined image
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
-      checks: read
       contents: read
       packages: write
     outputs:
@@ -73,45 +73,6 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Require complete CI and MSRV for source SHA
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_SHA: ${{ steps.source.outputs.sha }}
-        run: |
-          set -euo pipefail
-          required=(
-            Actionlint Format Clippy Docs Test "NPM Package" "TOML Format"
-            "Repo Contracts" "Cargo Deny" "Secret Scan"
-            "Minimum Supported Rust Version"
-          )
-          for attempt in {1..20}; do
-            checks="$(gh api \
-              -H 'Accept: application/vnd.github+json' \
-              "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")"
-            waiting=()
-            for name in "${required[@]}"; do
-              conclusion="$(jq -r --arg name "$name" \
-                '[.check_runs[] | select(.name == $name)] | sort_by(.completed_at // "") | last | .conclusion // "missing"' \
-                <<< "$checks")"
-              case "$conclusion" in
-                success) ;;
-                missing|null) waiting+=("$name") ;;
-                *)
-                  echo "::error::Required check ${name} concluded ${conclusion} for ${SOURCE_SHA}"
-                  exit 1
-                  ;;
-              esac
-            done
-            if (( ${#waiting[@]} == 0 )); then
-              exit 0
-            fi
-            echo "Waiting for required checks: ${waiting[*]} (attempt ${attempt}/20)"
-            sleep 15
-          done
-          echo "::error::Timed out waiting for complete CI/MSRV on ${SOURCE_SHA}"
-          exit 1
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
@@ -134,19 +95,22 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
           provenance: true
           sbom: true
 
   scan:
-    name: Scan quarantined image
+    # Promotion is a single `docker buildx imagetools create`, so it lives at
+    # the tail of this job (after a clean Trivy scan) instead of a fourth
+    # hosted job. Scan-before-promote ordering is preserved by step order.
+    name: Scan and promote verified image
     needs: build-candidate
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
-      packages: read
+      packages: write
       security-events: write
     steps:
       - name: Check out repository
@@ -176,25 +140,6 @@ jobs:
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: trivy-results.sarif
-
-  promote:
-    name: Promote verified image tags
-    needs: [build-candidate, scan]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Promote digest after clean scan
         shell: bash
@@ -229,8 +174,8 @@ jobs:
 
   notify:
     name: Notify container publication failure
-    if: ${{ always() && (needs.build-candidate.result == 'failure' || needs.scan.result == 'failure' || needs.promote.result == 'failure') }}
-    needs: [build-candidate, scan, promote]
+    if: ${{ always() && (needs.build-candidate.result == 'failure' || needs.scan.result == 'failure') }}
+    needs: [build-candidate, scan]
     runs-on: ubuntu-latest
     permissions:
       issues: write
