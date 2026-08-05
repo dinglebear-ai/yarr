@@ -17,10 +17,29 @@ inputs:
   enable-cache:
     description: >-
       "true" (default) wires kache as RUSTC_WRAPPER and starts the daemon.
-      "false" leaves cargo bare — used by the GitHub-hosted native Windows job,
-      which cannot reach the shared remote.
+      "false" leaves cargo bare for jobs where compilation caching is unwanted.
     required: false
     default: "true"
+  s3-access-key:
+    description: Access key for an ephemeral runner's shared S3 cache profile.
+    required: false
+    default: ""
+  s3-secret-key:
+    description: Secret key for an ephemeral runner's shared S3 cache profile.
+    required: false
+    default: ""
+  s3-endpoint:
+    description: S3-compatible endpoint used when credentials are supplied.
+    required: false
+    default: "https://s3.tootie.tv"
+  s3-bucket:
+    description: S3 bucket containing the shared cache.
+    required: false
+    default: "kache"
+  s3-prefix:
+    description: Object prefix within the shared cache bucket.
+    required: false
+    default: "rust"
 
 runs:
   using: composite
@@ -134,10 +153,16 @@ runs:
     - name: Configure kache
       if: inputs.enable-cache == 'true' && runner.os == 'Linux'
       shell: bash
+      env:
+        KACHE_S3_ACCESS_KEY: ${{ inputs.s3-access-key }}
+        KACHE_S3_SECRET_KEY: ${{ inputs.s3-secret-key }}
+        KACHE_S3_ENDPOINT: ${{ inputs.s3-endpoint }}
+        KACHE_S3_BUCKET: ${{ inputs.s3-bucket }}
+        KACHE_S3_PREFIX: ${{ inputs.s3-prefix }}
       run: |
         set -euo pipefail
         config_file="$HOME/.config/kache/config.toml"
-        credentials_file="$HOME/.aws/credentials"
+        host_credentials_file="$HOME/.aws/credentials"
         mkdir -p "$HOME/.config/kache"
 
         # Persistent hosts own their default store through systemd. Farm
@@ -162,8 +187,33 @@ runs:
               "$config_file" | head -n1
           )"
           [ -z "$configured_store" ] || cache_dir="$configured_store"
-        elif [ -r "$credentials_file" ] &&
-             grep -Eq '^[[:space:]]*\[kache\][[:space:]]*$' "$credentials_file"; then
+        elif [ -n "${KACHE_S3_ACCESS_KEY:-}" ] && [ -n "${KACHE_S3_SECRET_KEY:-}" ]; then
+          credentials_file="$RUNNER_TEMP/kache-aws-credentials"
+          umask 077
+          {
+            printf '[kache]\n'
+            printf 'aws_access_key_id = %s\n' "$KACHE_S3_ACCESS_KEY"
+            printf 'aws_secret_access_key = %s\n' "$KACHE_S3_SECRET_KEY"
+          } > "$credentials_file"
+          echo "AWS_SHARED_CREDENTIALS_FILE=$credentials_file" >> "$GITHUB_ENV"
+          cat > "$config_file" <<TOML
+        [cache]
+        local_store = "$cache_dir"
+        daemon_idle_timeout_secs = 0
+        prefetch_max_bytes = "8GiB"
+        local_max_size = "40GiB"
+
+        [cache.remote]
+        type = "s3"
+        bucket = "$KACHE_S3_BUCKET"
+        endpoint = "$KACHE_S3_ENDPOINT"
+        region = "us-east-1"
+        prefix = "$KACHE_S3_PREFIX"
+        profile = "kache"
+        TOML
+          echo "kache remote: s3://$KACHE_S3_BUCKET/$KACHE_S3_PREFIX via $KACHE_S3_ENDPOINT"
+        elif [ -r "$host_credentials_file" ] &&
+             grep -Eq '^[[:space:]]*\[kache\][[:space:]]*$' "$host_credentials_file"; then
           cat > "$config_file" <<TOML
         [cache]
         local_store = "$cache_dir"
