@@ -3,7 +3,7 @@ name: Dependabot Auto-merge
 on:
   # Dependabot pull_request runs cannot read repository Actions secrets. This
   # target workflow never checks out or executes PR code; it only reads pinned
-  # metadata, waits for required checks, and invokes the GitHub API.
+  # metadata and invokes the GitHub API to enable native auto-merge.
   pull_request_target:
     branches: [main]
 
@@ -11,11 +11,15 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   auto-merge:
     name: Merge verified patch/minor updates
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
     if: github.actor == 'dependabot[bot]'
     steps:
       - name: Fetch Dependabot metadata
@@ -28,10 +32,11 @@ jobs:
         if: |
           steps.meta.outputs.update-type == 'version-update:semver-patch' ||
           steps.meta.outputs.update-type == 'version-update:semver-minor'
+        # Native auto-merge waits for required checks server-side (free) instead
+        # of holding a billed runner open watching `gh pr checks`.
         run: |
           test -n "$RELEASE_PLEASE_TOKEN"
-          gh pr checks --required --watch --interval 20 "$PR_URL"
-          gh pr merge --squash "$PR_URL"
+          gh pr merge --squash --auto "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           # A GitHub App installation token or fine-grained PAT is required.

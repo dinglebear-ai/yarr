@@ -2,7 +2,7 @@
 # .github/workflows/ci.yml — Continuous Integration
 #
 # This workflow runs on every push and PR to main.
-# Jobs: fmt, clippy, docs, test (nextest), toml, contract checks, deny
+# Jobs: fmt, clippy (incl. docs), test (nextest), toml, contract checks, deny
 #
 # All jobs must pass before merging. Adjust the matrix rust-version to match
 # your Cargo.toml `rust-version` field.
@@ -39,20 +39,27 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: stable
-          cache: false
-
+      # Checksum-verified prebuilt release binary instead of compiling
+      # actionlint from Go source on a billed runner every run.
       - name: actionlint
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          curl -sSfL -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum --check --quiet
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color
 
   # ── fmt: cargo fmt --check ──────────────────────────────────────────────────
+  # Hosted runner on purpose: cargo fmt never invokes rustc, so kache and the
+  # self-hosted rust pool buy nothing here.
   fmt:
     name: Format
-    runs-on: ci-pool-rust
-    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -62,19 +69,19 @@ jobs:
       - name: Check version sync
         run: bash scripts/check-version-sync.sh
 
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           components: rustfmt
 
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
 
-  # ── clippy: zero warnings ────────────────────────────────────────────────────
+  # ── clippy + docs: zero warnings (shared dep graph, one workspace compile) ───
   clippy:
     name: Clippy
     runs-on: ci-pool-rust
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -86,17 +93,8 @@ jobs:
       - name: cargo clippy -- -D warnings
         run: cargo clippy --all-targets -- -D warnings
 
-  # ── docs: rustdoc with zero warnings (broken/ambiguous intra-doc links) ──────
-  docs:
-    name: Docs
-    runs-on: ci-pool-rust
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Install Rust and kache
-        uses: ./.github/actions/setup-rust-kache
-
+      # Folded from the former standalone Docs job: rustdoc shares clippy's
+      # dependency graph, so running it here halves a workspace compile.
       - name: cargo doc (deny warnings)
         env:
           RUSTDOCFLAGS: -D warnings
@@ -116,12 +114,19 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@95cc2373c3f00275e315c306e56fef1c7a8854c0 # cargo-nextest
 
+      # Self-hosted runners persist ~/.cargo. A run-scoped CARGO_HOME used to
+      # guard against an interrupted clone of the pinned labby git dependency
+      # poisoning later runs, but it forced a full registry re-download every
+      # run. Surgically drop only the labby git checkout/db instead; cargo
+      # re-fetches just that dependency.
+      - name: Prune labby git dependency from persistent CARGO_HOME
+        run: |
+          rm -rf "${CARGO_HOME:-$HOME/.cargo}/git/checkouts/"*labby* || true
+          rm -rf "${CARGO_HOME:-$HOME/.cargo}/git/db/"*labby* || true
+
       - name: cargo nextest run --profile ci
         env:
-          # Self-hosted runners persist ~/.cargo. Give nextest a run-scoped
-          # dependency checkout so an interrupted Git clone cannot poison a
-          # later run, and use the system Git client for the pinned LABBY dep.
-          CARGO_HOME: ${{ runner.temp }}/yarr-nextest-cargo-${{ github.run_id }}-${{ github.run_attempt }}
+          # Use the system Git client for the pinned LABBY dep.
           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
         run: cargo nextest run --profile ci
 
