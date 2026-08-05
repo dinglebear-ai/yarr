@@ -139,7 +139,10 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: |
+            unraid-plugin/api/package-lock.json
+            unraid-plugin/web/package-lock.json
 
       - name: Install package verification tools
         shell: bash

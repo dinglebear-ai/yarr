@@ -2,19 +2,16 @@ name: Unraid plugin CI
 
 on:
   push:
+    branches: [main]
     paths:
       - "unraid-plugin/**"
       - ".github/workflows/unraid-plugin-ci.yml"
       - ".github/workflows/unraid-plugin-release.yml"
-      - "Justfile"
-      - "README.md"
   pull_request:
     paths:
       - "unraid-plugin/**"
       - ".github/workflows/unraid-plugin-ci.yml"
       - ".github/workflows/unraid-plugin-release.yml"
-      - "Justfile"
-      - "README.md"
   workflow_dispatch:
 
 permissions:
@@ -42,7 +39,6 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          package-manager-cache: false
           cache: npm
           cache-dependency-path: |
             unraid-plugin/api/package-lock.json
@@ -55,15 +51,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq libxml2-utils python3-yaml shellcheck xz-utils
 
-      - name: Set up Go for actionlint
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: stable
-          cache: false
-
+      # Checksum-verified prebuilt release binary instead of compiling
+      # actionlint from Go source on a billed runner every run.
       - name: Install pinned actionlint
         shell: bash
-        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          curl -sSfL -o "$tmp/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $tmp/actionlint.tar.gz" | sha256sum --check --quiet
+          tar -xzf "$tmp/actionlint.tar.gz" -C "$tmp" actionlint
+          sudo install -m 0755 "$tmp/actionlint" /usr/local/bin/actionlint
+          rm -rf "$tmp"
+          actionlint --version
 
       - name: Test and build API extension
         shell: bash
