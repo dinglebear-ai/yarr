@@ -13,7 +13,13 @@
 
 [package]
 name = "xtask"
-version.workspace = true
+# Literal, NOT version.workspace = true. release-please's Rust updater walks
+# every workspace member and rewrites `package.version` in place; an inherited
+# version has no literal value to write, so the whole run dies with
+# "value at path package.version is not tagged". This crate is publish = false
+# and nothing consumes its version, so a literal that release-please maintains
+# is the cheapest way to keep the workspace walkable.
+version = "2.2.2"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
