@@ -1,6 +1,7 @@
 {
   "name": "unraid-api-plugin-yarr",
   "version": "2.1.0",
+  "license": "AGPL-3.0-only",
   "description": "Yarr external plugin for the Unraid API.",
   "type": "commonjs",
   "main": "dist/index.js",

@@ -1,8 +1,8 @@
 {
   "name": "@dinglebear/yarr",
   "version": "2.2.2",
+  "license": "AGPL-3.0-only",
   "description": "Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI.",
-  "license": "MIT",
   "homepage": "https://github.com/dinglebear-ai/yarr#readme",
   "repository": {
     "type": "git",
