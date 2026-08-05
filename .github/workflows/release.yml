@@ -100,10 +100,19 @@ jobs:
           ref: ${{ env.RELEASE_TAG }}
           persist-credentials: false
 
-      - name: Install Rust and kache
+      # GitHub-hosted ubuntu-24.04 cannot reach the kache MinIO remote, so a
+      # wired kache would run local-only: pure overhead with zero shared-cache
+      # benefit. Disable it and use Swatinem/rust-cache instead.
+      - name: Install Rust (kache disabled on hosted runner)
         uses: ./.github/actions/setup-rust-kache
         with:
           targets: ${{ matrix.target }}
+          enable-cache: "false"
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: release-${{ matrix.target }}
 
       # Base build deps (cc, pkg-config, libssl-dev) are installed by the
       # composite above when missing; only the mingw cross-linker is extra.
