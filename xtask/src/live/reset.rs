@@ -1,6 +1,6 @@
-//! Shart live-stack reset support.
+//! Backuphost live-stack reset support.
 //!
-//! The shart test stack mounts several service `/config` directories directly
+//! The backuphost test stack mounts several service `/config` directories directly
 //! from `backup/lab/live/golden/<service>` ZFS datasets. Rolling each dataset
 //! back to `@configured-v1` gives the live harness a cheap reset point for
 //! operations that intentionally rewrite config/auth state or stop a service.
@@ -59,7 +59,7 @@ pub fn all_targets() -> &'static [ResetTarget] {
 pub fn reset_service(service: &str) -> Result<()> {
     let targets = targets_for(service);
     if targets.is_empty() {
-        bail!("no shart ZFS golden reset target for {service}");
+        bail!("no backuphost ZFS golden reset target for {service}");
     }
     reset_targets(&targets)
 }
@@ -84,9 +84,9 @@ fn reset_targets_with_fleet(targets: &[&ResetTarget], fleet_containers: &[&str])
         return Ok(());
     }
     let command = reset_script(targets, fleet_containers);
-    eprintln!("reset shart: preflighting and restoring golden datasets");
+    eprintln!("reset backuphost: preflighting and restoring golden datasets");
     let output = ssh::run(&command, Duration::from_secs(180))?
-        .ensure_success("reset shart golden datasets")?;
+        .ensure_success("reset backuphost golden datasets")?;
     if !output.stdout.is_empty() {
         eprintln!("{}", output.stdout);
     }

@@ -32,7 +32,7 @@ pub struct Server {
 impl YarrProcess {
     pub fn new(binary: String, guarded: &GuardedEnv) -> Self {
         let mut env = guarded.values.clone();
-        env.insert("YARR_HOME".into(), super::guard::SHART_HOME.into());
+        env.insert("YARR_HOME".into(), super::guard::BACKUPHOST_HOME.into());
         // Give yarr a generous, *bounded* upstream timeout (below CMD_TIMEOUT) so
         // a slow Prowlarr `/indexer` fan-out resolves gracefully instead of racing
         // this harness's process kill. Respect an explicit override if present.

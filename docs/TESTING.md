@@ -56,9 +56,9 @@ There is no `tests/e2e_tests.rs`, `tests/live_tests.rs`, or generated
 `docs/contracts/` fixture tree. Live harness source lives under `xtask/src/live/`
 with sibling tests in `xtask/src/live_tests.rs` and selected live submodules.
 
-## Live shart harness
+## Live backuphost harness
 
-Live testing is opt-in and guarded to the disposable shart stack. The canonical
+Live testing is opt-in and guarded to the disposable backuphost stack. The canonical
 entry point is:
 
 ```bash
@@ -88,8 +88,8 @@ There is no `cargo xtask live-contracts` command. The generated-operation slice
 is `cargo xtask live --suite contract`; the MCP callable slice is
 `cargo xtask live --suite mcporter`.
 
-The guard requires `YARR_HOME=/home/jmagar/.yarr-shart`, all 11 service kinds,
-and upstream hosts on the disposable shart target. Unless `YARR_BIN` is set,
+The guard requires `YARR_HOME=/home/jmagar/.yarr-backuphost`, all 11 service kinds,
+and upstream hosts on the disposable backuphost target. Unless `YARR_BIN` is set,
 the harness builds and runs `target/debug/yarr` from the current checkout.
 
 The `contract` suite verifies the generated executor's supported transport

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Live read-only smoke checks for the shart test yarr environment.
+# Live read-only smoke checks for the backuphost test yarr environment.
 set -euo pipefail
 
 BIN="${YARR_BIN:-yarr}"
-SHART_YARR_HOME="${SHART_YARR_HOME:-/home/jmagar/.yarr-shart}"
+BACKUPHOST_YARR_HOME="${BACKUPHOST_YARR_HOME:-/home/jmagar/.yarr-backuphost}"
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 if [[ -z "${YARR_HOME:-}" ]]; then
-  export YARR_HOME="$SHART_YARR_HOME"
-elif [[ "$YARR_HOME" != "$SHART_YARR_HOME" ]]; then
+  export YARR_HOME="$BACKUPHOST_YARR_HOME"
+elif [[ "$YARR_HOME" != "$BACKUPHOST_YARR_HOME" ]]; then
   printf 'FATAL  live-read-smoke may only use YARR_HOME=%s (got %s)\n' \
-    "$SHART_YARR_HOME" "$YARR_HOME" >&2
+    "$BACKUPHOST_YARR_HOME" "$YARR_HOME" >&2
   exit 2
 fi
 
@@ -29,7 +29,7 @@ fail() {
   FAIL=$((FAIL + 1))
 }
 
-assert_shart_services() {
+assert_backuphost_services() {
   python3 - <<'PY'
 import os
 import sys
@@ -37,9 +37,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 allowed_hosts = {
-    "100.118.209.1",
-    "shart",
-    "shart.manatee-triceratops.ts.net",
+    "198.51.100.4",
+    "backuphost",
+    "backuphost.example.ts.net",
 }
 
 def parse_dotenv_value(raw: str) -> str:
@@ -64,7 +64,7 @@ effective = {}
 home = Path(os.environ["YARR_HOME"])
 env_path = home / ".env"
 if not env_path.is_file():
-    print(f"FATAL  shart smoke env file is missing: {env_path}", file=sys.stderr)
+    print(f"FATAL  backuphost smoke env file is missing: {env_path}", file=sys.stderr)
     sys.exit(2)
 
 for line_no, raw_line in enumerate(env_path.read_text().splitlines(), start=1):
@@ -85,7 +85,7 @@ for key, value in os.environ.items():
 
 services = [item.strip() for item in effective.get("YARR_SERVICES", "").split(",") if item.strip()]
 if not services:
-    print("FATAL  YARR_SERVICES is empty in the shart smoke environment", file=sys.stderr)
+    print("FATAL  YARR_SERVICES is empty in the backuphost smoke environment", file=sys.stderr)
     sys.exit(2)
 
 bad = []
@@ -106,12 +106,12 @@ if missing or bad:
     if missing:
         print("FATAL  missing service URLs: " + ", ".join(missing), file=sys.stderr)
     if bad:
-        print("FATAL  refusing to run live-read-smoke against non-shart services:", file=sys.stderr)
+        print("FATAL  refusing to run live-read-smoke against non-backuphost services:", file=sys.stderr)
         for item in bad:
             print(f"  {item}", file=sys.stderr)
     sys.exit(2)
 PY
-  pass "shart service guard"
+  pass "backuphost service guard"
 }
 
 run_json_check() {
@@ -267,10 +267,10 @@ read_probe_paths() {
   esac
 }
 
-# Enumerate configured services as `name<TAB>kind` from the shart env file +
+# Enumerate configured services as `name<TAB>kind` from the backuphost env file +
 # process env. The removed `integrations` action used to return this; we now read
 # YARR_SERVICES and each YARR_<NAME>_KIND directly (kind defaults to name),
-# mirroring the parsing in `assert_shart_services`.
+# mirroring the parsing in `assert_backuphost_services`.
 services_from_env() {
   python3 - <<'PY'
 import os
@@ -306,7 +306,7 @@ for service in services:
 PY
 }
 
-assert_shart_services
+assert_backuphost_services
 
 run_json_check "help" "$BIN" help
 run_json_check "doctor" "$BIN" doctor --json

@@ -30,16 +30,16 @@ current list.
 | `just dev` | Run HTTP MCP server on loopback in no-auth dev mode (`YARR_MCP_NO_AUTH=true`). |
 | `just mcp` | Run stdio MCP transport (`yarr mcp`). |
 | `just doctor` | Pre-flight environment/connectivity checks (`yarr doctor`). |
-| `just live-read-smoke` | Shart-only live read-only CLI and upstream API `get` checks; refuses non-shart service URLs. |
-| `just live-full-guard` | Validate that the effective live-test environment is the complete shart stack. |
-| `just live-full-cli` | Run guarded shart live CLI business, setup, serve, stdio MCP, parser, and watch coverage. |
-| `just live-full-rest` | Run guarded shart live REST health/status, bearer auth, and OAuth metadata coverage. |
-| `just live-full-mcp` | Run guarded shart live MCP protocol, resource, prompt, validation, and tool-action coverage. |
-| `just live-full-services` | Run guarded shart live per-service action matrix coverage. |
-| `just live-full-test` | Run the complete guarded shart live suite. |
-| `just shart-start` / `just shart-stop` | Start or stop only the 11 dedicated shart test containers. |
-| `just shart-status` | Show test-container state/health and fail for missing, stopped, or unhealthy containers; use the underlying `--json` flag for automation. |
-| `just shart-seed` | Restore `configured-v1` golden data with a fleet-quiesced, fail-closed policy, start the stack, and wait; preview with the underlying `--dry-run` flag. |
+| `just live-read-smoke` | Backuphost-only live read-only CLI and upstream API `get` checks; refuses non-backuphost service URLs. |
+| `just live-full-guard` | Validate that the effective live-test environment is the complete backuphost stack. |
+| `just live-full-cli` | Run guarded backuphost live CLI business, setup, serve, stdio MCP, parser, and watch coverage. |
+| `just live-full-rest` | Run guarded backuphost live REST health/status, bearer auth, and OAuth metadata coverage. |
+| `just live-full-mcp` | Run guarded backuphost live MCP protocol, resource, prompt, validation, and tool-action coverage. |
+| `just live-full-services` | Run guarded backuphost live per-service action matrix coverage. |
+| `just live-full-test` | Run the complete guarded backuphost live suite. |
+| `just backuphost-start` / `just backuphost-stop` | Start or stop only the 11 dedicated backuphost test containers. |
+| `just backuphost-status` | Show test-container state/health and fail for missing, stopped, or unhealthy containers; use the underlying `--json` flag for automation. |
+| `just backuphost-seed` | Restore `configured-v1` golden data with a fleet-quiesced, fail-closed policy, start the stack, and wait; preview with the underlying `--dry-run` flag. |
 | `just build` / `just build-release` | Debug/release Rust builds. |
 | `just gen-token` | Generate a random bearer token (`openssl rand -hex 32`). |
 

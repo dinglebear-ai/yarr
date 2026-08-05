@@ -1,10 +1,10 @@
-//! Shared bounded SSH execution for the disposable shart test host.
+//! Shared bounded SSH execution for the disposable backuphost test host.
 
 use anyhow::{Context, Result, bail};
 use std::process::Command;
 use std::time::Duration;
 
-pub const SHART_HOST: &str = "shart";
+pub const BACKUPHOST_HOST: &str = "backuphost";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteOutput {
@@ -23,7 +23,7 @@ impl RemoteOutput {
             return Ok(self);
         }
         bail!(
-            "{operation} failed on {SHART_HOST} (exit={}): stdout={:?} stderr={:?}",
+            "{operation} failed on {BACKUPHOST_HOST} (exit={}): stdout={:?} stderr={:?}",
             self.status
                 .map_or_else(|| "signal".to_owned(), |code| code.to_string()),
             self.stdout,
@@ -44,10 +44,10 @@ pub fn run(command: &str, deadline: Duration) -> Result<RemoteOutput> {
         .arg("ServerAliveInterval=10")
         .arg("-o")
         .arg("ServerAliveCountMax=3")
-        .arg(SHART_HOST)
+        .arg(BACKUPHOST_HOST)
         .arg(command)
         .output()
-        .with_context(|| format!("failed to spawn bounded SSH command for {SHART_HOST}"))?;
+        .with_context(|| format!("failed to spawn bounded SSH command for {BACKUPHOST_HOST}"))?;
     Ok(RemoteOutput {
         status: output.status.code(),
         stdout: String::from_utf8_lossy(&output.stdout).trim().to_owned(),

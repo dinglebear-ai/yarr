@@ -30,7 +30,7 @@ xtask/
     main.rs        # top-level cargo xtask command router
     <command>.rs   # one focused module per substantial command
     <command>_tests.rs
-    live/          # focused modules supporting the live/shart harness
+    live/          # focused modules supporting the live/backuphost harness
 ```
 
 ## Commands
@@ -42,8 +42,8 @@ xtask/
 | `cargo xtask symlink-docs` | Create `AGENTS.md` and `GEMINI.md` symlinks next to each `CLAUDE.md`. |
 | `cargo xtask check-env` | Validate required environment before server start. |
 | `cargo xtask patterns` | Check static contracts derived from `docs/PATTERNS.md`. |
-| `cargo xtask live --suite all` | Run the guarded shart-only live CLI, REST, MCP, and upstream service suite. |
-| `cargo xtask shart <start\|stop\|status\|seed>` | Manage only the dedicated shart test-stack containers. |
+| `cargo xtask live --suite all` | Run the guarded backuphost-only live CLI, REST, MCP, and upstream service suite. |
+| `cargo xtask backuphost <start\|stop\|status\|seed>` | Manage only the dedicated backuphost test-stack containers. |
 | `cargo xtask tool-docs` | Generate `docs/TOOLS_ACTIONS_ENDPOINTS.md` from the action registry and endpoint mapping table. |
 
 ## Justfile delegates to xtask
@@ -119,9 +119,9 @@ See `docs/PATTERNS.md` §24 and §48 for the xtask and doctor patterns.
 ## live
 
 `cargo xtask live` is the canonical full live integration harness. It refuses to
-run unless the effective Yarr configuration is the dedicated shart test
-environment at `/home/jmagar/.yarr-shart` and every configured service URL
-points at shart.
+run unless the effective Yarr configuration is the dedicated backuphost test
+environment at `/home/jmagar/.yarr-backuphost` and every configured service URL
+points at backuphost.
 
 ```bash
 cargo xtask live --suite guard
@@ -153,19 +153,19 @@ Use the Just aliases `just live-full-guard`, `just live-full-cli`,
 `just live-full-rest`, `just live-full-mcp`, `just live-full-mcporter`,
 `just live-full-services`, and `just live-full-test` for the same commands.
 
-## shart stack management
+## backuphost stack management
 
 `start` and `seed` load and validate the canonical
-`/home/jmagar/.yarr-shart/.env` guard before touching remote containers.
+`/home/jmagar/.yarr-backuphost/.env` guard before touching remote containers.
 Recovery-oriented `status` and `stop` use the fixed deployment manifest and do
 not require a healthy local application configuration:
 
 ```bash
-cargo xtask shart start
-cargo xtask shart stop
-cargo xtask shart status --json
-cargo xtask shart seed --dry-run
-cargo xtask shart seed
+cargo xtask backuphost start
+cargo xtask backuphost stop
+cargo xtask backuphost status --json
+cargo xtask backuphost seed --dry-run
+cargo xtask backuphost seed
 ```
 
 `start` and `stop` act only on the 11 explicitly mapped container names.
@@ -182,8 +182,8 @@ under one fleet-wide deadline.
 Bazarr and Tracearr currently have no golden and are explicitly reported as
 retained rather than silently described as restored.
 
-These commands intentionally do not start or stop the shart Unraid array. If
+These commands intentionally do not start or stop the backuphost Unraid array. If
 Docker or the backing datasets are unavailable, they fail with the remote error
 instead of expanding their scope to host-level storage management. Equivalent
-Just aliases are `just shart-start`, `just shart-stop`, `just shart-status`, and
-`just shart-seed`.
+Just aliases are `just backuphost-start`, `just backuphost-stop`, `just backuphost-status`, and
+`just backuphost-seed`.

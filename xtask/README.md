@@ -108,19 +108,19 @@ Copy .env.example to .env and fill in YARR_SERVICES plus per-service URL/key var
 
 ---
 
-### `cargo xtask shart`
+### `cargo xtask backuphost`
 
-Manage only the dedicated shart test-stack containers:
+Manage only the dedicated backuphost test-stack containers:
 
 ```bash
-cargo xtask shart start
-cargo xtask shart stop
-cargo xtask shart status --json
-cargo xtask shart seed --dry-run
-cargo xtask shart seed
+cargo xtask backuphost start
+cargo xtask backuphost stop
+cargo xtask backuphost status --json
+cargo xtask backuphost seed --dry-run
+cargo xtask backuphost seed
 ```
 
-`start` and `seed` validate `/home/jmagar/.yarr-shart/.env`; recovery-oriented
+`start` and `seed` validate `/home/jmagar/.yarr-backuphost/.env`; recovery-oriented
 `status` and `stop` use the fixed deployment manifest without requiring healthy
 app configuration. `seed --dry-run` shows the resolved destructive plan. A real
 seed preflights and restores the established `configured-v1` ZFS snapshots with

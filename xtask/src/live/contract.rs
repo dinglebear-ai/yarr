@@ -1,6 +1,6 @@
 //! Exhaustive contract harness for the generated OpenAPI surface.
 //!
-//! shart is a disposable, dedicated test stack, so this drives **every generated
+//! backuphost is a disposable, dedicated test stack, so this drives **every generated
 //! operation** of every spec-backed service (all methods — reads, writes, and
 //! destructive deletes) via the `yarr <service> op <name>` CLI verb, with inputs
 //! synthesized from the vendored spec, and validates each 2xx response against the
@@ -172,7 +172,7 @@ fn parallel_run(
     no_destructive: bool,
 ) -> Vec<RunOut> {
     // Keep contract execution serial. This suite is the authoritative endpoint
-    // coverage gate; concurrent generated writes made the shart services drop
+    // coverage gate; concurrent generated writes made the backuphost services drop
     // connections and produced false "coverage" failures before the endpoint
     // itself could be evaluated.
     const WORKERS: usize = 1;

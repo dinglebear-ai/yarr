@@ -75,7 +75,7 @@ tool_mode = "codemode"
 
 # Extra Host header values allowed by the RMCP host-validation middleware.
 # YARR_MCP_ALLOWED_HOSTS env var (comma-separated) overrides this.
-# allowed_hosts = ["yarr.tootie.tv", "yarr.lan"]
+# allowed_hosts = ["yarr.example.internal", "yarr.lan"]
 
 # Extra CORS origins for browser-based MCP clients.
 # YARR_MCP_ALLOWED_ORIGINS env var (comma-separated) overrides this.
@@ -97,7 +97,7 @@ mode = "bearer"
 # Public URL of this MCP server (required in OAuth mode).
 # YARR_MCP_PUBLIC_URL env var overrides this.
 # Must be reachable from Claude clients. Set in .env, not here.
-# public_url = "https://yarr.tootie.tv"
+# public_url = "https://yarr.example.internal"
 
 # Google OAuth 2.0 credentials — ALWAYS set via .env, never here.
 # YARR_MCP_GOOGLE_CLIENT_ID env var overrides this.

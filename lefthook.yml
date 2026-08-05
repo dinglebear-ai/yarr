@@ -33,8 +33,8 @@
 #                       full-repo cross-file comparison, not a staged-file check.
 #   - ascii-check     → full-repo docs/source scan; runs in CI and `just template-features`
 #   - live suites     → `just test-mcporter` (now `cargo xtask live --suite mcp`) and the
-#                       other `cargo xtask live` suites need the shart stack; manual/CI only.
-#   - shart lifecycle → `just shart-*` performs remote Docker/ZFS operations; manual-only.
+#                       other `cargo xtask live` suites need the backuphost stack; manual/CI only.
+#   - backuphost lifecycle → `just backuphost-*` performs remote Docker/ZFS operations; manual-only.
 #   - Unraid distribution → `just unraid-test`, `just unraid-build`, and
 #                           `just unraid-release-check` are full package/release
 #                           gates; manual and CI only.

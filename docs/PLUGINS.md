@@ -141,6 +141,11 @@ server used by monitoring or other clients. That HTTP path defaults to
 `static_token_scopes=yarr:read` with `tool_mode=flat`; selecting `codemode`
 requires explicitly granting `yarr:write`.
 
+The `server_url` and `public_url` manifest descriptions (Claude and Gemini)
+illustrate a remote deployment with a generic `https://yarr.example.internal`
+placeholder rather than any specific real hostname; swap in your own remote
+host when configuring a persistent HTTP server.
+
 ## Standalone plugins
 
 The bare-named `sonarr`, `radarr`, `prowlarr`, `overseerr`, `sabnzbd`,

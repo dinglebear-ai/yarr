@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build an opt-in, shart-only live test suite that proves every Rustarr CLI command, MCP tool path, HTTP API route, and service action works against the actual configured media automation services with semantic success and expected-error assertions.
+**Goal:** Build an opt-in, backuphost-only live test suite that proves every Rustarr CLI command, MCP tool path, HTTP API route, and service action works against the actual configured media automation services with semantic success and expected-error assertions.
 
-**Architecture:** Use the existing `xtask/` crate as the canonical automation home. Add `cargo xtask live --suite <guard|cli|rest|mcp|services|all>` with focused Rust modules for shart env guarding, service matrix loading, process execution, blocking HTTP/MCP calls, semantic assertions, report writing, and server lifecycle. Keep `just` recipes as thin aliases to `cargo xtask live`; keep shell scripts only as legacy compatibility wrappers.
+**Architecture:** Use the existing `xtask/` crate as the canonical automation home. Add `cargo xtask live --suite <guard|cli|rest|mcp|services|all>` with focused Rust modules for backuphost env guarding, service matrix loading, process execution, blocking HTTP/MCP calls, semantic assertions, report writing, and server lifecycle. Keep `just` recipes as thin aliases to `cargo xtask live`; keep shell scripts only as legacy compatibility wrappers.
 
-**Tech Stack:** Rust xtask crate, `serde`, `serde_json`, `ureq`, `roxmltree`, Rustarr release binary, Justfile aliases, JSON live matrix, shart live media stack, Streamable HTTP MCP JSON-RPC.
+**Tech Stack:** Rust xtask crate, `serde`, `serde_json`, `ureq`, `roxmltree`, Rustarr release binary, Justfile aliases, JSON live matrix, backuphost live media stack, Streamable HTTP MCP JSON-RPC.
 
 ---
 
@@ -24,14 +24,14 @@ The full live suite must test this matrix:
 | HTTP routes | `GET /health`, `GET /ready`, `GET /status`, `POST /mcp`, one unknown route returning 404 |
 | Service action matrix | For every `ServiceKind`: `service_status(service)`, at least one semantic `api_get`, `api_post` confirm guard, and one safe `api_post` expected-error call that reaches the upstream service without mutating data |
 
-The suite is complete only when all 15 supported service kinds are configured on shart:
+The suite is complete only when all 15 supported service kinds are configured on backuphost:
 
 ```text
 sonarr, radarr, prowlarr, tautulli, overseerr, bazarr, tracearr, lidarr,
 readarr, sabnzbd, qbittorrent, wizarr, notifiarr, plex, jellyfin
 ```
 
-At the time this plan was written, the shart env was known to cover 12 initialized services and intentionally excluded `lidarr`, `readarr`, and initialized `wizarr`. The full runner must therefore fail with a clear `missing required service kind` error until those are added to `/home/jmagar/.rustarr-shart/.env`.
+At the time this plan was written, the backuphost env was known to cover 12 initialized services and intentionally excluded `lidarr`, `readarr`, and initialized `wizarr`. The full runner must therefore fail with a clear `missing required service kind` error until those are added to `/home/jmagar/.rustarr-backuphost/.env`.
 
 ## File Structure
 
@@ -44,7 +44,7 @@ At the time this plan was written, the shart env was known to cover 12 initializ
 - Create `xtask/src/live/assertions.rs`
   - JSON path, JSON type, substring, XML root, and expected-error assertions.
 - Create `xtask/src/live/guard.rs`
-  - Shart-only env loader and validator. This is the single source of truth for live-test safety.
+  - Backuphost-only env loader and validator. This is the single source of truth for live-test safety.
 - Create `xtask/src/live/http.rs`
   - Blocking HTTP helpers for REST routes and MCP JSON-RPC calls.
 - Create `xtask/src/live/matrix.rs`
@@ -62,7 +62,7 @@ At the time this plan was written, the shart env was known to cover 12 initializ
 - Modify `scripts/live-read-smoke.sh`
   - Keep it as legacy quick smoke, but make it call `cargo xtask live --suite guard --allow-partial` before doing any live calls.
 - Modify `tests/mcporter/test-mcp.sh`
-  - Make the legacy MCP harness shart-only by calling `cargo xtask live --suite guard`.
+  - Make the legacy MCP harness backuphost-only by calling `cargo xtask live --suite guard`.
 - Modify `Justfile`
   - Add thin aliases: `live-full-test`, `live-full-cli`, `live-full-rest`, `live-full-mcp`, `live-full-services`, `live-full-guard`.
 - Modify `docs/TESTING.md`, `docs/MCPORTER.md`, `docs/SCRIPTS.md`, `docs/XTASKS.md`, `docs/JUSTFILE.md`, and `scripts/README.md`
@@ -120,7 +120,7 @@ Add the match arm:
 Add this line to the command list in the file header:
 
 ```rust
-//!   live         Run shart-only live tests against the real Rustarr service stack
+//!   live         Run backuphost-only live tests against the real Rustarr service stack
 ```
 
 Add this line to `print_help()`:
@@ -175,7 +175,7 @@ git commit -m "test: add xtask live command skeleton"
 
 Expected: commit succeeds.
 
-## Task 2: Implement Shart Guard In xtask
+## Task 2: Implement Backuphost Guard In xtask
 
 **Files:**
 - Create: `xtask/src/live/guard.rs`
@@ -223,7 +223,7 @@ fn good_env() -> BTreeMap<String, String> {
         ("PLEX", "plex", "32400"),
         ("JELLYFIN", "jellyfin", "8096"),
     ] {
-        env.insert(format!("RUSTARR_{name}_URL"), format!("http://shart.manatee-triceratops.ts.net:{port}"));
+        env.insert(format!("RUSTARR_{name}_URL"), format!("http://backuphost.example.ts.net:{port}"));
         env.insert(format!("RUSTARR_{name}_KIND"), kind.into());
     }
     env
@@ -232,7 +232,7 @@ fn good_env() -> BTreeMap<String, String> {
 #[test]
 fn guard_accepts_complete_shart_env() {
     let env = good_env();
-    let result = validate_env(env, false).expect("complete shart env should pass");
+    let result = validate_env(env, false).expect("complete backuphost env should pass");
     assert_eq!(result.services.len(), 15);
     assert_eq!(result.kinds["sonarr"], "sonarr");
 }
@@ -242,15 +242,15 @@ fn guard_rejects_live_home() {
     let mut env = good_env();
     env.insert("RUSTARR_HOME".into(), "/home/jmagar/.rustarr".into());
     let err = validate_env(env, false).unwrap_err().to_string();
-    assert!(err.contains("RUSTARR_HOME must be /home/jmagar/.rustarr-shart"));
+    assert!(err.contains("RUSTARR_HOME must be /home/jmagar/.rustarr-backuphost"));
 }
 
 #[test]
 fn guard_rejects_tootie_url_override() {
     let mut env = good_env();
-    env.insert("RUSTARR_SONARR_URL".into(), "https://sonarr.tootie.tv".into());
+    env.insert("RUSTARR_SONARR_URL".into(), "https://sonarr.example.internal".into());
     let err = validate_env(env, false).unwrap_err().to_string();
-    assert!(err.contains("is not a shart URL"));
+    assert!(err.contains("is not a backuphost URL"));
 }
 
 #[test]
@@ -265,7 +265,7 @@ fn guard_rejects_missing_required_kind() {
 fn guard_parses_env_file() {
     let path = Path::new("target/live-test-env");
     fs::create_dir_all(path.parent().unwrap()).unwrap();
-    fs::write(path, "RUSTARR_SERVICES=sonarr\nRUSTARR_SONARR_URL=http://shart.manatee-triceratops.ts.net:8989\nRUSTARR_SONARR_KIND=sonarr\n").unwrap();
+    fs::write(path, "RUSTARR_SERVICES=sonarr\nRUSTARR_SONARR_URL=http://backuphost.example.ts.net:8989\nRUSTARR_SONARR_KIND=sonarr\n").unwrap();
     let env = crate::live::guard::read_env_file(path).unwrap();
     assert_eq!(env["RUSTARR_SONARR_KIND"], "sonarr");
 }
@@ -294,8 +294,8 @@ use anyhow::{bail, Context, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-pub const SHART_HOME: &str = "/home/jmagar/.rustarr-shart";
-pub const DEFAULT_ENV_FILE: &str = "/home/jmagar/.rustarr-shart/.env";
+pub const SHART_HOME: &str = "/home/jmagar/.rustarr-backuphost";
+pub const DEFAULT_ENV_FILE: &str = "/home/jmagar/.rustarr-backuphost/.env";
 
 const REQUIRED_KINDS: &[&str] = &[
     "sonarr", "radarr", "prowlarr", "tautulli", "overseerr", "bazarr", "tracearr",
@@ -326,7 +326,7 @@ pub fn load(env_file: Option<PathBuf>, allow_partial: bool) -> Result<GuardedEnv
 
 pub fn read_env_file(path: &Path) -> Result<BTreeMap<String, String>> {
     let raw = std::fs::read_to_string(path)
-        .with_context(|| format!("failed to read shart env file {}", path.display()))?;
+        .with_context(|| format!("failed to read backuphost env file {}", path.display()))?;
     let mut values = BTreeMap::new();
     for line in raw.lines() {
         let line = line.trim();
@@ -392,15 +392,15 @@ pub fn required_kinds() -> BTreeSet<&'static str> {
 fn assert_shart_url(key: &str, value: &str) -> Result<()> {
     let lower = value.to_ascii_lowercase();
     let allowed = [
-        "http://shart:",
-        "https://shart:",
-        "http://shart.manatee-triceratops.ts.net:",
-        "https://shart.manatee-triceratops.ts.net:",
-        "http://100.118.209.1:",
-        "https://100.118.209.1:",
+        "http://backuphost:",
+        "https://backuphost:",
+        "http://backuphost.example.ts.net:",
+        "https://backuphost.example.ts.net:",
+        "http://198.51.100.4:",
+        "https://198.51.100.4:",
     ];
     if !allowed.iter().any(|prefix| lower.starts_with(prefix)) {
-        bail!("{key}={value} is not a shart URL");
+        bail!("{key}={value} is not a backuphost URL");
     }
     Ok(())
 }
@@ -444,7 +444,7 @@ pub fn run(args: &[String]) -> Result<()> {
     match options.suite {
         Suite::Guard => {
             let guarded = guard::load(None, options.allow_partial)?;
-            println!("PASS guard complete shart env: {} services", guarded.services.len());
+            println!("PASS guard complete backuphost env: {} services", guarded.services.len());
             Ok(())
         }
         _ => bail!("suite {:?} is not implemented yet", options.suite),
@@ -518,10 +518,10 @@ Run:
 cargo xtask live --suite guard --allow-partial
 ```
 
-Expected while the shart stack is still partial:
+Expected while the backuphost stack is still partial:
 
 ```text
-PASS guard complete shart env:
+PASS guard complete backuphost env:
 ```
 
 Run:
@@ -542,16 +542,16 @@ Run:
 
 ```bash
 git add xtask/src/main.rs xtask/src/live.rs xtask/src/live/guard.rs xtask/src/live_tests.rs
-git commit -m "test: add shart-only guard to xtask live"
+git commit -m "test: add backuphost-only guard to xtask live"
 ```
 
 Expected: commit succeeds.
 
-## Task 3: Bring Shart To Complete ServiceKind Coverage
+## Task 3: Bring Backuphost To Complete ServiceKind Coverage
 
 **Files:**
-- Remote review: shart compose files under the existing rustarr media test stack location
-- Remote update: `/home/jmagar/.rustarr-shart/.env`
+- Remote review: backuphost compose files under the existing rustarr media test stack location
+- Remote update: `/home/jmagar/.rustarr-backuphost/.env`
 - Documentation: `docs/TESTING.md`
 
 - [ ] **Step 1: Confirm current missing service kinds**
@@ -568,9 +568,9 @@ Expected before this task is complete:
 missing required service kind: lidarr
 ```
 
-- [ ] **Step 2: Add or start Lidarr on shart**
+- [ ] **Step 2: Add or start Lidarr on backuphost**
 
-On shart, add a Lidarr service to the existing test compose stack with appdata rooted in the curated test config tree:
+On backuphost, add a Lidarr service to the existing test compose stack with appdata rooted in the curated test config tree:
 
 ```yaml
 lidarr:
@@ -588,7 +588,7 @@ lidarr:
   restart: unless-stopped
 ```
 
-Run on shart:
+Run on backuphost:
 
 ```bash
 docker compose up -d lidarr
@@ -601,9 +601,9 @@ Expected:
 rustarr-test-lidarr Up
 ```
 
-- [ ] **Step 3: Add or start Readarr on shart**
+- [ ] **Step 3: Add or start Readarr on backuphost**
 
-On shart, add a Readarr service to the same stack:
+On backuphost, add a Readarr service to the same stack:
 
 ```yaml
 readarr:
@@ -621,7 +621,7 @@ readarr:
   restart: unless-stopped
 ```
 
-Run on shart:
+Run on backuphost:
 
 ```bash
 docker compose up -d readarr
@@ -634,14 +634,14 @@ Expected:
 rustarr-test-readarr Up
 ```
 
-- [ ] **Step 4: Initialize Wizarr on shart**
+- [ ] **Step 4: Initialize Wizarr on backuphost**
 
-Open Wizarr on shart and complete the first-run setup using test-only credentials. Then verify the status endpoint no longer returns first-run 401.
+Open Wizarr on backuphost and complete the first-run setup using test-only credentials. Then verify the status endpoint no longer returns first-run 401.
 
-Run from dookie:
+Run from devhost:
 
 ```bash
-curl -fsS http://shart.manatee-triceratops.ts.net:5690/api/status
+curl -fsS http://backuphost.example.ts.net:5690/api/status
 ```
 
 Expected response contains:
@@ -652,27 +652,27 @@ Expected response contains:
 
 - [ ] **Step 5: Extract Lidarr and Readarr API keys**
 
-Run from dookie:
+Run from devhost:
 
 ```bash
-ssh shart "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/lidarr/config.xml"
-ssh shart "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/readarr/config.xml"
+ssh backuphost "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/lidarr/config.xml"
+ssh backuphost "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/readarr/config.xml"
 ```
 
 Expected: each command prints one non-empty API key line.
 
-- [ ] **Step 6: Update `/home/jmagar/.rustarr-shart/.env`**
+- [ ] **Step 6: Update `/home/jmagar/.rustarr-backuphost/.env`**
 
-Run this command from dookie. It updates the service list and inserts the exact API keys extracted from shart without printing them into git-tracked files:
+Run this command from devhost. It updates the service list and inserts the exact API keys extracted from backuphost without printing them into git-tracked files:
 
 ```bash
-LIDARR_KEY="$(ssh shart "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/lidarr/config.xml")"
-READARR_KEY="$(ssh shart "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/readarr/config.xml")"
+LIDARR_KEY="$(ssh backuphost "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/lidarr/config.xml")"
+READARR_KEY="$(ssh backuphost "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /mnt/user/lab/live/golden/readarr/config.xml")"
 python3 - <<'PY'
 import os
 from pathlib import Path
 
-path = Path("/home/jmagar/.rustarr-shart/.env")
+path = Path("/home/jmagar/.rustarr-backuphost/.env")
 values = {}
 for line in path.read_text().splitlines():
     if "=" in line and not line.lstrip().startswith("#"):
@@ -680,13 +680,13 @@ for line in path.read_text().splitlines():
         values[key] = value
 
 values["RUSTARR_SERVICES"] = "sonarr,radarr,prowlarr,tautulli,overseerr,bazarr,tracearr,lidarr,readarr,sabnzbd,qbittorrent,wizarr,notifiarr,plex,jellyfin"
-values["RUSTARR_LIDARR_URL"] = "http://shart.manatee-triceratops.ts.net:8687"
+values["RUSTARR_LIDARR_URL"] = "http://backuphost.example.ts.net:8687"
 values["RUSTARR_LIDARR_KIND"] = "lidarr"
 values["RUSTARR_LIDARR_API_KEY"] = os.environ["LIDARR_KEY"]
-values["RUSTARR_READARR_URL"] = "http://shart.manatee-triceratops.ts.net:8787"
+values["RUSTARR_READARR_URL"] = "http://backuphost.example.ts.net:8787"
 values["RUSTARR_READARR_KIND"] = "readarr"
 values["RUSTARR_READARR_API_KEY"] = os.environ["READARR_KEY"]
-values["RUSTARR_WIZARR_URL"] = "http://shart.manatee-triceratops.ts.net:5690"
+values["RUSTARR_WIZARR_URL"] = "http://backuphost.example.ts.net:5690"
 values["RUSTARR_WIZARR_KIND"] = "wizarr"
 
 ordered = []
@@ -709,7 +709,7 @@ path.write_text("\n".join(ordered) + "\n")
 PY
 ```
 
-Do not commit `/home/jmagar/.rustarr-shart/.env`; it is outside the repo and contains secrets.
+Do not commit `/home/jmagar/.rustarr-backuphost/.env`; it is outside the repo and contains secrets.
 
 - [ ] **Step 7: Verify complete guard passes**
 
@@ -722,7 +722,7 @@ cargo xtask live --suite guard
 Expected:
 
 ```text
-PASS guard complete shart env: 15 services
+PASS guard complete backuphost env: 15 services
 ```
 
 - [ ] **Step 8: Commit docs for the prerequisite**
@@ -731,7 +731,7 @@ Run:
 
 ```bash
 git add docs/TESTING.md
-git commit -m "docs: document full shart service prerequisites"
+git commit -m "docs: document full backuphost service prerequisites"
 ```
 
 Expected: commit succeeds.
@@ -1272,7 +1272,7 @@ pub fn run(args: &[String]) -> Result<()> {
 }
 
 fn run_guard(report: &mut report::Report, guarded: &guard::GuardedEnv) {
-    report.pass("guard complete shart env", format!("{} services", guarded.services.len()));
+    report.pass("guard complete backuphost env", format!("{} services", guarded.services.len()));
 }
 
 fn run_cli(report: &mut report::Report, rustarr: &process::RustarrProcess, matrix: &matrix::Matrix) -> Result<()> {
@@ -1363,7 +1363,7 @@ cargo xtask live --suite cli
 Expected:
 
 ```text
-PASS guard complete shart env
+PASS guard complete backuphost env
 PASS cli --version
 PASS cli integrations
 PASS cli status sonarr
@@ -1632,7 +1632,7 @@ At the top of `scripts/live-read-smoke.sh`, after `REPO_ROOT` is set, add:
 cargo xtask live --suite guard --allow-partial >/dev/null
 ```
 
-This keeps the old smoke test alive while making it impossible to use against non-shart service URLs.
+This keeps the old smoke test alive while making it impossible to use against non-backuphost service URLs.
 
 - [ ] **Step 3: Guard legacy mcporter harness**
 
@@ -1656,8 +1656,8 @@ RUSTARR_HOME=/home/jmagar/.rustarr bash scripts/live-read-smoke.sh
 Expected:
 
 ```text
-PASS guard complete shart env: 15 services
-RUSTARR_HOME must be /home/jmagar/.rustarr-shart
+PASS guard complete backuphost env: 15 services
+RUSTARR_HOME must be /home/jmagar/.rustarr-backuphost
 ```
 
 The second command must exit non-zero.
@@ -1688,11 +1688,11 @@ Expected: commit succeeds.
 Add this section to `docs/TESTING.md`:
 
 ```md
-## Full Shart Live Suite
+## Full Backuphost Live Suite
 
 `cargo xtask live --suite all` is the complete opt-in live test suite. `just live-full-test` is a thin alias that builds the release binary first and then delegates to the xtask command.
 
-The suite starts the local Rustarr binary with `RUSTARR_HOME=/home/jmagar/.rustarr-shart`, refuses any service URL outside shart, and requires all 15 supported `ServiceKind`s to be configured before it runs.
+The suite starts the local Rustarr binary with `RUSTARR_HOME=/home/jmagar/.rustarr-backuphost`, refuses any service URL outside backuphost, and requires all 15 supported `ServiceKind`s to be configured before it runs.
 
 The suite covers:
 
@@ -1701,7 +1701,7 @@ The suite covers:
 - `/health`, `/ready`, `/status`, and `/mcp`
 - every supported service kind with semantic status, semantic GET, blocked POST, and safe expected-error POST checks
 
-It is intentionally not part of `cargo test` because it requires the shart live stack and real credentials.
+It is intentionally not part of `cargo test` because it requires the backuphost live stack and real credentials.
 ```
 
 - [ ] **Step 2: Document xtask live**
@@ -1709,7 +1709,7 @@ It is intentionally not part of `cargo test` because it requires the shart live 
 Add this row to the command table in `docs/XTASKS.md`:
 
 ```md
-| `cargo xtask live --suite all` | Run the shart-only full live Rustarr service matrix. |
+| `cargo xtask live --suite all` | Run the backuphost-only full live Rustarr service matrix. |
 ```
 
 Add this note below the table:
@@ -1731,10 +1731,10 @@ Add this note to `scripts/README.md` under `live-read-smoke.sh`:
 Run:
 
 ```bash
-rg -n '/home/jmagar/\.rustarr|tootie\.tv|cache_appdata' docs scripts tests -g '*.md' -g '*.sh'
+rg -n '/home/jmagar/\.rustarr|nashost\.tv|cache_appdata' docs scripts tests -g '*.md' -g '*.sh'
 ```
 
-Expected: no result instructs live tests to use `/home/jmagar/.rustarr`, `tootie.tv`, or `cache_appdata`. Results that document rejection examples are acceptable.
+Expected: no result instructs live tests to use `/home/jmagar/.rustarr`, `nashost.tv`, or `cache_appdata`. Results that document rejection examples are acceptable.
 
 - [ ] **Step 5: Commit docs**
 
@@ -1768,7 +1768,7 @@ Expected:
 ```text
 test result: ok
 Finished `dev` profile
-PASS guard complete shart env: 15 services
+PASS guard complete backuphost env: 15 services
 ```
 
 - [ ] **Step 2: Run the full live suite**
@@ -1782,7 +1782,7 @@ just live-full-test
 Expected:
 
 ```text
-PASS guard complete shart env
+PASS guard complete backuphost env
 PASS cli --version
 PASS rest GET /health
 PASS mcp initialize
@@ -1848,8 +1848,8 @@ No uncommitted files remain.
 
 ## Self-Review
 
-- Spec coverage: The plan covers every Rustarr service kind, every business action, CLI command coverage, MCP protocol and tool coverage, local HTTP API routes, semantic success assertions, expected-error assertions, and a shart-only safety guard.
+- Spec coverage: The plan covers every Rustarr service kind, every business action, CLI command coverage, MCP protocol and tool coverage, local HTTP API routes, semantic success assertions, expected-error assertions, and a backuphost-only safety guard.
 - xtask alignment: The canonical implementation is now `cargo xtask live`; `just` is only an alias layer, and the old Python runner path has been removed.
-- Safety coverage: The plan refuses live `/home/jmagar/.rustarr`, rejects tootie URLs and process overrides, requires the complete shart service set, and keeps live testing opt-in.
+- Safety coverage: The plan refuses live `/home/jmagar/.rustarr`, rejects nashost URLs and process overrides, requires the complete backuphost service set, and keeps live testing opt-in.
 - Service gap coverage: The plan treats missing `lidarr`, `readarr`, and initialized `wizarr` as a blocking prerequisite for the full suite rather than silently skipping them.
-- Placeholder scan: The plan contains no deferred implementation markers. Secret values are extracted from shart and written only to `/home/jmagar/.rustarr-shart/.env`, which remains outside the repo.
+- Placeholder scan: The plan contains no deferred implementation markers. Secret values are extracted from backuphost and written only to `/home/jmagar/.rustarr-backuphost/.env`, which remains outside the repo.

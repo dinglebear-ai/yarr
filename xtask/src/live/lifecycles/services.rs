@@ -217,7 +217,7 @@ pub(super) fn tracearr_session_fixture_count() -> Result<i64> {
 
 pub(super) fn run_ssh_shart(command: &str) -> Result<String> {
     let output = ssh::run(command, Duration::from_secs(30))?
-        .ensure_success("seed shart lifecycle fixture")?;
+        .ensure_success("seed backuphost lifecycle fixture")?;
     Ok(output.stdout)
 }
 

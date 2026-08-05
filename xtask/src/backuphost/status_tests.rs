@@ -32,7 +32,7 @@ fn remote_errors_distinguish_timeout_ssh_docker_and_container_failures() {
         "ssh_failed"
     );
     assert_eq!(
-        classify_error(Some(1), "shart Docker is unavailable"),
+        classify_error(Some(1), "backuphost Docker is unavailable"),
         "docker_unavailable"
     );
     assert_eq!(classify_error(Some(1), ""), "container_state");

@@ -25,11 +25,11 @@ services:
         required: false
     environment:
       YARR_MCP_HOST: 0.0.0.0
-      YARR_MCP_ALLOWED_HOSTS: "yarr.dinglebear.ai,yarr.tootie.tv,localhost,127.0.0.1"
-      YARR_MCP_ALLOWED_ORIGINS: "https://yarr.dinglebear.ai,https://yarr.tootie.tv"
+      YARR_MCP_ALLOWED_HOSTS: "yarr.dinglebear.ai,yarr.example.internal,localhost,127.0.0.1"
+      YARR_MCP_ALLOWED_ORIGINS: "https://yarr.dinglebear.ai,https://yarr.example.internal"
     ports:
-      - "100.88.16.79:${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
-      - "10.1.0.6:${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
+      - "198.51.100.1:${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
+      - "192.0.2.6:${YARR_MCP_HOST_PORT:-40070}:40070/tcp"
     volumes:
       - ${HOME}/.yarr:/data
     # cap_drop:

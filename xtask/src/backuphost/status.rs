@@ -66,7 +66,7 @@ pub(super) fn fetch_status(require_running: bool) -> Result<StatusReport> {
     });
     Ok(StatusReport {
         ok,
-        host: ssh::SHART_HOST,
+        host: ssh::BACKUPHOST_HOST,
         containers,
         error,
     })
@@ -95,7 +95,7 @@ pub(super) fn parse_status(output: &str) -> Result<Vec<ContainerStatus>> {
                 || health.is_empty()
                 || fields.next().is_some()
             {
-                bail!("invalid shart status row: {line:?}");
+                bail!("invalid backuphost status row: {line:?}");
             }
             Ok(ContainerStatus {
                 container: container.into(),
@@ -119,13 +119,13 @@ pub(super) fn render_status(report: StatusReport, json: bool) -> Result<()> {
         }
         if let Some(error) = &report.error {
             eprintln!(
-                "shart status error: kind={} exit={:?} stderr={}",
+                "backuphost status error: kind={} exit={:?} stderr={}",
                 error.kind, error.exit_status, error.stderr
             );
         }
     }
     if !report.ok {
-        bail!("one or more shart containers are unavailable or not running");
+        bail!("one or more backuphost containers are unavailable or not running");
     }
     Ok(())
 }

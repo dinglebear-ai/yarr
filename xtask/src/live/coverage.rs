@@ -141,7 +141,7 @@ fn atomic_write(path: &Path, contents: &str) -> Result<()> {
 
 fn row_status(report: &Report, checks: &[&str]) -> String {
     if checks.is_empty() {
-        return "Not covered by current shart live matrix".to_owned();
+        return "Not covered by current backuphost live matrix".to_owned();
     }
 
     let missing = checks

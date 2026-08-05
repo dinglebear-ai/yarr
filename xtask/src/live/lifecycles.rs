@@ -7,10 +7,10 @@
 //! suite; only the invocation moved from per-service MCP tools to the CLI.)
 //!
 //! Destructive by nature (queue removes, blacklist/session deletes), so the suite
-//! is skipped under `--no-destructive`. It runs only against the disposable shart
-//! stack. SABnzbd needs an NZB fixture URL reachable from shart — a tiny in-process
-//! HTTP server on `YARR_LIVE_FIXTURE_HOST` (default the dookie tailnet IP).
-//! Bazarr/Tracearr seeding runs over `ssh shart docker exec`.
+//! is skipped under `--no-destructive`. It runs only against the disposable backuphost
+//! stack. SABnzbd needs an NZB fixture URL reachable from backuphost — a tiny in-process
+//! HTTP server on `YARR_LIVE_FIXTURE_HOST` (default the devhost tailnet IP).
+//! Bazarr/Tracearr seeding runs over `ssh backuphost docker exec`.
 
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
@@ -64,11 +64,11 @@ struct FixtureServer {
 
 fn start_fixture_server() -> Result<FixtureServer> {
     let host =
-        std::env::var("YARR_LIVE_FIXTURE_HOST").unwrap_or_else(|_| "100.88.16.79".to_string());
+        std::env::var("YARR_LIVE_FIXTURE_HOST").unwrap_or_else(|_| "198.51.100.1".to_string());
     let listener = TcpListener::bind(("0.0.0.0", FIXTURE_PORT)).with_context(|| {
         format!(
             "failed to bind live fixture server on 0.0.0.0:{FIXTURE_PORT}; \
-             set YARR_LIVE_FIXTURE_HOST to a host/IP reachable from shart"
+             set YARR_LIVE_FIXTURE_HOST to a host/IP reachable from backuphost"
         )
     })?;
     let body = Arc::new(SAB_FIXTURE_NZB.as_bytes().to_vec());

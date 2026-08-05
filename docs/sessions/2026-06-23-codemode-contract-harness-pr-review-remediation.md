@@ -18,14 +18,14 @@ Continued session on the rustarr Code Mode + OpenAPI-codegen PR. The explicit as
 
 ## Session Overview
 
-- Diagnosed and fixed three degraded shart test-stack services that the exhaustive destructive contract run had bricked (Overseerr API-key regen → 403; Jellyfin remote-access flipped off → 503; Prowlarr shutdown endpoint), and hardened the harness so future runs stop self-bricking.
+- Diagnosed and fixed three degraded backuphost test-stack services that the exhaustive destructive contract run had bricked (Overseerr API-key regen → 403; Jellyfin remote-access flipped off → 503; Prowlarr shutdown endpoint), and hardened the harness so future runs stop self-bricking.
 - Cut the contract-harness schema mismatches from 15 → 6 by validating in the correct schema dialect (OpenAPI-3.0 `nullable`, drop `additionalProperties:false`, treat the empty-body sentinel as no body). Confirmed the remaining 6 are genuine vendored-spec-vs-live-server drift, not codegen bugs.
 - Ran a 5-agent PR review (code, silent-failure, tests, types, comments) and remediated every actionable finding: two real code fixes, three test-gap closures, ~12 doc/comment accuracy fixes. Deferred three large type-design refactors to beads.
 - Verified green (clippy `-D warnings`, 513 lib + integration tests, schema-docs, patterns, ascii, test-siblings) and pushed.
 
 ## Sequence of Events
 
-1. Diagnosed Overseerr 403s: the destructive run had regenerated its API key; read the current key from `settings.json` on shart and updated `/home/jmagar/.rustarr-shart/.env`; `auth/me` → 200.
+1. Diagnosed Overseerr 403s: the destructive run had regenerated its API key; read the current key from `settings.json` on backuphost and updated `/home/jmagar/.rustarr-backuphost/.env`; `auth/me` → 200.
 2. Hardened the harness to skip config/auth **writes** (settings/auth/config/configuration/startup/prefs/apikey), keeping reads — committed `2fd32f4`.
 3. Restored Jellyfin (set `EnableRemoteAccess=true` in `network.xml`, restarted) after a run re-disabled it; full run then passed all 6 services without self-bricking.
 4. Fixed the schema-mismatch validator (`nullable` dialect + `additionalProperties` relaxation + empty-body sentinel) — committed `2dcca18`; mismatches 15 → 6.
@@ -69,7 +69,7 @@ Commits this session: `2fd32f4`, `2dcca18`, `b0274fc`, `3196bd8`, `4512c1f` (plu
 | modified | README.md, CLAUDE.md | drop removed `integrations`/`sonarr list`; module map / scope nuance | doc review |
 | created | docs/sessions/2026-06-23-codemode-contract-harness-pr-review-remediation.md | this session log | — |
 
-External (authorized shart test-stack edits, not in git): `/home/jmagar/.rustarr-shart/.env` (Overseerr key updated); `/mnt/user/lab/live/golden/jellyfin/config/network.xml` (`EnableRemoteAccess` true); Prowlarr + Jellyfin containers restarted.
+External (authorized backuphost test-stack edits, not in git): `/home/jmagar/.rustarr-backuphost/.env` (Overseerr key updated); `/mnt/user/lab/live/golden/jellyfin/config/network.xml` (`EnableRemoteAccess` true); Prowlarr + Jellyfin containers restarted.
 
 ## Beads Activity
 
@@ -91,7 +91,7 @@ External (authorized shart test-stack edits, not in git): `/home/jmagar/.rustarr
 
 ## Tools and Skills Used
 
-- **Shell/Bash:** git, cargo (build/test/clippy/fmt), `cargo xtask` (gen-openapi, check-test-siblings, patterns, live contract), curl + python3 (live diagnosis against shart), ssh shart (config inspection/restarts), bd. No persistent failures; the contract runs were backgrounded.
+- **Shell/Bash:** git, cargo (build/test/clippy/fmt), `cargo xtask` (gen-openapi, check-test-siblings, patterns, live contract), curl + python3 (live diagnosis against backuphost), ssh backuphost (config inspection/restarts), bd. No persistent failures; the contract runs were backgrounded.
 - **File tools:** Read/Edit/Write across codemode, harness, models, docs, tests.
 - **Subagents:** 5 `pr-review-toolkit` agents (code-reviewer, silent-failure-hunter, pr-test-analyzer, type-design-analyzer, comment-analyzer) + a general-purpose agent to update CLAUDE.md. All returned structured reports; no failures.
 - **Skills:** `pr-review-toolkit:review-pr` (orchestration), `vibin:save-to-md` (this log).
@@ -110,7 +110,7 @@ External (authorized shart test-stack edits, not in git): `/home/jmagar/.rustarr
 
 ## Errors Encountered
 
-- **Overseerr 403 on ~89 endpoints** — root cause: the destructive run regenerated Overseerr's API key; resolved by syncing the current key into the shart `.env`.
+- **Overseerr 403 on ~89 endpoints** — root cause: the destructive run regenerated Overseerr's API key; resolved by syncing the current key into the backuphost `.env`.
 - **Jellyfin 503** — root cause: a config-write op flipped `EnableRemoteAccess` off; resolved by restoring `network.xml` + restart, then adding the config-write skip so it can't recur.
 - **Transient xtask build breaks** (`substitute_path_segment`, `ARR_ENDPOINTS`) — root cause: a concurrent session mid-edit; resolved by re-checking after the tree settled and validating the main crate separately.
 
@@ -136,7 +136,7 @@ External (authorized shart test-stack edits, not in git): `/home/jmagar/.rustarr
 ## Risks and Rollback
 
 - The harness now skips config/auth/control **writes** — a deliberate coverage boundary (documented in `run_op`), not full-surface coverage. Rollback: revert `2fd32f4` / the `run_op` skip block.
-- shart `.env` and `network.xml` were edited out-of-band; these are disposable test-stack configs. Rollback: re-sync from golden if needed.
+- backuphost `.env` and `network.xml` were edited out-of-band; these are disposable test-stack configs. Rollback: re-sync from golden if needed.
 
 ## Decisions Not Taken
 

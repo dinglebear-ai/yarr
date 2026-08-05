@@ -33,49 +33,49 @@ doctor:
 live-read-smoke:
     bash scripts/live-read-smoke.sh
 
-# Run only the shart live guard.
+# Run only the backuphost live guard.
 live-full-guard:
     cargo xtask live --suite guard
 
-# Run the complete shart live CLI surface.
+# Run the complete backuphost live CLI surface.
 live-full-cli:
     cargo xtask live --suite cli
 
-# Run the complete shart live REST surface.
+# Run the complete backuphost live REST surface.
 live-full-rest:
     cargo xtask live --suite rest
 
-# Run the complete shart live MCP surface.
+# Run the complete backuphost live MCP surface.
 live-full-mcp:
     cargo xtask live --suite mcp
 
-# Run every generated OpenAPI callable through mcporter/yarr against shart.
+# Run every generated OpenAPI callable through mcporter/yarr against backuphost.
 live-full-mcporter:
     cargo xtask live --suite mcporter
 
-# Run the complete shart live service action matrix.
+# Run the complete backuphost live service action matrix.
 live-full-services:
     cargo xtask live --suite services
 
-# Run the full shart-only live suite.
+# Run the full backuphost-only live suite.
 live-full-test:
     cargo xtask live --suite all
 
-# Start the dedicated shart test stack and wait for every service.
-shart-start:
-    cargo xtask shart start
+# Start the dedicated backuphost test stack and wait for every service.
+backuphost-start:
+    cargo xtask backuphost start
 
-# Stop only the dedicated shart test-stack containers.
-shart-stop:
-    cargo xtask shart stop
+# Stop only the dedicated backuphost test-stack containers.
+backuphost-stop:
+    cargo xtask backuphost stop
 
-# Show shart test-stack container state and health (`cargo xtask shart status --json` for JSON).
-shart-status:
-    cargo xtask shart status
+# Show backuphost test-stack container state and health (`cargo xtask backuphost status --json` for JSON).
+backuphost-status:
+    cargo xtask backuphost status
 
-# Restore shart's configured-v1 golden data (`cargo xtask shart seed --dry-run` to preview).
-shart-seed:
-    cargo xtask shart seed
+# Restore backuphost's configured-v1 golden data (`cargo xtask backuphost seed --dry-run` to preview).
+backuphost-seed:
+    cargo xtask backuphost seed
 
 # ── Building ──────────────────────────────────────────────────────────────────
 
@@ -482,7 +482,7 @@ validate-skills: validate-plugin
 
 # ── mcporter ─────────────────────────────────────────────────────────────────
 
-# Run live MCP transport tests against the shart live stack. The legacy per-service
+# Run live MCP transport tests against the backuphost live stack. The legacy per-service
 # mcporter suite was retired (single yarr tool now); this runs the in-process `mcp` suite.
 test-mcporter: build-release
     cargo xtask live --suite mcp

@@ -27,7 +27,7 @@
     "server_url": {
       "type": "string",
       "title": "Server URL",
-      "description": "Base URL of the MCP HTTP server this Claude Code session connects to. If running locally: keep http://localhost:40070. If connecting to a remote server: set to http://hostname:40070 or https://yarr.tootie.tv. Do NOT include a trailing /mcp — the plugin appends it automatically.",
+      "description": "Base URL of the MCP HTTP server this Claude Code session connects to. If running locally: keep http://localhost:40070. If connecting to a remote server: set to http://hostname:40070 or https://yarr.example.internal. Do NOT include a trailing /mcp — the plugin appends it automatically.",
       "required": true,
       "default": "http://localhost:40070"
     },
@@ -69,7 +69,7 @@
     "public_url": {
       "type": "string",
       "title": "Public URL",
-      "description": "Public base URL for OAuth issuer metadata, e.g. https://yarr.tootie.tv. Required when auth_mode=oauth. If empty, setup derives it from an https server_url by stripping /mcp suffix. Server mode only.",
+      "description": "Public base URL for OAuth issuer metadata, e.g. https://yarr.example.internal. Required when auth_mode=oauth. If empty, setup derives it from an https server_url by stripping /mcp suffix. Server mode only.",
       "default": ""
     },
     "google_client_id": {

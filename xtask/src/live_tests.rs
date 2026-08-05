@@ -2,12 +2,12 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use crate::live::guard::{SHART_HOME, validate_env};
+use crate::live::guard::{BACKUPHOST_HOME, validate_env};
 use crate::live::{coverage, report};
 
 fn good_env() -> BTreeMap<String, String> {
     let mut env = BTreeMap::new();
-    env.insert("YARR_HOME".into(), SHART_HOME.into());
+    env.insert("YARR_HOME".into(), BACKUPHOST_HOME.into());
     env.insert("YARR_SERVICES".into(), "sonarr,radarr,prowlarr,tautulli,overseerr,bazarr,tracearr,sabnzbd,qbittorrent,plex,jellyfin".into());
     for (name, kind, port) in [
         ("SONARR", "sonarr", "8989"),
@@ -24,7 +24,7 @@ fn good_env() -> BTreeMap<String, String> {
     ] {
         env.insert(
             format!("YARR_{name}_URL"),
-            format!("http://shart.manatee-triceratops.ts.net:{port}"),
+            format!("http://backuphost.example.ts.net:{port}"),
         );
         env.insert(format!("YARR_{name}_KIND"), kind.into());
     }
@@ -32,9 +32,9 @@ fn good_env() -> BTreeMap<String, String> {
 }
 
 #[test]
-fn guard_accepts_complete_shart_env() {
+fn guard_accepts_complete_backuphost_env() {
     let env = good_env();
-    let result = validate_env(env, false).expect("complete shart env should pass");
+    let result = validate_env(env, false).expect("complete backuphost env should pass");
     assert_eq!(result.services.len(), 11);
     assert_eq!(result.kinds["sonarr"], "sonarr");
 }
@@ -44,15 +44,18 @@ fn guard_rejects_live_home() {
     let mut env = good_env();
     env.insert("YARR_HOME".into(), "/home/jmagar/.yarr".into());
     let err = validate_env(env, false).unwrap_err().to_string();
-    assert!(err.contains("YARR_HOME must be /home/jmagar/.yarr-shart"));
+    assert!(err.contains("YARR_HOME must be /home/jmagar/.yarr-backuphost"));
 }
 
 #[test]
-fn guard_rejects_tootie_url_override() {
+fn guard_rejects_disallowed_host_url_override() {
     let mut env = good_env();
-    env.insert("YARR_SONARR_URL".into(), "https://sonarr.tootie.tv".into());
+    env.insert(
+        "YARR_SONARR_URL".into(),
+        "https://sonarr.example.internal".into(),
+    );
     let err = validate_env(env, false).unwrap_err().to_string();
-    assert!(err.contains("is not a shart URL"));
+    assert!(err.contains("is not a backuphost URL"));
 }
 
 #[test]
@@ -60,10 +63,10 @@ fn guard_rejects_userinfo_prefix_host_bypass() {
     let mut env = good_env();
     env.insert(
         "YARR_SONARR_URL".into(),
-        "http://shart:80@attacker.example:8989/".into(),
+        "http://backuphost:80@attacker.example:8989/".into(),
     );
     let err = validate_env(env, false).unwrap_err().to_string();
-    assert!(err.contains("is not a shart URL"));
+    assert!(err.contains("is not a backuphost URL"));
 }
 
 #[test]
@@ -78,7 +81,7 @@ fn guard_rejects_missing_required_kind() {
 fn guard_parses_env_file() {
     let path = Path::new("target/live-test-env");
     fs::create_dir_all(path.parent().unwrap()).unwrap();
-    fs::write(path, "YARR_SERVICES=sonarr\nYARR_SONARR_URL=http://shart.manatee-triceratops.ts.net:8989\nYARR_SONARR_KIND=sonarr\n").unwrap();
+    fs::write(path, "YARR_SERVICES=sonarr\nYARR_SONARR_URL=http://backuphost.example.ts.net:8989\nYARR_SONARR_KIND=sonarr\n").unwrap();
     let env = crate::live::guard::read_env_file(path).unwrap();
     assert_eq!(env["YARR_SONARR_KIND"], "sonarr");
 }

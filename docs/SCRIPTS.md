@@ -33,7 +33,7 @@ Maintenance scripts live in `scripts/`. The authoritative per-script usage refer
 | Runtime/deploy | `check-runtime-current.sh`, `sync-cargo.sh`, `bump-version.sh` |
 | Install | `install.sh` |
 | Reference docs | `refresh-docs.sh` |
-| Live tests | `live-read-smoke.sh` for legacy quick smoke; `cargo xtask live --suite all` for full guarded shart coverage |
+| Live tests | `live-read-smoke.sh` for legacy quick smoke; `cargo xtask live --suite all` for full guarded backuphost coverage |
 
 ## Important commands
 
@@ -41,7 +41,7 @@ Maintenance scripts live in `scripts/`. The authoritative per-script usage refer
 scripts/pre-release-check.sh
 scripts/pre-release-check.sh --mcporter   # include live MCP tests
 python3 scripts/check-doc-links.py         # all tracked Markdown links/anchors
-cargo xtask live --suite all              # guarded shart live suite
+cargo xtask live --suite all              # guarded backuphost live suite
 curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/scripts/install.sh | bash
 scripts/refresh-docs.sh --dry-run
 scripts/test-mcp-auth.sh --url http://localhost:40070/mcp --token <token>
