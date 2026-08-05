@@ -18,11 +18,11 @@ The session started around Rustarr MCP/live testing and endpoint coverage. The f
 
 ## Session Overview
 
-Implemented a generated live endpoint coverage markdown artifact for Rustarr and hardened the harness around it. The live harness now writes `docs/LIVE_ENDPOINT_COVERAGE.md` after the full shart suite, exposes `cargo xtask live --coverage-check`, names missing coverage check markers explicitly, and writes the markdown atomically.
+Implemented a generated live endpoint coverage markdown artifact for Rustarr and hardened the harness around it. The live harness now writes `docs/LIVE_ENDPOINT_COVERAGE.md` after the full backuphost suite, exposes `cargo xtask live --coverage-check`, names missing coverage check markers explicitly, and writes the markdown atomically.
 
 ## Sequence of Events
 
-1. Confirmed the existing live harness changes had produced a successful full shart run with `docs/LIVE_ENDPOINT_COVERAGE.md`.
+1. Confirmed the existing live harness changes had produced a successful full backuphost run with `docs/LIVE_ENDPOINT_COVERAGE.md`.
 2. Added red tests for explicit missing check names, stale markdown detection, and fresh markdown acceptance.
 3. Implemented a reusable coverage renderer/checker in `xtask/src/live/coverage.rs`.
 4. Wired the coverage writer and drift-check command into `xtask/src/live.rs`.
@@ -36,7 +36,7 @@ Implemented a generated live endpoint coverage markdown artifact for Rustarr and
 - `xtask/src/live/coverage.rs:39` writes generated markdown through the reusable renderer and atomic write path.
 - `xtask/src/live/coverage.rs:44` adds the drift-check entry point used by `cargo xtask live --coverage-check`.
 - `xtask/src/live/coverage.rs:130` now distinguishes untested rows, missing check names, passing rows, and failing rows.
-- `xtask/src/live.rs:41` runs coverage-check mode without loading live shart services.
+- `xtask/src/live.rs:41` runs coverage-check mode without loading live backuphost services.
 - `xtask/src/live.rs:79` writes `docs/LIVE_ENDPOINT_COVERAGE.md` only for the full `Suite::All` run.
 - `xtask/src/live/report.rs:60` reads the saved JSON report back for coverage drift checks.
 - `xtask/src/live_tests.rs:189` covers explicit missing-check output, stale markdown failure, and fresh markdown success.
@@ -46,7 +46,7 @@ Implemented a generated live endpoint coverage markdown artifact for Rustarr and
 - The coverage renderer accepts an injected service table so tests can use a tiny coverage matrix instead of depending on the full static endpoint list.
 - Stale check names now render as `Missing check: \`name\`` rather than collapsing into a vague "Not covered" state.
 - The markdown writer uses a temp file adjacent to the final path and `rename`, so interrupted writes do not leave a partial generated doc.
-- `coverage-check` is implemented as a live harness mode but returns before shart service loading; drift checks only need `target/live-full/report.json` and the generated doc.
+- `coverage-check` is implemented as a live harness mode but returns before backuphost service loading; drift checks only need `target/live-full/report.json` and the generated doc.
 - No full live rerun was performed during the final hardening step; the drift check passed against the existing full live report.
 
 ## Files Changed

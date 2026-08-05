@@ -1,6 +1,6 @@
 //! mcporter-backed live contract harness for the generated MCP Code Mode surface.
 //!
-//! This starts a local Yarr MCP server against the guarded shart environment and
+//! This starts a local Yarr MCP server against the guarded backuphost environment and
 //! uses `mcporter call ... yarr` to execute generated per-service callables over
 //! the MCP transport. It mirrors the CLI contract suite's synthesis, seeding, skip,
 //! and response-schema validation rules so both suites cover the same OpenAPI
@@ -91,7 +91,7 @@ pub(super) fn run(
 
         write_detail(svc, &results)?;
         let status = contract::contract_status(&results);
-        let detail = format!("{} via mcporter/yarr over MCP against shart", status.detail);
+        let detail = format!("{} via mcporter/yarr over MCP against backuphost", status.detail);
         if status.passed {
             report.pass(format!("mcporter contract {svc}"), detail);
         } else {
@@ -186,7 +186,7 @@ fn run_reset_required_ops(
                     op_result(
                         op,
                         "rejected",
-                        "requires stack reset/reseed but no shart ZFS golden target exists for this service".into(),
+                        "requires stack reset/reseed but no backuphost ZFS golden target exists for this service".into(),
                     ),
                     None,
                 )

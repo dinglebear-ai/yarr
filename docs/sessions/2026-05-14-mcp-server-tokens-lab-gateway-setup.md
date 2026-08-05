@@ -12,11 +12,11 @@ working directory: /home/jmagar/workspace/rustarr
 
 ## User Request
 
-Test 6 custom MCP servers (unrust, rustscale, rustifi, rustify, apprise-mcp, rustarr) using mcporter with their external URLs, generate secure bearer tokens for all of them, and add them to the lab gateway at lab.tootie.tv with protected paths named after each repo.
+Test 6 custom MCP servers (unrust, rustscale, rustifi, rustify, apprise-mcp, rustarr) using mcporter with their external URLs, generate secure bearer tokens for all of them, and add them to the lab gateway at lab.example.internal with protected paths named after each repo.
 
 ## Session Overview
 
-Audited 6 MCP servers running locally in Docker, discovered they had no auth tokens and were running with no-auth flags set, generated secure 256-bit bearer tokens for each, restarted/recreated the containers to pick up the new credentials, tested all 6 with mcporter via their real HTTPS proxy domains, and added all 6 to the lab gateway at `https://lab.tootie.tv/gateways` with bearer token auth and protected paths under `https://mcp.tootie.tv/`.
+Audited 6 MCP servers running locally in Docker, discovered they had no auth tokens and were running with no-auth flags set, generated secure 256-bit bearer tokens for each, restarted/recreated the containers to pick up the new credentials, tested all 6 with mcporter via their real HTTPS proxy domains, and added all 6 to the lab gateway at `https://lab.example.internal/gateways` with bearer token auth and protected paths under `https://mcp.example.internal/`.
 
 ## Sequence of Events
 
@@ -28,7 +28,7 @@ Audited 6 MCP servers running locally in Docker, discovered they had no auth tok
 6. Discovered `unrust` crashed on restart — its `.env` was created from scratch with blank `UNRAID_API_KEY`; found credentials in `/home/jmagar/workspace/lab/.env` and `/home/jmagar/workspace/unraid-mcp/.env`
 7. Re-recreated unrust container with correct credentials; all 6 confirmed healthy via `/health` endpoints
 8. Tested all 6 with `mcporter list <name>` using real HTTPS domains — all returned tool schemas successfully
-9. Navigated to `https://lab.tootie.tv/gateways` via Claude-in-Chrome browser automation
+9. Navigated to `https://lab.example.internal/gateways` via Claude-in-Chrome browser automation
 10. Added all 6 servers to the lab gateway using JavaScript-driven form fill (React inputs required native setter + synthetic events), bearer token auth, and protected paths
 11. Verified configured count incremented 12→13→14→15→16→17→18 as each server was added
 
@@ -38,8 +38,8 @@ Audited 6 MCP servers running locally in Docker, discovered they had no auth tok
 - The env var names for "no auth" differed from what the servers actually read: e.g., `TAILSCALE_MCP_DISABLE_HTTP_AUTH` vs the code-expected `TAILSCALE_MCP_NO_AUTH` (`rustscale/src/config.rs:191`)
 - `docker restart` does NOT re-read `.env` files — `docker compose up -d --force-recreate` is required
 - `unrust` had no `.env` file at all; credentials live in `/home/jmagar/workspace/lab/.env` and `/home/jmagar/workspace/unraid-mcp/.env`
-- The SWAG reverse proxy (on `squirts`) serves all 6 under different subdomains — not the repo names as assumed
-- The lab gateway UI requires HTTPS URLs and uses `https://mcp.tootie.tv/` as the base for protected paths
+- The SWAG reverse proxy (on `edgehost`) serves all 6 under different subdomains — not the repo names as assumed
+- The lab gateway UI requires HTTPS URLs and uses `https://mcp.example.internal/` as the base for protected paths
 - React form inputs in the lab gateway require the native input value setter + synthetic events — standard `form_input`/`fill` tools don't work
 
 ## Technical Decisions
@@ -78,8 +78,8 @@ mcporter list rustscale  # → 1 tool: tailscale (10 actions)
 mcporter list apprise-mcp  # → 1 tool: apprise (4 actions)
 mcporter list rustarr  # → 1 tool: rustarr (5 actions)
 
-# Read SWAG proxy configs on squirts
-ssh squirts "cat /mnt/appdata/swag/nginx/proxy-confs/unraid.subdomain.conf ..."
+# Read SWAG proxy configs on edgehost
+ssh edgehost "cat /mnt/appdata/swag/nginx/proxy-confs/unraid.subdomain.conf ..."
 ```
 
 ## Errors Encountered
@@ -100,7 +100,7 @@ ssh squirts "cat /mnt/appdata/swag/nginx/proxy-confs/unraid.subdomain.conf ..."
 |---|---|---|
 | All 6 | No bearer token — auth disabled via env flags | Bearer token required; `NOAUTH` flags removed |
 | All 6 | Not in mcporter config | Configured in `~/.mcporter/mcporter.json` with HTTPS URLs |
-| All 6 | Not in lab gateway | Added to `https://lab.tootie.tv/gateways` with protected paths at `https://mcp.tootie.tv/<name>` |
+| All 6 | Not in lab gateway | Added to `https://lab.example.internal/gateways` with protected paths at `https://mcp.example.internal/<name>` |
 
 ## Verification Evidence
 
@@ -123,9 +123,9 @@ ssh squirts "cat /mnt/appdata/swag/nginx/proxy-confs/unraid.subdomain.conf ..."
 
 ## Open Questions
 
-- The lab gateway shows all 6 new servers as "Disconnected" (14 disconnected total vs 4 healthy). It's unclear whether the `https://mcp.tootie.tv/<path>` protected paths need Authelia rules configured before the gateway can probe them successfully.
+- The lab gateway shows all 6 new servers as "Disconnected" (14 disconnected total vs 4 healthy). It's unclear whether the `https://mcp.example.internal/<path>` protected paths need Authelia rules configured before the gateway can probe them successfully.
 - The `reusedProtectedRoute is not defined` toast appeared on every server save — unclear if this indicates a UI bug or a misconfiguration in the protected path setup.
-- `gotify.subdomain.conf` has a different `$upstream_app` (100.75.111.118) vs `$mcp_upstream_app` (100.88.16.79) — the Gotify UI runs on a different host than the MCP server.
+- `gotify.subdomain.conf` has a different `$upstream_app` (198.51.100.3) vs `$mcp_upstream_app` (198.51.100.1) — the Gotify UI runs on a different host than the MCP server.
 
 ## Next Steps
 
@@ -133,7 +133,7 @@ ssh squirts "cat /mnt/appdata/swag/nginx/proxy-confs/unraid.subdomain.conf ..."
 - Verify the 6 new servers come online in the lab gateway (currently all show Disconnected)
 
 **Follow-on tasks:**
-- Configure Authelia access rules for `https://mcp.tootie.tv/unrust`, `/rustify`, `/rustifi`, `/rustscale`, `/apprise-mcp`, `/rustarr` if required for gateway probing
-- Run `mcporter list` using the protected path URLs (via `https://mcp.tootie.tv/`) to confirm OAuth flow works end-to-end
+- Configure Authelia access rules for `https://mcp.example.internal/unrust`, `/rustify`, `/rustifi`, `/rustscale`, `/apprise-mcp`, `/rustarr` if required for gateway probing
+- Run `mcporter list` using the protected path URLs (via `https://mcp.example.internal/`) to confirm OAuth flow works end-to-end
 - Commit the `.env` changes for each of the 6 repos (they are gitignored, so document token storage separately if needed)
 - Consider storing tokens in a secret manager rather than plaintext `.env` files

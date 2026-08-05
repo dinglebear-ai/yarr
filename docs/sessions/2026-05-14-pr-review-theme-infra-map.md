@@ -32,13 +32,13 @@ Four main workstreams: (1) researched Claude Code custom theme format and create
 10. Checked for new comments — only "Thanks for fixing this!" from cubic-dev-ai, no new issues
 11. Created `CLAUDE.md.local` with device/service/port map from previous session notes
 12. Dropped redundant "Related repos" section; added Repo column to service map instead
-13. SSHed into squirts to get actual SWAG proxy config filenames and verified all upstream/mcp_upstream ports against live configs — found 3 discrepancies, corrected them
+13. SSHed into edgehost to get actual SWAG proxy config filenames and verified all upstream/mcp_upstream ports against live configs — found 3 discrepancies, corrected them
 14. Merged PR #1 via `gh pr merge 1 --merge`, pulled main, deleted local+remote branch, pruned refs
 
 ## Key Findings
 
 - Claude Code theme tokens: 40+ named tokens across text/accent, status, mode indicators, diff backgrounds, fullscreen fills, subagent colors, shimmer pairs, rainbow gradient — the old `aurora.json` used entirely invalid names that were silently ignored
-- Live SWAG port discrepancies vs session notes: gotify upstream was `squirts:8070` (not dookie), lab was `dookie:8765` (not "lab container"), syslog was `dookie:3100` (not "syslog container")
+- Live SWAG port discrepancies vs session notes: gotify upstream was `edgehost:8070` (not devhost), lab was `devhost:8765` (not "lab container"), syslog was `devhost:3100` (not "syslog container")
 - `rustify` = gotify MCP server (not a mystery repo) — follows the `rust*` naming convention for all 9 family members
 - `dependabot/fetch-metadata@v2` commit SHA: `21025c705c08248db411dc16f3619e6b5f9ea21a`
 - `apps/web/out/` is gitignored — `COPY apps/web/out/` in Dockerfile always failed on fresh clone; fixed with `.gitkeep` + `.gitignore` exception
@@ -91,8 +91,8 @@ python3 skills/gh-address-comments/scripts/verify_resolution.py --input /tmp/pr1
 # → ✓ 16 threads resolved
 
 # Infrastructure map verification
-ssh squirts "ls /mnt/appdata/swag/nginx/proxy-confs/*.subdomain.conf | xargs basename"
-ssh squirts "for f in axon apprise gotify lab rmcp-rustarr syslog tailscale unifi unraid; do
+ssh edgehost "ls /mnt/appdata/swag/nginx/proxy-confs/*.subdomain.conf | xargs basename"
+ssh edgehost "for f in axon apprise gotify lab rmcp-rustarr syslog tailscale unifi unraid; do
   grep -E 'upstream_(app|port)' proxy-confs/${f}.subdomain.conf; done"
 
 # Merge and cleanup
@@ -143,7 +143,7 @@ bd dolt push
 
 **Follow-on (not started):**
 - Ship Aurora themes inside `.claude-plugin/themes/` so they distribute with `plugin install`
-- Deploy syslog-mcp and axon_rust with updated Aurora logging (rebuild containers on dookie)
-- Verify `ts.tootie.tv` and `rmcp.tootie.tv` resolve correctly (DNS/cert)
+- Deploy syslog-mcp and axon_rust with updated Aurora logging (rebuild containers on devhost)
+- Verify `ts.example.internal` and `rmcp.example.internal` resolve correctly (DNS/cert)
 - Consider extracting `AuroraLevelFormatter` into a shared crate across all 9 repos
 - Index Claude Code theme token docs into Axon for future `axon ask` queries

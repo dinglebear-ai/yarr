@@ -158,7 +158,7 @@ fn run_guard(report: &mut report::Report, guarded: &guard::GuardedEnv) {
         guarded.kinds.values().map(String::as_str).collect();
     let required_kinds = guard::required_kinds();
     report.pass(
-        "guard complete shart env",
+        "guard complete backuphost env",
         format!(
             "{} services, {} required kinds",
             guarded.services.len(),

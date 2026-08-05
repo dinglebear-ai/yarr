@@ -3,7 +3,7 @@
 **Date:** 2026-07-22  
 **Status:** Approved in conversation; awaiting written-spec review  
 **Tracking:** `rustarr-bhf`  
-**Target:** Unraid on `tootie`
+**Target:** Unraid on `nashost`
 
 ## Summary
 
@@ -39,7 +39,7 @@ classic plugin. Failed updates roll back automatically.
   Serve as first-class settings.
 - Update the Yarr binary independently, with checksums, compatibility checks,
   atomic replacement, readiness verification, and rollback.
-- Build, test, package, install, and verify the integration on `tootie` without
+- Build, test, package, install, and verify the integration on `nashost` without
   running media-mutating Yarr actions.
 
 ## Non-goals
@@ -519,7 +519,7 @@ independently.
 - Responsive and Unraid light/dark theme behavior
 - Vue typecheck and both production bundles
 
-### Live `tootie` verification
+### Live `nashost` verification
 
 1. Back up any pre-existing Yarr plugin paths without touching media data.
 2. Install the locally built `.plg`/txz through Unraid's plugin mechanism.
@@ -562,7 +562,7 @@ Tracearr, or other media mutation is authorized by this verification plan.
   digest sidecar pair whose trust originated from the PLG-pinned checksum.
   Legacy unproven archives are never executed.
 - Local Rust, shell, package, backend, frontend, schema, and security gates pass.
-- The plugin is installed and verified on `tootie` without media mutations.
+- The plugin is installed and verified on `nashost` without media mutations.
 - Persistent config and appdata survive ordinary uninstall.
 
 ## Deferred Work

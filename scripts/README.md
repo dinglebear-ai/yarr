@@ -25,7 +25,7 @@ Maintenance and automation scripts for the template. Shell scripts are written f
 | `install.sh` | Install the latest GitHub Release binary and create a `yarr` symlink. |
 | `kache-gate.sh` | Fail the build when the kache compiler cache silently degrades: snapshot counters with `--baseline` before the build, diff after, enforce hit-rate floor / remote-hit / daemon thresholds from `KACHE_GATE_*` env. kache is fail-open, so this gate is the only red signal. Fleet-copied from soma; keep pure ASCII. |
 | `kache-gate-selftest.sh` | Prove `kache-gate.sh` actually rejects a degraded build (cold all-miss profile) and accepts a clean one, so the gate cannot rot into a no-op. |
-| `live-read-smoke.sh` | Run legacy guarded shart read-only CLI and upstream `get` checks. |
+| `live-read-smoke.sh` | Run legacy guarded backuphost read-only CLI and upstream `get` checks. |
 | `pre-release-check.sh` | Full release-readiness gate, including schema and runtime contract drift checks. |
 | `refresh-docs.sh` | Refresh ignored reference docs with Axon/Repomix. |
 | `repair.sh` | Stop, rebuild, and restart the service via systemd or Docker Compose. |
@@ -207,13 +207,13 @@ YARR_BIN=target/release/yarr scripts/live-read-smoke.sh
 just live-read-smoke
 ```
 
-Runs live read-only checks against the shart test yarr environment only.
-The script defaults `YARR_HOME` to `/home/jmagar/.yarr-shart` and refuses
+Runs live read-only checks against the backuphost test yarr environment only.
+The script defaults `YARR_HOME` to `/home/jmagar/.yarr-backuphost` and refuses
 to run when `YARR_HOME` points anywhere else. Before any upstream status/get
 probe, it also inspects the effective `YARR_*_URL` values from that env file
 plus process overrides and aborts unless every configured service URL targets
-shart (`100.118.209.1` or the shart Tailscale hostname). This guard prevents the
-smoke suite from ever exercising the live tootie media services by accident.
+backuphost (`198.51.100.4` or the backuphost Tailscale hostname). This guard prevents the
+smoke suite from ever exercising the live nashost media services by accident.
 
 The complete canonical live suite is implemented in `cargo xtask live`:
 

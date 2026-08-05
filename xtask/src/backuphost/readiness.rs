@@ -10,7 +10,7 @@ pub(super) fn wait_for_services(guarded: &guard::GuardedEnv) -> Result<()> {
         .iter()
         .map(|entry| {
             let url = reset::service_url(&guarded.values, entry.service)
-                .with_context(|| format!("missing URL for shart service {}", entry.service))?;
+                .with_context(|| format!("missing URL for backuphost service {}", entry.service))?;
             Ok((entry.service.to_owned(), url))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -74,7 +74,7 @@ where
                 .map(|(service, (url, error))| format!("{service} ({url}): {error}"))
                 .collect::<Vec<_>>()
                 .join("; ");
-            bail!("shart fleet did not become ready within {deadline_after:?}: {failures}");
+            bail!("backuphost fleet did not become ready within {deadline_after:?}: {failures}");
         }
         std::thread::sleep(interval.min(deadline.saturating_duration_since(Instant::now())));
     }

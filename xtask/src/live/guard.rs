@@ -2,8 +2,8 @@ use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-pub const SHART_HOME: &str = "/home/jmagar/.yarr-shart";
-pub const DEFAULT_ENV_FILE: &str = "/home/jmagar/.yarr-shart/.env";
+pub const SHART_HOME: &str = "/home/jmagar/.yarr-backuphost";
+pub const DEFAULT_ENV_FILE: &str = "/home/jmagar/.yarr-backuphost/.env";
 
 const REQUIRED_KINDS: &[&str] = &[
     "sonarr",
@@ -42,7 +42,7 @@ pub fn load(env_file: Option<PathBuf>, allow_partial: bool) -> Result<GuardedEnv
 
 pub fn read_env_file(path: &Path) -> Result<BTreeMap<String, String>> {
     let raw = std::fs::read_to_string(path)
-        .with_context(|| format!("failed to read shart env file {}", path.display()))?;
+        .with_context(|| format!("failed to read backuphost env file {}", path.display()))?;
     let mut values = BTreeMap::new();
     for line in raw.lines() {
         let line = line.trim();
@@ -119,12 +119,12 @@ fn assert_shart_url(key: &str, value: &str) -> Result<()> {
         || parsed.password().is_some()
         || parsed.port().is_none()
     {
-        bail!("{key}={value} is not a shart URL");
+        bail!("{key}={value} is not a backuphost URL");
     }
     let host = parsed.host_str().unwrap_or("").to_ascii_lowercase();
-    let allowed = ["shart", "shart.manatee-triceratops.ts.net", "100.118.209.1"];
+    let allowed = ["backuphost", "backuphost.example.ts.net", "198.51.100.4"];
     if !allowed.contains(&host.as_str()) {
-        bail!("{key}={value} is not a shart URL");
+        bail!("{key}={value} is not a backuphost URL");
     }
     Ok(())
 }

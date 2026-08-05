@@ -174,12 +174,12 @@ runs:
         [cache.remote]
         type = "s3"
         bucket = "kache"
-        endpoint = "http://10.1.0.2:9000"
+        endpoint = "http://192.0.2.2:9000"
         region = "us-east-1"
         prefix = "rust"
         profile = "kache"
         TOML
-          echo "kache remote: s3://kache/rust via Tootie MinIO"
+          echo "kache remote: s3://kache/rust via Nashost MinIO"
         else
           cat > "$config_file" <<TOML
         [cache]

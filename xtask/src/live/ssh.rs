@@ -1,10 +1,10 @@
-//! Shared bounded SSH execution for the disposable shart test host.
+//! Shared bounded SSH execution for the disposable backuphost test host.
 
 use anyhow::{Context, Result, bail};
 use std::process::Command;
 use std::time::Duration;
 
-pub const SHART_HOST: &str = "shart";
+pub const SHART_HOST: &str = "backuphost";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteOutput {

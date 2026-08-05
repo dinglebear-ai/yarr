@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task.
 
-**Goal:** Ship, release, install, configure, update, and operate the Yarr Rust binary as a first-class Unraid plugin with a classic `.plg`, an external NestJS GraphQL extension, Vue settings/dashboard custom elements, Docker-assisted service discovery, and live deployment evidence from `tootie`.
+**Goal:** Ship, release, install, configure, update, and operate the Yarr Rust binary as a first-class Unraid plugin with a classic `.plg`, an external NestJS GraphQL extension, Vue settings/dashboard custom elements, Docker-assisted service discovery, and live deployment evidence from `nashost`.
 
 **Architecture:** Keep every Unraid-specific artifact under `unraid-plugin/`. The classic package owns installation, process lifecycle, persistent files, event hooks, and binary updates. The external API package is the sole browser-facing control plane and performs transactional configuration, redacted service import, Docker discovery, runtime control, logs, and update operations. Two Vue custom elements consume only the GraphQL contract. Root-level files may orchestrate CI and releases but may not contain plugin implementation.
 
@@ -1169,12 +1169,12 @@ Skip the commit only when review produces no file changes; still record exact ga
 
 ---
 
-## Task 13: Deploy and verify on disposable Unraid host `tootie`
+## Task 13: Deploy and verify on disposable Unraid host `nashost`
 
 **Files:**
 
 - Create: `unraid-plugin/tests/live-contract.sh`
-- Create: `docs/testing/yarr-unraid-tootie.md`
+- Create: `docs/testing/yarr-unraid-nashost.md`
 - Modify: `unraid-plugin/README.md`
 
 **Step 1: Add an opt-in live contract before deployment**
@@ -1196,16 +1196,16 @@ settings and dashboard assets return successfully
 uninstall/reinstall preserves config and appdata
 ```
 
-**Step 2: Stage backups on `tootie`**
+**Step 2: Stage backups on `nashost`**
 
 Before changes, record and copy any existing Yarr-scoped paths under `/boot/config/plugins/yarr`, `/mnt/user/appdata/yarr`, `/usr/local/emhttp/plugins/yarr`, and `/usr/local/unraid-api/node_modules/unraid-api-plugin-yarr` into a timestamped directory under `/boot/config/plugins/yarr-backups/`. Do not alter unrelated services or Docker containers.
 
 **Step 3: Transfer and install the built package**
 
 ```bash
-scp unraid-plugin/dist/yarr-2.1.0-x86_64-1.txz tootie:/tmp/
-scp unraid-plugin/yarr.plg tootie:/tmp/
-ssh tootie 'plugin install /tmp/yarr.plg'
+scp unraid-plugin/dist/yarr-2.1.0-x86_64-1.txz nashost:/tmp/
+scp unraid-plugin/yarr.plg nashost:/tmp/
+ssh nashost 'plugin install /tmp/yarr.plg'
 ```
 
 Expected: plugin installation succeeds, API reload has no new fatal errors, and Yarr starts on loopback when enabled.
@@ -1213,7 +1213,7 @@ Expected: plugin installation succeeds, API reload has no new fatal errors, and 
 **Step 4: Run the live contract**
 
 ```bash
-YARR_UNRAID_LIVE_TEST=1 YARR_UNRAID_HOST=tootie bash unraid-plugin/tests/live-contract.sh
+YARR_UNRAID_LIVE_TEST=1 YARR_UNRAID_HOST=nashost bash unraid-plugin/tests/live-contract.sh
 ```
 
 Expected: every live boundary passes without mutating media services.
@@ -1228,15 +1228,15 @@ Uninstall the classic plugin, prove Yarr/API volatile artifacts are removed whil
 
 **Step 7: Record evidence**
 
-Write `docs/testing/yarr-unraid-tootie.md` with package checksum, installed binary version, command names, pass/fail table, rollback evidence, retention evidence, API log result, endpoint status codes, and cleanup state. Redact tokens, API keys, passwords, and private service URLs.
+Write `docs/testing/yarr-unraid-nashost.md` with package checksum, installed binary version, command names, pass/fail table, rollback evidence, retention evidence, API log result, endpoint status codes, and cleanup state. Redact tokens, API keys, passwords, and private service URLs.
 
 **Step 8: Commit and push**
 
 ```bash
-git add unraid-plugin/tests/live-contract.sh unraid-plugin/README.md docs/testing/yarr-unraid-tootie.md
+git add unraid-plugin/tests/live-contract.sh unraid-plugin/README.md docs/testing/yarr-unraid-nashost.md
 git commit -m "test(rustarr-bhf): verify Yarr plugin on Unraid"
 git push
-bd comments add rustarr-bhf "Task 13 complete: tootie install, runtime, rollback, discovery, update/reset, and uninstall/reinstall retention all verified."
+bd comments add rustarr-bhf "Task 13 complete: nashost install, runtime, rollback, discovery, update/reset, and uninstall/reinstall retention all verified."
 ```
 
 ---
@@ -1259,7 +1259,7 @@ Expected: verifier passes and the worktree has no uncommitted changes.
 **Step 2: Close and sync Beads**
 
 ```bash
-bd close rustarr-bhf --reason "Full Yarr Unraid plugin implemented, reviewed, packaged, deployed, and verified on tootie."
+bd close rustarr-bhf --reason "Full Yarr Unraid plugin implemented, reviewed, packaged, deployed, and verified on nashost."
 bd dolt push
 ```
 
@@ -1275,4 +1275,4 @@ Expected: branch is current with `origin/main`, all commits are pushed, and the 
 
 **Step 4: Report final state**
 
-Report the pull request, package checksum, local gate totals, review findings resolved, live `tootie` evidence, preserved persistent paths, and any non-blocking release caveats.
+Report the pull request, package checksum, local gate totals, review findings resolved, live `nashost` evidence, preserved persistent paths, and any non-blocking release caveats.

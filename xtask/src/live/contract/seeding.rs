@@ -186,7 +186,7 @@ fn ensure_sonarr_qbittorrent_download_client(yarr: &process::YarrProcess, svc: &
         "implementationName": "qBittorrent",
         "configContract": "QBittorrentSettings",
         "fields": [
-            {"name": "host", "value": "100.118.209.1"},
+            {"name": "host", "value": "198.51.100.4"},
             {"name": "port", "value": 8080},
             {"name": "useSsl", "value": false},
             {"name": "urlBase", "value": ""},

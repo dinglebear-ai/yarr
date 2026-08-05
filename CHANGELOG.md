@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Allow Compose deployments to select the service env file with `YARR_ENV_FILE`.
-- Bind the production MCP port only to DOOKIE's Tailscale and LAN addresses instead of every host interface.
+- Bind the production MCP port only to DEVHOST's Tailscale and LAN addresses instead of every host interface.
 
 ## [2.2.2](https://github.com/dinglebear-ai/yarr/compare/v2.2.1...v2.2.2) (2026-07-29)
 
@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* add shart stack lifecycle commands ([#69](https://github.com/dinglebear-ai/yarr/issues/69)) ([e45e4e6](https://github.com/dinglebear-ai/yarr/commit/e45e4e6850ba704b9c55c89003c0b8690e419911))
+* add backuphost stack lifecycle commands ([#69](https://github.com/dinglebear-ai/yarr/issues/69)) ([e45e4e6](https://github.com/dinglebear-ai/yarr/commit/e45e4e6850ba704b9c55c89003c0b8690e419911))
 
 ## [2.0.1](https://github.com/dinglebear-ai/yarr/compare/v2.0.0...v2.0.1) (2026-07-16)
 

@@ -37,7 +37,7 @@ pub(super) fn run_reset_required_ops(
                         path: op.path,
                         outcome: "skipped",
                         detail:
-                            "requires stack reset/reseed but no shart ZFS golden target exists for this service"
+                            "requires stack reset/reseed but no backuphost ZFS golden target exists for this service"
                                 .into(),
                         args: None,
                     },

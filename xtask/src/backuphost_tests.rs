@@ -78,7 +78,7 @@ fn help_and_just_recipes_cover_the_public_command_surface() {
     for command in ["start", "stop", "status", "seed"] {
         assert!(help.contains(command));
         assert!(
-            justfile.contains(&format!("cargo xtask shart {command}")),
+            justfile.contains(&format!("cargo xtask backuphost {command}")),
             "missing Just recipe mapping for {command}"
         );
     }

@@ -1,4 +1,4 @@
-//! Operator lifecycle commands for the dedicated shart test stack.
+//! Operator lifecycle commands for the dedicated backuphost test stack.
 //!
 //! These commands intentionally manage only the typed deployment manifest below.
 //! They never start or stop the Unraid array.
@@ -14,7 +14,7 @@ use status::{fetch_status, render_status};
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-const DOCKER_PREFLIGHT: &str = "if ! docker info >/dev/null 2>&1; then echo 'shart Docker is unavailable; start the Unraid array before managing the test stack' >&2; exit 1; fi";
+const DOCKER_PREFLIGHT: &str = "if ! docker info >/dev/null 2>&1; then echo 'backuphost Docker is unavailable; start the Unraid array before managing the test stack' >&2; exit 1; fi";
 const STACK_DEADLINE: Duration = Duration::from_secs(120);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -109,7 +109,7 @@ impl Options {
             "stop" => Command::Stop,
             "status" => Command::Status,
             "seed" => Command::Seed,
-            unknown => bail!("unknown shart command: {unknown}"),
+            unknown => bail!("unknown backuphost command: {unknown}"),
         };
         let mut json = false;
         let mut dry_run = false;
@@ -117,9 +117,9 @@ impl Options {
             match arg.as_str() {
                 "--json" if command == Command::Status => json = true,
                 "--dry-run" if command == Command::Seed => dry_run = true,
-                "--json" => bail!("--json is only valid with shart status"),
-                "--dry-run" => bail!("--dry-run is only valid with shart seed"),
-                other => bail!("unknown option for shart {command:?}: {other}"),
+                "--json" => bail!("--json is only valid with backuphost status"),
+                "--dry-run" => bail!("--dry-run is only valid with backuphost seed"),
+                other => bail!("unknown option for backuphost {command:?}: {other}"),
             }
         }
         Ok(Self {
@@ -185,14 +185,14 @@ fn guarded_stack() -> Result<guard::GuardedEnv> {
         .collect::<BTreeSet<_>>();
     if configured != expected {
         bail!(
-            "shart lifecycle requires exact canonical service identities; configured={configured:?} expected={expected:?}"
+            "backuphost lifecycle requires exact canonical service identities; configured={configured:?} expected={expected:?}"
         );
     }
     for entry in STACK {
         let kind = guarded.kinds.get(entry.service).map(String::as_str);
         if kind != Some(entry.kind) {
             bail!(
-                "shart service {} must use kind {}; got {:?}",
+                "backuphost service {} must use kind {}; got {:?}",
                 entry.service,
                 entry.kind,
                 kind
@@ -268,7 +268,7 @@ fn seed_plan() -> SeedPlan {
 }
 
 fn print_seed_plan(plan: &SeedPlan) {
-    println!("shart seed plan:");
+    println!("backuphost seed plan:");
     println!("  host: {}", plan.host);
     println!("  environment: {}", plan.environment_file);
     println!("  containers: {}", plan.containers.join(", "));
@@ -304,12 +304,12 @@ fn print_help() {
 }
 
 fn help_text() -> &'static str {
-    "cargo xtask shart <start|stop|status|seed> [options]\n\
+    "cargo xtask backuphost <start|stop|status|seed> [options]\n\
   start              Start stopped manifest containers and wait for readiness\n\
   stop               Stop running manifest containers\n\
   status [--json]    Show container state/health; fail unless all are running\n\
   seed [--dry-run]   Restore goldens fail-closed, start the fleet, and wait\n\
-These commands do not start or stop the shart Unraid array.\n"
+These commands do not start or stop the backuphost Unraid array.\n"
 }
 
 #[cfg(test)]
