@@ -1,13 +1,22 @@
 name: MSRV
 
+# rust-toolchain.toml pins the build toolchain to the same 1.97.1 as the MSRV
+# below, so every CI job already compiles at MSRV — a per-PR MSRV leg carries
+# zero extra signal. Runs on main pushes, weekly, and on demand instead.
+# Revisit the triggers if the channel and MSRV ever diverge.
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_INCREMENTAL: "0"
