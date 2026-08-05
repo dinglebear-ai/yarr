@@ -66,7 +66,7 @@ pub(super) fn fetch_status(require_running: bool) -> Result<StatusReport> {
     });
     Ok(StatusReport {
         ok,
-        host: ssh::SHART_HOST,
+        host: ssh::BACKUPHOST_HOST,
         containers,
         error,
     })

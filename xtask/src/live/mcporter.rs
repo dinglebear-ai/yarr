@@ -91,7 +91,10 @@ pub(super) fn run(
 
         write_detail(svc, &results)?;
         let status = contract::contract_status(&results);
-        let detail = format!("{} via mcporter/yarr over MCP against backuphost", status.detail);
+        let detail = format!(
+            "{} via mcporter/yarr over MCP against backuphost",
+            status.detail
+        );
         if status.passed {
             report.pass(format!("mcporter contract {svc}"), detail);
         } else {

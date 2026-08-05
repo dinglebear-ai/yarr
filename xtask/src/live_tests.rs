@@ -2,12 +2,12 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use crate::live::guard::{SHART_HOME, validate_env};
+use crate::live::guard::{BACKUPHOST_HOME, validate_env};
 use crate::live::{coverage, report};
 
 fn good_env() -> BTreeMap<String, String> {
     let mut env = BTreeMap::new();
-    env.insert("YARR_HOME".into(), SHART_HOME.into());
+    env.insert("YARR_HOME".into(), BACKUPHOST_HOME.into());
     env.insert("YARR_SERVICES".into(), "sonarr,radarr,prowlarr,tautulli,overseerr,bazarr,tracearr,sabnzbd,qbittorrent,plex,jellyfin".into());
     for (name, kind, port) in [
         ("SONARR", "sonarr", "8989"),
@@ -32,7 +32,7 @@ fn good_env() -> BTreeMap<String, String> {
 }
 
 #[test]
-fn guard_accepts_complete_shart_env() {
+fn guard_accepts_complete_backuphost_env() {
     let env = good_env();
     let result = validate_env(env, false).expect("complete backuphost env should pass");
     assert_eq!(result.services.len(), 11);
@@ -48,9 +48,12 @@ fn guard_rejects_live_home() {
 }
 
 #[test]
-fn guard_rejects_tootie_url_override() {
+fn guard_rejects_disallowed_host_url_override() {
     let mut env = good_env();
-    env.insert("YARR_SONARR_URL".into(), "https://sonarr.example.internal".into());
+    env.insert(
+        "YARR_SONARR_URL".into(),
+        "https://sonarr.example.internal".into(),
+    );
     let err = validate_env(env, false).unwrap_err().to_string();
     assert!(err.contains("is not a backuphost URL"));
 }

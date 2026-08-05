@@ -24,11 +24,11 @@ use anyhow::{Context, Result, bail};
 use std::process::{Command, Stdio};
 use walkdir::WalkDir;
 
+mod backuphost;
 mod ci;
 mod gen_openapi;
 mod live;
 mod patterns;
-mod backuphost;
 mod skill_keys;
 mod tool_docs;
 

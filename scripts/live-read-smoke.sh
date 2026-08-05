@@ -3,14 +3,14 @@
 set -euo pipefail
 
 BIN="${YARR_BIN:-yarr}"
-SHART_YARR_HOME="${SHART_YARR_HOME:-/home/jmagar/.yarr-backuphost}"
+BACKUPHOST_YARR_HOME="${BACKUPHOST_YARR_HOME:-/home/jmagar/.yarr-backuphost}"
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 if [[ -z "${YARR_HOME:-}" ]]; then
-  export YARR_HOME="$SHART_YARR_HOME"
-elif [[ "$YARR_HOME" != "$SHART_YARR_HOME" ]]; then
+  export YARR_HOME="$BACKUPHOST_YARR_HOME"
+elif [[ "$YARR_HOME" != "$BACKUPHOST_YARR_HOME" ]]; then
   printf 'FATAL  live-read-smoke may only use YARR_HOME=%s (got %s)\n' \
-    "$SHART_YARR_HOME" "$YARR_HOME" >&2
+    "$BACKUPHOST_YARR_HOME" "$YARR_HOME" >&2
   exit 2
 fi
 
@@ -29,7 +29,7 @@ fail() {
   FAIL=$((FAIL + 1))
 }
 
-assert_shart_services() {
+assert_backuphost_services() {
   python3 - <<'PY'
 import os
 import sys
@@ -270,7 +270,7 @@ read_probe_paths() {
 # Enumerate configured services as `name<TAB>kind` from the backuphost env file +
 # process env. The removed `integrations` action used to return this; we now read
 # YARR_SERVICES and each YARR_<NAME>_KIND directly (kind defaults to name),
-# mirroring the parsing in `assert_shart_services`.
+# mirroring the parsing in `assert_backuphost_services`.
 services_from_env() {
   python3 - <<'PY'
 import os
@@ -306,7 +306,7 @@ for service in services:
 PY
 }
 
-assert_shart_services
+assert_backuphost_services
 
 run_json_check "help" "$BIN" help
 run_json_check "doctor" "$BIN" doctor --json

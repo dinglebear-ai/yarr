@@ -184,7 +184,7 @@ pub(super) fn invoke_chunk(base: &str, svc: &str, calls: &[PreparedCall]) -> Res
     let artifact_path = operation_artifact_candidate(&value)
         .and_then(Value::as_str)
         .with_context(|| format!("mcporter result did not include artifact path: {trimmed}"))?;
-    let full_path = std::path::Path::new(guard::SHART_HOME)
+    let full_path = std::path::Path::new(guard::BACKUPHOST_HOME)
         .join("codemode/artifacts")
         .join(run_id)
         .join(artifact_path);

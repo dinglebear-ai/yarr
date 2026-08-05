@@ -247,7 +247,7 @@ fn seed_plan() -> SeedPlan {
         .map(|target| target.service)
         .collect::<BTreeSet<_>>();
     SeedPlan {
-        host: ssh::SHART_HOST,
+        host: ssh::BACKUPHOST_HOST,
         environment_file: guard::DEFAULT_ENV_FILE,
         containers: container_names(),
         restored_datasets: reset::all_targets()
@@ -313,5 +313,5 @@ These commands do not start or stop the backuphost Unraid array.\n"
 }
 
 #[cfg(test)]
-#[path = "shart_tests.rs"]
+#[path = "backuphost_tests.rs"]
 mod tests;

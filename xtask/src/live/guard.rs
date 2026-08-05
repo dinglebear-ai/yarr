@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-pub const SHART_HOME: &str = "/home/jmagar/.yarr-backuphost";
+pub const BACKUPHOST_HOME: &str = "/home/jmagar/.yarr-backuphost";
 pub const DEFAULT_ENV_FILE: &str = "/home/jmagar/.yarr-backuphost/.env";
 
 const REQUIRED_KINDS: &[&str] = &[
@@ -36,7 +36,7 @@ pub fn load(env_file: Option<PathBuf>, allow_partial: bool) -> Result<GuardedEnv
     }
     values
         .entry("YARR_HOME".into())
-        .or_insert_with(|| SHART_HOME.into());
+        .or_insert_with(|| BACKUPHOST_HOME.into());
     validate_env(values, allow_partial)
 }
 
@@ -61,9 +61,9 @@ pub fn validate_env(values: BTreeMap<String, String>, allow_partial: bool) -> Re
     let home = values
         .get("YARR_HOME")
         .map(String::as_str)
-        .unwrap_or(SHART_HOME);
-    if home != SHART_HOME {
-        bail!("YARR_HOME must be {SHART_HOME}; got {home}");
+        .unwrap_or(BACKUPHOST_HOME);
+    if home != BACKUPHOST_HOME {
+        bail!("YARR_HOME must be {BACKUPHOST_HOME}; got {home}");
     }
 
     let services: Vec<String> = values
@@ -87,7 +87,7 @@ pub fn validate_env(values: BTreeMap<String, String>, allow_partial: bool) -> Re
         let url = values
             .get(&url_key)
             .with_context(|| format!("missing {url_key}"))?;
-        assert_shart_url(&url_key, url)?;
+        assert_backuphost_url(&url_key, url)?;
         let kind = values.get(&kind_key).map(String::as_str).unwrap_or(service);
         kinds.insert(service.clone(), kind.to_ascii_lowercase());
     }
@@ -112,7 +112,7 @@ pub fn required_kinds() -> BTreeSet<&'static str> {
     REQUIRED_KINDS.iter().copied().collect()
 }
 
-fn assert_shart_url(key: &str, value: &str) -> Result<()> {
+fn assert_backuphost_url(key: &str, value: &str) -> Result<()> {
     let parsed = url::Url::parse(value).with_context(|| format!("{key} is not a valid URL"))?;
     if !matches!(parsed.scheme(), "http" | "https")
         || !parsed.username().is_empty()
