@@ -122,6 +122,15 @@ rquickjs = "0.12"
 anyhow = "1"
 thiserror = "2"
 
+[profile.dev]
+# CI recompiles from scratch on every job (CARGO_INCREMENTAL=0 is required
+# under the kache rustc-wrapper), and full DWARF is a large share of that
+# time — which the build then discards anyway via -C strip=debuginfo.
+# "line-tables-only" keeps file/line in panics and backtraces, which is what
+# CI logs are read for. Override with CARGO_PROFILE_DEV_DEBUG=full for a
+# debugger session. Matches labby and cortex.
+debug = "line-tables-only"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
