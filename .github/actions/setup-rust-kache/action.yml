@@ -33,9 +33,11 @@ inputs:
       S3-compatible endpoint used when credentials are supplied. Intentionally
       has NO default: this repository is public, and a real endpoint hostname
       here would publish internal infrastructure. Every caller that supplies
-      credentials also passes ${{ vars.KACHE_S3_ENDPOINT }}, so the value lives
-      in org variables, not in source. An empty value means callers fall back
-      to local-only caching.
+      credentials also passes the org variable KACHE_S3_ENDPOINT, so the value
+      lives in org variables, not in source. (Written without expression syntax
+      on purpose: GitHub evaluates ${} in an action description, and the `vars`
+      context is not available there.) An empty value means callers fall back to
+      local-only caching.
     required: false
     default: ""
   s3-bucket:
