@@ -29,9 +29,15 @@ inputs:
     required: false
     default: ""
   s3-endpoint:
-    description: S3-compatible endpoint used when credentials are supplied.
+    description: >-
+      S3-compatible endpoint used when credentials are supplied. Intentionally
+      has NO default: this repository is public, and a real endpoint hostname
+      here would publish internal infrastructure. Every caller that supplies
+      credentials also passes ${{ vars.KACHE_S3_ENDPOINT }}, so the value lives
+      in org variables, not in source. An empty value means callers fall back
+      to local-only caching.
     required: false
-    default: "https://s3.tootie.tv"
+    default: ""
   s3-bucket:
     description: S3 bucket containing the shared cache.
     required: false
@@ -224,12 +230,12 @@ runs:
         [cache.remote]
         type = "s3"
         bucket = "kache"
-        endpoint = "http://10.1.0.2:9000"
+        endpoint = "http://192.0.2.2:9000"
         region = "us-east-1"
         prefix = "rust"
         profile = "kache"
         TOML
-          echo "kache remote: s3://kache/rust via Tootie MinIO"
+          echo "kache remote: s3://kache/rust via Nashost MinIO"
         else
           cat > "$config_file" <<TOML
         [cache]
