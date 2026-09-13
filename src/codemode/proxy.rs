@@ -36,6 +36,18 @@ globalThis.callTool = (id, params = {}) => {
     }
     return JSON.parse(__yarrEmitToolCall(id, JSON.stringify(params)));
 };
+globalThis.fleet = {
+    of: (name) => ({ type: "of", name: String(name) }),
+    all: (kind) => ({ type: "all", kind: kind == null ? null : String(kind) }),
+    map: (selector, action, params = {}) => {
+        if (params === null || typeof params !== "object" || Array.isArray(params)) {
+            throw new TypeError("fleet.map(selector, action, params): params must be a JSON object");
+        }
+        return JSON.parse(__yarrEmitToolCall("__yarrFleetMap", JSON.stringify({ selector, action, params })));
+    },
+    status: () => JSON.parse(__yarrEmitToolCall("__yarrFleetStatus", "{}")),
+};
+
 globalThis.writeArtifact = (path, content, options = {}) => {
     if (typeof path !== "string" || path.trim() === "") {
         throw new TypeError("writeArtifact(path, content): path must be a non-empty string");
@@ -109,6 +121,7 @@ const RESERVED_GLOBALS: &[&str] = &[
     "callTool",
     "codemode",
     "console",
+    "fleet",
     "globalThis",
     "input",
     "writeArtifact",

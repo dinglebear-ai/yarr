@@ -46,6 +46,16 @@ fn no_flat_tools_namespace() {
 }
 
 #[test]
+fn fleet_facade_uses_private_bridge_and_is_reserved() {
+    let pre = build_preamble(&services());
+    assert!(pre.contains("globalThis.fleet ="));
+    assert!(pre.contains("__yarrFleetMap"));
+    assert!(pre.contains("map: (selector, action, params = {})"));
+    let fleet_named_service = build_preamble(&[("fleet".to_string(), ServiceKind::Sonarr)]);
+    assert!(!fleet_named_service.contains(r#"globalThis["fleet"] = {"#));
+}
+
+#[test]
 fn reserved_global_name_is_not_clobbered() {
     // A service literally named `api` must not get a top-level binding that would
     // overwrite the raw-API client; the client itself is still present.

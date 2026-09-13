@@ -71,6 +71,9 @@ tokio = { version = "1", features = [
   "io-util",
 ] }
 
+# Async stream combinators for non-Send host-owned fleet dispatch.
+futures-util = "0.3"
+
 # HTTP / MCP transport
 axum = "0.8"
 rmcp = { workspace = true, features = [

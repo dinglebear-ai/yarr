@@ -454,6 +454,33 @@ impl YarrService {
         targets: &mut std::collections::BTreeSet<String>,
         deadline: std::time::Instant,
     ) -> Result<String, String> {
+        if id == "__yarrFleetMap" {
+            let plan = self
+                .plan_fleet(crate::fleet::parse_private_invocation(params_json)?)
+                .map_err(|error| error.to_string())?;
+            let mut mutates = false;
+            for leaf in &plan.leaves {
+                guard.authorize_planning_action(&leaf.action).await?;
+                if let Some(target) = guard.planned_destructive_target(&leaf.action) {
+                    targets.insert(target);
+                }
+                mutates |= self.codemode_action_mutates(&leaf.action);
+            }
+            if mutates {
+                return Ok("null".to_owned());
+            }
+            let results = self.dispatch_planned_fleet(plan, Some(guard)).await;
+            return serde_json::to_string(&results)
+                .map_err(|error| format!("could not serialize fleet plan result: {error}"));
+        }
+        if id == "__yarrFleetStatus" {
+            let results = self
+                .fleet_status_with_guard(Some(guard))
+                .await
+                .map_err(|error| error.to_string())?;
+            return serde_json::to_string(&results)
+                .map_err(|error| format!("could not serialize fleet status: {error}"));
+        }
         if id == "codemode" {
             return Err("codemode cannot invoke codemode".to_owned());
         }

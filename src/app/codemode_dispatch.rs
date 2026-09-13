@@ -16,6 +16,22 @@ impl YarrService {
         in_snippet: bool,
         guard: Option<std::sync::Arc<dyn CodeModeCallGuard>>,
     ) -> Result<String, String> {
+        if id == "__yarrFleetMap" {
+            let plan = self
+                .plan_fleet(crate::fleet::parse_private_invocation(params_json)?)
+                .map_err(|error| error.to_string())?;
+            let results = self.dispatch_planned_fleet(plan, guard).await;
+            return serde_json::to_string(&results)
+                .map_err(|error| format!("could not serialize fleet result: {error}"));
+        }
+        if id == "__yarrFleetStatus" {
+            let results = self
+                .fleet_status_with_guard(guard)
+                .await
+                .map_err(|error| error.to_string())?;
+            return serde_json::to_string(&results)
+                .map_err(|error| format!("could not serialize fleet status: {error}"));
+        }
         if id == "codemode" {
             return Err("codemode cannot invoke codemode".to_owned());
         }

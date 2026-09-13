@@ -10,6 +10,7 @@ use crate::{
 
 pub mod codemode;
 pub mod download;
+pub mod fleet;
 pub mod openapi_ops;
 pub mod stats;
 pub mod subtitles;
