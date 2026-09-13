@@ -41,6 +41,16 @@ pub use engine::{ArtifactWriter, EmbedCaller, EngineLimits, EngineOutcome, ToolC
 pub use proxy::build_preamble;
 pub use semantic::{SemanticCache, semantic_scores, tei_url};
 
+/// Render a configured service name as its stable JavaScript namespace.
+///
+/// Dispatch retains the original configured identity; this name exists only in
+/// the public Code Mode API and discovery catalog. Configuration validation
+/// rejects collisions, so `-` and `_` cannot produce ambiguous live service
+/// identities.
+pub fn javascript_namespace(service_name: &str) -> String {
+    service_name.replace('-', "_")
+}
+
 /// Wall-clock budget for a single Code Mode execution (matches lab's default).
 pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Maximum number of QuickJS runtimes admitted concurrently by one service.

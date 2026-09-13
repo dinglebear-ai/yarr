@@ -222,6 +222,7 @@ pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
 /// immediately like any other write (see `docs/API.md`). The OpenAPI `tag` is
 /// surfaced as the capability for grouping.
 fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> CatalogEntry {
+    let namespace = crate::codemode::javascript_namespace(service);
     let mut required: Vec<&'static str> = op.path_params.to_vec();
     if op.has_body {
         required.push("body");
@@ -233,7 +234,7 @@ fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> Catalog
         op.summary
     };
     CatalogEntry::Operation {
-        path: format!("{service}.{}", op.name),
+        path: format!("{namespace}.{}", op.name),
         service: service.to_string(),
         method: op.name,
         scope: if op.method.is_read() {
@@ -252,6 +253,7 @@ fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> Catalog
 
 /// A `<service>.<action>` callable entry.
 fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
+    let namespace = crate::codemode::javascript_namespace(service);
     let cmd: Option<&'static CommandDescriptor> = curated_command(action);
     let scope = match required_scope_for_action(action) {
         Some(WRITE_SCOPE) => CatalogScope::Write,
@@ -264,7 +266,7 @@ fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
         .collect();
     if let Some(cmd) = cmd {
         CatalogEntry::Curated {
-            path: format!("{service}.{action}"),
+            path: format!("{namespace}.{action}"),
             service: service.to_string(),
             method: action,
             scope,
@@ -275,7 +277,7 @@ fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
         }
     } else {
         CatalogEntry::Generic {
-            path: format!("{service}.{action}"),
+            path: format!("{namespace}.{action}"),
             service: Some(service.to_string()),
             method: action,
             scope,

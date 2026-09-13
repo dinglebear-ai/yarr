@@ -125,9 +125,10 @@ fn render_service_namespaces(services: &[(String, ServiceKind)]) -> String {
         if RESERVED_GLOBALS.contains(&name.as_str()) {
             continue;
         }
-        // `{name:?}` emits a quoted, escaped JS string literal. `service` is merged
+        let namespace = super::javascript_namespace(name);
+        // `{namespace:?}` emits a quoted, escaped JS string literal. `service` is merged
         // LAST so a script can never override the baked-in binding.
-        out.push_str(&format!("globalThis[{name:?}] = {{\n"));
+        out.push_str(&format!("globalThis[{namespace:?}] = {{\n"));
         if crate::openapi::is_generated(*kind) {
             // Spec-backed kind: every callable is a generated OpenAPI operation,
             // dispatched through the `op` action. `args` carries path/query params

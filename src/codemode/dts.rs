@@ -120,10 +120,11 @@ pub fn type_catalog_json_for(services: &[(String, crate::config::ServiceKind)]) 
     let mut out: Vec<TypeEntry> = Vec::new();
     let model_entries = type_entries();
     for (name, kind) in services {
+        let namespace = crate::codemode::javascript_namespace(name);
         if crate::openapi::is_generated(*kind) {
             for t in crate::openapi::types_for_kind(*kind) {
                 out.push(TypeEntry {
-                    name: format!("{name}.{}", t.name),
+                    name: format!("{namespace}.{}", t.name),
                     // The configured name is owned; the catalog only needs &'static
                     // for the model path, so store the kind's static str here.
                     service: kind.as_str(),
@@ -137,7 +138,7 @@ pub fn type_catalog_json_for(services: &[(String, crate::config::ServiceKind)]) 
             let kind_str = kind.as_str();
             for entry in model_entries.iter().filter(|e| e.service == kind_str) {
                 out.push(TypeEntry {
-                    name: format!("{name}.{}", entry.type_name),
+                    name: format!("{namespace}.{}", entry.type_name),
                     service: entry.service,
                     type_name: entry.type_name.clone(),
                     dts: entry.dts.clone(),

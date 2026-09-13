@@ -70,3 +70,19 @@ fn type_catalog_json_for_merges_generated_and_doc_based() {
     assert!(names.contains(&"sonarr.SeriesResource"));
     assert!(names.iter().any(|n| n.starts_with("tautulli.")));
 }
+
+#[test]
+fn type_catalog_uses_the_callable_namespace_for_hyphenated_service_names() {
+    use crate::config::ServiceKind;
+    let json = type_catalog_json_for(&[("home-media".to_string(), ServiceKind::Sonarr)]);
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let names: Vec<&str> = parsed
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|entry| entry["name"].as_str())
+        .collect();
+
+    assert!(names.contains(&"home_media.SeriesResource"));
+    assert!(!names.contains(&"home-media.SeriesResource"));
+}

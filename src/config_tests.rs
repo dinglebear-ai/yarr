@@ -11,6 +11,29 @@ fn mcp_with_host(host: &str) -> McpConfig {
 }
 
 #[test]
+fn yarr_config_rejects_colliding_codemode_namespaces() {
+    let config = YarrConfig {
+        services: vec![
+            ServiceConfig {
+                name: "home-media".to_string(),
+                kind: ServiceKind::Sonarr,
+                ..ServiceConfig::default()
+            },
+            ServiceConfig {
+                name: "home_media".to_string(),
+                kind: ServiceKind::Radarr,
+                ..ServiceConfig::default()
+            },
+        ],
+    };
+
+    let error = config.validate().unwrap_err();
+    assert!(error.to_string().contains("home-media"));
+    assert!(error.to_string().contains("home_media"));
+    assert!(error.to_string().contains("home_media"));
+}
+
+#[test]
 fn test_env_guard_restores_values_when_dropped() {
     const KEY: &str = "YARR_TEST_ENV_GUARD_RESTORE";
     let original = std::env::var_os(KEY);

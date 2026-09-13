@@ -125,6 +125,30 @@ async fn codemode_discovery_search_and_describe_run() {
 }
 
 #[tokio::test]
+async fn codemode_discovery_paths_execute_for_hyphenated_service_names() {
+    let service = multi_service(&[("home-media", crate::config::ServiceKind::Sonarr)]);
+    let code = r#"
+        async () => {
+            const hit = codemode.search("service status").results
+                .find((entry) => entry.path === "home_media.service_status");
+            const responseType = codemode.describe("home_media.SeriesResource");
+            if (!hit || !responseType) return { found: false };
+            try {
+                await home_media.service_status();
+            } catch (_) {
+                // The loopback endpoint is deliberately unreachable. Reaching it
+                // proves discovery returned a callable public API path.
+            }
+            return { found: true };
+        }
+    "#;
+
+    let out = service.codemode(code).await.unwrap();
+    assert_eq!(out["result"]["found"], true);
+    assert_eq!(out["calls"][0]["action"], "service_status");
+}
+
+#[tokio::test]
 async fn codemode_describe_surfaces_response_types_on_demand() {
     // The whole point: an agent discovers a response TYPE's TS interface ON DEMAND
     // via codemode.describe — only the type it asks for comes back (not a context
