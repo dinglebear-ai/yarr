@@ -325,6 +325,34 @@ async fn guarded_fleet_status_denies_every_runtime_leaf_before_transport() {
 }
 
 #[tokio::test]
+async fn fleet_status_returns_one_canonical_record_per_configured_service() {
+    let app = Router::new().fallback(any(|| async { axum::Json(json!({"version":"2026.9.11"})) }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let service = fleet_service(url, &["charlie", "alpha", "bravo"]);
+
+    let statuses = service.fleet_status().await.unwrap();
+    assert_eq!(statuses.len(), 3);
+    let serialized = serde_json::to_value(statuses).unwrap();
+    assert_eq!(
+        serialized
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|status| status["service"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["alpha", "bravo", "charlie"]
+    );
+    for status in serialized.as_array().unwrap() {
+        assert_eq!(status["kind"], "sonarr");
+        assert_eq!(status["reachable"], true);
+        assert_eq!(status["version"], "2026.9.11");
+        assert!(status["latency_ms"].is_number(), "{status}");
+    }
+}
+
+#[tokio::test]
 async fn destructive_fleet_preflight_aggregates_sorted_targets_once_before_runtime() {
     let requests = Arc::new(AtomicUsize::new(0));
     let observed = Arc::clone(&requests);

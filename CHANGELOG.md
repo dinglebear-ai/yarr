@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
 
+### Added
+
+- Add immutable built-in Code Mode fleet snippets for activity, health, library sizes, and transcode load; fleet health now reports per-service reachability, version, and latency.
+
 ### Changed
 
 

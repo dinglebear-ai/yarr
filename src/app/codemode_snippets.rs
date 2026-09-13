@@ -20,9 +20,19 @@ impl YarrService {
 
     pub async fn snippet_list(&self) -> Result<Value> {
         let result = (|| {
-            let dir = self.snippet_store_root()?;
-            let snippets =
-                codemode::store::list(&dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+            let mut snippets = match self.data_dir() {
+                Some(dir) => {
+                    codemode::store::list(dir).map_err(|error| anyhow::anyhow!("{error}"))?
+                }
+                None => Vec::new(),
+            };
+            snippets.extend(crate::fleet::snippets::builtins().iter().map(|snippet| {
+                codemode::store::SnippetMeta {
+                    name: snippet.name.to_owned(),
+                    description: Some(snippet.description.to_owned()),
+                    bytes: snippet.source.len() as u64,
+                }
+            }));
             Ok(json!({ "snippets": snippets }))
         })();
         record_snippet_operation("list", &result);
@@ -36,6 +46,9 @@ impl YarrService {
         description: Option<&str>,
     ) -> Result<Value> {
         let result = (|| {
+            if crate::fleet::snippets::get(name).is_some() {
+                anyhow::bail!("protected snippet `{name}` cannot be overwritten");
+            }
             if code.trim().is_empty() {
                 anyhow::bail!("snippet_save requires a non-empty `code`");
             }
@@ -69,6 +82,9 @@ impl YarrService {
     }
 
     pub(crate) fn snippet_source_for_preflight(&self, name: &str) -> Result<String> {
+        if let Some(snippet) = crate::fleet::snippets::get(name) {
+            return Ok(snippet.source.to_owned());
+        }
         let dir = self.snippet_store_root()?;
         codemode::store::load_source(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))
     }
@@ -88,6 +104,9 @@ impl YarrService {
 
     pub async fn snippet_delete(&self, name: &str) -> Result<Value> {
         let result = (|| {
+            if crate::fleet::snippets::get(name).is_some() {
+                anyhow::bail!("protected snippet `{name}` cannot be deleted");
+            }
             let dir = self.snippet_store_root()?;
             let existed =
                 codemode::store::delete(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))?;

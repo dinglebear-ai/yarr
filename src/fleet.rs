@@ -12,6 +12,7 @@ use crate::{ServiceKind, YarrAction};
 
 pub mod discovery;
 pub mod pairing;
+pub mod snippets;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FleetSelector {
@@ -155,6 +156,12 @@ pub struct FleetResult {
     pub kind: ServiceKind,
     pub ok: bool,
     pub elapsed_ms: u128,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u128>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reachable: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<Value>,
     pub truncated: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<FleetResultSummary>,
@@ -165,3 +172,7 @@ pub struct FleetResult {
 #[cfg(test)]
 #[path = "fleet_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "fleet/snippets_tests.rs"]
+mod snippets_tests;

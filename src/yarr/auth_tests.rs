@@ -75,6 +75,78 @@ fn accepts_qbittorrent_login_success_variants() {
     assert!(!qbittorrent_login_accepted(StatusCode::UNAUTHORIZED, "Ok."));
 }
 
+#[tokio::test]
+async fn qbittorrent_login_records_bounded_upstream_metrics() {
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+    use tower::ServiceExt as _;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+    let addr = listener.local_addr().unwrap();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept login");
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut request_line = String::new();
+        reader.read_line(&mut request_line).unwrap();
+        assert!(request_line.contains("/api/v2/auth/login"));
+        loop {
+            let mut line = String::new();
+            if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                break;
+            }
+        }
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nSet-Cookie: SID=secret-sid; path=/\r\nContent-Length: 3\r\n\r\nOk."
+        )
+        .unwrap();
+        stream.flush().unwrap();
+    });
+
+    let metrics = crate::router(crate::testing::loopback_state());
+    let service = ServiceConfig {
+        name: "qbit-metrics-regression".into(),
+        kind: ServiceKind::Qbittorrent,
+        base_url: format!("http://{addr}"),
+        username: Some("metrics-user".into()),
+        password: Some("metrics-password".into()),
+        ..ServiceConfig::default()
+    };
+    QbittorrentSession::new(std::time::Duration::from_secs(1))
+        .unwrap()
+        .ensure(&service)
+        .await
+        .unwrap();
+    handle.join().unwrap();
+
+    let response = metrics
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/metrics")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(
+        text.contains(
+            "yarr_upstream_requests_total{service=\"qbit-metrics-regression\",kind=\"qbittorrent\",outcome=\"success\"} 1"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("yarr_upstream_request_duration_seconds"),
+        "{text}"
+    );
+    assert!(!text.contains("metrics-password"), "{text}");
+    assert!(!text.contains("secret-sid"), "{text}");
+    assert!(!text.contains(&addr.to_string()), "{text}");
+}
+
 /// Concurrent cold-start qBittorrent requests must single-flight through exactly
 /// one `/api/v2/auth/login`, then reuse that SID within the TTL.
 #[tokio::test]

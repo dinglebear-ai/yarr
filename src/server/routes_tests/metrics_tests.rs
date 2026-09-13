@@ -97,3 +97,40 @@ async fn domain_metrics_are_not_double_prefixed() {
         "{text}"
     );
 }
+
+#[tokio::test]
+async fn upstream_request_metrics_use_only_service_and_kind_identity_labels() {
+    let (state, _calls, handle) =
+        super::super::counting_state(crate::config::ToolMode::Codemode).await;
+    let app = router(state.clone());
+    state.service.service_status("sonarr").await.unwrap();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/metrics")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    handle.abort();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(
+        text.contains(
+            "yarr_upstream_requests_total{service=\"sonarr\",kind=\"sonarr\",outcome=\"success\"}"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("yarr_upstream_request_duration_seconds"),
+        "{text}"
+    );
+    assert!(text.contains("kind=\"sonarr\""), "{text}");
+    assert!(text.contains("service=\"sonarr\""), "{text}");
+    assert!(!text.contains("upstream-secret"), "{text}");
+    assert!(!text.contains("127.0.0.1:"), "{text}");
+}

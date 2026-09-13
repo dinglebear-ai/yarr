@@ -46,3 +46,71 @@ fn binary_schema_preserves_text_plain_response_as_base64() {
     assert_eq!(value["mediaType"], "text/plain");
     assert_eq!(value["base64"], "/wA=");
 }
+
+#[tokio::test]
+async fn body_read_error_records_bounded_upstream_metrics() {
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+    use tower::ServiceExt as _;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+    let addr = listener.local_addr().unwrap();
+    let handle = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept request");
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        loop {
+            let mut line = String::new();
+            if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                break;
+            }
+        }
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Length: 10\r\nConnection: close\r\n\r\nx"
+        )
+        .unwrap();
+        stream.flush().unwrap();
+    });
+
+    let metrics = crate::router(crate::testing::loopback_state());
+    let service = ServiceConfig {
+        name: "body-read-regression".into(),
+        kind: ServiceKind::Sonarr,
+        base_url: format!("http://{addr}"),
+        api_key: Some("body-read-secret".into()),
+        ..ServiceConfig::default()
+    };
+    let client = crate::yarr::YarrClient::new(&crate::config::YarrConfig {
+        services: vec![service.clone()],
+    })
+    .unwrap();
+    let error = client
+        .get_json(&service, "/api/v3/system/status")
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("response body read failed"), "{error}");
+    handle.join().unwrap();
+
+    let response = metrics
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/metrics")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(
+        text.contains(
+            "yarr_upstream_requests_total{service=\"body-read-regression\",kind=\"sonarr\",outcome=\"body_read_error\"} 1"
+        ),
+        "{text}"
+    );
+    assert!(!text.contains("body-read-secret"), "{text}");
+    assert!(!text.contains(&addr.to_string()), "{text}");
+}

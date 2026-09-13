@@ -85,6 +85,9 @@ pub fn save(
     description: Option<&str>,
 ) -> Result<SnippetMeta, String> {
     validate_snippet_name(name)?;
+    if crate::fleet::snippets::get(name).is_some() {
+        return Err(format!("protected snippet `{name}` cannot be overwritten"));
+    }
     let dir = snippets_dir(data_dir);
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create snippets dir: {e}"))?;
     let meta = SnippetMeta {
@@ -190,6 +193,9 @@ pub fn load_source(data_dir: &Path, name: &str) -> Result<String, String> {
 /// Delete a snippet's source + metadata. Returns true if the source existed.
 pub fn delete(data_dir: &Path, name: &str) -> Result<bool, String> {
     validate_snippet_name(name)?;
+    if crate::fleet::snippets::get(name).is_some() {
+        return Err(format!("protected snippet `{name}` cannot be deleted"));
+    }
     let record = meta_path(data_dir, name);
     let src = source_path(data_dir, name);
     let existed = record.exists() || src.exists();

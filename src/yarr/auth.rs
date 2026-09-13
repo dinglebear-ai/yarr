@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use reqwest::{Client, StatusCode};
 use tokio::sync::Mutex;
 
-use super::helpers::build_url;
+use super::{helpers::build_url, response::record_outcome};
 use crate::capability::AuthStyle;
 use crate::config::ServiceConfig;
 
@@ -72,26 +72,41 @@ impl QbittorrentSession {
         }
 
         let url = build_url(service, "/api/v2/auth/login")?;
-        let response = self
+        let started = Instant::now();
+        let response = match self
             .client
             .post(url)
             .form(&[("username", username), ("password", password)])
             .send()
             .await
-            .with_context(|| format!("{} login failed", service.name))?;
+        {
+            Ok(response) => response,
+            Err(error) => {
+                record_outcome(service, "transport_error", started.elapsed());
+                return Err(error).with_context(|| format!("{} login failed", service.name));
+            }
+        };
         let status = response.status();
-        let text = read_login_body_bounded(response)
-            .await
-            .with_context(|| format!("{} login response body read failed", service.name))?;
+        let text = match read_login_body_bounded(response).await {
+            Ok(text) => text,
+            Err(error) => {
+                record_outcome(service, "body_read_error", started.elapsed());
+                return Err(error)
+                    .with_context(|| format!("{} login response body read failed", service.name));
+            }
+        };
         if !status.is_success() {
+            record_outcome(service, "http_error", started.elapsed());
             anyhow::bail!("{} login returned HTTP {}", service.name, status.as_u16());
         }
         if !qbittorrent_login_accepted(status, &text) {
+            record_outcome(service, "login_rejected", started.elapsed());
             return Err(super::UpstreamError::QbittorrentLoginRejected {
                 service: service.name.clone(),
             }
             .into());
         }
+        record_outcome(service, "success", started.elapsed());
         *last_login = Some(Instant::now());
         Ok(())
     }

@@ -142,14 +142,19 @@ fn fleet_result(
     elapsed: Duration,
     outcome: std::result::Result<Result<Value>, tokio::time::error::Elapsed>,
 ) -> FleetResult {
+    let is_status = matches!(leaf.action, crate::YarrAction::ServiceStatus { .. });
     match outcome {
         Ok(Ok(value)) => {
+            let version = is_status.then(|| status_version(&value)).flatten();
             let (value, summary) = truncate_fleet_value(value);
             FleetResult {
                 service: leaf.service,
                 kind: leaf.kind,
                 ok: true,
                 elapsed_ms: elapsed.as_millis(),
+                latency_ms: is_status.then_some(elapsed.as_millis()),
+                reachable: is_status.then_some(true),
+                version,
                 truncated: summary.is_some(),
                 summary,
                 value,
@@ -161,6 +166,9 @@ fn fleet_result(
             kind: leaf.kind,
             ok: false,
             elapsed_ms: elapsed.as_millis(),
+            latency_ms: is_status.then_some(elapsed.as_millis()),
+            reachable: is_status.then_some(false),
+            version: None,
             truncated: false,
             summary: None,
             value: Value::Null,
@@ -171,12 +179,25 @@ fn fleet_result(
             kind: leaf.kind,
             ok: false,
             elapsed_ms: elapsed.as_millis(),
+            latency_ms: is_status.then_some(elapsed.as_millis()),
+            reachable: is_status.then_some(false),
+            version: None,
             truncated: false,
             summary: None,
             value: Value::Null,
             error: Some("fleet instance timed out".to_owned()),
         },
     }
+}
+
+fn status_version(value: &Value) -> Option<Value> {
+    value.get("version").cloned().or_else(|| {
+        value
+            .get("response")
+            .and_then(|response| response.get("data"))
+            .and_then(|data| data.get("version"))
+            .cloned()
+    })
 }
 
 fn truncate_fleet_value(value: Value) -> (Value, Option<FleetResultSummary>) {

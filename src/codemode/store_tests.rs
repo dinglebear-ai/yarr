@@ -60,6 +60,15 @@ fn list_empty_when_dir_absent() {
 }
 
 #[test]
+fn store_cannot_bypass_protected_fleet_snippet_names() {
+    let tmp = tempfile::tempdir().unwrap();
+    let save_error = save(tmp.path(), "fleet_health", "async () => null", None).unwrap_err();
+    assert!(save_error.contains("protected snippet"), "{save_error}");
+    let delete_error = delete(tmp.path(), "fleet_health").unwrap_err();
+    assert!(delete_error.contains("protected snippet"), "{delete_error}");
+}
+
+#[test]
 fn load_missing_errors() {
     let tmp = tempfile::tempdir().unwrap();
     assert!(load_source(tmp.path(), "ghost").is_err());
