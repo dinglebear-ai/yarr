@@ -28,7 +28,7 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | Variable | Purpose |
 |---|---|
 | `YARR_SERVICES` | Comma-separated configured service names, for example `sonarr,radarr,plex`. |
-| `YARR_FLEET_FILE` | Optional `.yaml`, `.yml`, or `.toml` public fleet definition. Its credential fields are environment-variable reference names, not credential values. Environment services replace same-named file entries case-insensitively. |
+| `YARR_FLEET_FILE` | Optional `.yaml`, `.yml`, or `.toml` public fleet definition. Its credential fields (`api_key_env`, `token_env`, `username_env`, `password_env`) are environment-overlay reference names, not credential values. Environment services replace same-named file entries case-insensitively. |
 | `YARR_<SERVICE>_KIND` | Optional service kind override. Defaults to the service name. |
 | `YARR_<SERVICE>_URL` | Upstream service base URL. Required for each configured service. |
 | `YARR_<SERVICE>_API_KEY` | API key for services that use `X-Api-Key`, query API keys, or token-compatible auth. |
@@ -56,6 +56,8 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum active Code Mode runtimes. |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Admission wait in milliseconds before returning busy. |
 | `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `120` | Per-run Code Mode execution deadline. |
+| `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Maximum distinct services in one destructive MCP Code Mode authorization. |
+| `YARR_FLEET_READONLY` | `false` | Reject every MCP mutation before upstream dispatch; accepts `true`/`false`, `yes`/`no`, or `1`/`0`. |
 
 ## OAuth mode
 
@@ -77,6 +79,13 @@ Only required when `YARR_MCP_AUTH_MODE=oauth`:
 | `YARR_MCP_HOST_PORT` | Host port mapped to container port 40070 (default `40070`). |
 
 ## Code Mode
+
+Code Mode admits at most four runtimes and waits at most 500 ms for a slot by
+default. Its 120-second deadline covers JavaScript, native dispatch, and
+Code Mode-originated upstream work. A fleet request inside a script is still
+host-owned: it dispatches at most four instances concurrently and caps each
+instance at 30 seconds. These controls do not make the in-process QuickJS
+runtime a process-isolated sandbox.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -124,6 +133,12 @@ placeholder template is `.env.example`; copy it to `.env` and keep the copy
 untracked. The pre-commit environment guard must remain aligned with that rule.
 
 Non-secret settings (host, port, auth mode, TTLs) go in `config.toml`, not `.env`. See `docs/CONFIG.md` for the full split.
+
+For a fleet file, keep public names, kinds, URLs, and credential *reference
+names* in YAML/YML/TOML. Put the referenced secret values only in the installed
+environment overlay or secret env file; inline `api_key`, `token`, `username`,
+and `password` fleet-file fields are rejected. Plex discovery writes its separate
+secret env file atomically at mode `0600`; never commit it.
 
 Generate a bearer token:
 

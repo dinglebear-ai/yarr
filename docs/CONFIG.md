@@ -28,7 +28,7 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 | `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Maximum distinct services covered by one destructive MCP authorization; must be at least 1 |
 | `YARR_FLEET_READONLY` | `false` | Reject every MCP mutation before upstream dispatch; accepts `true`/`false`, `yes`/`no`, or `1`/`0` |
 
-For a Code Mode script that reaches a destructive action, yarr constructs one conservative authorization set from every configured service before it elicits. If that configured fleet exceeds `YARR_MCP_DESTRUCTIVE_FANOUT_MAX`, no prompt or destructive dispatch occurs. A successful confirmation is retained only for that script run.
+For a Code Mode script that reaches destructive actions, yarr derives a conservative authorization set from the destructive service targets reached by its execution plan before it elicits. If that target set exceeds `YARR_MCP_DESTRUCTIVE_FANOUT_MAX`, no prompt or destructive dispatch occurs. A successful confirmation authorizes only those targets for that script run.
 
 ## Unauthenticated endpoints
 
@@ -41,6 +41,51 @@ native action dispatch, and Code Mode-originated HTTP work. QuickJS enforces the
 configured heap and stack limits for its runtime, but yarr runs QuickJS in-process:
 those limits are not process-level memory isolation. Use a process-isolated
 execution path when that stronger guarantee is required.
+
+The default runtime limits are four admitted QuickJS runtimes, a 500 ms admission
+queue wait, a 64 MiB QuickJS heap, and a 512 KiB native stack. The 120-second
+deadline covers all work for one script; it is not a separate timeout per tool
+call. Fleet requests made by an admitted script remain host-owned: at most four
+instances dispatch concurrently, each instance has a 30-second timeout, and the
+host preserves sorted target order while isolating failures. These are runtime
+limits, not a process-wide memory or network sandbox.
+
+## Fleet Code Mode boundary and result contract
+
+The public MCP action registry contains no `fleet.*` action. Only a Code Mode
+script gets the private facade `fleet.of(name)`, `fleet.all(kind?)`,
+`fleet.map(selector, action, params?)`, and `fleet.status()`. `fleet.of` uses an
+exact configured identity; `fleet.all` selects configured identities, optionally
+by kind. `fleet.map` accepts only service-targeted actions and plans all selected
+leaves before authorization or dispatch. Service-less actions (`help`, Code Mode,
+and snippet lifecycle) are rejected as fleet leaves.
+
+Results are one stable envelope per selected instance:
+
+```json
+{
+  "service": "library",
+  "kind": "plex",
+  "ok": true,
+  "elapsed_ms": 12,
+  "truncated": false,
+  "value": {}
+}
+```
+
+Failed or timed-out leaves retain the envelope with `ok: false`, `value: null`,
+and `error`; status leaves additionally report `latency_ms`, `reachable`, and an
+upstream `version` when available. Values above 8 KiB are not silently treated as
+complete: their envelope has `truncated: true`, `value: null`, and `summary`
+(`type`, `item_count`, `observed_bytes`). A later MCP response token cap likewise
+does not establish fleet completeness.
+
+For MCP Code Mode, each inner leaf is independently scope-authorized. With
+`YARR_FLEET_READONLY=true`, mutations are denied before upstream dispatch. A
+destructive script receives one elicitation only after the complete sorted target
+set is planned, and it fails closed if elicitation is unavailable, refused, or
+the set exceeds `YARR_MCP_DESTRUCTIVE_FANOUT_MAX`. Direct CLI execution retains
+the local trusted-operator boundary and has no MCP elicitation channel.
 
 ### Local filesystem effects
 
@@ -130,6 +175,25 @@ configured Tautulli and Plex identifiers, reports exact/ambiguous/unpaired match
 and performs no persistence or plex.tv request. Run live discovery only with explicit
 supervision and read-only credentials; fixture coverage does not substitute for live
 acceptance.
+
+Do not run discovery or pairing through MCP, Code Mode, server routes, or a
+background job. Pairing ambiguity is intentionally reported rather than resolved:
+only an exact unambiguous Tautulli `pms_identifier` to Plex `clientIdentifier`
+match is usable. A live acceptance run is separate from offline fixtures and must
+be explicitly authorized with read-only credentials.
+
+## Built-in snippets and safe observability labels
+
+`fleet_activity`, `fleet_health`, `fleet_library_sizes`, and
+`fleet_transcode_load` are immutable built-in read-only snippets. They are listed
+and runnable even when no yarr data directory is configured; built-ins do not
+create a snippet store or persist anything. User snippets require a data directory,
+and built-in names cannot be overwritten or deleted.
+
+`fleet_health` returns reachability, version when available, and latency through
+the fleet status envelope. Upstream metrics use only bounded `service` and `kind`
+identity labels plus outcome; they do not include URLs, credentials, request paths,
+or response bodies.
 
 ## Auth Policy
 

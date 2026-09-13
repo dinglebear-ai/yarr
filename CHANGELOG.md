@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add immutable built-in Code Mode fleet snippets for activity, health, library sizes, and transcode load; fleet health now reports per-service reachability, version, and latency.
+- Document public fleet-file credential references, private Code Mode fleet dispatch and result envelopes, bounded runtime behavior, supervised CLI-only Plex discovery/pairing, and safe fleet observability labels.
 
 ### Changed
 

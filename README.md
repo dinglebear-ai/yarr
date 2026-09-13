@@ -334,6 +334,45 @@ There is no `confirm` argument. CLI destructive commands dispatch immediately.
 MCP direct and nested Code Mode destructive calls require elicitation and fail
 closed if the peer cannot elicit or approval is not granted.
 
+### Fleet facade inside Code Mode
+
+Fleet selection is available only inside a Code Mode script through the private
+`fleet` facade. It is not a public MCP action or a CLI command; the facade uses
+private host bridge identifiers rather than registry action names:
+
+```js
+async () => ({
+  one: await fleet.map(fleet.of("library"), "service_status"),
+  arrs: await fleet.map(fleet.all("sonarr"), "service_status"),
+  health: await fleet.status()
+})
+```
+
+- `fleet.of(name)` requires an exact configured service identity.
+- `fleet.all(kind?)` selects all configured instances, optionally of one service
+  kind. Targets are sorted by identity before dispatch.
+- `fleet.map(selector, action, params?)` accepts only service-targeted actions;
+  it plans every target before authorization or upstream work. It cannot invoke
+  service-less actions such as `help`, `codemode`, or snippet lifecycle actions.
+- `fleet.status()` runs `service_status` for every configured instance.
+
+The host, not JavaScript, owns dispatch. It runs at most four fleet instances at
+once, gives each instance a 30-second timeout, preserves the planned sort order,
+and isolates per-instance failure. Each result has `service`, `kind`, `ok`,
+`elapsed_ms`, `truncated`, `value`, and `error`; status results also include
+`latency_ms`, `reachable`, and (when supplied upstream) `version`. An oversized
+instance value is represented as `truncated: true`, `value: null`, and a
+`summary` containing its JSON type, item count, and observed byte count. This is
+an explicit incomplete instance result, not evidence that the overall fleet was
+complete.
+
+Code Mode requires `yarr:write` even for a read-only script because script text
+is opaque at admission. Every inner fleet leaf is independently scope-checked.
+`YARR_FLEET_READONLY=true` rejects mutations before upstream dispatch. A
+destructive MCP script is planned first, then requires one fail-closed
+elicitation for its complete sorted target set; the set may cover no more than
+`YARR_MCP_DESTRUCTIVE_FANOUT_MAX` services (default 3).
+
 ## CLI Reference
 
 The CLI is service-grouped:
@@ -402,8 +441,12 @@ login. Plex and Jellyfin token headers are handled separately.
 tools.
 
 Code Mode has one 120-second absolute deadline shared by JavaScript execution,
-native action dispatch, and Code Mode-originated HTTP work. QuickJS applies the
-configured heap and stack limits inside its runtime, but because yarr embeds it
+native action dispatch, and Code Mode-originated HTTP work. A process admits at
+most four QuickJS runtimes and waits at most 500 ms for an admission slot before
+returning busy. Fleet work inside an admitted script remains host-dispatched at
+four concurrent instances with a 30-second timeout per instance; those limits do
+not extend the script's absolute deadline. QuickJS applies a 64 MiB heap cap and
+a 512 KiB native stack cap inside its runtime, but because yarr embeds it
 in-process those limits are not process-level memory isolation. Use a
 process-isolated execution path when that stronger guarantee is required.
 
