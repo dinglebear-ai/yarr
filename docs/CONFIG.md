@@ -24,11 +24,29 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 | `YARR_MCP_TOOL_MODE` | `codemode` | `codemode` (one `yarr` tool; the fleet is reached inside a Code Mode script) or `flat` (one action-dispatched tool per configured service, no Code Mode layer; useful behind gateways that already provide dynamic discovery/Code Mode) |
 | `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum concurrently executing Code Mode runtimes; must be at least 1 |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Maximum admission-queue wait before failing busy; must be non-zero |
-| `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `30` | Execution deadline for one Code Mode run; must be non-zero |
+| `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `120` | Execution deadline for one Code Mode run; must be non-zero |
 
 ## Unauthenticated endpoints
 
 `/health`, `/ready`, `/status`, and `/metrics` are served **without auth** by design (container probes and scraping). `/status` redacts secrets; `/metrics` exposes bounded HTTP/domain telemetry without upstream credentials. If the MCP port is reachable beyond loopback, front these with your reverse proxy / gateway (e.g. SWAG + Authelia) — do not rely on them being private.
+
+## Code Mode limits
+
+Code Mode has one 120-second absolute deadline shared by JavaScript execution,
+native action dispatch, and Code Mode-originated HTTP work. QuickJS enforces the
+configured heap and stack limits for its runtime, but yarr runs QuickJS in-process:
+those limits are not process-level memory isolation. Use a process-isolated
+execution path when that stronger guarantee is required.
+
+### Local filesystem effects
+
+Curated service commands declare a local-filesystem effect in the action
+registry. The current curated commands all declare `None`: they do not create,
+download, cache, or update files in yarr's local data directory. A Task-1 source
+audit found no `pages.pull`, `pages_pull`, `page_pull`, or `pull_page` action in
+`src/`, and the only Code Mode artifact writer is `writeArtifact`, which remains
+behind the write-scoped Code Mode entry point. A future curated local writer must
+declare its effect and use write authority before it can dispatch.
 
 ## Service Catalog
 

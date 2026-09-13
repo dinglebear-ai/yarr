@@ -236,7 +236,10 @@ fn stalled_calltool_is_bounded_by_deadline() {
         None,
     )
     .unwrap_err();
-    assert!(err.contains("timed out"), "got: {err}");
+    assert!(
+        err.contains("codemode absolute deadline exceeded"),
+        "got: {err}"
+    );
 }
 
 #[test]

@@ -109,11 +109,13 @@ impl YarrService {
         let (req_tx, mut req_rx) = mpsc::channel::<ToolRequest>(8);
         let (art_tx, mut art_rx) = mpsc::channel::<ArtifactRequest>(8);
         let (embed_tx, mut embed_rx) = mpsc::channel::<EmbedRequest>(8);
-        let tokio_deadline = tokio::time::Instant::now() + self.codemode_execution_timeout;
+        let deadline = crate::yarr::RequestDeadline {
+            instant: tokio::time::Instant::now() + self.codemode_execution_timeout,
+        };
         let limits = EngineLimits {
             memory_bytes: CODEMODE_MEMORY_LIMIT,
             stack_bytes: CODEMODE_STACK_LIMIT,
-            deadline: Instant::now() + self.codemode_execution_timeout,
+            deadline: deadline.instant.into_std(),
         };
 
         // Per-run artifacts dir, computed host-side (the engine never reads a clock).
@@ -140,6 +142,7 @@ impl YarrService {
                     .blocking_send(ToolRequest {
                         id: id.to_owned(),
                         params_json: params_json.to_owned(),
+                        deadline,
                         reply: reply_tx,
                     })
                     .map_err(|_| "codemode dispatcher unavailable".to_string())?;
@@ -205,13 +208,16 @@ impl YarrService {
                 maybe = req_rx.recv(), if !req_done => match maybe {
                     Some(req) => {
                         let started = Instant::now();
-                        let outcome = tokio::time::timeout_at(
-                            tokio_deadline,
-                            self.codemode_dispatch(
+                        let outcome = crate::yarr::helpers::with_request_deadline(
+                            req.deadline,
+                            tokio::time::timeout_at(
+                                req.deadline.instant,
+                                self.codemode_dispatch(
                                 &req.id,
                                 &req.params_json,
                                 in_snippet,
                                 guard.clone(),
+                                ),
                             ),
                         )
                         .await
@@ -248,7 +254,7 @@ impl YarrService {
                             let content = art.content.clone();
                             let options = art.options_json.clone();
                             match tokio::time::timeout_at(
-                                tokio_deadline,
+                                deadline.instant,
                                 tokio::task::spawn_blocking(move || {
                                     write_codemode_artifact(
                                         run.as_ref(), &path, &content, &options,
@@ -295,7 +301,7 @@ impl YarrService {
                 maybe = embed_rx.recv(), if !embed_done => match maybe {
                     Some(req) => {
                         let scores = tokio::time::timeout_at(
-                            tokio_deadline,
+                            deadline.instant,
                             self.codemode_semantic_search(&req.query),
                         )
                         .await

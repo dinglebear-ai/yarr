@@ -139,7 +139,7 @@ release gates.
 
 ## Quickstart
 
-The first-screen 30-second path is:
+The minimal quickstart path is:
 
 ```bash
 export YARR_SERVICES=sonarr
@@ -394,6 +394,12 @@ login. Plex and Jellyfin token headers are handled separately.
 `YARR_MCP_TOOL_MODE=codemode` is the default. Use
 `YARR_MCP_TOOL_MODE=flat` only when a gateway should see separate per-service
 tools.
+
+Code Mode has one 120-second absolute deadline shared by JavaScript execution,
+native action dispatch, and Code Mode-originated HTTP work. QuickJS applies the
+configured heap and stack limits inside its runtime, but because yarr embeds it
+in-process those limits are not process-level memory isolation. Use a
+process-isolated execution path when that stronger guarantee is required.
 
 ## Authentication
 

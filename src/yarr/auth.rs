@@ -52,6 +52,13 @@ impl QbittorrentSession {
     /// intentionally held through login so concurrent cold/expired callers
     /// collapse into one network request.
     pub async fn ensure(&self, service: &ServiceConfig) -> Result<()> {
+        if let Some(deadline) = super::helpers::active_request_deadline() {
+            return deadline.until(self.ensure_unbounded(service)).await;
+        }
+        self.ensure_unbounded(service).await
+    }
+
+    async fn ensure_unbounded(&self, service: &ServiceConfig) -> Result<()> {
         let Some(username) = service.username.as_deref() else {
             return Ok(());
         };

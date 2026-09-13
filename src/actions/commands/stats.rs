@@ -25,7 +25,7 @@ use serde_json::Value;
 use crate::actions::model::{READ_SCOPE, WRITE_SCOPE};
 use crate::actions::parse::{optional_i64, optional_string, string_arg};
 use crate::actions::registry::{
-    CommandDescriptor, CommandFuture,
+    CommandDescriptor, CommandFuture, LocalEffect,
     ParamType::{Integer, String as StringParam},
 };
 use crate::app::YarrService;
@@ -43,6 +43,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_activity,
     },
@@ -56,6 +57,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &["start", "length", "user"],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[
             ("start", Integer),
             ("length", Integer),
@@ -72,6 +74,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_users,
     },
@@ -84,6 +87,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_libraries,
     },
@@ -97,6 +101,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_refresh_libraries,
     },
@@ -110,6 +115,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_refresh_users,
     },
@@ -123,6 +129,7 @@ pub const STATS_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: true,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_delete_image_cache,
     },

@@ -192,9 +192,32 @@ pub fn required_scope_for_action(action: &str) -> Option<&'static str> {
         return spec.required_scope;
     }
     if let Some(cmd) = curated_command(action) {
-        return Some(cmd.required_scope);
+        return Some(required_scope_for_descriptor(cmd));
     }
     Some(DENY_SCOPE)
+}
+
+pub fn required_scope_for_descriptor(cmd: &CommandDescriptor) -> &'static str {
+    if cmd.local_effect.requires_write() {
+        WRITE_SCOPE
+    } else {
+        cmd.required_scope
+    }
+}
+
+/// Reject a curated descriptor whose authorization metadata understates a
+/// yarr-local file mutation. The derived scope above protects MCP/Code Mode
+/// before dispatch; this check also keeps trusted CLI dispatch from accepting a
+/// malformed future descriptor.
+pub fn validate_curated_command_metadata(cmd: &CommandDescriptor) -> anyhow::Result<()> {
+    if cmd.local_effect.requires_write() && (cmd.required_scope != WRITE_SCOPE || !cmd.mutates) {
+        anyhow::bail!(
+            "curated command `{}` has local effect {:?} but must declare mutates=true and required_scope={WRITE_SCOPE}",
+            cmd.name,
+            cmd.local_effect
+        );
+    }
+    Ok(())
 }
 
 pub fn action_spec(action: &str) -> Option<&'static ActionSpec> {
@@ -247,6 +270,26 @@ pub type CommandFuture<'a> =
 /// boxed future. Boxing cost is negligible for network-bound calls.
 pub type CommandHandler = for<'a> fn(&'a YarrService, &'a Value) -> CommandFuture<'a>;
 
+/// Local filesystem effect of a curated command, separately from upstream
+/// mutation authority. Every command must state this explicitly so a future
+/// downloader/cache/artifact writer cannot be advertised as read-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocalEffect {
+    /// The command does not create, download, cache, delete, or update files in
+    /// yarr's local filesystem.
+    None,
+    /// The command creates or updates a file beneath yarr-controlled local
+    /// storage. This is an authorization-relevant write, even when its upstream
+    /// request is read-only.
+    WritesFile,
+}
+
+impl LocalEffect {
+    pub const fn requires_write(self) -> bool {
+        !matches!(self, Self::None)
+    }
+}
+
 /// Static description of a curated, capability-scoped command. This is the SSOT
 /// from which schema fragments, USAGE/HELP text, scope, and validation are all
 /// derived (LD2).
@@ -273,6 +316,9 @@ pub struct CommandDescriptor {
     /// [`action_is_destructive`].
     pub destructive: bool,
     pub mutates: bool,
+    /// Audited yarr-local filesystem effect. This must agree with the command's
+    /// scope and mutation authority before a non-`None` effect is introduced.
+    pub local_effect: LocalEffect,
     /// The advertised JSON type of every param this command accepts
     /// (both required and optional), as `(param_name, ParamType)`.
     ///
@@ -333,7 +379,139 @@ pub fn curated_commands() -> &'static [CommandDescriptor] {
 
 /// Lookup a curated command by name.
 pub fn curated_command(name: &str) -> Option<&'static CommandDescriptor> {
+    #[cfg(test)]
+    if let Some(command) = test_curated_command(name) {
+        return Some(command);
+    }
     curated_commands().iter().find(|cmd| cmd.name == name)
+}
+
+#[cfg(test)]
+static TEST_CURATED_COMMAND: std::sync::OnceLock<
+    std::sync::Mutex<Option<&'static CommandDescriptor>>,
+> = std::sync::OnceLock::new();
+
+#[cfg(test)]
+struct TestCuratedCommandInstallationState {
+    active: bool,
+    waiters: usize,
+}
+
+#[cfg(test)]
+static TEST_CURATED_COMMAND_INSTALLATION: std::sync::OnceLock<(
+    std::sync::Mutex<TestCuratedCommandInstallationState>,
+    std::sync::Condvar,
+)> = std::sync::OnceLock::new();
+
+#[cfg(test)]
+struct TestCuratedCommandInstallationGuard;
+
+#[cfg(test)]
+impl Drop for TestCuratedCommandInstallationGuard {
+    fn drop(&mut self) {
+        let (state, waiters) = TEST_CURATED_COMMAND_INSTALLATION
+            .get()
+            .expect("test curated command installation state must exist");
+        let mut state = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert!(
+            state.active,
+            "test curated command installation must be active"
+        );
+        state.active = false;
+        waiters.notify_all();
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct TestCuratedCommandRegistration {
+    name: &'static str,
+    _installation_guard: TestCuratedCommandInstallationGuard,
+}
+
+#[cfg(test)]
+pub(crate) fn install_test_curated_command(
+    command: CommandDescriptor,
+) -> TestCuratedCommandRegistration {
+    let (state, waiters) = TEST_CURATED_COMMAND_INSTALLATION.get_or_init(|| {
+        (
+            std::sync::Mutex::new(TestCuratedCommandInstallationState {
+                active: false,
+                waiters: 0,
+            }),
+            std::sync::Condvar::new(),
+        )
+    });
+    let mut installation = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while installation.active {
+        installation.waiters += 1;
+        waiters.notify_all();
+        installation = waiters
+            .wait(installation)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        installation.waiters -= 1;
+    }
+    installation.active = true;
+    drop(installation);
+
+    let installation_guard = TestCuratedCommandInstallationGuard;
+    let slot = TEST_CURATED_COMMAND.get_or_init(|| std::sync::Mutex::new(None));
+    let mut slot = slot
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        slot.is_none(),
+        "only one test curated command may be installed"
+    );
+    let name = command.name;
+    *slot = Some(Box::leak(Box::new(command)));
+    TestCuratedCommandRegistration {
+        name,
+        _installation_guard: installation_guard,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn wait_for_test_curated_command_installation_waiter() {
+    let (state, waiters) = TEST_CURATED_COMMAND_INSTALLATION
+        .get()
+        .expect("test curated command installation state must exist");
+    let mut installation = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while installation.waiters == 0 {
+        installation = waiters
+            .wait(installation)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+}
+
+#[cfg(test)]
+fn test_curated_command(name: &str) -> Option<&'static CommandDescriptor> {
+    let command = TEST_CURATED_COMMAND.get().and_then(|slot| {
+        let slot = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *slot
+    })?;
+    (command.name == name).then_some(command)
+}
+
+#[cfg(test)]
+impl Drop for TestCuratedCommandRegistration {
+    fn drop(&mut self) {
+        let slot = TEST_CURATED_COMMAND
+            .get()
+            .expect("test curated command slot must exist");
+        let mut slot = slot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert_eq!(slot.as_ref().map(|command| command.name), Some(self.name));
+        *slot = None;
+    }
 }
 
 #[path = "registry_queries.rs"]

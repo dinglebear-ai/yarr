@@ -12,7 +12,10 @@ use serde_json::Value;
 
 use super::help::help_text;
 use super::model::{ValidationError, YarrAction};
-use super::registry::{action_allowed_for_kind, curated_command, valid_actions_for_kind};
+use super::registry::{
+    action_allowed_for_kind, curated_command, valid_actions_for_kind,
+    validate_curated_command_metadata,
+};
 use crate::app::YarrService;
 
 /// Validate that `action` (by name) may run against the service named `service_name`.
@@ -141,6 +144,7 @@ pub async fn execute_service_action(service: &YarrService, action: &YarrAction) 
         YarrAction::Curated { name, params } => {
             let cmd = curated_command(name)
                 .ok_or_else(|| anyhow::anyhow!("curated command `{name}` is not registered"))?;
+            validate_curated_command_metadata(cmd)?;
             (cmd.handler)(service, params).await
         }
     }

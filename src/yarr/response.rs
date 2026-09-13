@@ -41,6 +41,24 @@ impl YarrClient {
         request: reqwest::RequestBuilder,
         mode: ResponseMode,
     ) -> Result<Value> {
+        if let Some(deadline) = helpers::active_request_deadline() {
+            return deadline
+                .until(self.finish_with_retry_mode_unbounded(service, request, mode))
+                .await;
+        }
+        self.finish_with_retry_mode_unbounded(service, request, mode)
+            .await
+    }
+
+    /// Shared terminal transport path. Code Mode enters through the deadline
+    /// wrapper above; direct CLI/MCP calls retain the client timeout configured at
+    /// construction.
+    async fn finish_with_retry_mode_unbounded(
+        &self,
+        service: &ServiceConfig,
+        request: reqwest::RequestBuilder,
+        mode: ResponseMode,
+    ) -> Result<Value> {
         if service.kind == ServiceKind::Qbittorrent {
             match request.try_clone() {
                 Some(retry) => match self.finish(service, request, mode.clone()).await {

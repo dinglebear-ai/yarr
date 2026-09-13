@@ -51,8 +51,8 @@ pub fn javascript_namespace(service_name: &str) -> String {
     service_name.replace('-', "_")
 }
 
-/// Wall-clock budget for a single Code Mode execution (matches lab's default).
-pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(30);
+/// Wall-clock budget for a single Code Mode execution.
+pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(120);
 /// Maximum number of QuickJS runtimes admitted concurrently by one service.
 pub const CODEMODE_MAX_CONCURRENT: usize = 4;
 /// Maximum time a Code Mode request waits for an execution slot.

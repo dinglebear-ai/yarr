@@ -108,20 +108,29 @@ struct McpCodeModeGuard {
     auth: Option<AuthContext>,
 }
 
+pub(crate) fn authorize_codemode_action_scopes(
+    token_scopes: &[String],
+    action: &YarrAction,
+) -> Result<(), String> {
+    if let Some(required) = required_scope_for_action(action.name())
+        && !crate::actions::scopes_satisfy(token_scopes, required)
+    {
+        return Err(format!(
+            "forbidden inner Code Mode action `{}`: requires scope {required}",
+            action.name()
+        ));
+    }
+    Ok(())
+}
+
 impl CodeModeCallGuard for McpCodeModeGuard {
     fn authorize<'a>(
         &'a self,
         action: &'a YarrAction,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
-            if let (Some(auth), Some(required)) =
-                (self.auth.as_ref(), required_scope_for_action(action.name()))
-                && !crate::actions::scopes_satisfy(&auth.scopes, required)
-            {
-                return Err(format!(
-                    "forbidden inner Code Mode action `{}`: requires scope {required}",
-                    action.name()
-                ));
+            if let Some(auth) = self.auth.as_ref() {
+                authorize_codemode_action_scopes(&auth.scopes, action)?;
             }
 
             let (destructive, service_name) = destructive_inner_call(&self.state, action);

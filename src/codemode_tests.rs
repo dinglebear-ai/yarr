@@ -25,3 +25,8 @@ fn engine_limits_build_from_the_constants() {
     assert!(limits.memory_bytes >= CODEMODE_STACK_LIMIT);
     assert!(limits.deadline > std::time::Instant::now());
 }
+
+#[test]
+fn default_execution_deadline_is_two_minutes() {
+    assert_eq!(CODEMODE_TIMEOUT, std::time::Duration::from_secs(120));
+}

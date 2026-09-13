@@ -21,7 +21,7 @@ use serde_json::Value;
 use crate::actions::model::{READ_SCOPE, WRITE_SCOPE};
 use crate::actions::parse::{bool_arg, optional_string, string_arg};
 use crate::actions::registry::{
-    CommandDescriptor, CommandFuture,
+    CommandDescriptor, CommandFuture, LocalEffect,
     ParamType::{Boolean, String as StringParam},
 };
 use crate::app::YarrService;
@@ -38,6 +38,7 @@ pub const DOWNLOAD_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler: handle_queue,
     },
@@ -51,6 +52,7 @@ pub const DOWNLOAD_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &[],
         destructive: false,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[("url", StringParam)],
         handler: handle_add,
     },
@@ -64,6 +66,7 @@ pub const DOWNLOAD_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &["id", "hash"],
         destructive: false,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[("id", StringParam), ("hash", StringParam)],
         handler: handle_pause,
     },
@@ -77,6 +80,7 @@ pub const DOWNLOAD_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &["id", "hash"],
         destructive: false,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[("id", StringParam), ("hash", StringParam)],
         handler: handle_resume,
     },
@@ -91,6 +95,7 @@ pub const DOWNLOAD_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &["id", "hash", "delete_files"],
         destructive: true,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[
             ("id", StringParam),
             ("hash", StringParam),

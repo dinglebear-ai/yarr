@@ -5,7 +5,7 @@ use serde_json::Value;
 use crate::actions::model::{READ_SCOPE, WRITE_SCOPE};
 use crate::actions::parse::{bool_arg, optional_i64, optional_string, string_arg};
 use crate::actions::registry::{
-    CommandDescriptor, CommandFuture,
+    CommandDescriptor, CommandFuture, LocalEffect,
     ParamType::{Boolean, Integer, String as StringParam},
 };
 use crate::app::YarrService;
@@ -78,6 +78,7 @@ pub const TRACE_COMMANDS: &[CommandDescriptor] = &[
         optional_params: &["reason"],
         destructive: true,
         mutates: true,
+        local_effect: LocalEffect::None,
         typed_params: &[("id", StringParam), ("reason", StringParam)],
         handler: handle_terminate,
     },
@@ -99,6 +100,7 @@ const fn read(
         optional_params,
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params,
         handler,
     }

@@ -18,6 +18,145 @@ fn generic_action_metadata_is_complete_and_authoritative() {
 use crate::config::ServiceKind;
 
 #[test]
+fn curated_commands_explicitly_report_no_yarr_local_filesystem_effect() {
+    for command in curated_commands() {
+        assert_eq!(
+            command.local_effect,
+            LocalEffect::None,
+            "{} is not authorized to create, download, cache, or update yarr-local files",
+            command.name
+        );
+    }
+}
+
+#[test]
+fn local_file_effect_requires_write_scope_and_mutation_metadata() {
+    fn noop<'a>(
+        _service: &'a crate::app::YarrService,
+        _args: &'a serde_json::Value,
+    ) -> CommandFuture<'a> {
+        Box::pin(async { Ok(serde_json::Value::Null) })
+    }
+
+    let mismatched = CommandDescriptor {
+        name: "test_local_writer",
+        capability: Capability::ArrManager,
+        description: "test-only descriptor",
+        required_scope: READ_SCOPE,
+        required_params: &[],
+        optional_params: &[],
+        destructive: false,
+        mutates: false,
+        local_effect: LocalEffect::WritesFile,
+        typed_params: &[],
+        handler: noop,
+    };
+    assert_eq!(
+        mismatched
+            .local_effect
+            .requires_write()
+            .then_some(WRITE_SCOPE),
+        Some(required_scope_for_descriptor(&mismatched))
+    );
+    let error = validate_curated_command_metadata(&mismatched).unwrap_err();
+    assert!(error.to_string().contains("must declare mutates=true"));
+}
+
+#[test]
+fn test_curated_registration_recovers_after_registered_test_panics() {
+    fn noop<'a>(
+        _service: &'a crate::app::YarrService,
+        _args: &'a serde_json::Value,
+    ) -> CommandFuture<'a> {
+        Box::pin(async { Ok(serde_json::Value::Null) })
+    }
+
+    fn test_command(name: &'static str) -> CommandDescriptor {
+        CommandDescriptor {
+            name,
+            capability: Capability::ArrManager,
+            description: "test-only descriptor",
+            required_scope: READ_SCOPE,
+            required_params: &[],
+            optional_params: &[],
+            destructive: false,
+            mutates: false,
+            local_effect: LocalEffect::None,
+            typed_params: &[],
+            handler: noop,
+        }
+    }
+
+    let panic = std::panic::catch_unwind(|| {
+        let _registration = install_test_curated_command(test_command("panicking_test"));
+        panic!("intentional panic while a test curated command is registered");
+    });
+    assert!(panic.is_err());
+    assert!(curated_command("panicking_test").is_none());
+
+    let registration = install_test_curated_command(test_command("after_panicking_test"));
+    assert!(curated_command("after_panicking_test").is_some());
+    drop(registration);
+    assert!(curated_command("after_panicking_test").is_none());
+}
+
+#[test]
+fn test_curated_registration_serializes_parallel_installers() {
+    fn noop<'a>(
+        _service: &'a crate::app::YarrService,
+        _args: &'a serde_json::Value,
+    ) -> CommandFuture<'a> {
+        Box::pin(async { Ok(serde_json::Value::Null) })
+    }
+
+    fn test_command(name: &'static str) -> CommandDescriptor {
+        CommandDescriptor {
+            name,
+            capability: Capability::ArrManager,
+            description: "test-only descriptor",
+            required_scope: READ_SCOPE,
+            required_params: &[],
+            optional_params: &[],
+            destructive: false,
+            mutates: false,
+            local_effect: LocalEffect::None,
+            typed_params: &[],
+            handler: noop,
+        }
+    }
+
+    let (first_installed_tx, first_installed_rx) = std::sync::mpsc::channel();
+    let (release_first_tx, release_first_rx) = std::sync::mpsc::channel();
+    let (second_finished_tx, second_finished_rx) = std::sync::mpsc::channel();
+
+    std::thread::scope(|scope| {
+        let first = scope.spawn(move || {
+            let registration = install_test_curated_command(test_command("first_parallel_test"));
+            first_installed_tx.send(()).unwrap();
+            release_first_rx.recv().unwrap();
+            drop(registration);
+        });
+
+        first_installed_rx.recv().unwrap();
+        let second = scope.spawn(move || {
+            let result = std::panic::catch_unwind(|| {
+                drop(install_test_curated_command(test_command(
+                    "second_parallel_test",
+                )));
+            });
+            second_finished_tx.send(result.is_ok()).unwrap();
+        });
+
+        wait_for_test_curated_command_installation_waiter();
+        release_first_tx.send(()).unwrap();
+        first.join().unwrap();
+        let second_succeeded = second_finished_rx.recv().unwrap();
+        second.join().unwrap();
+        assert!(second_succeeded);
+    });
+}
+
+#[test]
 fn action_metadata_matches_yarr_surface() {
     assert_eq!(
         action_names(),

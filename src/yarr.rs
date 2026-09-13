@@ -29,7 +29,7 @@ mod openapi_transport;
 #[path = "yarr/response.rs"]
 mod response;
 
-pub use helpers::{build_url, query_get, slim, validate_safe_path};
+pub use helpers::{RequestDeadline, build_url, query_get, slim, validate_safe_path};
 pub(crate) use openapi_transport::{EncodedRequestBody, MultipartField, OpenApiRequest};
 #[cfg(test)]
 use response::allows_text_response;
@@ -161,7 +161,21 @@ impl YarrClient {
     }
 
     pub async fn get_json(&self, service: &ServiceConfig, path: &str) -> Result<Value> {
+        if let Some(deadline) = helpers::active_request_deadline() {
+            return self.get_json_until(service, path, deadline).await;
+        }
         self.request_json(Method::GET, service, path, None, None)
+            .await
+    }
+
+    pub async fn get_json_until(
+        &self,
+        service: &ServiceConfig,
+        path: &str,
+        deadline: RequestDeadline,
+    ) -> Result<Value> {
+        deadline
+            .until(self.request_json(Method::GET, service, path, None, None))
             .await
     }
 
@@ -171,7 +185,22 @@ impl YarrClient {
         path: &str,
         body: Value,
     ) -> Result<Value> {
+        if let Some(deadline) = helpers::active_request_deadline() {
+            return self.post_json_until(service, path, body, deadline).await;
+        }
         self.request_json(Method::POST, service, path, Some(body), None)
+            .await
+    }
+
+    pub async fn post_json_until(
+        &self,
+        service: &ServiceConfig,
+        path: &str,
+        body: Value,
+        deadline: RequestDeadline,
+    ) -> Result<Value> {
+        deadline
+            .until(self.request_json(Method::POST, service, path, Some(body), None))
             .await
     }
 
@@ -181,7 +210,22 @@ impl YarrClient {
         path: &str,
         body: Value,
     ) -> Result<Value> {
+        if let Some(deadline) = helpers::active_request_deadline() {
+            return self.put_json_until(service, path, body, deadline).await;
+        }
         self.request_json(Method::PUT, service, path, Some(body), None)
+            .await
+    }
+
+    pub async fn put_json_until(
+        &self,
+        service: &ServiceConfig,
+        path: &str,
+        body: Value,
+        deadline: RequestDeadline,
+    ) -> Result<Value> {
+        deadline
+            .until(self.request_json(Method::PUT, service, path, Some(body), None))
             .await
     }
 
@@ -191,7 +235,22 @@ impl YarrClient {
         path: &str,
         body: Option<Value>,
     ) -> Result<Value> {
+        if let Some(deadline) = helpers::active_request_deadline() {
+            return self.delete_json_until(service, path, body, deadline).await;
+        }
         self.request_json(Method::DELETE, service, path, body, None)
+            .await
+    }
+
+    pub async fn delete_json_until(
+        &self,
+        service: &ServiceConfig,
+        path: &str,
+        body: Option<Value>,
+        deadline: RequestDeadline,
+    ) -> Result<Value> {
+        deadline
+            .until(self.request_json(Method::DELETE, service, path, body, None))
             .await
     }
 

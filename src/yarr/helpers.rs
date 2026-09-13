@@ -5,12 +5,57 @@
 //! (`slim`) or which query params to send (`query_get`) is made in the app
 //! layer; this module only provides the primitives. No business logic.
 
+use std::future::Future;
+
+#[cfg(test)]
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use reqwest::Url;
 use serde_json::Value;
 
 use crate::capability::AuthStyle;
 use crate::config::{ServiceConfig, ServiceKind};
+
+/// One absolute deadline shared by a Code Mode script and every native operation
+/// it starts. This is a request budget, not an additional per-hop timeout.
+#[derive(Clone, Copy, Debug)]
+pub struct RequestDeadline {
+    pub instant: tokio::time::Instant,
+}
+
+impl RequestDeadline {
+    #[cfg(test)]
+    pub fn after(duration: Duration) -> Self {
+        Self {
+            instant: tokio::time::Instant::now() + duration,
+        }
+    }
+
+    pub async fn until<T>(&self, future: impl Future<Output = Result<T>>) -> Result<T> {
+        tokio::time::timeout_at(self.instant, future)
+            .await
+            .map_err(|_| anyhow::anyhow!("codemode absolute deadline exceeded"))?
+    }
+}
+
+tokio::task_local! {
+    static ACTIVE_REQUEST_DEADLINE: RequestDeadline;
+}
+
+pub async fn with_request_deadline<T>(
+    deadline: RequestDeadline,
+    future: impl Future<Output = T>,
+) -> T {
+    ACTIVE_REQUEST_DEADLINE.scope(deadline, future).await
+}
+
+/// The Code Mode deadline attached to this async task, if the call originated
+/// from the Code Mode dispatcher. Ordinary CLI and MCP dispatch has no task-local
+/// deadline and retains its configured client timeout behavior.
+pub fn active_request_deadline() -> Option<RequestDeadline> {
+    ACTIVE_REQUEST_DEADLINE.try_with(|deadline| *deadline).ok()
+}
 
 #[cfg(test)]
 #[path = "helpers_tests.rs"]

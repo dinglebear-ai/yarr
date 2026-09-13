@@ -3,6 +3,8 @@
 use anyhow::Result;
 use tokio::sync::oneshot;
 
+use crate::yarr::RequestDeadline;
+
 pub(super) struct ActiveRunMetric {
     completed: bool,
 }
@@ -33,6 +35,7 @@ impl Drop for ActiveRunMetric {
 pub(super) struct ToolRequest {
     pub(super) id: String,
     pub(super) params_json: String,
+    pub(super) deadline: RequestDeadline,
     pub(super) reply: oneshot::Sender<Result<String, String>>,
 }
 

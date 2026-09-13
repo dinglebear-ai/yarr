@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::actions::model::READ_SCOPE;
 use crate::actions::parse::{optional_i64, string_arg};
-use crate::actions::registry::{CommandDescriptor, CommandFuture, ParamType::Integer};
+use crate::actions::registry::{CommandDescriptor, CommandFuture, LocalEffect, ParamType::Integer};
 use crate::app::YarrService;
 use crate::capability::Capability;
 
@@ -60,6 +60,7 @@ const fn read(
         optional_params: &[],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[],
         handler,
     }
@@ -79,6 +80,7 @@ const fn paged(
         optional_params: &["start", "length"],
         destructive: false,
         mutates: false,
+        local_effect: LocalEffect::None,
         typed_params: &[("start", Integer), ("length", Integer)],
         handler,
     }
