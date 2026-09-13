@@ -48,6 +48,16 @@ pub struct YarrConfig {
 }
 
 impl YarrConfig {
+    /// Return the fleet-wide read-only policy selected by `YARR_FLEET_READONLY`.
+    /// The service argument keeps callers on a per-service authority boundary for
+    /// a future targeted policy without broadening today's all-or-nothing switch.
+    pub fn is_readonly(&self, _service: &str) -> bool {
+        matches!(
+            env_value("YARR_FLEET_READONLY").as_deref(),
+            Some("1" | "true" | "yes")
+        )
+    }
+
     /// Reject configurations that would expose two services through one Code Mode
     /// JavaScript namespace. This validates TOML, environment, and programmatic
     /// configuration before any service can be dispatched.
@@ -128,6 +138,11 @@ impl Config {
             "YARR_MCP_CODEMODE_TIMEOUT_SECS",
             &mut config.mcp.codemode_timeout_secs,
         )?;
+        env_parse(
+            "YARR_MCP_DESTRUCTIVE_FANOUT_MAX",
+            &mut config.mcp.destructive_fanout_max,
+        )?;
+        env_bool("YARR_FLEET_READONLY", &mut config.mcp.fleet_readonly)?;
         env_opt_str("YARR_MCP_PUBLIC_URL", &mut config.mcp.auth.public_url);
         env_str(
             "YARR_MCP_AUTH_ADMIN_EMAIL",
@@ -225,6 +240,9 @@ impl Config {
         }
         if config.mcp.codemode_queue_timeout_ms == 0 || config.mcp.codemode_timeout_secs == 0 {
             anyhow::bail!("Code Mode queue and execution timeouts must be greater than zero");
+        }
+        if config.mcp.destructive_fanout_max == 0 {
+            anyhow::bail!("YARR_MCP_DESTRUCTIVE_FANOUT_MAX must be at least 1");
         }
 
         Ok(config)

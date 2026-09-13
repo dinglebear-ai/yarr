@@ -108,3 +108,33 @@ fn invalid_static_token_scope_is_rejected() {
     let error = Config::load().unwrap_err();
     assert!(error.to_string().contains("yarr:admin"));
 }
+
+#[test]
+fn fleet_readonly_and_destructive_fanout_policy_load_from_env() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut env = TestEnv::new();
+    env.set("YARR_HOME", dir.path());
+    env.set("HOME", dir.path());
+    env.remove("YARR_CONFIG");
+    env.set("YARR_FLEET_READONLY", "true");
+    env.set("YARR_MCP_DESTRUCTIVE_FANOUT_MAX", "2");
+
+    let loaded = Config::load().expect("fleet policy config loads");
+
+    assert!(loaded.mcp.fleet_readonly);
+    assert!(loaded.yarr.is_readonly("sonarr"));
+    assert_eq!(loaded.mcp.destructive_fanout_max, 2);
+}
+
+#[test]
+fn invalid_fleet_readonly_flag_is_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut env = TestEnv::new();
+    env.set("YARR_HOME", dir.path());
+    env.set("HOME", dir.path());
+    env.remove("YARR_CONFIG");
+    env.set("YARR_FLEET_READONLY", "sometimes");
+
+    let error = Config::load().expect_err("invalid readonly flag must fail closed");
+    assert!(error.to_string().contains("YARR_FLEET_READONLY"));
+}

@@ -84,12 +84,9 @@ pub(super) fn tool_result_from_json(value: Value) -> Result<CallToolResult, Erro
     Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
-/// Whether `arguments` dispatches a generated DELETE operation via the `op`
-/// action (e.g. `{"action": "op", "op": "delete_series_by_id"}` against the
-/// `sonarr` tool in `flat` mode). `action_is_destructive` has no notion of
-/// `op`'s underlying HTTP method, so this is checked separately — otherwise a
-/// generated DELETE op would dispatch through `call_tool` with no elicitation
-/// prompt at all.
+/// Whether `arguments` dispatches a generated operation requiring MCP
+/// elicitation. The generated-operation safety authority owns this decision so
+/// DELETE defaults and audited non-DELETE destructive operations stay aligned.
 pub(super) fn is_destructive_op_call(state: &AppState, tool_name: &str, arguments: &Value) -> bool {
     let Some(op_name) = arguments.get("op").and_then(Value::as_str) else {
         return false;
@@ -97,7 +94,27 @@ pub(super) fn is_destructive_op_call(state: &AppState, tool_name: &str, argument
     let Ok(Some(kind)) = state.service.kind_of(tool_name) else {
         return false;
     };
-    crate::openapi::find_operation(kind, op_name).is_some_and(|spec| spec.method.is_delete())
+    crate::openapi::safety::operation_safety(kind, op_name)
+        .is_some_and(|safety| safety.elicitation_required)
+}
+
+/// Canonicalize a destructive target set before it can reach elicitation or
+/// dispatch. Fleet callers pass their complete selection here; today's direct
+/// tools naturally produce a one-service set.
+pub(crate) fn destructive_targets(
+    services: &[String],
+    fanout_max: usize,
+) -> Result<Vec<String>, String> {
+    let mut targets = services.to_vec();
+    targets.sort();
+    targets.dedup();
+    if targets.len() > fanout_max {
+        return Err(format!(
+            "destructive action targets {} services but the maximum is {fanout_max}",
+            targets.len()
+        ));
+    }
+    Ok(targets)
 }
 
 /// Result returned when a destructive action is declined at the elicitation

@@ -64,11 +64,15 @@ enum ElicitOutcome {
     Unsupported,
 }
 
-/// The elicitation prompt shown to the user before a destructive delete.
-pub(crate) fn confirm_message(action: &str, service: &str) -> String {
+/// The elicitation prompt shown to the user before a destructive action.
+pub(crate) fn confirm_message(action: &str, services: &[String]) -> String {
+    let mut services = services.to_vec();
+    services.sort();
+    services.dedup();
     format!(
-        "Confirm destructive action '{action}' on service '{service}'. This permanently \
-         deletes data and cannot be undone. Approve to proceed."
+        "Confirm destructive action '{action}' on services [{}]. This permanently \
+         deletes data and cannot be undone. Approve to proceed.",
+        services.join(", ")
     )
 }
 
@@ -97,7 +101,7 @@ fn normalize(result: Result<Option<DeleteConfirmation>, ElicitationError>) -> El
     }
 }
 
-/// Gate a destructive `action` targeting `service` on the MCP surface.
+/// Gate a destructive `action` targeting all `services` on the MCP surface.
 ///
 /// 1. Client can't elicit → [`DeleteGate::Declined`] (fail closed).
 /// 2. Otherwise prompt (with a timeout) and map the outcome ([`normalize`] +
@@ -106,14 +110,14 @@ fn normalize(result: Result<Option<DeleteConfirmation>, ElicitationError>) -> El
 pub(crate) async fn gate_destructive(
     peer: &Peer<RoleServer>,
     action: &str,
-    service: &str,
+    services: &[String],
 ) -> DeleteGate {
     if peer.supported_elicitation_modes().is_empty() {
         return DeleteGate::Declined;
     }
     let result = peer
         .elicit_with_timeout::<DeleteConfirmation>(
-            confirm_message(action, service),
+            confirm_message(action, services),
             Some(ELICIT_TIMEOUT),
         )
         .await;

@@ -16,10 +16,18 @@ use super::{
 };
 
 fn sonarr_only_state() -> AppState {
+    service_state("sonarr", ServiceKind::Sonarr)
+}
+
+fn plex_only_state() -> AppState {
+    service_state("plex", ServiceKind::Plex)
+}
+
+fn service_state(name: &str, kind: ServiceKind) -> AppState {
     let config = YarrConfig {
         services: vec![ServiceConfig {
-            name: "sonarr".into(),
-            kind: ServiceKind::Sonarr,
+            name: name.into(),
+            kind,
             base_url: "http://localhost:8989".into(),
             api_key: Some("test".into()),
             ..ServiceConfig::default()

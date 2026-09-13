@@ -16,6 +16,7 @@ const OUTPUT: &str = "docs/TOOLS_ACTIONS_ENDPOINTS.md";
 
 pub fn run(args: &[String]) -> Result<()> {
     let check = args.iter().any(|arg| arg == "--check");
+    yarr::openapi::safety::validate_generated_write_classification().map_err(anyhow::Error::msg)?;
     let doc = render();
     let path = Path::new(OUTPUT);
     if check {
@@ -38,6 +39,7 @@ fn render() -> String {
     render_schema_metadata(&mut out);
     render_generic_actions(&mut out);
     render_generated_operations(&mut out);
+    render_generated_write_safety(&mut out);
     render_capabilities(&mut out);
     render_generic_passthrough_families(&mut out);
     render_cli_verbs(&mut out);
@@ -199,6 +201,36 @@ client elicitation for DELETEs; clients without elicitation support fail closed.
     out.push_str(
         "\nThe generator omits an operation only when its OpenAPI serialization cannot be represented losslessly. Omitted rows are not callable through `op`; use a reviewed generic passthrough only when the service path allowlist permits it.\n\n",
     );
+}
+
+fn render_generated_write_safety(out: &mut String) {
+    out.push_str(
+        "## Generated Write Safety\n\nGenerated GET operations are read-only. Generated DELETE operations are destructive and require MCP elicitation. Every generated POST, PUT, and PATCH is explicitly audited by `openapi::safety`; `cargo xtask tool-docs --check` fails closed when that table does not cover the current generated registry.\n\n| Kind | Callable | Method | Mutates | Destructive | Elicitation required |\n|---|---|---|---:|---:|---:|\n",
+    );
+    for kind in ServiceKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| yarr::openapi::is_generated(*kind))
+    {
+        for operation in yarr::openapi::operations_for_kind(kind)
+            .iter()
+            .filter(|operation| !operation.method.is_read())
+        {
+            let safety = yarr::openapi::safety::operation_safety(kind, operation.name)
+                .expect("generated write safety was validated before rendering");
+            let _ = writeln!(
+                out,
+                "| `{}` | `{}` | `{}` | {} | {} | {} |",
+                kind.as_str(),
+                operation.name,
+                operation.method.as_str(),
+                yes_no(safety.mutates),
+                yes_no(safety.destructive),
+                yes_no(safety.elicitation_required),
+            );
+        }
+    }
+    out.push('\n');
 }
 
 fn render_capabilities(out: &mut String) {

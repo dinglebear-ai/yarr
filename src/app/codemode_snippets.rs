@@ -68,15 +68,18 @@ impl YarrService {
         result
     }
 
+    pub(crate) fn snippet_source_for_preflight(&self, name: &str) -> Result<String> {
+        let dir = self.snippet_store_root()?;
+        codemode::store::load_source(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))
+    }
+
     async fn snippet_run_inner(
         &self,
         name: &str,
         input: &Value,
         guard: Option<std::sync::Arc<dyn CodeModeCallGuard>>,
     ) -> Result<Value> {
-        let dir = self.snippet_store_root()?;
-        let source =
-            codemode::store::load_source(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))?;
+        let source = self.snippet_source_for_preflight(name)?;
         let input_json = serde_json::to_string(input).map_err(|error| {
             anyhow::anyhow!("snippet input is not serializable as JSON: {error}")
         })?;

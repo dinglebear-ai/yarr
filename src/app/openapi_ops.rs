@@ -24,6 +24,9 @@ impl YarrService {
                 config.kind.as_str()
             )
         })?;
+        // Fail closed before parameter encoding or upstream dispatch when a
+        // generated write lacks an audited safety classification.
+        openapi::safety::classify_operation(config.kind, spec).map_err(anyhow::Error::msg)?;
         self.execute_operation_spec(config, spec, args).await
     }
 

@@ -218,3 +218,336 @@ async fn codemode_api_client_delete_dispatches() {
     assert!(!result.contains("destructive"), "got: {result}");
     assert_eq!(out["calls"][0]["action"], "api_delete");
 }
+
+struct PreflightRecordingGuard {
+    calls: std::sync::Arc<std::sync::Mutex<usize>>,
+}
+
+impl super::CodeModeCallGuard for PreflightRecordingGuard {
+    fn authorize<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn authorize_planned_targets<'a>(
+        &'a self,
+        _targets: Vec<String>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        let calls = std::sync::Arc::clone(&self.calls);
+        Box::pin(async move {
+            *calls.lock().expect("preflight call counter is available") += 1;
+            Ok(())
+        })
+    }
+}
+
+#[tokio::test]
+async fn guarded_codemode_rejects_oversize_code_before_preflight() {
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(0));
+    let guard = std::sync::Arc::new(PreflightRecordingGuard {
+        calls: std::sync::Arc::clone(&calls),
+    });
+    let code = format!(
+        "async () => 1 // {}",
+        "x".repeat(crate::codemode::CODEMODE_MAX_CODE_BYTES)
+    );
+
+    let error = loopback_state()
+        .service
+        .codemode_with_guard(&code, guard)
+        .await
+        .expect_err("oversized Code Mode input must not reach preflight");
+
+    assert!(error.to_string().contains("limit is"), "{error}");
+    assert_eq!(*calls.lock().unwrap(), 0, "preflight must not run");
+}
+
+struct BlockingPreflightGuard {
+    entered: tokio::sync::mpsc::UnboundedSender<()>,
+    release: std::sync::Mutex<Option<tokio::sync::oneshot::Receiver<()>>>,
+}
+
+impl super::CodeModeCallGuard for BlockingPreflightGuard {
+    fn authorize<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn authorize_planned_targets<'a>(
+        &'a self,
+        _targets: Vec<String>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        let _ = self.entered.send(());
+        let release = self
+            .release
+            .lock()
+            .expect("release state is available")
+            .take()
+            .expect("preflight runs once");
+        Box::pin(async move {
+            let _ = release.await;
+            Ok(())
+        })
+    }
+}
+
+#[tokio::test]
+async fn guarded_preflight_holds_the_codemode_admission_slot() {
+    let service = loopback_state().service.with_codemode_limits(
+        1,
+        std::time::Duration::from_millis(10),
+        std::time::Duration::from_secs(1),
+    );
+    let (entered_tx, mut entered_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+    let first = tokio::spawn({
+        let service = service.clone();
+        async move {
+            service
+                .codemode_with_guard(
+                    "async () => 1",
+                    std::sync::Arc::new(BlockingPreflightGuard {
+                        entered: entered_tx,
+                        release: std::sync::Mutex::new(Some(release_rx)),
+                    }),
+                )
+                .await
+        }
+    });
+    entered_rx.recv().await.expect("first preflight entered");
+
+    let error = service
+        .codemode_with_guard(
+            "async () => 1",
+            std::sync::Arc::new(PreflightRecordingGuard {
+                calls: std::sync::Arc::new(std::sync::Mutex::new(0)),
+            }),
+        )
+        .await
+        .expect_err("a preflight in the only slot must enforce queue timeout");
+    assert!(error.to_string().contains("codemode is busy"), "{error}");
+
+    release_tx.send(()).expect("first preflight is waiting");
+    first.await.unwrap().unwrap();
+}
+
+struct DataDependentPlanningGuard {
+    planned: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl super::CodeModeCallGuard for DataDependentPlanningGuard {
+    fn authorize<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn planned_destructive_target(&self, action: &crate::actions::YarrAction) -> Option<String> {
+        match action {
+            crate::actions::YarrAction::ApiDelete { service, .. } => Some(service.to_owned()),
+            _ => None,
+        }
+    }
+
+    fn authorize_planned_targets<'a>(
+        &'a self,
+        targets: Vec<String>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        let planned = std::sync::Arc::clone(&self.planned);
+        Box::pin(async move {
+            *planned.lock().expect("planned targets are available") = targets;
+            Ok(())
+        })
+    }
+}
+
+#[tokio::test]
+async fn guarded_codemode_plans_data_dependent_delete_after_real_read() {
+    let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed = std::sync::Arc::clone(&requests);
+    let app = axum::Router::new().fallback(axum::routing::any(
+        move |request: axum::extract::Request| {
+            let observed = std::sync::Arc::clone(&observed);
+            async move {
+                observed.lock().unwrap().push(request.method().to_string());
+                axum::Json(serde_json::json!({ "items": [1] }))
+            }
+        },
+    ));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+    let config = crate::config::YarrConfig {
+        services: vec![crate::config::ServiceConfig {
+            name: "sonarr".to_owned(),
+            kind: crate::config::ServiceKind::Sonarr,
+            base_url: format!("http://{address}").parse().unwrap(),
+            api_key: Some("test".to_owned()),
+            ..Default::default()
+        }],
+    };
+    let client = crate::yarr::YarrClient::new(&config).unwrap();
+    let service = crate::app::YarrService::new(client, config);
+    let planned = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let guard = std::sync::Arc::new(DataDependentPlanningGuard {
+        planned: std::sync::Arc::clone(&planned),
+    });
+
+    let result = service
+        .codemode_with_guard(
+            r#"async () => {
+                const x = await api.sonarr.get("/api/v3/series");
+                if (x.items.length) await api.sonarr.delete("/api/v3/series/1");
+                return x.items.length;
+            }"#,
+            guard,
+        )
+        .await;
+
+    assert_eq!(result.unwrap()["result"], 1);
+    assert_eq!(*planned.lock().unwrap(), vec!["sonarr"]);
+    assert_eq!(
+        *requests.lock().unwrap(),
+        vec!["GET", "GET", "DELETE"],
+        "planning dispatches the read but never a destructive request before confirmation"
+    );
+}
+
+#[tokio::test]
+async fn guarded_planning_never_dispatches_a_generic_non_destructive_mutation() {
+    let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed = std::sync::Arc::clone(&requests);
+    let app = axum::Router::new().fallback(axum::routing::any(
+        move |request: axum::extract::Request| {
+            let observed = std::sync::Arc::clone(&observed);
+            async move {
+                observed.lock().unwrap().push(request.method().to_string());
+                axum::Json(serde_json::json!({ "ok": true }))
+            }
+        },
+    ));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let config = crate::config::YarrConfig {
+        services: vec![crate::config::ServiceConfig {
+            name: "sonarr".to_owned(),
+            kind: crate::config::ServiceKind::Sonarr,
+            base_url: format!("http://{address}").parse().unwrap(),
+            api_key: Some("test".to_owned()),
+            ..Default::default()
+        }],
+    };
+    let service =
+        crate::app::YarrService::new(crate::yarr::YarrClient::new(&config).unwrap(), config);
+
+    service
+        .codemode_with_guard(
+            r#"async () => api.sonarr.post("/api/v3/command", { name: "RefreshSeries" })"#,
+            std::sync::Arc::new(PreflightRecordingGuard {
+                calls: std::sync::Arc::new(std::sync::Mutex::new(0)),
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        *requests.lock().unwrap(),
+        vec!["POST"],
+        "the planning sandbox must not send a non-destructive mutation"
+    );
+}
+
+#[tokio::test]
+async fn guarded_parent_snippet_planning_expands_destructive_source_without_dispatching_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let requests = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let observed = std::sync::Arc::clone(&requests);
+    let app = axum::Router::new().fallback(axum::routing::any(
+        move |request: axum::extract::Request| {
+            let observed = std::sync::Arc::clone(&observed);
+            async move {
+                observed.lock().unwrap().push(request.method().to_string());
+                axum::Json(serde_json::json!({ "ok": true }))
+            }
+        },
+    ));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let config = crate::config::YarrConfig {
+        services: vec![crate::config::ServiceConfig {
+            name: "sonarr".to_owned(),
+            kind: crate::config::ServiceKind::Sonarr,
+            base_url: format!("http://{address}").parse().unwrap(),
+            api_key: Some("test".to_owned()),
+            ..Default::default()
+        }],
+    };
+    let service =
+        crate::app::YarrService::new(crate::yarr::YarrClient::new(&config).unwrap(), config)
+            .with_data_dir(tmp.path().to_path_buf());
+    service
+        .snippet_save(
+            "delete-series",
+            r#"async () => api.sonarr.delete("/api/v3/series/1")"#,
+            None,
+        )
+        .await
+        .unwrap();
+    let planned = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+
+    service
+        .codemode_with_guard(
+            r#"async () => codemode.run("delete-series", {})"#,
+            std::sync::Arc::new(DataDependentPlanningGuard {
+                planned: std::sync::Arc::clone(&planned),
+            }),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(*planned.lock().unwrap(), vec!["sonarr"]);
+    assert_eq!(
+        *requests.lock().unwrap(),
+        vec!["DELETE"],
+        "outer planning must expand saved source without executing it"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn guarded_planning_does_not_block_the_tokio_worker() {
+    let service = loopback_state().service.with_codemode_limits(
+        1,
+        std::time::Duration::from_millis(10),
+        std::time::Duration::from_millis(80),
+    );
+    let run = tokio::spawn(async move {
+        service
+            .codemode_with_guard(
+                "async () => { for (;;) {} }",
+                std::sync::Arc::new(PreflightRecordingGuard {
+                    calls: std::sync::Arc::new(std::sync::Mutex::new(0)),
+                }),
+            )
+            .await
+    });
+
+    tokio::task::yield_now().await;
+    tokio::time::timeout(std::time::Duration::from_millis(20), async {
+        tokio::task::yield_now().await;
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    })
+    .await
+    .expect("QuickJS planning must yield the sole Tokio worker");
+    assert!(
+        run.await.unwrap().is_err(),
+        "the bounded planning run times out"
+    );
+}

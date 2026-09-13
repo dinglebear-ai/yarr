@@ -122,27 +122,28 @@ impl ServerHandler for YarrRmcpServer {
         // signature.
         let peer: Peer<RoleServer> = context.peer.clone();
 
-        // Destructive-delete gate (MCP-only). Before a destructive action
-        // dispatches, ask the connected client to confirm via elicitation. The
-        // tool name IS the service name (the MCP tool is service-named; `action`
-        // is a parameter). `action_is_destructive` only recognizes literal
-        // destructive action names — it has no notion of `op`'s underlying HTTP
-        // method — so a generated DELETE op dispatched via `action=op` (reachable
-        // directly here in `flat` tool mode; in `codemode` mode `op` is only ever
-        // called from inside a script, which never reaches `call_tool` at all —
-        // see `codemode_dispatch`) is checked separately by
-        // `is_destructive_op_call`.
-        if (crate::actions::action_is_destructive(&action)
-            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments)))
-            && elicit::gate_destructive(&peer, &action, &tool_name).await
-                == elicit::DeleteGate::Declined
+        // MCP-only elicitation gate. Curated destructive actions use registry
+        // metadata; generated operations use the authoritative safety classifier,
+        // so DELETE defaults and audited non-DELETE destructive writes are gated
+        // before dispatch.
+        if crate::actions::action_is_destructive(&action)
+            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments))
         {
-            tracing::info!(
-                tool = %tool_name,
-                action = %action,
-                "destructive action declined via elicitation; nothing changed"
-            );
-            return declined_result(&action).map(Into::into);
+            let targets = destructive_targets(
+                std::slice::from_ref(&tool_name),
+                self.state.config.destructive_fanout_max,
+            )
+            .map_err(|error| ErrorData::invalid_params(error, None))?;
+            if elicit::gate_destructive(&peer, &action, &targets).await
+                == elicit::DeleteGate::Declined
+            {
+                tracing::info!(
+                    tool = %tool_name,
+                    action = %action,
+                    "destructive action declined via elicitation; nothing changed"
+                );
+                return declined_result(&action).map(Into::into);
+            }
         }
 
         let started = Instant::now();
@@ -258,6 +259,7 @@ const SCHEMA_RESOURCE_URI: &str = "yarr://schema/mcp-tool";
 
 #[path = "rmcp_server_definitions.rs"]
 mod definitions;
+pub(crate) use definitions::destructive_targets;
 use definitions::*;
 #[path = "rmcp_server_errors.rs"]
 mod errors;

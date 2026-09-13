@@ -20,7 +20,11 @@ use crate::config::ServiceKind;
 // Generated tables (one module per spec-backed service). Each provides
 // `pub static OPERATIONS: &[OperationSpec]` and `pub static TYPES: &[TypeDef]`.
 pub mod generated;
+pub mod safety;
 
+#[cfg(test)]
+#[path = "openapi/safety_tests.rs"]
+mod safety_tests;
 #[cfg(test)]
 #[path = "openapi_tests.rs"]
 mod tests;

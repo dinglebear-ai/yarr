@@ -1,7 +1,7 @@
 ---
 title: "yarr Configuration"
 created: 2026-05-22
-updated: 2026-07-30
+updated: 2026-09-11
 ---
 
 # yarr Configuration
@@ -25,6 +25,10 @@ Configuration can come from `config.toml`, environment variables, or `.env` file
 | `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum concurrently executing Code Mode runtimes; must be at least 1 |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Maximum admission-queue wait before failing busy; must be non-zero |
 | `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `120` | Execution deadline for one Code Mode run; must be non-zero |
+| `YARR_MCP_DESTRUCTIVE_FANOUT_MAX` | `3` | Maximum distinct services covered by one destructive MCP authorization; must be at least 1 |
+| `YARR_FLEET_READONLY` | `false` | Reject every MCP mutation before upstream dispatch; accepts `true`/`false`, `yes`/`no`, or `1`/`0` |
+
+For a Code Mode script that reaches a destructive action, yarr constructs one conservative authorization set from every configured service before it elicits. If that configured fleet exceeds `YARR_MCP_DESTRUCTIVE_FANOUT_MAX`, no prompt or destructive dispatch occurs. A successful confirmation is retained only for that script run.
 
 ## Unauthenticated endpoints
 

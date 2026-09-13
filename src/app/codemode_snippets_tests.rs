@@ -1,4 +1,39 @@
 use crate::testing::loopback_state;
+use std::sync::{Arc, Mutex};
+
+struct SourceRecordingGuard {
+    sources: Arc<Mutex<Vec<String>>>,
+}
+
+impl super::super::CodeModeCallGuard for SourceRecordingGuard {
+    fn authorize<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn planned_destructive_target(&self, action: &crate::actions::YarrAction) -> Option<String> {
+        match action {
+            crate::actions::YarrAction::ApiDelete { service, .. } => Some(service.to_owned()),
+            _ => None,
+        }
+    }
+
+    fn authorize_planned_targets<'a>(
+        &'a self,
+        targets: Vec<String>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        let sources = Arc::clone(&self.sources);
+        Box::pin(async move {
+            sources
+                .lock()
+                .expect("preflight sources are available")
+                .extend(targets);
+            Ok(())
+        })
+    }
+}
 
 #[tokio::test]
 async fn input_binding_is_injection_safe() {
@@ -99,4 +134,31 @@ async fn snippets_are_disabled_without_data_dir() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn guarded_saved_snippet_preflights_its_loaded_source_before_execution() {
+    let tmp = tempfile::tempdir().unwrap();
+    let service = loopback_state()
+        .service
+        .with_data_dir(tmp.path().to_path_buf());
+    let source =
+        r#"async () => callTool("api_delete", { service: "sonarr", path: "/api/v3/series/1" })"#;
+    service
+        .snippet_save("destructive", source, None)
+        .await
+        .unwrap();
+    let sources = Arc::new(Mutex::new(Vec::new()));
+
+    let _ = service
+        .snippet_run_with_guard(
+            "destructive",
+            &serde_json::Value::Null,
+            Some(Arc::new(SourceRecordingGuard {
+                sources: Arc::clone(&sources),
+            })),
+        )
+        .await;
+
+    assert_eq!(*sources.lock().unwrap(), vec!["sonarr"]);
 }

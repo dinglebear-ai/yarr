@@ -11,10 +11,18 @@
 use super::*;
 
 #[test]
-fn confirm_message_names_action_and_service() {
-    let msg = confirm_message("delete", "sonarr");
+fn confirm_message_names_action_and_sorted_services() {
+    let msg = confirm_message(
+        "delete",
+        &[
+            "radarr".to_owned(),
+            "sonarr".to_owned(),
+            "radarr".to_owned(),
+        ],
+    );
     assert!(msg.contains("delete"));
     assert!(msg.contains("sonarr"));
+    assert!(msg.contains("radarr, sonarr"));
     assert!(msg.contains("cannot be undone"));
 }
 
