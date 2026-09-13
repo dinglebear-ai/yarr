@@ -189,10 +189,245 @@ fn body_preview_redacts_json_secrets_case_insensitive_and_spaced() {
 }
 
 #[test]
+fn body_preview_redacts_valid_json_newline_separated_access_token() {
+    const NEWLINE_ACCESS_TOKEN: &str = "VALID_JSON_NEWLINE_ACCESS_TOKEN_SECRET";
+    let preview = body_preview(&format!(
+        "{{\"accessToken\"\n:\n\"{NEWLINE_ACCESS_TOKEN}\",\"status\":\"ok\"}}"
+    ));
+
+    assert!(
+        !preview.contains(NEWLINE_ACCESS_TOKEN),
+        "newline-separated JSON credential leaked: {preview}"
+    );
+    assert!(preview.contains("[redacted]"), "got: {preview}");
+    assert!(
+        preview.contains("status"),
+        "lost non-secret field: {preview}"
+    );
+}
+
+#[test]
+fn body_preview_redacts_valid_json_escaped_unicode_access_token_key() {
+    const ESCAPED_KEY_ACCESS_TOKEN: &str = "VALID_JSON_ESCAPED_KEY_ACCESS_TOKEN_SECRET";
+    let preview = body_preview(&format!(
+        r#"{{"access\u0054oken":"{ESCAPED_KEY_ACCESS_TOKEN}","status":"ok"}}"#
+    ));
+
+    assert!(
+        !preview.contains(ESCAPED_KEY_ACCESS_TOKEN),
+        "escaped-key JSON credential leaked: {preview}"
+    );
+    assert!(preview.contains("[redacted]"), "got: {preview}");
+    assert!(
+        preview.contains("status"),
+        "lost non-secret field: {preview}"
+    );
+}
+
+#[test]
+fn body_preview_redacts_nested_valid_json_secret_values_of_any_type() {
+    const NESTED_SECRET: &str = "NESTED_VALID_JSON_ACCESS_TOKEN_SECRET";
+    let preview = body_preview(&format!(
+        r#"{{"password":1234,"items":[{{"accessToken":{{"value":"{NESTED_SECRET}"}},"name":"keep"}}]}}"#
+    ));
+
+    assert!(
+        !preview.contains("1234"),
+        "numeric secret leaked: {preview}"
+    );
+    assert!(
+        !preview.contains(NESTED_SECRET),
+        "nested secret leaked: {preview}"
+    );
+    assert!(preview.contains("keep"), "lost non-secret field: {preview}");
+    assert_eq!(preview.matches("[redacted]").count(), 2, "got: {preview}");
+}
+
+#[test]
+fn body_preview_redacts_json_secrets_through_escaped_quotes() {
+    const ESCAPED_QUOTE_SUFFIX: &str = "JSON_ESCAPED_SUFFIX_SECRET";
+    let preview = body_preview(&format!(
+        r#"{{"accessToken":"prefix\"{ESCAPED_QUOTE_SUFFIX}"}}"#
+    ));
+    assert!(
+        !preview.contains(ESCAPED_QUOTE_SUFFIX),
+        "escaped-quote suffix leaked: {preview}"
+    );
+    assert_eq!(preview, r#"{"accessToken":"[redacted]"}"#);
+
+    let escaped_backslash = body_preview(r#"{"accessToken":"prefix\\","status":"ok"}"#);
+    assert_eq!(
+        escaped_backslash, r#"{"accessToken":"[redacted]","status":"ok"}"#,
+        "an even backslash run must allow the quote to close the JSON string"
+    );
+}
+
+#[test]
+fn body_preview_redacts_truncated_json_with_scanner_fallback() {
+    const TRUNCATED_ACCESS_TOKEN: &str = "TRUNCATED_JSON_ACCESS_TOKEN_SECRET";
+    let preview = body_preview(&format!(r#"{{"accessToken":"{TRUNCATED_ACCESS_TOKEN}"#));
+
+    assert!(
+        !preview.contains(TRUNCATED_ACCESS_TOKEN),
+        "truncated JSON credential leaked: {preview}"
+    );
+    assert!(preview.contains("[redacted]"), "got: {preview}");
+}
+
+#[test]
+fn body_preview_redacts_truncated_json_with_escaped_secret_key() {
+    const ESCAPED_KEY_SECRET: &str = "TRUNCATED_ESCAPED_KEY_UNIQUE_SECRET";
+    let preview = body_preview(&format!(r#"{{"access\u0054oken":"{ESCAPED_KEY_SECRET}"#));
+
+    assert!(
+        !preview.contains(ESCAPED_KEY_SECRET),
+        "escaped-key truncated JSON credential leaked: {preview}"
+    );
+    assert!(preview.contains("[redacted]"), "got: {preview}");
+}
+
+#[test]
 fn body_preview_redacts_x_api_key_json() {
     let preview = body_preview(r#"{"x-api-key":"sekret"}"#);
     assert!(!preview.contains("sekret"), "got: {preview}");
     assert!(preview.contains("[redacted]"));
+}
+
+#[test]
+fn body_preview_redacts_plex_token_aliases_in_json_and_query_shapes() {
+    let preview = body_preview(
+        r#"{"AccessToken":"json-access","AUTH_TOKEN":"json-auth"} accessToken=query-access&auth-token=query-auth"#,
+    );
+    for secret in ["json-access", "json-auth", "query-access", "query-auth"] {
+        assert!(!preview.contains(secret), "secret leaked: {preview}");
+    }
+    assert_eq!(preview.matches("[redacted]").count(), 4, "got: {preview}");
+}
+
+#[test]
+fn body_preview_redacts_plaintext_plex_token_aliases_without_overredacting() {
+    let preview = body_preview(
+        "Plex rejected request: AccessToken: PLAIN_ALIAS_COLON_SECRET, AUTH_token PLAIN_ALIAS_SPACE_SECRET; retry https://plex.example/identity",
+    );
+    for secret in ["PLAIN_ALIAS_COLON_SECRET", "PLAIN_ALIAS_SPACE_SECRET"] {
+        assert!(!preview.contains(secret), "secret leaked: {preview}");
+    }
+    assert_eq!(preview.matches("[redacted]").count(), 2, "got: {preview}");
+    assert!(
+        preview.contains("Plex rejected request"),
+        "lost diagnosis: {preview}"
+    );
+    assert!(
+        preview.contains("https://plex.example/identity"),
+        "over-redacted URL: {preview}"
+    );
+}
+
+#[test]
+fn body_preview_redacts_quoted_plaintext_aliases_without_losing_diagnostics() {
+    const QUOTED_COLON_SECRET: &str = "UNIT_QUOTED_PLAINTEXT_COLON_SECRET";
+    const QUOTED_EQUALS_SECRET: &str = "UNIT_QUOTED_PLAINTEXT_EQUALS_SECRET";
+    let preview = body_preview(&format!(
+        "Plex failure: accessToken: \"{QUOTED_COLON_SECRET}\"; auth-token = \"{QUOTED_EQUALS_SECRET}\"; status=500"
+    ));
+
+    for secret in [QUOTED_COLON_SECRET, QUOTED_EQUALS_SECRET] {
+        assert!(
+            !preview.contains(secret),
+            "quoted plaintext credential leaked"
+        );
+    }
+    assert_eq!(preview.matches("[redacted]").count(), 2);
+    assert!(preview.contains("Plex failure:"));
+    assert!(preview.contains("status=500"));
+}
+
+#[test]
+fn body_preview_redacts_quoted_plaintext_values_through_escaped_quote_parity() {
+    const ESCAPED_QUOTE_SECRET: &str = "UNIT_ESCAPED_QUOTE_PLAINTEXT_SECRET";
+    const EVEN_BACKSLASH_SECRET: &str = "UNIT_EVEN_BACKSLASH_PLAINTEXT_SECRET";
+    let preview = body_preview(&format!(
+        r#"Plex failure: accessToken: "prefix\"{ESCAPED_QUOTE_SECRET}"; auth-token = "{EVEN_BACKSLASH_SECRET}\\"; status=500"#
+    ));
+
+    for secret in [ESCAPED_QUOTE_SECRET, EVEN_BACKSLASH_SECRET] {
+        assert!(
+            !preview.contains(secret),
+            "quoted plaintext credential leaked"
+        );
+    }
+    assert_eq!(preview.matches("[redacted]").count(), 2);
+    assert!(preview.contains("status=500"));
+}
+
+#[test]
+fn body_preview_redacts_single_quoted_plaintext_values_through_escaped_quote_parity() {
+    const COLON_SECRET: &str = "SQ_COLON";
+    const EQUALS_SECRET: &str = "SQ_EQUALS";
+    const WHITESPACE_SECRET: &str = "SQ_SPACE";
+    const ESCAPED_QUOTE_SECRET: &str = "SQ_ESCAPED";
+    const EVEN_BACKSLASH_SECRET: &str = "SQ_EVEN";
+    let preview = body_preview(&format!(
+        r#"Plex failure: accessToken: '{COLON_SECRET}'; auth-token = '{EQUALS_SECRET}'; token '{WHITESPACE_SECRET}'; access_token: 'prefix\'{ESCAPED_QUOTE_SECRET}'; authToken = '{EVEN_BACKSLASH_SECRET}\\'; status=500"#
+    ));
+
+    for secret in [
+        COLON_SECRET,
+        EQUALS_SECRET,
+        WHITESPACE_SECRET,
+        ESCAPED_QUOTE_SECRET,
+        EVEN_BACKSLASH_SECRET,
+    ] {
+        assert!(
+            !preview.contains(secret),
+            "single-quoted plaintext credential leaked"
+        );
+    }
+    assert_eq!(preview.matches("[redacted]").count(), 5);
+    assert!(preview.contains("status=500"));
+}
+
+#[test]
+fn body_preview_redacts_unclosed_single_quoted_plaintext_value_to_preview_end() {
+    const UNCLOSED_SECRET: &str = "UNIT_SINGLE_QUOTED_UNCLOSED_SECRET";
+    let preview = body_preview(&format!("Plex failure: auth-token = '{UNCLOSED_SECRET}"));
+
+    assert!(
+        !preview.contains(UNCLOSED_SECRET),
+        "unclosed single-quoted plaintext credential leaked"
+    );
+    assert_eq!(preview, "Plex failure: [redacted]");
+}
+
+#[test]
+fn body_preview_redacts_truncated_quoted_plaintext_value() {
+    const TRUNCATED_QUOTED_SECRET: &str = "UNIT_TRUNCATED_QUOTED_PLAINTEXT_SECRET";
+    let preview = body_preview(&format!(
+        "Plex failure: auth-token = \"{TRUNCATED_QUOTED_SECRET}"
+    ));
+
+    assert!(
+        !preview.contains(TRUNCATED_QUOTED_SECRET),
+        "truncated quoted plaintext credential leaked"
+    );
+    assert!(preview.contains("Plex failure:"));
+    assert!(preview.contains("[redacted]"));
+}
+
+#[test]
+fn body_preview_redacts_plaintext_aliases_with_whitespace_before_delimiters() {
+    // A whitespace gap before `=` or `:` must not turn the alias into a
+    // whitespace-separated form and leave the following credential visible.
+    let preview = body_preview(
+        "errors: ACCESS_TOKEN = LEAK_EQ; AUTH-TOKEN : LEAK_COLON, apiKey\t=\tLEAK_TAB",
+    );
+    for secret in ["LEAK_EQ", "LEAK_COLON", "LEAK_TAB"] {
+        assert!(!preview.contains(secret), "secret leaked: {preview}");
+    }
+    assert_eq!(
+        preview, "errors: [redacted]; [redacted], [redacted]",
+        "must retain only surrounding text and delimiters: {preview}"
+    );
 }
 
 #[test]

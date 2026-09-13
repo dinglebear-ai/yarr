@@ -1,0 +1,10 @@
+{
+  "MediaContainer": {
+    "Device": [
+      {"name":"Living Room","clientIdentifier":"server-one","provides":"server,controller","owned":true,"accessToken":"<redacted>","connections":[{"uri":"http://192.0.2.10:32400","local":true,"relay":false,"protocol":"http"},{"uri":"https://example.invalid:32400","local":false,"relay":false,"protocol":"https"},{"uri":"https://relay.invalid","local":false,"relay":true,"protocol":"https"}]},
+      {"name":"Shared Server","clientIdentifier":"shared-server","provides":"server","owned":false,"accessToken":"<redacted>","connections":[{"uri":"https://shared.invalid","local":false,"relay":false,"protocol":"https"}]},
+      {"name":"Relay Only","clientIdentifier":"relay-server","provides":"server","owned":true,"accessToken":"<redacted>","connections":[{"uri":"https://relay.invalid","local":false,"relay":true,"protocol":"https"}]},
+      {"name":"Web Client","clientIdentifier":"client-only","provides":"controller","owned":true,"accessToken":"<redacted>","connections":[{"uri":"https://client.invalid","local":false,"relay":false,"protocol":"https"}]}
+    ]
+  }
+}

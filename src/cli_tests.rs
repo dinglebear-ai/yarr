@@ -131,6 +131,39 @@ fn help_subcommand() {
 }
 
 #[test]
+fn parses_cli_only_plex_discovery_without_an_mcp_action() {
+    let command = parse_args_from([
+        "discover",
+        "plex",
+        "--token-env",
+        "PLEX_DISCOVERY_TOKEN",
+        "--fleet-file",
+        "fleet.yaml",
+        "--secret-file",
+        "plex.env",
+        "--include-shared",
+        "--diff",
+    ])
+    .unwrap()
+    .unwrap();
+    assert_eq!(
+        command,
+        Command::DiscoverPlex {
+            token_env: "PLEX_DISCOVERY_TOKEN".into(),
+            fleet_file: "fleet.yaml".into(),
+            secret_file: "plex.env".into(),
+            include_shared: true,
+            diff: true,
+        }
+    );
+    assert!(
+        !crate::all_action_names()
+            .iter()
+            .any(|action| action.contains("discover"))
+    );
+}
+
+#[test]
 fn doctor_and_setup_subcommands() {
     assert_eq!(
         parse_args_from(["doctor", "--json"]).unwrap().unwrap(),

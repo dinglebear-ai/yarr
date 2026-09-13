@@ -23,14 +23,19 @@ pub(crate) fn install_plugin_env_overlay(values: BTreeMap<String, String>) {
 }
 
 pub(crate) fn env_value(key: &str) -> Option<String> {
-    LOAD_ENV_OVERLAY
-        .with(|overlay| {
-            overlay
-                .borrow()
-                .as_ref()
-                .and_then(|values| values.get(key).cloned())
-        })
-        .or_else(|| std::env::var(key).ok())
+    overlay_value(key).or_else(|| std::env::var(key).ok())
+}
+
+/// Read a value only from the installed configuration overlay. Fleet credential
+/// references use this path so parsing cannot bypass the loaded overlay and read
+/// ambient process state directly.
+pub(crate) fn overlay_value(key: &str) -> Option<String> {
+    LOAD_ENV_OVERLAY.with(|overlay| {
+        overlay
+            .borrow()
+            .as_ref()
+            .and_then(|values| values.get(key).cloned())
+    })
 }
 
 pub(super) struct EnvOverlayGuard(Option<BTreeMap<String, String>>);
@@ -52,7 +57,13 @@ impl Drop for EnvOverlayGuard {
 }
 
 pub(super) fn load_env_overlay() -> anyhow::Result<BTreeMap<String, String>> {
-    let mut overlay = migrate_legacy_process_env()?;
+    // Snapshot injectable process values first so consumers that require the
+    // installed overlay (fleet credential references) see the same precedence as
+    // ordinary configuration reads without consulting ambient process state.
+    let mut overlay = std::env::vars()
+        .filter(|(key, _)| is_injectable_env_key(key))
+        .collect::<BTreeMap<_, _>>();
+    overlay.extend(migrate_legacy_process_env()?);
     for (key, value) in load_dotenv_defaults()? {
         if std::env::var_os(&key).is_none() {
             overlay.entry(key).or_insert(value);

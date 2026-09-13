@@ -72,6 +72,65 @@ YARR_PLEX_TOKEN=...
 
 Supported kinds: `sonarr`, `radarr`, `prowlarr`, `tautulli`, `overseerr`, `bazarr`, `tracearr`, `sabnzbd`, `qbittorrent`, `plex`, and `jellyfin`.
 
+## Public fleet files
+
+Set `YARR_FLEET_FILE` to a `.yaml`, `.yml`, or `.toml` file to declare public
+service metadata separately from credentials. The file may contain `name`, `kind`,
+`base_url`, credential environment-variable references (`api_key_env`, `token_env`,
+`username_env`, or `password_env`), and the public Plex discovery drift metadata
+`client_identifier` and `relay_only`. Reference names
+must match `[A-Za-z_][A-Za-z0-9_]*`; yarr resolves them only through its installed
+environment overlay after the overlay is loaded.
+
+```yaml
+services:
+  - name: library
+    kind: sonarr
+    base_url: https://sonarr.internal
+    api_key_env: YARR_LIBRARY_API_KEY
+```
+
+Inline `api_key`, `token`, `username`, and `password` fields are rejected,
+as are unknown fields. When a fleet file is used, `config.toml` and the fleet
+file form a name-sorted union; a case-insensitive name collision between those
+two durable sources fails startup and identifies both sources. Environment
+services from `YARR_SERVICES` then replace same-named services from either
+source case-insensitively; other entries remain in the union. Duplicate names,
+normalized Code Mode namespace collisions (such as `home-media` and
+`home_media`), and reserved globals such as `api` fail startup regardless of
+whether they came from TOML, the fleet file, or the environment. Keep URLs and
+reference names public; put fleet credential values only in the environment overlay.
+Literal credential fields in `config.toml` remain literal and are never treated as
+fleet reference names, even when `YARR_FLEET_FILE` is enabled.
+
+## Supervised Plex discovery
+
+`yarr discover plex` is an explicit, read-only **CLI-only** operator workflow. It
+is not available through MCP, Code Mode, server routes, or normal service request
+paths. It contacts plex.tv only when an operator invokes it with a token reference:
+
+```sh
+yarr discover plex --token-env PLEX_DISCOVERY_TOKEN \
+  --fleet-file ./fleet.yaml --secret-file ./plex.env --diff
+```
+
+Discovery defaults to owned Plex Media Servers. `--include-shared` opts in to
+shared servers. It ranks usable connections local first, then direct HTTPS, then
+relay; relay-only selections are reported. `--diff` reports typed added, removed,
+renamed, URL, and relay-state drift and writes neither target.
+
+The fleet YAML or TOML contains only public service metadata (`name`, `kind`,
+`client_identifier`, `base_url`, `token_env`, and `relay_only`). The stable Plex
+`client_identifier` and selected `relay_only` state are required so future
+`--diff` runs can identify renames and relay-state changes correctly. The separate
+secret env file is atomically written at mode `0600`; do not commit it. Discovery
+output and logs never include the token or an authenticated URL. The command's JSON
+output contains separate `discovery` and `pairing` objects. `pairing` reads only
+configured Tautulli and Plex identifiers, reports exact/ambiguous/unpaired matches,
+and performs no persistence or plex.tv request. Run live discovery only with explicit
+supervision and read-only credentials; fixture coverage does not substitute for live
+acceptance.
+
 ## Auth Policy
 
 | State | Condition | Behavior |

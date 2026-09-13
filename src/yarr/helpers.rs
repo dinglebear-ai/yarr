@@ -274,40 +274,40 @@ pub fn slim(value: Value, keep_fields: &[&str]) -> Value {
     }
 }
 
-/// Truncated, secret-redacted preview of a response body for error messages.
-///
-/// Redacts two secret shapes (LOW-1): query-string `key=value` pairs and
-/// JSON-style `"key":"value"` members, for a fixed set of credential key names
-/// (case-insensitive). The 160-char cap and control-char stripping are applied
-/// first, so redaction operates on the already-truncated preview.
+const SECRET_KEYS: &[&str] = &[
+    "apikey",
+    "api_key",
+    "x-api-key",
+    "access_token",
+    "access-token",
+    "accesstoken",
+    "auth_token",
+    "auth-token",
+    "authtoken",
+    "token",
+    "x-plex-token",
+    "x-emby-token",
+    "password",
+];
+
+/// Redacts three secret shapes (LOW-1): valid JSON object members by semantically
+/// decoded key, plus query-string `key=value` pairs, plaintext `key: value`/`key
+/// value` fragments, and JSON-style `"key":"value"` members in malformed or
+/// truncated bodies. The 160-char cap and control-char stripping are applied first,
+/// so redaction operates on the already-truncated preview.
 pub fn body_preview(text: &str) -> String {
     let mut preview: String = text
         .chars()
         .filter(|ch| !ch.is_control() || ch.is_whitespace())
         .take(160)
         .collect();
-    // Keep this set aligned with `SECRET_KEYS` in `redact_json_secrets` so a
-    // form-encoded / query-string secret (e.g. qBittorrent's `password=` login
-    // form) is redacted on this pass too, not just the JSON pass.
-    for needle in [
-        "apikey=",
-        "api_key=",
-        "x-api-key=",
-        "token=",
-        "x-plex-token=",
-        "x-emby-token=",
-        "password=",
-    ] {
-        // `needle` is already a lowercase literal — only the (mutating) preview
-        // needs case-folding, and only because `replace_range` shifts offsets.
-        while let Some(index) = preview.to_ascii_lowercase().find(needle) {
-            let end = preview[index..]
-                .find(['&', ' ', '\n', '\r'])
-                .map(|offset| index + offset)
-                .unwrap_or(preview.len());
-            preview.replace_range(index..end, "[redacted]");
-        }
+
+    if let Ok(mut json) = serde_json::from_str::<Value>(&preview) {
+        redact_json_value_secrets(&mut json);
+        return serde_json::to_string(&json).unwrap_or_else(|_| "[redacted]".into());
     }
+
+    redact_plaintext_secrets(&mut preview);
     redact_json_secrets(&mut preview);
     if preview.trim().is_empty() {
         "<empty body>".into()
@@ -316,61 +316,164 @@ pub fn body_preview(text: &str) -> String {
     }
 }
 
+fn redact_json_value_secrets(value: &mut Value) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                redact_json_value_secrets(item);
+            }
+        }
+        Value::Object(fields) => {
+            for (key, value) in fields {
+                if SECRET_KEYS
+                    .iter()
+                    .any(|secret| key.eq_ignore_ascii_case(secret))
+                {
+                    *value = Value::String("[redacted]".into());
+                } else {
+                    redact_json_value_secrets(value);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Redact `key=value`, `key: value`, and `key value` credentials, including
+/// single- and double-quoted plaintext values. A quoted value ends at the first
+/// unescaped matching quote;
+/// an unclosed quote is redacted through the bounded preview's end.
+///
+/// A credential alias must begin at a text-token boundary, so a word such as
+/// `notaccessToken` and URL path text are not mistaken for credentials. Values
+/// end at common text, form, or bracket delimiters; the delimiter is retained
+/// so surrounding diagnostic text stays readable.
+fn redact_plaintext_secrets(preview: &mut String) {
+    for key in SECRET_KEYS {
+        let mut from = 0;
+        loop {
+            let lower = preview.to_ascii_lowercase();
+            let Some(rel) = lower[from..].find(key) else {
+                break;
+            };
+            let key_at = from + rel;
+            let after_key = key_at + key.len();
+            if !is_plaintext_key_boundary(preview, key_at) {
+                from = after_key;
+                continue;
+            }
+
+            let bytes = preview.as_bytes();
+            let mut value_start = after_key;
+            while value_start < bytes.len() && bytes[value_start].is_ascii_whitespace() {
+                value_start += 1;
+            }
+            if matches!(bytes.get(value_start), Some(b'=' | b':')) {
+                value_start += 1;
+                while value_start < bytes.len() && bytes[value_start].is_ascii_whitespace() {
+                    value_start += 1;
+                }
+            } else if value_start == after_key {
+                from = after_key;
+                continue;
+            }
+            if value_start == bytes.len() {
+                from = after_key;
+                continue;
+            }
+            let value_end = if matches!(bytes[value_start], b'\'' | b'"') {
+                quoted_string_end(bytes, value_start)
+                    .map(|end| end + 1)
+                    .unwrap_or(bytes.len())
+            } else {
+                if is_secret_value_delimiter(bytes[value_start]) {
+                    from = after_key;
+                    continue;
+                }
+                bytes[value_start..]
+                    .iter()
+                    .position(|byte| is_secret_value_delimiter(*byte))
+                    .map(|offset| value_start + offset)
+                    .unwrap_or(bytes.len())
+            };
+            preview.replace_range(key_at..value_end, "[redacted]");
+            from = key_at + "[redacted]".len();
+        }
+    }
+}
+
+/// Returns the byte offset of a single- or double-quoted plaintext value's closing
+/// delimiter. Delimiters preceded by an odd-length backslash run are escaped.
+fn quoted_string_end(bytes: &[u8], start: usize) -> Option<usize> {
+    let quote = bytes[start];
+    let mut i = start + 1;
+    let mut backslash_run = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => backslash_run += 1,
+            byte if byte == quote && backslash_run % 2 == 0 => return Some(i),
+            _ => backslash_run = 0,
+        }
+        i += 1;
+    }
+    None
+}
+
+fn is_plaintext_key_boundary(preview: &str, key_at: usize) -> bool {
+    preview[..key_at].chars().next_back().is_none_or(|ch| {
+        ch.is_ascii_whitespace() || matches!(ch, '[' | '{' | '(' | ',' | ';' | '&' | '?')
+    })
+}
+
+fn is_secret_value_delimiter(byte: u8) -> bool {
+    byte.is_ascii_whitespace()
+        || matches!(byte, b',' | b';' | b'&' | b']' | b'}' | b')' | b'"' | b'\'')
+}
+
 /// Redact JSON-style secret members `"<key>":"<value>"` in place, case-insensitive
 /// on both the key and any surrounding whitespace between the colon and value.
 /// The value (including its surrounding quotes) is replaced with `[redacted]`.
 fn redact_json_secrets(preview: &mut String) {
-    const SECRET_KEYS: &[&str] = &[
-        "apikey",
-        "api_key",
-        "x-api-key",
-        "x-plex-token",
-        "x-emby-token",
-        "token",
-        "password",
-    ];
-    let lower = preview.to_ascii_lowercase();
     // Collect (value_start, value_end) byte ranges to replace, then apply from
     // the end so earlier offsets stay valid.
     let mut ranges: Vec<(usize, usize)> = Vec::new();
-    for key in SECRET_KEYS {
-        let key_pat = format!("\"{key}\"");
-        let mut from = 0;
-        while let Some(rel) = lower[from..].find(&key_pat) {
-            let key_at = from + rel;
-            let after_key = key_at + key_pat.len();
-            from = after_key;
-            // Expect optional whitespace, a colon, optional whitespace, then `"`.
-            let bytes = lower.as_bytes();
-            let mut i = after_key;
-            while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t') {
-                i += 1;
-            }
-            if i >= bytes.len() || bytes[i] != b':' {
-                continue;
-            }
+    let bytes = preview.as_bytes();
+    let mut from = 0;
+    while let Some(key_start_rel) = bytes[from..].iter().position(|byte| *byte == b'"') {
+        let key_start = from + key_start_rel;
+        let Some(key_end) = json_string_end(bytes, key_start) else {
+            break;
+        };
+        from = key_end + 1;
+
+        let mut i = key_end + 1;
+        while i < bytes.len() && is_json_ascii_whitespace(bytes[i]) {
             i += 1;
-            while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t') {
-                i += 1;
-            }
-            if i >= bytes.len() || bytes[i] != b'"' {
-                continue;
-            }
-            let value_start = i; // points at the opening quote
-            // Find the closing quote (no escape handling — previews are truncated
-            // and this is best-effort log hygiene).
-            i += 1;
-            let mut value_end = None;
-            while i < bytes.len() {
-                if bytes[i] == b'"' {
-                    value_end = Some(i + 1); // include the closing quote
-                    break;
-                }
-                i += 1;
-            }
-            let end = value_end.unwrap_or(preview.len());
-            ranges.push((value_start, end));
         }
+        if i >= bytes.len() || bytes[i] != b':' {
+            continue;
+        }
+        i += 1;
+        while i < bytes.len() && is_json_ascii_whitespace(bytes[i]) {
+            i += 1;
+        }
+        if i >= bytes.len() || bytes[i] != b'"' {
+            continue;
+        }
+
+        let Some(key) = decode_json_key(&preview[key_start + 1..key_end]) else {
+            continue;
+        };
+        if !SECRET_KEYS
+            .iter()
+            .any(|secret| key.eq_ignore_ascii_case(secret))
+        {
+            continue;
+        }
+
+        // Keep scanning malformed/truncated previews rather than parsing them.
+        let value_end = json_string_end(bytes, i).map_or(preview.len(), |end| end + 1);
+        ranges.push((i, value_end));
     }
     ranges.sort_unstable();
     // Merge overlapping/adjacent ranges so a value matched by two keys (or nested
@@ -389,6 +492,81 @@ fn redact_json_secrets(preview: &mut String) {
             preview.replace_range(start..end, "[redacted]");
         }
     }
+}
+
+/// Returns the byte offset of a JSON string's closing quote. Quotes preceded by
+/// an odd-length backslash run are escaped and remain part of the string.
+fn json_string_end(bytes: &[u8], start: usize) -> Option<usize> {
+    let mut i = start + 1;
+    let mut backslash_run = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => backslash_run += 1,
+            b'"' if backslash_run % 2 == 0 => return Some(i),
+            _ => backslash_run = 0,
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Decodes a quoted JSON key without requiring the enclosing object to parse.
+/// Invalid escapes reject the token, keeping malformed non-JSON text from being
+/// mistaken for a credential-bearing JSON member.
+fn decode_json_key(key: &str) -> Option<String> {
+    let mut decoded = String::with_capacity(key.len());
+    let mut chars = key.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            if ch.is_control() {
+                return None;
+            }
+            decoded.push(ch);
+            continue;
+        }
+        match chars.next()? {
+            '"' => decoded.push('"'),
+            '\\' => decoded.push('\\'),
+            '/' => decoded.push('/'),
+            'b' => decoded.push('\u{0008}'),
+            'f' => decoded.push('\u{000C}'),
+            'n' => decoded.push('\n'),
+            'r' => decoded.push('\r'),
+            't' => decoded.push('\t'),
+            'u' => {
+                let code_unit = decode_json_hex(&mut chars)?;
+                let scalar = if (0xD800..=0xDBFF).contains(&code_unit) {
+                    if chars.next()? != '\\' || chars.next()? != 'u' {
+                        return None;
+                    }
+                    let low = decode_json_hex(&mut chars)?;
+                    if !(0xDC00..=0xDFFF).contains(&low) {
+                        return None;
+                    }
+                    0x1_0000 + ((code_unit - 0xD800) << 10) + (low - 0xDC00)
+                } else if (0xDC00..=0xDFFF).contains(&code_unit) {
+                    return None;
+                } else {
+                    code_unit
+                };
+                decoded.push(char::from_u32(scalar)?);
+            }
+            _ => return None,
+        }
+    }
+    Some(decoded)
+}
+
+fn decode_json_hex(chars: &mut std::str::Chars<'_>) -> Option<u32> {
+    let mut value = 0;
+    for _ in 0..4 {
+        value = (value << 4) | chars.next()?.to_digit(16)?;
+    }
+    Some(value)
+}
+
+fn is_json_ascii_whitespace(byte: u8) -> bool {
+    matches!(byte, b' ' | b'\t' | b'\n' | b'\r')
 }
 
 /// Reject traversal, absolute URLs, encoded separators, and inline secrets.

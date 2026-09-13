@@ -354,13 +354,19 @@ yarr radarr op post_command --args '{"body":{"name":"MoviesSearch","movieIds":[4
 yarr qbittorrent queue
 yarr tautulli activity
 
+# Explicit, supervised Plex inventory scaffolding (CLI only; no MCP/Code Mode path).
+yarr discover plex --token-env PLEX_DISCOVERY_TOKEN --fleet-file ./fleet.yaml --secret-file ./plex.env --diff
+
 # Code Mode and snippets.
 yarr codemode --code 'async () => sonarr.get_system_status()'
 yarr snippet list
 ```
 
 There is no `--service` flag. Infra commands such as `help`, `codemode`, and
-`snippet` are service-less.
+`snippet` are service-less. `discover plex` is intentionally CLI-only: it uses a
+supervised read-only plex.tv request, writes public fleet metadata separately from
+a `0600` secret env file, and is never exposed to MCP, Code Mode, or server routes.
+Use `--diff` to inspect typed drift without writing either file.
 
 ## Configuration
 

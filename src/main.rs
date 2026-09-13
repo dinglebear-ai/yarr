@@ -16,9 +16,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use rmcp::{ServiceExt, transport::stdio};
+use serde::Serialize;
 use tokio::runtime::Builder;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt};
+use yarr::fleet::{
+    discovery::{PlexDiscoveryOptions, PlexDiscoveryReport, discover_plex},
+    pairing::{PairingReport, pair_configured_tautulli_to_plex},
+};
 use yarr::{
     AppState, AuthPolicy, AuthPolicyKind, Command, Config, READ_SCOPE, RunMode, WRITE_SCOPE,
     YarrClient, YarrService, acquire_oauth_instance_lock, apply_plugin_options, cli_usage,
@@ -166,12 +171,47 @@ async fn run_cli(config: Config) -> Result<()> {
             run_watch(&base, interval, once).await
         }
         Some(Command::Setup(command)) => run_setup(&config, command).await,
+        Some(Command::DiscoverPlex {
+            token_env,
+            fleet_file,
+            secret_file,
+            include_shared,
+            diff,
+        }) => {
+            let discovery = discover_plex(PlexDiscoveryOptions {
+                token_env,
+                fleet_file,
+                secret_file,
+                include_shared,
+                diff,
+            })?;
+            let report = discovery_output_with_pairing(discovery, &config.yarr).await?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            Ok(())
+        }
         Some(cmd) => run_cli_command(cmd, &config.yarr).await,
         None => {
             eprintln!("Unknown command. Run `yarr --help` for usage.");
             std::process::exit(1);
         }
     }
+}
+
+/// CLI-only discovery output. Pairing reads only configured local Tautulli and
+/// Plex instances; it never calls plex.tv or writes discovered state.
+#[derive(Serialize)]
+struct PlexDiscoveryOutput {
+    discovery: PlexDiscoveryReport,
+    pairing: PairingReport,
+}
+
+async fn discovery_output_with_pairing(
+    discovery: PlexDiscoveryReport,
+    config: &yarr::YarrConfig,
+) -> Result<PlexDiscoveryOutput> {
+    let client = YarrClient::new(config)?;
+    let pairing = pair_configured_tautulli_to_plex(&client, &config.services).await?;
+    Ok(PlexDiscoveryOutput { discovery, pairing })
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -319,3 +359,7 @@ async fn shutdown_signal() {
     tokio::select! { _ = ctrl_c => {}, _ = terminate => {} }
     tracing::info!("Shutdown signal received");
 }
+
+#[cfg(test)]
+#[path = "main_tests.rs"]
+mod tests;

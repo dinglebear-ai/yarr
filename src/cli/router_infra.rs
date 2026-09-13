@@ -15,6 +15,7 @@ pub(super) fn parse_infra_command(verb: &str, rest: &[String]) -> Result<Command
         "doctor" => Ok(Command::Doctor {
             json: parse_bool_flag(rest, "doctor", "--json")?,
         }),
+        "discover" => parse_discover_command(rest),
         "watch" => {
             let (url, interval_arg, once) = parse_watch_flags(rest)?;
             let interval = interval_arg.map_or(Ok(10), |v| {
@@ -39,6 +40,45 @@ pub(super) fn parse_infra_command(verb: &str, rest: &[String]) -> Result<Command
         )),
         other => Err(anyhow!("unknown infra command `{other}`")),
     }
+}
+
+fn parse_discover_command(rest: &[String]) -> Result<Command> {
+    let [provider, flags @ ..] = rest else {
+        return Err(anyhow!("discover requires a provider (plex)"));
+    };
+    if provider != "plex" {
+        return Err(anyhow!(
+            "unknown discovery provider `{provider}` (use plex)"
+        ));
+    }
+    let (mut token_env, mut fleet_file, mut secret_file) = (None, None, None);
+    let (mut include_shared, mut diff) = (false, false);
+    let mut iter = flags.iter();
+    while let Some(flag) = iter.next() {
+        match flag.as_str() {
+            "--token-env" => token_env = Some(flag_value(&mut iter, "discover plex --token-env")?),
+            "--fleet-file" => {
+                fleet_file = Some(flag_value(&mut iter, "discover plex --fleet-file")?)
+            }
+            "--secret-file" => {
+                secret_file = Some(flag_value(&mut iter, "discover plex --secret-file")?)
+            }
+            "--include-shared" => include_shared = true,
+            "--diff" => diff = true,
+            other => return Err(anyhow!("unknown discover plex flag `{other}`")),
+        }
+    }
+    Ok(Command::DiscoverPlex {
+        token_env: token_env.ok_or_else(|| anyhow!("discover plex requires --token-env"))?,
+        fleet_file: fleet_file
+            .ok_or_else(|| anyhow!("discover plex requires --fleet-file"))?
+            .into(),
+        secret_file: secret_file
+            .ok_or_else(|| anyhow!("discover plex requires --secret-file"))?
+            .into(),
+        include_shared,
+        diff,
+    })
 }
 
 fn parse_codemode_command(rest: &[String]) -> Result<Command> {

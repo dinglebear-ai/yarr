@@ -34,6 +34,23 @@ fn yarr_config_rejects_colliding_codemode_namespaces() {
 }
 
 #[test]
+fn yarr_config_rejects_reserved_codemode_global() {
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "api".to_string(),
+            kind: ServiceKind::Sonarr,
+            ..ServiceConfig::default()
+        }],
+    };
+
+    let error = config
+        .validate()
+        .expect_err("reserved Code Mode global must fail validation");
+    assert!(error.to_string().contains("reserved Code Mode global"));
+    assert!(error.to_string().contains("api"));
+}
+
+#[test]
 fn test_env_guard_restores_values_when_dropped() {
     const KEY: &str = "YARR_TEST_ENV_GUARD_RESTORE";
     let original = std::env::var_os(KEY);
@@ -107,6 +124,43 @@ fn invalid_static_token_scope_is_rejected() {
 
     let error = Config::load().unwrap_err();
     assert!(error.to_string().contains("yarr:admin"));
+}
+
+#[test]
+fn environment_only_reserved_codemode_global_is_rejected_at_config_load() {
+    let home = tempfile::tempdir().unwrap();
+    let mut env = TestEnv::new();
+    env.set("YARR_HOME", home.path());
+    env.set("HOME", home.path());
+    env.remove("YARR_CONFIG");
+    env.set("YARR_SERVICES", "api");
+    env.set("YARR_API_KIND", "sonarr");
+    env.set("YARR_API_URL", "https://public.example.invalid");
+
+    let error = Config::load().expect_err("reserved Code Mode global must fail at startup");
+
+    assert!(error.to_string().contains("reserved Code Mode global"));
+    assert!(error.to_string().contains("api"));
+}
+
+#[test]
+fn toml_reserved_codemode_global_is_rejected_at_config_load() {
+    let home = tempfile::tempdir().unwrap();
+    let config_path = home.path().join("config.toml");
+    std::fs::write(
+        &config_path,
+        "[[yarr.services]]\nname = \"api\"\nkind = \"sonarr\"\nbase_url = \"https://public.example.invalid\"\n",
+    )
+    .unwrap();
+    let mut env = TestEnv::new();
+    env.set("YARR_CONFIG", &config_path);
+    env.set("HOME", home.path());
+    env.remove("YARR_SERVICES");
+
+    let error = Config::load().expect_err("reserved Code Mode global must fail at startup");
+
+    assert!(error.to_string().contains("reserved Code Mode global"));
+    assert!(error.to_string().contains("api"));
 }
 
 #[test]

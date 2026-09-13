@@ -16,6 +16,8 @@
 //! `YarrConfig`. `serve`/`mcp` never reach this enum — `main.rs` intercepts
 //! them as run modes before `parse_args` is called.
 
+use std::path::PathBuf;
+
 use super::setup::SetupCommand;
 
 // `Eq` is intentionally not derived: the `Curated` variant carries a
@@ -64,6 +66,17 @@ pub enum Command {
     },
     /// `yarr help` — structured JSON action reference.
     Help,
+    /// `yarr discover plex ...` — explicit, CLI-only plex.tv discovery.
+    ///
+    /// Dispatched in `main.rs::run_cli`; it is intentionally absent from MCP,
+    /// Code Mode, and normal service routing.
+    DiscoverPlex {
+        token_env: String,
+        fleet_file: PathBuf,
+        secret_file: PathBuf,
+        include_shared: bool,
+        diff: bool,
+    },
     /// `yarr codemode --code JS` / `--file PATH` — run a JS script that calls
     /// yarr actions. Infra, service-less; dispatched through the same
     /// `execute_service_action` path as the MCP `codemode` action.

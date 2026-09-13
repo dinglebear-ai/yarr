@@ -86,6 +86,7 @@ tower-http = { version = "0.7", features = ["cors", "limit", "trace"] }
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+roxmltree = "0.21"
 schemars.workspace = true
 
 # Time
@@ -93,6 +94,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Config
 toml = "1.1"
+serde_yaml_ng = "0.10"
 
 # OAuth + JWT
 lab-auth = { git = "https://github.com/dinglebear-ai/labby.git", rev = "53dbc4798567f3cacc0f740b3b4de5839ca39133", package = "labby-auth", features = ["http-axum"] }
@@ -121,6 +123,7 @@ rquickjs = "0.12"
 # Errors
 anyhow = "1"
 thiserror = "2"
+tempfile = "3"
 
 [profile.dev]
 # CI recompiles from scratch on every job (CARGO_INCREMENTAL=0 is required
@@ -150,7 +153,6 @@ test-support = []
 
 [dev-dependencies]
 yarr = { path = ".", features = ["test-support"] }
-tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 rmcp = { workspace = true, features = [
   "client",

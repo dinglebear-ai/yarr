@@ -28,6 +28,7 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | Variable | Purpose |
 |---|---|
 | `YARR_SERVICES` | Comma-separated configured service names, for example `sonarr,radarr,plex`. |
+| `YARR_FLEET_FILE` | Optional `.yaml`, `.yml`, or `.toml` public fleet definition. Its credential fields are environment-variable reference names, not credential values. Environment services replace same-named file entries case-insensitively. |
 | `YARR_<SERVICE>_KIND` | Optional service kind override. Defaults to the service name. |
 | `YARR_<SERVICE>_URL` | Upstream service base URL. Required for each configured service. |
 | `YARR_<SERVICE>_API_KEY` | API key for services that use `X-Api-Key`, query API keys, or token-compatible auth. |
@@ -54,7 +55,7 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | `YARR_MCP_TOOL_MODE` | `codemode` | `codemode` or `flat`. See [CONFIG.md](CONFIG.md) for the tradeoff. |
 | `YARR_MCP_CODEMODE_MAX_CONCURRENT` | `4` | Maximum active Code Mode runtimes. |
 | `YARR_MCP_CODEMODE_QUEUE_TIMEOUT_MS` | `500` | Admission wait in milliseconds before returning busy. |
-| `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `30` | Per-run Code Mode execution deadline. |
+| `YARR_MCP_CODEMODE_TIMEOUT_SECS` | `120` | Per-run Code Mode execution deadline. |
 
 ## OAuth mode
 
