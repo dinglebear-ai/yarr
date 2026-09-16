@@ -12,15 +12,32 @@ async fn authenticated_mcp_call(
     token: &str,
     payload: Value,
 ) -> Value {
+    authenticated_mcp_call_with_headers(state, token, &[], payload).await
+}
+
+/// Same as [`authenticated_mcp_call`], plus arbitrary extra request headers —
+/// e.g. `mcp-protocol-version`, to exercise a specific negotiated protocol
+/// version on yarr's stateless transport (see `cache_hints_tests.rs`, which
+/// needs a `2026-07-28` caller vs. a legacy one on the same request shape).
+async fn authenticated_mcp_call_with_headers(
+    state: crate::server::AppState,
+    token: &str,
+    extra_headers: &[(&str, &str)],
+    payload: Value,
+) -> Value {
+    let mut builder = Request::builder()
+        .method("POST")
+        .uri("/mcp")
+        .header("host", "localhost:40070")
+        .header("content-type", "application/json")
+        .header("accept", "application/json, text/event-stream")
+        .header("authorization", format!("Bearer {token}"));
+    for (name, value) in extra_headers {
+        builder = builder.header(*name, *value);
+    }
     let response = router(state)
         .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/mcp")
-                .header("host", "localhost:40070")
-                .header("content-type", "application/json")
-                .header("accept", "application/json, text/event-stream")
-                .header("authorization", format!("Bearer {token}"))
+            builder
                 .body(Body::from(payload.to_string()))
                 .expect("request should build"),
         )
@@ -103,5 +120,7 @@ async fn counting_state(
 
 #[path = "routes_tests/auth.rs"]
 mod auth;
+#[path = "routes_tests/cache_hints_tests.rs"]
+mod cache_hints_tests;
 #[path = "routes_tests/metrics.rs"]
 mod metrics;
