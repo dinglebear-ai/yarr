@@ -26,6 +26,31 @@ fn client_builds_with_separate_qbit_cookie_store() {
     assert!(YarrClient::new(&config).is_ok());
 }
 
+#[test]
+fn client_rejects_colliding_codemode_service_names() {
+    let config = crate::config::YarrConfig {
+        services: vec![
+            crate::config::ServiceConfig {
+                name: "foo-bar".into(),
+                kind: ServiceKind::Sonarr,
+                ..Default::default()
+            },
+            crate::config::ServiceConfig {
+                name: "foo_bar".into(),
+                kind: ServiceKind::Radarr,
+                ..Default::default()
+            },
+        ],
+    };
+
+    let error = match YarrClient::new(&config) {
+        Ok(_) => panic!("colliding Code Mode service names must be rejected"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("foo-bar"), "{error:#}");
+    assert!(error.to_string().contains("foo_bar"), "{error:#}");
+}
+
 #[tokio::test]
 async fn oversized_upstream_response_is_rejected_before_json_materialization() {
     let body = format!("\"{}\"", "x".repeat(MAX_UPSTREAM_RESPONSE_BYTES + 1));
