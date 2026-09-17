@@ -1,0 +1,38 @@
+name: Temporary dependency refresh
+
+on:
+  push:
+    branches:
+      - fix/mcp-2026-07-28-alignment
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ci-pool-rust
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Install Rust and kache
+        uses: ./.github/actions/setup-rust-kache
+      - name: Refresh patched/yank-free transitive versions
+        shell: bash
+        run: |
+          cargo update -p rustls --precise 0.23.45
+          cargo update -p rand@0.10.1 --precise 0.10.2
+          cargo update -p chacha20@0.10.0 --precise 0.10.1 || true
+      - name: Commit refreshed lock
+        shell: bash
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "fix(deps): refresh rustls and rand transitive patches"
+          git push origin HEAD:fix/mcp-2026-07-28-alignment
