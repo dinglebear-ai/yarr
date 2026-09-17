@@ -15,7 +15,7 @@ use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
         CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
-        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
+        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult, MetaObject,
         ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
         ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
         Resource, ResourceContents, ServerCapabilities, ServerInfo, Tool,
@@ -130,6 +130,61 @@ fn with_cache_hints<T: CacheableResult>(
     }
 }
 
+const SERVER_INFO_META_KEY: &str = "io.modelcontextprotocol/serverInfo";
+
+trait ResultMetadata {
+    fn meta_mut(&mut self) -> &mut Option<MetaObject>;
+}
+
+macro_rules! impl_result_metadata {
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl ResultMetadata for $t {
+                fn meta_mut(&mut self) -> &mut Option<MetaObject> {
+                    &mut self.meta
+                }
+            }
+        )+
+    };
+}
+
+impl_result_metadata!(
+    ListToolsResult,
+    ListResourcesResult,
+    ListResourceTemplatesResult,
+    ReadResourceResult,
+    ListPromptsResult,
+    rmcp::model::GetPromptResult,
+    CallToolResult,
+    rmcp::model::InputRequiredResult,
+);
+
+/// SEP-2575 recommends identifying the server on every modern result. Preserve
+/// any result-specific metadata and add only the reserved serverInfo entry for
+/// 2026-07-28 callers; legacy peers keep their historical wire shape.
+fn with_server_info<T: ResultMetadata>(
+    mut result: T,
+    state: &AppState,
+    context: &RequestContext<RoleServer>,
+) -> T {
+    let modern = context
+        .protocol_version()
+        .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+    if modern {
+        let implementation = Implementation::new(
+            state.config.server_name.clone(),
+            env!("CARGO_PKG_VERSION"),
+        );
+        let value = serde_json::to_value(implementation)
+            .expect("MCP Implementation serialization cannot fail");
+        result
+            .meta_mut()
+            .get_or_insert_default()
+            .insert(SERVER_INFO_META_KEY.to_owned(), value);
+    }
+    result
+}
+
 // ── server ────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -180,13 +235,17 @@ impl ServerHandler for YarrRmcpServer {
         require_auth_context(&self.state, &context)?;
         let tools = rmcp_tool_definitions_for_service(&self.state)?;
         tracing::debug!(tool_count = tools.len(), "MCP tools listed");
-        Ok(with_cache_hints(
-            ListToolsResult {
-                tools,
-                ..Default::default()
-            },
+        Ok(with_server_info(
+            with_cache_hints(
+                ListToolsResult {
+                    tools,
+                    ..Default::default()
+                },
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
             &context,
-            CACHEABLE_RESULT_TTL_MS,
         ))
     }
 
@@ -272,7 +331,9 @@ impl ServerHandler for YarrRmcpServer {
                 request_state.as_deref(),
                 input_responses.as_ref(),
             )? {
-                mrtr::DeleteGate::InputRequired(result) => return Ok(result.into()),
+                mrtr::DeleteGate::InputRequired(result) => {
+                    return Ok(with_server_info(result, &self.state, &context).into());
+                }
                 mrtr::DeleteGate::Proceed => {}
                 mrtr::DeleteGate::Declined => {
                     tracing::info!(
@@ -280,7 +341,8 @@ impl ServerHandler for YarrRmcpServer {
                         action = %action,
                         "destructive action declined via MRTR; nothing changed"
                     );
-                    return declined_result(&action).map(Into::into);
+                    return declined_result(&action)
+                        .map(|result| with_server_info(result, &self.state, &context).into());
                 }
                 mrtr::DeleteGate::Legacy => {
                     if destructive
@@ -292,7 +354,8 @@ impl ServerHandler for YarrRmcpServer {
                             action = %action,
                             "destructive action declined via elicitation; nothing changed"
                         );
-                        return declined_result(&action).map(Into::into);
+                        return declined_result(&action)
+                        .map(|result| with_server_info(result, &self.state, &context).into());
                     }
                 }
             }
@@ -327,7 +390,8 @@ impl ServerHandler for YarrRmcpServer {
                     elapsed_ms = started.elapsed().as_millis(),
                     "MCP tool execution completed"
                 );
-                tool_result_from_json(result).map(Into::into)
+                tool_result_from_json(result)
+                    .map(|result| with_server_info(result, &self.state, &context).into())
             }
             Err(error) if crate::actions::is_validation_error(&error) => {
                 tracing::warn!(
@@ -344,7 +408,12 @@ impl ServerHandler for YarrRmcpServer {
                     error = %error,
                     "MCP tool execution failed"
                 );
-                Ok(tool_error_result(&tool_name, &action, &error).into())
+                Ok(with_server_info(
+                    tool_error_result(&tool_name, &action, &error),
+                    &self.state,
+                    &context,
+                )
+                .into())
             }
         }
     }
@@ -357,13 +426,17 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
         require_auth_context(&self.state, &context)?;
-        Ok(with_cache_hints(
-            ListResourcesResult {
-                resources: vec![schema_resource()],
-                ..Default::default()
-            },
+        Ok(with_server_info(
+            with_cache_hints(
+                ListResourcesResult {
+                    resources: vec![schema_resource()],
+                    ..Default::default()
+                },
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
             &context,
-            CACHEABLE_RESULT_TTL_MS,
         ))
     }
 
@@ -379,10 +452,14 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, ErrorData> {
         require_auth_context(&self.state, &context)?;
-        Ok(with_cache_hints(
-            ListResourceTemplatesResult::default(),
+        Ok(with_server_info(
+            with_cache_hints(
+                ListResourceTemplatesResult::default(),
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
             &context,
-            CACHEABLE_RESULT_TTL_MS,
         ))
     }
 
@@ -401,13 +478,17 @@ impl ServerHandler for YarrRmcpServer {
         let schema = tool_definitions();
         let text = serde_json::to_string_pretty(&schema)
             .map_err(|e| ErrorData::internal_error(format!("serialization error: {e}"), None))?;
-        Ok(with_cache_hints(
-            ReadResourceResult::new(vec![
-                ResourceContents::text(text, SCHEMA_RESOURCE_URI)
-                    .with_mime_type("application/json"),
-            ]),
+        Ok(with_server_info(
+            with_cache_hints(
+                ReadResourceResult::new(vec![
+                    ResourceContents::text(text, SCHEMA_RESOURCE_URI)
+                        .with_mime_type("application/json"),
+                ]),
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
             &context,
-            CACHEABLE_RESULT_TTL_MS,
         )
         .into())
     }
@@ -420,10 +501,10 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, ErrorData> {
         require_auth_context(&self.state, &context)?;
-        Ok(with_cache_hints(
-            prompts::list_prompts(),
+        Ok(with_server_info(
+            with_cache_hints(prompts::list_prompts(), &context, PROMPTS_LIST_TTL_MS),
+            &self.state,
             &context,
-            PROMPTS_LIST_TTL_MS,
         ))
     }
 
@@ -434,7 +515,7 @@ impl ServerHandler for YarrRmcpServer {
     ) -> Result<GetPromptResponse, ErrorData> {
         require_auth_context(&self.state, &context)?;
         prompts::get_prompt(request)
-            .map(Into::into)
+            .map(|result| with_server_info(result, &self.state, &context).into())
             .map_err(|e| ErrorData::invalid_params(e.to_string(), None))
     }
 

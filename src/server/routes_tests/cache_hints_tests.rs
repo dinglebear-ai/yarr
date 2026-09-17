@@ -122,6 +122,11 @@ async fn cacheable_results_carry_sep_2549_hints_for_2026_07_28_callers() {
             response["result"]["resultType"], "complete",
             "{method} must carry resultType=complete for a 2026-07-28 caller: {response}"
         );
+        assert_eq!(
+            response["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+            "yarr",
+            "{method} must identify the server for a 2026-07-28 caller: {response}"
+        );
     }
     server.abort();
 }
@@ -185,6 +190,10 @@ async fn cacheable_results_omit_sep_2549_hints_for_legacy_callers() {
         assert!(
             response["result"]["resultType"].is_null(),
             "{method} should omit resultType for a legacy caller: {response}"
+        );
+        assert!(
+            response["result"]["_meta"]["io.modelcontextprotocol/serverInfo"].is_null(),
+            "{method} should preserve the legacy metadata shape: {response}"
         );
     }
     server.abort();
