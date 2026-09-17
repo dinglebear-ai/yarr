@@ -196,3 +196,97 @@ async fn modern_decline_and_request_tampering_never_reach_upstream() {
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     server.abort();
 }
+
+fn modern_yarr_headers() -> [(&'static str, &'static str); 3] {
+    [
+        ("mcp-protocol-version", "2026-07-28"),
+        ("mcp-method", "tools/call"),
+        ("mcp-name", "yarr"),
+    ]
+}
+
+fn write_enabled_codemode_state(
+    mut state: crate::server::AppState,
+) -> crate::server::AppState {
+    state.config.static_token_scopes = vec![crate::actions::WRITE_SCOPE.to_owned()];
+    state.config.tool_mode = crate::config::ToolMode::Codemode;
+    state
+}
+
+fn destructive_codemode_params() -> Value {
+    json!({
+        "_meta": modern_meta_with_elicitation(),
+        "name": "yarr",
+        "arguments": {
+            "code": "async () => await callTool('api_delete', {service:'sonarr', path:'/api/v3/series/1'})"
+        }
+    })
+}
+
+#[tokio::test]
+async fn modern_codemode_confirms_preflight_targets_then_executes_once() {
+    let (state, calls, server) = counting_state(crate::config::ToolMode::Codemode).await;
+    let state = write_enabled_codemode_state(state);
+
+    let first = authenticated_mcp_call_with_headers(
+        state.clone(),
+        "read-token",
+        &modern_yarr_headers(),
+        json!({
+            "jsonrpc": "2.0",
+            "id": 320,
+            "method": "tools/call",
+            "params": destructive_codemode_params(),
+        }),
+    )
+    .await;
+    assert_eq!(first["result"]["resultType"], "input_required");
+    let request_state = first["result"]["requestState"]
+        .as_str()
+        .expect("Code Mode preflight must return requestState")
+        .to_owned();
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+    let mut retry_params = destructive_codemode_params();
+    let params = retry_params.as_object_mut().unwrap();
+    params.insert("requestState".into(), json!(request_state));
+    params.insert(
+        "inputResponses".into(),
+        json!({"confirm": {"action": "accept", "content": {"confirm": true}}}),
+    );
+    let _accepted = authenticated_mcp_call_with_headers(
+        state.clone(),
+        "read-token",
+        &modern_yarr_headers(),
+        json!({
+            "jsonrpc": "2.0",
+            "id": 321,
+            "method": "tools/call",
+            "params": retry_params.clone(),
+        }),
+    )
+    .await;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+    let (replay_status, replay) = authenticated_mcp_response_with_headers(
+        state,
+        "read-token",
+        &modern_yarr_headers(),
+        json!({
+            "jsonrpc": "2.0",
+            "id": 322,
+            "method": "tools/call",
+            "params": retry_params,
+        }),
+    )
+    .await;
+    assert_eq!(replay_status, axum::http::StatusCode::BAD_REQUEST);
+    assert!(
+        replay["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("requestState")),
+        "unexpected replay response: {replay}"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    server.abort();
+}
