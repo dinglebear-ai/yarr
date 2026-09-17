@@ -31,7 +31,7 @@ use crate::{
 
 use crate::server::{AppState, AuthPolicy};
 
-use super::{elicit, prompts, schemas::tool_definitions, tools::execute_tool};
+use super::{elicit, mrtr, prompts, schemas::tool_definitions, tools::execute_tool};
 
 /// SEP-2549 (`ttlMs`/`cacheScope`) is required on `tools/list`, `resources/list`,
 /// `resources/templates/list`, `resources/read`, and `prompts/list` for clients
@@ -210,6 +210,8 @@ impl ServerHandler for YarrRmcpServer {
 
         let action: String = action_opt.unwrap_or_default();
 
+        let request_state = request.request_state.clone();
+        let input_responses = request.input_responses.clone();
         let arguments = request
             .arguments
             .map(Value::Object)
@@ -219,27 +221,44 @@ impl ServerHandler for YarrRmcpServer {
         // signature.
         let peer: Peer<RoleServer> = context.peer.clone();
 
-        // Destructive-delete gate (MCP-only). Before a destructive action
-        // dispatches, ask the connected client to confirm via elicitation. The
-        // tool name IS the service name (the MCP tool is service-named; `action`
-        // is a parameter). `action_is_destructive` only recognizes literal
-        // destructive action names — it has no notion of `op`'s underlying HTTP
-        // method — so a generated DELETE op dispatched via `action=op` (reachable
-        // directly here in `flat` tool mode; in `codemode` mode `op` is only ever
-        // called from inside a script, which never reaches `call_tool` at all —
-        // see `codemode_dispatch`) is checked separately by
-        // `is_destructive_op_call`.
-        if (crate::actions::action_is_destructive(&action)
-            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments)))
-            && elicit::gate_destructive(&peer, &action, &tool_name).await
-                == elicit::DeleteGate::Declined
-        {
-            tracing::info!(
-                tool = %tool_name,
-                action = %action,
-                "destructive action declined via elicitation; nothing changed"
-            );
-            return declined_result(&action).map(Into::into);
+        // Destructive confirmation is transport-era aware. Modern 2026-07-28
+        // peers use SEP-2322 MRTR (InputRequiredResult + retry); older session
+        // peers retain the legacy server-initiated elicitation round trip.
+        let destructive = crate::actions::action_is_destructive(&action)
+            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments));
+        if destructive {
+            match mrtr::gate_destructive(
+                &context,
+                auth,
+                &tool_name,
+                &action,
+                &arguments,
+                request_state.as_deref(),
+                input_responses.as_ref(),
+            )? {
+                mrtr::DeleteGate::InputRequired(result) => return Ok(result.into()),
+                mrtr::DeleteGate::Proceed => {}
+                mrtr::DeleteGate::Declined => {
+                    tracing::info!(
+                        tool = %tool_name,
+                        action = %action,
+                        "destructive action declined via MRTR; nothing changed"
+                    );
+                    return declined_result(&action).map(Into::into);
+                }
+                mrtr::DeleteGate::Legacy => {
+                    if elicit::gate_destructive(&peer, &action, &tool_name).await
+                        == elicit::DeleteGate::Declined
+                    {
+                        tracing::info!(
+                            tool = %tool_name,
+                            action = %action,
+                            "destructive action declined via elicitation; nothing changed"
+                        );
+                        return declined_result(&action).map(Into::into);
+                    }
+                }
+            }
         }
 
         let started = Instant::now();
