@@ -25,6 +25,18 @@ async fn authenticated_mcp_call_with_headers(
     extra_headers: &[(&str, &str)],
     payload: Value,
 ) -> Value {
+    let (status, body) =
+        authenticated_mcp_response_with_headers(state, token, extra_headers, payload).await;
+    assert!(status.is_success(), "HTTP {status}: {body}");
+    body
+}
+
+async fn authenticated_mcp_response_with_headers(
+    state: crate::server::AppState,
+    token: &str,
+    extra_headers: &[(&str, &str)],
+    payload: Value,
+) -> (axum::http::StatusCode, Value) {
     let mut builder = Request::builder()
         .method("POST")
         .uri("/mcp")
@@ -47,12 +59,8 @@ async fn authenticated_mcp_call_with_headers(
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("response body should read");
-    assert!(
-        status.is_success(),
-        "HTTP {status}: {}",
-        String::from_utf8_lossy(&body)
-    );
-    serde_json::from_slice(&body).expect("MCP response should be JSON")
+    let body = serde_json::from_slice(&body).expect("MCP response should be JSON");
+    (status, body)
 }
 
 async fn counting_state(

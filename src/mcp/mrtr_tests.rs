@@ -6,14 +6,8 @@ fn request_state_handles_are_random_256_bit_base64url_values() {
     let second = random_handle().expect("second handle");
 
     assert_ne!(first, second);
-    assert_eq!(
-        URL_SAFE_NO_PAD.decode(first.as_bytes()).unwrap().len(),
-        32
-    );
-    assert_eq!(
-        URL_SAFE_NO_PAD.decode(second.as_bytes()).unwrap().len(),
-        32
-    );
+    assert_eq!(URL_SAFE_NO_PAD.decode(first.as_bytes()).unwrap().len(), 32);
+    assert_eq!(URL_SAFE_NO_PAD.decode(second.as_bytes()).unwrap().len(), 32);
 }
 
 #[test]
