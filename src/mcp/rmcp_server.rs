@@ -185,6 +185,36 @@ fn with_server_info<T: ResultMetadata>(
     result
 }
 
+/// Yarr keeps permissive stateless compatibility for legacy callers, but an
+/// explicitly modern request must satisfy SEP-2575's self-contained metadata
+/// contract. rmcp's transport leaves this strictness opt-in so mixed-version
+/// servers can preserve older clients; enforce it at Yarr's advertised modern
+/// handler surface instead.
+fn require_modern_request_metadata(
+    context: &RequestContext<RoleServer>,
+) -> Result<(), ErrorData> {
+    let modern = context
+        .protocol_version()
+        .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+    if !modern {
+        return Ok(());
+    }
+    let missing = context
+        .meta
+        .missing_required_keys(&ProtocolVersion::V_2026_07_28);
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(ErrorData::invalid_params(
+            format!(
+                "request _meta is missing or has malformed required fields: {}",
+                missing.join(", ")
+            ),
+            None,
+        ))
+    }
+}
+
 // ── server ────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -232,6 +262,7 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         let tools = rmcp_tool_definitions_for_service(&self.state)?;
         tracing::debug!(tool_count = tools.len(), "MCP tools listed");
@@ -255,6 +286,7 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
         let tool_name = request.name.to_string();
+        require_modern_request_metadata(&context)?;
         let auth = require_auth_context(&self.state, &context)?;
         // Tool identity is authoritative. The default `yarr` tool always means
         // write-scoped Code Mode and never accepts a caller-selected `action`.
@@ -425,6 +457,7 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         Ok(with_server_info(
             with_cache_hints(
@@ -451,6 +484,7 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         Ok(with_server_info(
             with_cache_hints(
@@ -468,6 +502,7 @@ impl ServerHandler for YarrRmcpServer {
         request: ReadResourceRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         if request.uri != SCHEMA_RESOURCE_URI {
             return Err(ErrorData::invalid_params(
@@ -500,6 +535,7 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         Ok(with_server_info(
             with_cache_hints(prompts::list_prompts(), &context, PROMPTS_LIST_TTL_MS),
@@ -513,6 +549,7 @@ impl ServerHandler for YarrRmcpServer {
         request: GetPromptRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResponse, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         prompts::get_prompt(request)
             .map(|result| with_server_info(result, &self.state, &context).into())
