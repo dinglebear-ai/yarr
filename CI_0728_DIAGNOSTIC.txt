@@ -1,306 +1,801 @@
-test_rc=0 siblings_rc=0 patterns_rc=0 coupled_rc=0 deny_rc=127
+fmt_rc=1 clippy_rc=101 test_rc=0 deny_rc=2
 
-===== TARGETED TEST =====
+===== FMT =====
+Diff in /_work/yarr/yarr/src/app/codemode_tests.rs:212:
+         Box::pin(async { Ok(()) })
+     }
+ 
+-    fn planned_destructive_target(
+-        &self,
+-        action: &crate::actions::YarrAction,
+-    ) -> Option<String> {
++    fn planned_destructive_target(&self, action: &crate::actions::YarrAction) -> Option<String> {
+         match action {
+             crate::actions::YarrAction::ApiDelete { service, path, .. } => {
+                 Some(format!("{service}:api_delete:{path}"))
+Diff in /_work/yarr/yarr/src/codemode/engine_tests.rs:378:
+     .unwrap();
+ 
+     assert_eq!(
+-        calls.iter().map(|call| call.id.as_str()).collect::<Vec<_>>(),
++        calls
++            .iter()
++            .map(|call| call.id.as_str())
++            .collect::<Vec<_>>(),
+         vec!["service_status", "api_delete"]
+     );
+ }
+Diff in /_work/yarr/yarr/src/mcp/mrtr.rs:253:
+         .map(|target| format!("- {target}"))
+         .collect::<Vec<_>>()
+         .join("\n");
+-    format!("{base}\nDestructive targets ({}):\n{rendered}", targets.len())
++    format!(
++        "{base}\nDestructive targets ({}):\n{rendered}",
++        targets.len()
++    )
+ }
+ 
+ fn normalize_targets(targets: &[String]) -> Result<Vec<String>, ErrorData> {
+Diff in /_work/yarr/yarr/src/mcp/mrtr.rs:268:
+     normalized.dedup();
+     if normalized.len() > MAX_CONFIRMATION_TARGETS {
+         return Err(ErrorData::invalid_params(
+-            format!("destructive confirmation has too many targets (max {MAX_CONFIRMATION_TARGETS})"),
++            format!(
++                "destructive confirmation has too many targets (max {MAX_CONFIRMATION_TARGETS})"
++            ),
+             None,
+         ));
+     }
+Diff in /_work/yarr/yarr/src/mcp/mrtr.rs:275:
+     let bytes = normalized.iter().map(String::len).sum::<usize>();
+     if bytes > MAX_CONFIRMATION_BYTES {
+         return Err(ErrorData::invalid_params(
+-            format!("destructive confirmation target set is too large (max {MAX_CONFIRMATION_BYTES} bytes)"),
++            format!(
++                "destructive confirmation target set is too large (max {MAX_CONFIRMATION_BYTES} bytes)"
++            ),
+             None,
+         ));
+     }
+Diff in /_work/yarr/yarr/src/mcp/mrtr_tests.rs:44:
+ 
+ #[test]
+ fn confirmation_targets_are_sorted_deduplicated_and_bounded() {
+-    let normalized = normalize_targets(&[
+-        "b".to_owned(),
+-        "a".to_owned(),
+-        "a".to_owned(),
+-    ])
+-    .unwrap();
++    let normalized = normalize_targets(&["b".to_owned(), "a".to_owned(), "a".to_owned()]).unwrap();
+     assert_eq!(normalized, vec!["a", "b"]);
+     assert!(normalize_targets(&[]).is_err());
+     assert!(normalize_targets(&vec!["x".to_owned(); MAX_CONFIRMATION_TARGETS + 1]).is_err());
+Diff in /_work/yarr/yarr/src/mcp/rmcp_server.rs:251:
+         let destructive = crate::actions::action_is_destructive(&action)
+             || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments));
+         let confirmation_targets = if destructive {
+-            vec![direct_destructive_target(
+-                &self.state,
+-                &tool_name,
+-                &action,
+-                &arguments,
+-            )
+-            .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?]
++            vec![
++                direct_destructive_target(&self.state, &tool_name, &action, &arguments)
++                    .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?,
++            ]
+         } else {
+             script_targets.clone()
+         };
+Diff in /_work/yarr/yarr/src/mcp/tools.rs:22:
+ ) -> anyhow::Result<Value> {
+     if guarded_script(name, &args) {
+         let destructive_authorization = match confirmed_destructive_targets {
+-            Some(targets) => DestructiveAuthorization::Confirmed(Arc::new(
+-                targets.into_iter().collect(),
+-            )),
++            Some(targets) => {
++                DestructiveAuthorization::Confirmed(Arc::new(targets.into_iter().collect()))
++            }
+             None => DestructiveAuthorization::Legacy,
+         };
+         let guard = Arc::new(McpCodeModeGuard {
+Diff in /_work/yarr/yarr/src/mcp/tools.rs:55:
+         destructive_authorization: DestructiveAuthorization::Planning,
+     });
+     match parse_script_action(name, args.clone())? {
+-        YarrAction::CodeMode { code } => state.service.codemode_destructive_targets(&code, guard).await,
++        YarrAction::CodeMode { code } => {
++            state
++                .service
++                .codemode_destructive_targets(&code, guard)
++                .await
++        }
+         YarrAction::SnippetRun { name, input } => {
+             state
+                 .service
+Diff in /_work/yarr/yarr/src/mcp/tools.rs:224:
+                         ));
+                     }
+                     let (_, service_name) = destructive_inner_call(&self.state, action);
+-                    if super::elicit::gate_destructive(&self.peer, action.name(), service_name).await
++                    if super::elicit::gate_destructive(&self.peer, action.name(), service_name)
++                        .await
+                         == super::elicit::DeleteGate::Declined
+                     {
+                         return Err(format!(
+Diff in /_work/yarr/yarr/src/mcp/tools.rs:255:
+         return None;
+     }
+     let value = match action {
+-        YarrAction::ServiceStatus { service } => serde_json::json!({"action": "service_status", "service": service}),
+-        YarrAction::ApiGet { service, path } => serde_json::json!({"action": "api_get", "service": service, "path": path}),
+-        YarrAction::ApiPost { service, path, body } => serde_json::json!({"action": "api_post", "service": service, "path": path, "body": body}),
+-        YarrAction::ApiPut { service, path, body } => serde_json::json!({"action": "api_put", "service": service, "path": path, "body": body}),
+-        YarrAction::ApiDelete { service, path, body } => serde_json::json!({"action": "api_delete", "service": service, "path": path, "body": body}),
++        YarrAction::ServiceStatus { service } => {
++            serde_json::json!({"action": "service_status", "service": service})
++        }
++        YarrAction::ApiGet { service, path } => {
++            serde_json::json!({"action": "api_get", "service": service, "path": path})
++        }
++        YarrAction::ApiPost {
++            service,
++            path,
++            body,
++        } => {
++            serde_json::json!({"action": "api_post", "service": service, "path": path, "body": body})
++        }
++        YarrAction::ApiPut {
++            service,
++            path,
++            body,
++        } => {
++            serde_json::json!({"action": "api_put", "service": service, "path": path, "body": body})
++        }
++        YarrAction::ApiDelete {
++            service,
++            path,
++            body,
++        } => {
++            serde_json::json!({"action": "api_delete", "service": service, "path": path, "body": body})
++        }
+         YarrAction::Help => serde_json::json!({"action": "help"}),
+         YarrAction::CodeMode { code } => serde_json::json!({"action": "codemode", "code": code}),
+         YarrAction::SnippetList => serde_json::json!({"action": "snippet_list"}),
+Diff in /_work/yarr/yarr/src/mcp/tools.rs:266:
+-        YarrAction::SnippetSave { name, code, description } => serde_json::json!({"action": "snippet_save", "name": name, "code": code, "description": description}),
+-        YarrAction::SnippetRun { name, input } => serde_json::json!({"action": "snippet_run", "name": name, "input": input}),
+-        YarrAction::SnippetDelete { name } => serde_json::json!({"action": "snippet_delete", "name": name}),
+-        YarrAction::Op { service, op, args } => serde_json::json!({"action": "op", "service": service, "op": op, "args": args}),
+-        YarrAction::Curated { name, params } => serde_json::json!({"action": name, "params": params}),
++        YarrAction::SnippetSave {
++            name,
++            code,
++            description,
++        } => {
++            serde_json::json!({"action": "snippet_save", "name": name, "code": code, "description": description})
++        }
++        YarrAction::SnippetRun { name, input } => {
++            serde_json::json!({"action": "snippet_run", "name": name, "input": input})
++        }
++        YarrAction::SnippetDelete { name } => {
++            serde_json::json!({"action": "snippet_delete", "name": name})
++        }
++        YarrAction::Op { service, op, args } => {
++            serde_json::json!({"action": "op", "service": service, "op": op, "args": args})
++        }
++        YarrAction::Curated { name, params } => {
++            serde_json::json!({"action": name, "params": params})
++        }
+     };
+     Some(canonical_json(&value))
+ }
+Diff in /_work/yarr/yarr/src/mcp/tools.rs:279:
+         }
+         Value::Array(values) => format!(
+             "[{}]",
+-            values.iter().map(canonical_json).collect::<Vec<_>>().join(",")
++            values
++                .iter()
++                .map(canonical_json)
++                .collect::<Vec<_>>()
++                .join(",")
+         ),
+         Value::Object(map) => {
+             let mut keys = map.keys().collect::<Vec<_>>();
+Diff in /_work/yarr/yarr/src/server/routes_tests/mrtr_tests.rs:205:
+     ]
+ }
+ 
+-fn write_enabled_codemode_state(
+-    mut state: crate::server::AppState,
+-) -> crate::server::AppState {
++fn write_enabled_codemode_state(mut state: crate::server::AppState) -> crate::server::AppState {
+     state.config.static_token_scopes = vec![crate::actions::WRITE_SCOPE.to_owned()];
+     state.config.tool_mode = crate::config::ToolMode::Codemode;
+     state
+
+===== CLIPPY =====
 [1m[92m   Compiling[0m proc-macro2 v1.0.106
 [1m[92m   Compiling[0m quote v1.0.45
 [1m[92m   Compiling[0m unicode-ident v1.0.24
 [1m[92m   Compiling[0m libc v0.2.186
-[1m[92m   Compiling[0m cfg-if v1.0.4
+[1m[92m    Checking[0m cfg-if v1.0.4
 [1m[92m   Compiling[0m serde_core v1.0.228
-[1m[92m   Compiling[0m itoa v1.0.18
-[1m[92m   Compiling[0m find-msvc-tools v0.1.9
 [1m[92m   Compiling[0m shlex v1.3.0
-[1m[92m   Compiling[0m pin-project-lite v0.2.17
+[1m[92m   Compiling[0m find-msvc-tools v0.1.9
+[1m[92m    Checking[0m itoa v1.0.18
+[1m[92m    Checking[0m pin-project-lite v0.2.17
 [1m[92m   Compiling[0m version_check v0.9.5
-[1m[92m   Compiling[0m once_cell v1.21.4
-[1m[92m   Compiling[0m typenum v1.20.0
-[1m[92m   Compiling[0m bytes v1.11.1
-[1m[92m   Compiling[0m syn v2.0.117
-[1m[92m   Compiling[0m futures-core v0.3.32
+[1m[92m    Checking[0m once_cell v1.21.4
+[1m[92m    Checking[0m bytes v1.11.1
+[1m[92m    Checking[0m typenum v1.20.0
+[1m[92m    Checking[0m futures-core v0.3.32
 [1m[92m   Compiling[0m jobserver v0.1.34
-[1m[92m   Compiling[0m log v0.4.29
-[1m[92m   Compiling[0m memchr v2.8.0
-[1m[92m   Compiling[0m getrandom v0.2.17
+[1m[92m   Compiling[0m syn v2.0.117
+[1m[92m    Checking[0m getrandom v0.2.17
+[1m[92m    Checking[0m log v0.4.29
 [1m[92m   Compiling[0m cc v1.2.62
-[1m[92m   Compiling[0m smallvec v1.15.1
+[1m[92m    Checking[0m smallvec v1.15.1
+[1m[92m    Checking[0m memchr v2.8.0
 [1m[92m   Compiling[0m generic-array v0.14.9
-[1m[92m   Compiling[0m stable_deref_trait v1.2.1
-[1m[92m   Compiling[0m slab v0.4.12
-[1m[92m   Compiling[0m errno v0.3.14
-[1m[92m   Compiling[0m futures-sink v0.3.32
-[1m[92m   Compiling[0m foldhash v0.2.0
-[1m[92m   Compiling[0m signal-hook-registry v1.4.8
-[1m[92m   Compiling[0m socket2 v0.6.3
-[1m[92m   Compiling[0m mio v1.2.0
-[1m[92m   Compiling[0m tracing-core v0.1.36
-[1m[92m   Compiling[0m rand_core v0.6.4
-[1m[92m   Compiling[0m http v1.4.0
+[1m[92m    Checking[0m stable_deref_trait v1.2.1
+[1m[92m    Checking[0m slab v0.4.12
+[1m[92m    Checking[0m errno v0.3.14
+[1m[92m    Checking[0m futures-sink v0.3.32
+[1m[92m    Checking[0m foldhash v0.2.0
+[1m[92m    Checking[0m mio v1.2.0
+[1m[92m    Checking[0m socket2 v0.6.3
+[1m[92m    Checking[0m signal-hook-registry v1.4.8
+[1m[92m    Checking[0m tracing-core v0.1.36
+[1m[92m    Checking[0m rand_core v0.6.4
+[1m[92m    Checking[0m http v1.4.0
 [1m[92m   Compiling[0m serde v1.0.228
-[1m[92m   Compiling[0m futures-channel v0.3.32
-[1m[92m   Compiling[0m allocator-api2 v0.2.21
-[1m[92m   Compiling[0m crypto-common v0.1.6
-[1m[92m   Compiling[0m equivalent v1.0.2
-[1m[92m   Compiling[0m writeable v0.6.3
-[1m[92m   Compiling[0m percent-encoding v2.3.2
+[1m[92m    Checking[0m futures-channel v0.3.32
+[1m[92m    Checking[0m crypto-common v0.1.6
+[1m[92m    Checking[0m allocator-api2 v0.2.21
+[1m[92m    Checking[0m futures-io v0.3.32
+[1m[92m    Checking[0m futures-task v0.3.32
+[1m[92m    Checking[0m litemap v0.8.2
+[1m[92m    Checking[0m writeable v0.6.3
+[1m[92m    Checking[0m bitflags v2.11.1
+[1m[92m   Compiling[0m zmij v1.0.21
+[1m[92m    Checking[0m equivalent v1.0.2
+[1m[92m    Checking[0m percent-encoding v2.3.2
+[1m[92m   Compiling[0m cmake v0.1.58
+[1m[92m    Checking[0m utf8_iter v1.0.4
+[1m[92m    Checking[0m hashbrown v0.17.1
 [1m[92m   Compiling[0m synstructure v0.13.2
 [1m[92m   Compiling[0m zeroize_derive v1.4.3
 [1m[92m   Compiling[0m zerovec-derive v0.11.3
-[1m[92m   Compiling[0m displaydoc v0.2.5
 [1m[92m   Compiling[0m tokio-macros v2.7.0
-[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m displaydoc v0.2.5
 [1m[92m   Compiling[0m zerofrom-derive v0.1.7
 [1m[92m   Compiling[0m yoke-derive v0.8.2
-[1m[92m   Compiling[0m zeroize v1.8.2
-[1m[92m   Compiling[0m tokio v1.52.3
+[1m[92m    Checking[0m zeroize v1.8.2
+[1m[92m    Checking[0m tokio v1.52.3
+[1m[92m   Compiling[0m serde_derive v1.0.228
 [1m[92m   Compiling[0m tracing-attributes v0.1.31
-[1m[92m   Compiling[0m zerofrom v0.1.8
+[1m[92m    Checking[0m zerofrom v0.1.8
 [1m[92m   Compiling[0m futures-macro v0.3.32
-[1m[92m   Compiling[0m bitflags v2.11.1
-[1m[92m   Compiling[0m yoke v0.8.2
-[1m[92m   Compiling[0m tracing v0.1.44
-[1m[92m   Compiling[0m litemap v0.8.2
-[1m[92m   Compiling[0m futures-io v0.3.32
-[1m[92m   Compiling[0m futures-task v0.3.32
-[1m[92m   Compiling[0m zerovec v0.11.6
-[1m[92m   Compiling[0m zmij v1.0.21
-[1m[92m   Compiling[0m futures-util v0.3.32
-[1m[92m   Compiling[0m zerotrie v0.2.4
-[1m[92m   Compiling[0m hashbrown v0.17.1
-[1m[92m   Compiling[0m tinystr v0.8.3
-[1m[92m   Compiling[0m potential_utf v0.1.5
-[1m[92m   Compiling[0m icu_locale_core v2.2.0
-[1m[92m   Compiling[0m cmake v0.1.58
 [1m[92m   Compiling[0m icu_properties_data v2.2.0
-[1m[92m   Compiling[0m utf8_iter v1.0.4
+[1m[92m    Checking[0m yoke v0.8.2
 [1m[92m   Compiling[0m dunce v1.0.5
+[1m[92m    Checking[0m tracing v0.1.44
 [1m[92m   Compiling[0m icu_normalizer_data v2.2.0
+[1m[92m    Checking[0m zerovec v0.11.6
+[1m[92m    Checking[0m futures-util v0.3.32
+[1m[92m    Checking[0m zerotrie v0.2.4
 [1m[92m   Compiling[0m fs_extra v1.3.0
-[1m[92m   Compiling[0m icu_collections v2.2.0
-[1m[92m   Compiling[0m http-body v1.0.1
 [1m[92m   Compiling[0m aws-lc-sys v0.41.0
-[1m[92m   Compiling[0m icu_provider v2.2.0
+[1m[92m    Checking[0m tinystr v0.8.3
+[1m[92m    Checking[0m potential_utf v0.1.5
+[1m[92m    Checking[0m icu_collections v2.2.0
+[1m[92m    Checking[0m icu_locale_core v2.2.0
+[1m[92m    Checking[0m http-body v1.0.1
 [1m[92m   Compiling[0m getrandom v0.3.4
 [1m[92m   Compiling[0m zerocopy v0.8.48
-[1m[92m   Compiling[0m cpufeatures v0.2.17
+[1m[92m    Checking[0m icu_provider v2.2.0
+[1m[92m    Checking[0m cpufeatures v0.2.17
 [1m[92m   Compiling[0m thiserror v2.0.18
-[1m[92m   Compiling[0m icu_properties v2.2.0
-[1m[92m   Compiling[0m icu_normalizer v2.2.0
-[1m[92m   Compiling[0m indexmap v2.14.0
+[1m[92m    Checking[0m indexmap v2.14.0
+[1m[92m    Checking[0m icu_properties v2.2.0
+[1m[92m    Checking[0m icu_normalizer v2.2.0
 [1m[92m   Compiling[0m thiserror-impl v2.0.18
-[1m[92m   Compiling[0m autocfg v1.5.0
-[1m[92m   Compiling[0m tower-service v0.3.3
-[1m[92m   Compiling[0m subtle v2.6.1
-[1m[92m   Compiling[0m httparse v1.10.1
-[1m[92m   Compiling[0m crossbeam-utils v0.8.21
-[1m[92m   Compiling[0m aws-lc-rs v1.17.0
 [1m[92m   Compiling[0m serde_json v1.0.150
+[1m[92m   Compiling[0m httparse v1.10.1
+[1m[92m   Compiling[0m aws-lc-rs v1.17.0
+[1m[92m    Checking[0m subtle v2.6.1
+[1m[92m   Compiling[0m crossbeam-utils v0.8.21
+[1m[92m    Checking[0m tower-service v0.3.3
+[1m[92m   Compiling[0m autocfg v1.5.0
+[1m[92m    Checking[0m idna_adapter v1.2.2
 [1m[92m   Compiling[0m num-traits v0.2.19
-[1m[92m   Compiling[0m rand_core v0.9.5
-[1m[92m   Compiling[0m tokio-util v0.7.18
-[1m[92m   Compiling[0m form_urlencoded v1.2.2
-[1m[92m   Compiling[0m block-buffer v0.10.4
-[1m[92m   Compiling[0m idna_adapter v1.2.2
+[1m[92m    Checking[0m tokio-util v0.7.18
+[1m[92m    Checking[0m rand_core v0.9.5
+[1m[92m    Checking[0m form_urlencoded v1.2.2
+[1m[92m    Checking[0m block-buffer v0.10.4
 [1m[92m   Compiling[0m ring v0.17.14
-[1m[92m   Compiling[0m digest v0.10.7
-[1m[92m   Compiling[0m idna v1.1.0
-[1m[92m   Compiling[0m http-body-util v0.1.3
-[1m[92m   Compiling[0m rustls-pki-types v1.14.1
-[1m[92m   Compiling[0m base64 v0.22.1
-[1m[92m   Compiling[0m untrusted v0.7.1
+[1m[92m    Checking[0m digest v0.10.7
+[1m[92m    Checking[0m idna v1.1.0
+[1m[92m    Checking[0m http-body-util v0.1.3
+[1m[92m    Checking[0m rustls-pki-types v1.14.1
 [1m[92m   Compiling[0m crc32fast v1.5.0
-[1m[92m   Compiling[0m simd-adler32 v0.3.9
-[1m[92m   Compiling[0m powerfmt v0.2.0
-[1m[92m   Compiling[0m fnv v1.0.7
-[1m[92m   Compiling[0m tower-layer v0.3.3
-[1m[92m   Compiling[0m atomic-waker v1.1.2
+[1m[92m    Checking[0m base64 v0.22.1
+[1m[92m    Checking[0m untrusted v0.7.1
+[1m[92m    Checking[0m tower-layer v0.3.3
 [1m[92m   Compiling[0m time-core v0.1.8
 [1m[92m   Compiling[0m num-conv v0.2.1
-[1m[92m   Compiling[0m try-lock v0.2.5
-[1m[92m   Compiling[0m adler2 v2.0.1
-[1m[92m   Compiling[0m ppv-lite86 v0.2.21
-[1m[92m   Compiling[0m untrusted v0.9.0
-[1m[92m   Compiling[0m miniz_oxide v0.8.9
-[1m[92m   Compiling[0m want v0.3.1
+[1m[92m    Checking[0m fnv v1.0.7
+[1m[92m    Checking[0m untrusted v0.9.0
+[1m[92m    Checking[0m powerfmt v0.2.0
+[1m[92m    Checking[0m simd-adler32 v0.3.9
+[1m[92m    Checking[0m try-lock v0.2.5
+[1m[92m    Checking[0m adler2 v2.0.1
+[1m[92m    Checking[0m atomic-waker v1.1.2
+[1m[92m    Checking[0m want v0.3.1
+[1m[92m    Checking[0m miniz_oxide v0.8.9
+[1m[92m    Checking[0m h2 v0.4.16
+[1m[92m    Checking[0m deranged v0.5.8
+[1m[92m    Checking[0m ppv-lite86 v0.2.21
 [1m[92m   Compiling[0m time-macros v0.2.27
-[1m[92m   Compiling[0m h2 v0.4.16
-[1m[92m   Compiling[0m rand_chacha v0.9.0
+[1m[92m    Checking[0m rand_chacha v0.9.0
+[1m[92m    Checking[0m url v2.5.8
+[1m[92m    Checking[0m rand v0.9.4
+[1m[92m    Checking[0m sync_wrapper v1.0.2
+[1m[92m   Compiling[0m rustls v0.23.40
+[1m[92m    Checking[0m httpdate v1.0.3
+[1m[92m    Checking[0m rand_core v0.10.1
+[1m[92m   Compiling[0m getrandom v0.4.2
+[1m[92m    Checking[0m base64ct v1.8.3
+[1m[92m   Compiling[0m rustversion v1.0.22
+[1m[92m    Checking[0m pem-rfc7468 v0.7.0
+[1m[92m    Checking[0m time v0.3.47
+[1m[92m    Checking[0m flate2 v1.1.9
+[1m[92m    Checking[0m hashbrown v0.16.1
+[1m[92m    Checking[0m hyper v1.9.0
+[1m[92m    Checking[0m const-oid v0.9.6
+[1m[92m    Checking[0m compression-core v0.4.32
+[1m[92m    Checking[0m ipnet v2.12.0
+[1m[92m   Compiling[0m semver v1.0.28
+[1m[92m    Checking[0m mime v0.3.17
+[1m[92m   Compiling[0m rustc_version v0.4.1
+[1m[92m    Checking[0m compression-codecs v0.4.38
+[1m[92m    Checking[0m der v0.7.10
+[1m[92m    Checking[0m hyper-util v0.1.20
+[1m[92m    Checking[0m tower v0.5.3
+[1m[92m    Checking[0m sha1 v0.10.6
+[1m[92m    Checking[0m hybrid-array v0.4.12
+[1m[92m   Compiling[0m syn v3.0.4
+[1m[92m   Compiling[0m cookie v0.18.1
+[1m[92m   Compiling[0m crossbeam-epoch v0.9.20
+[1m[92m   Compiling[0m pkg-config v0.3.33
+[1m[92m    Checking[0m data-encoding v2.11.0
+[1m[92m   Compiling[0m ident_case v1.0.1
+[1m[92m    Checking[0m ryu v1.0.23
+[1m[92m   Compiling[0m cfg_aliases v0.2.1
+[1m[92m   Compiling[0m strsim v0.11.1
+[1m[92m    Checking[0m cpufeatures v0.3.0
+[1m[92m   Compiling[0m vcpkg v0.2.15
+[1m[92m   Compiling[0m unicase v2.9.0
+[1m[92m    Checking[0m serde_urlencoded v0.7.1
+[1m[92m   Compiling[0m mime_guess v2.0.5
+[1m[92m   Compiling[0m libsqlite3-sys v0.37.0
+[1m[92m   Compiling[0m nix v0.31.3
+[1m[92m    Checking[0m tungstenite v0.29.0
+[1m[92m    Checking[0m spki v0.7.3
+[1m[92m    Checking[0m rapidhash v4.4.1
+[1m[92m   Compiling[0m darling_core v0.24.1
+[1m[92m    Checking[0m async-compression v0.4.42
+[1m[92m   Compiling[0m curve25519-dalek v4.1.3
+[1m[92m    Checking[0m num-integer v0.1.46
+[1m[92m    Checking[0m raw-cpuid v11.6.0
+[1m[92m    Checking[0m inout v0.1.4
+[1m[92m   Compiling[0m rquickjs-sys v0.12.1
+[1m[92m   Compiling[0m litrs v1.0.0
+[1m[92m   Compiling[0m ref-cast v1.0.25
+[1m[92m    Checking[0m openssl-probe v0.2.1
+[1m[92m    Checking[0m psl-types v2.0.11
+[1m[92m   Compiling[0m parking_lot_core v0.9.12
+[1m[92m    Checking[0m signature v2.2.0
+[1m[92m    Checking[0m publicsuffix v2.3.0
+[1m[92m    Checking[0m quanta v0.12.6
+[1m[92m    Checking[0m rustls-native-certs v0.8.3
+[1m[92m   Compiling[0m darling_macro v0.24.1
+[1m[92m   Compiling[0m document-features v0.2.12
+[1m[92m    Checking[0m cipher v0.4.4
+[1m[92m    Checking[0m num-bigint v0.4.6
+[1m[92m    Checking[0m tower-http v0.6.11
+[1m[92m    Checking[0m metrics v0.24.6
+[1m[92m    Checking[0m tokio-tungstenite v0.29.0
+[1m[92m    Checking[0m pkcs8 v0.10.2
+[1m[92m    Checking[0m crypto-common v0.2.1
+[1m[92m    Checking[0m block-buffer v0.12.0
+[1m[92m    Checking[0m axum-core v0.5.6
+[1m[92m    Checking[0m left-right v0.11.7
+[1m[92m    Checking[0m rand_xoshiro v0.7.0
+[1m[92m    Checking[0m universal-hash v0.5.1
+[1m[92m    Checking[0m futures-executor v0.3.32
+[1m[92m   Compiling[0m axum-macros v0.5.1
+[1m[92m   Compiling[0m curve25519-dalek-derive v0.1.1
+[1m[92m   Compiling[0m ref-cast-impl v1.0.25
+[1m[92m   Compiling[0m serde_derive_internals v0.29.1
+[1m[92m    Checking[0m serde_path_to_error v0.1.20
+[1m[92m    Checking[0m hashbag v0.1.13
+[1m[92m    Checking[0m sketches-ddsketch v0.3.1
+[1m[92m    Checking[0m opaque-debug v0.3.1
+[1m[92m    Checking[0m const-oid v0.10.2
+[1m[92m    Checking[0m matchit v0.8.4
+[1m[92m    Checking[0m iana-time-zone v0.1.65
+[1m[92m    Checking[0m scopeguard v1.2.0
+[1m[92m    Checking[0m regex-syntax v0.8.11
+[1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
+[1m[92m    Checking[0m regex-automata v0.4.14
+[1m[92m    Checking[0m lock_api v0.4.14
+[1m[92m    Checking[0m axum v0.8.9
+[1m[92m    Checking[0m chrono v0.4.45
+[1m[92m    Checking[0m digest v0.11.3
+[1m[92m    Checking[0m poly1305 v0.8.0
+[1m[92m    Checking[0m metrics-util v0.20.4
+[1m[92m    Checking[0m evmap v11.0.0
+[1m[92m   Compiling[0m schemars_derive v1.2.1
+[1m[92m    Checking[0m futures v0.3.32
+[1m[92m    Checking[0m cookie_store v0.22.1
+[1m[92m    Checking[0m simple_asn1 v0.6.4
+[1m[92m    Checking[0m ed25519 v2.2.3
+[1m[92m    Checking[0m chacha20 v0.9.1
+[1m[92m   Compiling[0m darling v0.24.1
+[1m[92m    Checking[0m chacha20 v0.10.0
+[1m[92m    Checking[0m hashlink v0.11.0
+[1m[92m    Checking[0m pem v3.0.6
+[1m[92m    Checking[0m webpki-roots v1.0.7
+[1m[92m    Checking[0m sha2 v0.10.9
+[1m[92m    Checking[0m aead v0.5.2
+[1m[92m    Checking[0m winnow v1.0.3
+[1m[92m    Checking[0m hashbrown v0.14.5
+[1m[92m    Checking[0m lazy_static v1.5.0
+[1m[92m   Compiling[0m anyhow v1.0.103
+[1m[92m    Checking[0m fallible-streaming-iterator v0.1.9
+[1m[92m   Compiling[0m rmcp v3.1.4
+[1m[92m    Checking[0m fallible-iterator v0.3.0
+[1m[92m    Checking[0m dyn-clone v1.0.20
+[1m[92m    Checking[0m option-ext v0.2.0
+[1m[92m    Checking[0m schemars v1.2.1
+[1m[92m    Checking[0m dirs-sys v0.5.0
+[1m[92m    Checking[0m dashmap v6.2.1
+[1m[92m    Checking[0m sharded-slab v0.1.7
+[1m[92m    Checking[0m toml_parser v1.1.2+spec-1.1.0
+[1m[92m    Checking[0m ed25519-dalek v2.2.0
+[1m[92m    Checking[0m chacha20poly1305 v0.10.1
+[1m[92m    Checking[0m rand v0.10.1
+[1m[92m   Compiling[0m rmcp-macros v3.1.4
+[1m[92m    Checking[0m process-wrap v9.1.0
+[1m[92m    Checking[0m sha2 v0.11.0
+[1m[92m    Checking[0m matchers v0.2.0
+[1m[92m    Checking[0m uuid v1.23.1
+[1m[92m    Checking[0m labby-primitives v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
+[1m[92m    Checking[0m sse-stream v0.2.5
+[1m[92m    Checking[0m tokio-stream v0.1.18
+[1m[92m    Checking[0m tracing-serde v0.2.0
+[1m[92m   Compiling[0m async-trait v0.1.89
+[1m[92m    Checking[0m tracing-log v0.2.0
+[1m[92m    Checking[0m toml_datetime v1.1.1+spec-1.1.0
+[1m[92m    Checking[0m serde_spanned v1.1.1
+[1m[92m    Checking[0m thread_local v1.1.9
+[1m[92m   Compiling[0m pastey v0.2.2
+[1m[92m    Checking[0m base64 v0.23.0
+[1m[92m    Checking[0m toml_writer v1.1.1+spec-1.1.0
+[1m[92m   Compiling[0m rustix v1.1.4
+[1m[92m    Checking[0m nu-ansi-term v0.50.3
+[1m[92m    Checking[0m tracing-subscriber v0.3.23
+[1m[92m    Checking[0m toml v1.1.2+spec-1.1.0
+[1m[92m    Checking[0m axum-prometheus v0.10.0
+[1m[92m    Checking[0m dirs v6.0.0
+[1m[92m    Checking[0m tower-http v0.7.0
+[1m[92m    Checking[0m fs2 v0.4.3
+[1m[92m    Checking[0m linux-raw-sys v0.12.1
+[1m[92m    Checking[0m fastrand v2.4.1
+[1m[92m    Checking[0m tempfile v3.27.0
+[1m[92m    Checking[0m rquickjs-core v0.12.1
+[1m[92m    Checking[0m rquickjs v0.12.1
+[1m[92m    Checking[0m rusqlite v0.39.0
+[1m[92m    Checking[0m rustls-webpki v0.103.13
+[1m[92m    Checking[0m jsonwebtoken v10.4.0
+[1m[92m    Checking[0m tokio-rustls v0.26.4
+[1m[92m    Checking[0m rustls-platform-verifier v0.6.2
+[1m[92m    Checking[0m hyper-rustls v0.27.9
+[1m[92m    Checking[0m reqwest v0.13.1
+[1m[92m    Checking[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
+[1m[92m    Checking[0m yarr v2.2.2 (/_work/yarr/yarr)
+[1m[91merror[0m[1m: this function has too many arguments (8/7)[0m
+  [1m[94m--> [0msrc/mcp/mrtr.rs:54:1
+   [1m[94m|[0m
+[1m[94m54[0m [1m[94m|[0m [1m[91m/[0m pub(crate) fn gate_destructive(
+[1m[94m55[0m [1m[94m|[0m [1m[91m|[0m     context: &RequestContext<RoleServer>,
+[1m[94m56[0m [1m[94m|[0m [1m[91m|[0m     auth: Option<&AuthContext>,
+[1m[94m57[0m [1m[94m|[0m [1m[91m|[0m     tool_name: &str,
+[1m[94m...[0m  [1m[91m|[0m
+[1m[94m62[0m [1m[94m|[0m [1m[91m|[0m     input_responses: Option<&InputResponses>,
+[1m[94m63[0m [1m[94m|[0m [1m[91m|[0m ) -> Result<DeleteGate, ErrorData> {
+   [1m[94m|[0m [1m[91m|__________________________________^[0m
+   [1m[94m|[0m
+   [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#too_many_arguments
+   [1m[94m= [0m[1mnote[0m: `-D clippy::too-many-arguments` implied by `-D warnings`
+   [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+[1m[91merror[0m[1m: useless conversion to the same type: `anyhow::Error`[0m
+   [1m[94m--> [0msrc/mcp/tools.rs:163:54
+    [1m[94m|[0m
+[1m[94m163[0m [1m[94m|[0m       YarrAction::from_mcp_args(&Value::Object(object)).map_err(Into::into)
+    [1m[94m|[0m [1m[94m ______________________________________________________-[0m[1m[91m^^^^^^^^^^^^^^^^^^^[0m
+[1m[94m164[0m [1m[94m|[0m [1m[94m|[0m }
+    [1m[94m|[0m [1m[94m|_-[0m [1m[94mhelp: consider removing[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#useless_conversion
+    [1m[94m= [0m[1mnote[0m: `-D clippy::useless-conversion` implied by `-D warnings`
+    [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::useless_conversion)]`
+
+[1m[91merror[0m: could not compile `yarr` (lib) due to 2 previous errors
+
+===== TARGETED TESTS =====
+[1m[92m   Compiling[0m cfg-if v1.0.4
+[1m[92m   Compiling[0m libc v0.2.186
+[1m[92m   Compiling[0m serde_core v1.0.228
+[1m[92m   Compiling[0m itoa v1.0.18
+[1m[92m   Compiling[0m pin-project-lite v0.2.17
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m bytes v1.11.1
+[1m[92m   Compiling[0m typenum v1.20.0
+[1m[92m   Compiling[0m futures-core v0.3.32
+[1m[92m   Compiling[0m log v0.4.29
+[1m[92m   Compiling[0m memchr v2.8.0
+[1m[92m   Compiling[0m smallvec v1.15.1
+[1m[92m   Compiling[0m zeroize v1.8.2
+[1m[92m   Compiling[0m zerofrom v0.1.8
+[1m[92m   Compiling[0m stable_deref_trait v1.2.1
+[1m[92m   Compiling[0m slab v0.4.12
+[1m[92m   Compiling[0m futures-sink v0.3.32
+[1m[92m   Compiling[0m yoke v0.8.2
+[1m[92m   Compiling[0m foldhash v0.2.0
+[1m[92m   Compiling[0m generic-array v0.14.9
+[1m[92m   Compiling[0m tracing-core v0.1.36
+[1m[92m   Compiling[0m http v1.4.0
+[1m[92m   Compiling[0m zerovec v0.11.6
+[1m[92m   Compiling[0m futures-channel v0.3.32
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m tracing v0.1.44
+[1m[92m   Compiling[0m litemap v0.8.2
+[1m[92m   Compiling[0m writeable v0.6.3
+[1m[92m   Compiling[0m equivalent v1.0.2
+[1m[92m   Compiling[0m bitflags v2.11.1
+[1m[92m   Compiling[0m tinystr v0.8.3
+[1m[92m   Compiling[0m getrandom v0.2.17
+[1m[92m   Compiling[0m errno v0.3.14
+[1m[92m   Compiling[0m mio v1.2.0
+[1m[92m   Compiling[0m socket2 v0.6.3
+[1m[92m   Compiling[0m allocator-api2 v0.2.21
+[1m[92m   Compiling[0m futures-io v0.3.32
+[1m[92m   Compiling[0m signal-hook-registry v1.4.8
+[1m[92m   Compiling[0m rand_core v0.6.4
+[1m[92m   Compiling[0m percent-encoding v2.3.2
+[1m[92m   Compiling[0m futures-task v0.3.32
+[1m[92m   Compiling[0m icu_locale_core v2.2.0
+[1m[92m   Compiling[0m tokio v1.52.3
+[1m[92m   Compiling[0m crypto-common v0.1.6
+[1m[92m   Compiling[0m hashbrown v0.17.1
+[1m[92m   Compiling[0m potential_utf v0.1.5
+[1m[92m   Compiling[0m futures-util v0.3.32
+[1m[92m   Compiling[0m zerotrie v0.2.4
+[1m[92m   Compiling[0m utf8_iter v1.0.4
+[1m[92m   Compiling[0m icu_collections v2.2.0
+[1m[92m   Compiling[0m http-body v1.0.1
+[1m[92m   Compiling[0m getrandom v0.3.4
+[1m[92m   Compiling[0m icu_properties_data v2.2.0
+[1m[92m   Compiling[0m icu_normalizer_data v2.2.0
+[1m[92m   Compiling[0m cpufeatures v0.2.17
+[1m[92m   Compiling[0m icu_provider v2.2.0
+[1m[92m   Compiling[0m indexmap v2.14.0
+[1m[92m   Compiling[0m tower-service v0.3.3
+[1m[92m   Compiling[0m icu_normalizer v2.2.0
+[1m[92m   Compiling[0m icu_properties v2.2.0
+[1m[92m   Compiling[0m subtle v2.6.1
+[1m[92m   Compiling[0m thiserror v2.0.18
+[1m[92m   Compiling[0m rand_core v0.9.5
+[1m[92m   Compiling[0m zerocopy v0.8.48
+[1m[92m   Compiling[0m zmij v1.0.21
+[1m[92m   Compiling[0m form_urlencoded v1.2.2
+[1m[92m   Compiling[0m block-buffer v0.10.4
+[1m[92m   Compiling[0m serde_json v1.0.150
+[1m[92m   Compiling[0m httparse v1.10.1
+[1m[92m   Compiling[0m digest v0.10.7
+[1m[92m   Compiling[0m idna_adapter v1.2.2
+[1m[92m   Compiling[0m idna v1.1.0
+[1m[92m   Compiling[0m crossbeam-utils v0.8.21
+[1m[92m   Compiling[0m aws-lc-sys v0.41.0
+[1m[92m   Compiling[0m http-body-util v0.1.3
+[1m[92m   Compiling[0m rustls-pki-types v1.14.1
+[1m[92m   Compiling[0m untrusted v0.7.1
+[1m[92m   Compiling[0m base64 v0.22.1
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m aws-lc-rs v1.17.0
+[1m[92m   Compiling[0m simd-adler32 v0.3.9
+[1m[92m   Compiling[0m fnv v1.0.7
+[1m[92m   Compiling[0m tower-layer v0.3.3
+[1m[92m   Compiling[0m adler2 v2.0.1
+[1m[92m   Compiling[0m powerfmt v0.2.0
+[1m[92m   Compiling[0m try-lock v0.2.5
+[1m[92m   Compiling[0m untrusted v0.9.0
+[1m[92m   Compiling[0m atomic-waker v1.1.2
+[1m[92m   Compiling[0m want v0.3.1
+[1m[92m   Compiling[0m ring v0.17.14
 [1m[92m   Compiling[0m deranged v0.5.8
-[1m[92m   Compiling[0m rand v0.9.4
+[1m[92m   Compiling[0m miniz_oxide v0.8.9
+[1m[92m   Compiling[0m crc32fast v1.5.0
+[1m[92m   Compiling[0m tokio-util v0.7.18
 [1m[92m   Compiling[0m url v2.5.8
 [1m[92m   Compiling[0m sync_wrapper v1.0.2
+[1m[92m   Compiling[0m num-conv v0.2.1
 [1m[92m   Compiling[0m httpdate v1.0.3
+[1m[92m   Compiling[0m time-core v0.1.8
 [1m[92m   Compiling[0m base64ct v1.8.3
-[1m[92m   Compiling[0m getrandom v0.4.2
-[1m[92m   Compiling[0m rustversion v1.0.22
-[1m[92m   Compiling[0m rustls v0.23.40
+[1m[92m   Compiling[0m h2 v0.4.16
 [1m[92m   Compiling[0m rand_core v0.10.1
-[1m[92m   Compiling[0m pem-rfc7468 v0.7.0
+[1m[92m   Compiling[0m rustls-webpki v0.103.13
 [1m[92m   Compiling[0m time v0.3.47
+[1m[92m   Compiling[0m ppv-lite86 v0.2.21
+[1m[92m   Compiling[0m pem-rfc7468 v0.7.0
 [1m[92m   Compiling[0m flate2 v1.1.9
 [1m[92m   Compiling[0m hashbrown v0.16.1
-[1m[92m   Compiling[0m hyper v1.9.0
-[1m[92m   Compiling[0m compression-core v0.4.32
-[1m[92m   Compiling[0m semver v1.0.28
-[1m[92m   Compiling[0m ipnet v2.12.0
 [1m[92m   Compiling[0m mime v0.3.17
+[1m[92m   Compiling[0m compression-core v0.4.32
+[1m[92m   Compiling[0m rand_chacha v0.9.0
 [1m[92m   Compiling[0m const-oid v0.9.6
-[1m[92m   Compiling[0m rustc_version v0.4.1
-[1m[92m   Compiling[0m der v0.7.10
+[1m[92m   Compiling[0m ipnet v2.12.0
 [1m[92m   Compiling[0m compression-codecs v0.4.38
-[1m[92m   Compiling[0m hyper-util v0.1.20
+[1m[92m   Compiling[0m der v0.7.10
+[1m[92m   Compiling[0m rustls v0.23.40
+[1m[92m   Compiling[0m getrandom v0.4.2
+[1m[92m   Compiling[0m rand v0.9.4
 [1m[92m   Compiling[0m tower v0.5.3
 [1m[92m   Compiling[0m sha1 v0.10.6
 [1m[92m   Compiling[0m hybrid-array v0.4.12
-[1m[92m   Compiling[0m syn v3.0.4
-[1m[92m   Compiling[0m cookie v0.18.1
-[1m[92m   Compiling[0m ident_case v1.0.1
-[1m[92m   Compiling[0m unicase v2.9.0
-[1m[92m   Compiling[0m strsim v0.11.1
-[1m[92m   Compiling[0m crossbeam-epoch v0.9.20
-[1m[92m   Compiling[0m pkg-config v0.3.33
-[1m[92m   Compiling[0m data-encoding v2.11.0
 [1m[92m   Compiling[0m ryu v1.0.23
+[1m[92m   Compiling[0m data-encoding v2.11.0
 [1m[92m   Compiling[0m cpufeatures v0.3.0
-[1m[92m   Compiling[0m vcpkg v0.2.15
-[1m[92m   Compiling[0m cfg_aliases v0.2.1
 [1m[92m   Compiling[0m tungstenite v0.29.0
-[1m[92m   Compiling[0m nix v0.31.3
-[1m[92m   Compiling[0m libsqlite3-sys v0.37.0
 [1m[92m   Compiling[0m serde_urlencoded v0.7.1
-[1m[92m   Compiling[0m darling_core v0.24.1
-[1m[92m   Compiling[0m mime_guess v2.0.5
 [1m[92m   Compiling[0m spki v0.7.3
 [1m[92m   Compiling[0m rapidhash v4.4.1
 [1m[92m   Compiling[0m async-compression v0.4.42
-[1m[92m   Compiling[0m curve25519-dalek v4.1.3
 [1m[92m   Compiling[0m num-integer v0.1.46
 [1m[92m   Compiling[0m raw-cpuid v11.6.0
 [1m[92m   Compiling[0m inout v0.1.4
-[1m[92m   Compiling[0m rquickjs-sys v0.12.1
-[1m[92m   Compiling[0m psl-types v2.0.11
-[1m[92m   Compiling[0m openssl-probe v0.2.1
-[1m[92m   Compiling[0m ref-cast v1.0.25
-[1m[92m   Compiling[0m parking_lot_core v0.9.12
-[1m[92m   Compiling[0m litrs v1.0.0
 [1m[92m   Compiling[0m signature v2.2.0
-[1m[92m   Compiling[0m rustls-native-certs v0.8.3
-[1m[92m   Compiling[0m document-features v0.2.12
-[1m[92m   Compiling[0m darling_macro v0.24.1
-[1m[92m   Compiling[0m quanta v0.12.6
-[1m[92m   Compiling[0m publicsuffix v2.3.0
+[1m[92m   Compiling[0m openssl-probe v0.2.1
+[1m[92m   Compiling[0m psl-types v2.0.11
 [1m[92m   Compiling[0m cipher v0.4.4
-[1m[92m   Compiling[0m num-bigint v0.4.6
+[1m[92m   Compiling[0m tokio-rustls v0.26.4
+[1m[92m   Compiling[0m hyper v1.9.0
+[1m[92m   Compiling[0m rustls-native-certs v0.8.3
+[1m[92m   Compiling[0m publicsuffix v2.3.0
 [1m[92m   Compiling[0m tower-http v0.6.11
+[1m[92m   Compiling[0m tokio-tungstenite v0.29.0
+[1m[92m   Compiling[0m num-bigint v0.4.6
 [1m[92m   Compiling[0m metrics v0.24.6
 [1m[92m   Compiling[0m pkcs8 v0.10.2
-[1m[92m   Compiling[0m tokio-tungstenite v0.29.0
-[1m[92m   Compiling[0m block-buffer v0.12.0
+[1m[92m   Compiling[0m cookie v0.18.1
+[1m[92m   Compiling[0m crossbeam-epoch v0.9.20
 [1m[92m   Compiling[0m crypto-common v0.2.1
+[1m[92m   Compiling[0m quanta v0.12.6
+[1m[92m   Compiling[0m block-buffer v0.12.0
+[1m[92m   Compiling[0m hyper-util v0.1.20
 [1m[92m   Compiling[0m axum-core v0.5.6
 [1m[92m   Compiling[0m left-right v0.11.7
+[1m[92m   Compiling[0m futures-executor v0.3.32
 [1m[92m   Compiling[0m rand_xoshiro v0.7.0
 [1m[92m   Compiling[0m universal-hash v0.5.1
-[1m[92m   Compiling[0m futures-executor v0.3.32
-[1m[92m   Compiling[0m axum-macros v0.5.1
-[1m[92m   Compiling[0m ref-cast-impl v1.0.25
-[1m[92m   Compiling[0m curve25519-dalek-derive v0.1.1
-[1m[92m   Compiling[0m serde_derive_internals v0.29.1
 [1m[92m   Compiling[0m serde_path_to_error v0.1.20
-[1m[92m   Compiling[0m opaque-debug v0.3.1
-[1m[92m   Compiling[0m sketches-ddsketch v0.3.1
-[1m[92m   Compiling[0m iana-time-zone v0.1.65
-[1m[92m   Compiling[0m regex-syntax v0.8.11
 [1m[92m   Compiling[0m matchit v0.8.4
+[1m[92m   Compiling[0m opaque-debug v0.3.1
 [1m[92m   Compiling[0m const-oid v0.10.2
-[1m[92m   Compiling[0m scopeguard v1.2.0
-[1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
 [1m[92m   Compiling[0m hashbag v0.1.13
-[1m[92m   Compiling[0m evmap v11.0.0
-[1m[92m   Compiling[0m lock_api v0.4.14
-[1m[92m   Compiling[0m digest v0.11.3
-[1m[92m   Compiling[0m regex-automata v0.4.14
-[1m[92m   Compiling[0m axum v0.8.9
+[1m[92m   Compiling[0m regex-syntax v0.8.11
+[1m[92m   Compiling[0m iana-time-zone v0.1.65
+[1m[92m   Compiling[0m scopeguard v1.2.0
+[1m[92m   Compiling[0m sketches-ddsketch v0.3.1
+[1m[92m   Compiling[0m unicase v2.9.0
 [1m[92m   Compiling[0m chrono v0.4.45
 [1m[92m   Compiling[0m metrics-util v0.20.4
+[1m[92m   Compiling[0m lock_api v0.4.14
+[1m[92m   Compiling[0m mime_guess v2.0.5
+[1m[92m   Compiling[0m hyper-rustls v0.27.9
+[1m[92m   Compiling[0m axum v0.8.9
+[1m[92m   Compiling[0m digest v0.11.3
+[1m[92m   Compiling[0m regex-automata v0.4.14
+[1m[92m   Compiling[0m evmap v11.0.0
 [1m[92m   Compiling[0m poly1305 v0.8.0
-[1m[92m   Compiling[0m schemars_derive v1.2.1
+[1m[92m   Compiling[0m curve25519-dalek v4.1.3
+[1m[92m   Compiling[0m ref-cast v1.0.25
 [1m[92m   Compiling[0m futures v0.3.32
-[1m[92m   Compiling[0m cookie_store v0.22.1
 [1m[92m   Compiling[0m simple_asn1 v0.6.4
+[1m[92m   Compiling[0m cookie_store v0.22.1
+[1m[92m   Compiling[0m libsqlite3-sys v0.37.0
+[1m[92m   Compiling[0m nix v0.31.3
 [1m[92m   Compiling[0m ed25519 v2.2.3
+[1m[92m   Compiling[0m rquickjs-sys v0.12.1
+[1m[92m   Compiling[0m rustls-platform-verifier v0.6.2
 [1m[92m   Compiling[0m chacha20 v0.9.1
-[1m[92m   Compiling[0m darling v0.24.1
+[1m[92m   Compiling[0m parking_lot_core v0.9.12
 [1m[92m   Compiling[0m chacha20 v0.10.0
 [1m[92m   Compiling[0m hashlink v0.11.0
 [1m[92m   Compiling[0m pem v3.0.6
 [1m[92m   Compiling[0m webpki-roots v1.0.7
 [1m[92m   Compiling[0m sha2 v0.10.9
 [1m[92m   Compiling[0m aead v0.5.2
-[1m[92m   Compiling[0m rmcp v3.1.4
-[1m[92m   Compiling[0m lazy_static v1.5.0
 [1m[92m   Compiling[0m fallible-iterator v0.3.0
 [1m[92m   Compiling[0m dyn-clone v1.0.20
+[1m[92m   Compiling[0m fallible-streaming-iterator v0.1.9
+[1m[92m   Compiling[0m lazy_static v1.5.0
 [1m[92m   Compiling[0m option-ext v0.2.0
 [1m[92m   Compiling[0m hashbrown v0.14.5
 [1m[92m   Compiling[0m winnow v1.0.3
-[1m[92m   Compiling[0m anyhow v1.0.103
-[1m[92m   Compiling[0m fallible-streaming-iterator v0.1.9
-[1m[92m   Compiling[0m dashmap v6.2.1
-[1m[92m   Compiling[0m toml_parser v1.1.2+spec-1.1.0
-[1m[92m   Compiling[0m dirs-sys v0.5.0
-[1m[92m   Compiling[0m schemars v1.2.1
-[1m[92m   Compiling[0m sharded-slab v0.1.7
-[1m[92m   Compiling[0m ed25519-dalek v2.2.0
-[1m[92m   Compiling[0m chacha20poly1305 v0.10.1
-[1m[92m   Compiling[0m rand v0.10.1
-[1m[92m   Compiling[0m rmcp-macros v3.1.4
 [1m[92m   Compiling[0m process-wrap v9.1.0
+[1m[92m   Compiling[0m ed25519-dalek v2.2.0
+[1m[92m   Compiling[0m rusqlite v0.39.0
+[1m[92m   Compiling[0m dirs-sys v0.5.0
+[1m[92m   Compiling[0m sharded-slab v0.1.7
+[1m[92m   Compiling[0m toml_parser v1.1.2+spec-1.1.0
+[1m[92m   Compiling[0m schemars v1.2.1
+[1m[92m   Compiling[0m chacha20poly1305 v0.10.1
+[1m[92m   Compiling[0m dashmap v6.2.1
+[1m[92m   Compiling[0m reqwest v0.13.1
+[1m[92m   Compiling[0m jsonwebtoken v10.4.0
+[1m[92m   Compiling[0m rand v0.10.1
+[1m[92m   Compiling[0m rquickjs-core v0.12.1
 [1m[92m   Compiling[0m matchers v0.2.0
+[1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
 [1m[92m   Compiling[0m sha2 v0.11.0
 [1m[92m   Compiling[0m uuid v1.23.1
 [1m[92m   Compiling[0m labby-primitives v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
-[1m[92m   Compiling[0m sse-stream v0.2.5
 [1m[92m   Compiling[0m tokio-stream v0.1.18
+[1m[92m   Compiling[0m sse-stream v0.2.5
 [1m[92m   Compiling[0m tracing-serde v0.2.0
-[1m[92m   Compiling[0m async-trait v0.1.89
 [1m[92m   Compiling[0m tracing-log v0.2.0
 [1m[92m   Compiling[0m serde_spanned v1.1.1
 [1m[92m   Compiling[0m toml_datetime v1.1.1+spec-1.1.0
 [1m[92m   Compiling[0m thread_local v1.1.9
-[1m[92m   Compiling[0m toml_writer v1.1.1+spec-1.1.0
-[1m[92m   Compiling[0m rustix v1.1.4
-[1m[92m   Compiling[0m nu-ansi-term v0.50.3
-[1m[92m   Compiling[0m pastey v0.2.2
 [1m[92m   Compiling[0m base64 v0.23.0
-[1m[92m   Compiling[0m tracing-subscriber v0.3.23
-[1m[92m   Compiling[0m toml v1.1.2+spec-1.1.0
+[1m[92m   Compiling[0m toml_writer v1.1.1+spec-1.1.0
+[1m[92m   Compiling[0m nu-ansi-term v0.50.3
+[1m[92m   Compiling[0m rquickjs v0.12.1
+[1m[92m   Compiling[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
 [1m[92m   Compiling[0m axum-prometheus v0.10.0
+[1m[92m   Compiling[0m toml v1.1.2+spec-1.1.0
+[1m[92m   Compiling[0m anyhow v1.0.103
+[1m[92m   Compiling[0m tracing-subscriber v0.3.23
+[1m[92m   Compiling[0m rmcp v3.1.4
 [1m[92m   Compiling[0m dirs v6.0.0
 [1m[92m   Compiling[0m tower-http v0.7.0
 [1m[92m   Compiling[0m fs2 v0.4.3
 [1m[92m   Compiling[0m linux-raw-sys v0.12.1
 [1m[92m   Compiling[0m fastrand v2.4.1
+[1m[92m   Compiling[0m rustix v1.1.4
 [1m[92m   Compiling[0m tempfile v3.27.0
-[1m[92m   Compiling[0m rquickjs-core v0.12.1
-[1m[92m   Compiling[0m rquickjs v0.12.1
-[1m[92m   Compiling[0m rusqlite v0.39.0
-[1m[92m   Compiling[0m rustls-webpki v0.103.13
-[1m[92m   Compiling[0m jsonwebtoken v10.4.0
-[1m[92m   Compiling[0m tokio-rustls v0.26.4
-[1m[92m   Compiling[0m rustls-platform-verifier v0.6.2
-[1m[92m   Compiling[0m hyper-rustls v0.27.9
-[1m[92m   Compiling[0m reqwest v0.13.1
-[1m[92m   Compiling[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
 [1m[92m   Compiling[0m yarr v2.2.2 (/_work/yarr/yarr)
-[1m[92m    Finished[0m `test` profile [unoptimized] target(s) in 24.43s
+[1m[92m    Finished[0m `test` profile [unoptimized] target(s) in 6.58s
 [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/yarr-a449e27e5410b030)
 
 running 3 tests
-test server::routes::tests::mrtr::tests::modern_destructive_call_requires_input_then_executes_exactly_once ... ok
 test server::routes::tests::mrtr::tests::modern_decline_and_request_tampering_never_reach_upstream ... ok
+test server::routes::tests::mrtr::tests::modern_destructive_call_requires_input_then_executes_exactly_once ... ok
 test server::routes::tests::mrtr::tests::modern_codemode_confirms_preflight_targets_then_executes_once ... ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 613 filtered out; finished in 0.09s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 613 filtered out; finished in 0.12s
 
 [1m[92m     Running[0m unittests src/main.rs (target/debug/deps/yarr-a45e8ab5e9cb1195)
 
@@ -339,159 +834,11 @@ running 0 tests
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
 
 
-===== TEST SIBLINGS =====
-[1m[92m   Compiling[0m libc v0.2.186
-[1m[92m   Compiling[0m num-traits v0.2.19
-[1m[92m   Compiling[0m bitflags v2.11.1
-[1m[92m   Compiling[0m crc32fast v1.5.0
-[1m[92m   Compiling[0m regex-syntax v0.8.11
-[1m[92m   Compiling[0m aho-corasick v1.1.4
-[1m[92m   Compiling[0m raw-cpuid v11.6.0
-[1m[92m   Compiling[0m flate2 v1.1.9
-[1m[92m   Compiling[0m compression-codecs v0.4.38
-[1m[92m   Compiling[0m ahash v0.8.12
-[1m[92m   Compiling[0m rmcp v3.1.4
-[1m[92m   Compiling[0m getrandom v0.2.17
-[1m[92m   Compiling[0m errno v0.3.14
-[1m[92m   Compiling[0m mio v1.2.0
-[1m[92m   Compiling[0m socket2 v0.6.3
-[1m[92m   Compiling[0m rand_core v0.6.4
-[1m[92m   Compiling[0m signal-hook-registry v1.4.8
-[1m[92m   Compiling[0m getrandom v0.3.4
-[1m[92m   Compiling[0m crypto-common v0.1.6
-[1m[92m   Compiling[0m ring v0.17.14
-[1m[92m   Compiling[0m tokio v1.52.3
-[1m[92m   Compiling[0m rand_core v0.9.5
-[1m[92m   Compiling[0m digest v0.10.7
-[1m[92m   Compiling[0m rand_chacha v0.9.0
-[1m[92m   Compiling[0m regex-automata v0.4.14
-[1m[92m   Compiling[0m sha1 v0.10.6
-[1m[92m   Compiling[0m rand v0.9.4
-[1m[92m   Compiling[0m parking_lot_core v0.9.12
-[1m[92m   Compiling[0m getrandom v0.4.2
-[1m[92m   Compiling[0m rustls-webpki v0.103.13
-[1m[92m   Compiling[0m tungstenite v0.29.0
-[1m[92m   Compiling[0m quanta v0.12.6
-[1m[92m   Compiling[0m num-integer v0.1.46
-[1m[92m   Compiling[0m rand_xoshiro v0.7.0
-[1m[92m   Compiling[0m rustls v0.23.40
-[1m[92m   Compiling[0m universal-hash v0.5.1
-[1m[92m   Compiling[0m num-bigint v0.4.6
-[1m[92m   Compiling[0m cipher v0.4.4
-[1m[92m   Compiling[0m poly1305 v0.8.0
-[1m[92m   Compiling[0m chacha20 v0.9.1
-[1m[92m   Compiling[0m num-iter v0.1.45
-[1m[92m   Compiling[0m metrics-util v0.20.4
-[1m[92m   Compiling[0m chrono v0.4.45
-[1m[92m   Compiling[0m num-complex v0.4.6
-[1m[92m   Compiling[0m curve25519-dalek v4.1.3
-[1m[92m   Compiling[0m num-rational v0.4.2
-[1m[92m   Compiling[0m simple_asn1 v0.6.4
-[1m[92m   Compiling[0m sha2 v0.10.9
-[1m[92m   Compiling[0m tokio-util v0.7.18
-[1m[92m   Compiling[0m tower v0.5.3
-[1m[92m   Compiling[0m async-compression v0.4.42
-[1m[92m   Compiling[0m tokio-rustls v0.26.4
-[1m[92m   Compiling[0m tokio-tungstenite v0.29.0
-[1m[92m   Compiling[0m rustls-platform-verifier v0.6.2
-[1m[92m   Compiling[0m aead v0.5.2
-[1m[92m   Compiling[0m h2 v0.4.16
-[1m[92m   Compiling[0m bit-vec v0.8.0
-[1m[92m   Compiling[0m borrow-or-share v0.2.4
-[1m[92m   Compiling[0m unicode-general-category v1.1.0
-[1m[92m   Compiling[0m tower-http v0.6.11
-[1m[92m   Compiling[0m dashmap v6.2.1
-[1m[92m   Compiling[0m fluent-uri v0.4.1
-[1m[92m   Compiling[0m bit-set v0.8.0
-[1m[92m   Compiling[0m chacha20poly1305 v0.10.1
-[1m[92m   Compiling[0m schemars v1.2.1
-[1m[92m   Compiling[0m rusqlite v0.39.0
-[1m[92m   Compiling[0m dirs-sys v0.5.0
-[1m[92m   Compiling[0m ed25519-dalek v2.2.0
-[1m[92m   Compiling[0m jsonwebtoken v10.4.0
-[1m[92m   Compiling[0m tokio-stream v0.1.18
-[1m[92m   Compiling[0m num v0.4.3
-[1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
-[1m[92m   Compiling[0m matchers v0.2.0
-[1m[92m   Compiling[0m rand v0.10.1
-[1m[92m   Compiling[0m uuid v1.23.1
-[1m[92m   Compiling[0m parking_lot v0.12.5
-[1m[92m   Compiling[0m micromap v0.3.0
-[1m[92m   Compiling[0m outref v0.5.2
-[1m[92m   Compiling[0m vsimd v0.8.0
-[1m[92m   Compiling[0m noyalib v0.0.15
-[1m[92m   Compiling[0m tracing-subscriber v0.3.23
-[1m[92m   Compiling[0m referencing v0.47.0
-[1m[92m   Compiling[0m uuid-simd v0.8.0
-[1m[92m   Compiling[0m fraction v0.15.4
-[1m[92m   Compiling[0m dirs v6.0.0
-[1m[92m   Compiling[0m fancy-regex v0.18.0
-[1m[92m   Compiling[0m hyper v1.9.0
-[1m[92m   Compiling[0m regex v1.12.4
-[1m[92m   Compiling[0m jsonschema-regex v0.47.0
-[1m[92m   Compiling[0m fs2 v0.4.3
-[1m[92m   Compiling[0m tower-http v0.7.0
-[1m[92m   Compiling[0m ureq-proto v0.6.0
-[1m[92m   Compiling[0m email_address v0.2.9
-[1m[92m   Compiling[0m serde_ignored v0.1.14
-[1m[92m   Compiling[0m bytecount v0.6.9
-[1m[92m   Compiling[0m same-file v1.0.6
-[1m[92m   Compiling[0m num-cmp v0.1.0
-[1m[92m   Compiling[0m utf8-zero v0.8.1
-[1m[92m   Compiling[0m rustc-hash v2.1.2
-[1m[92m   Compiling[0m jsonschema v0.47.0
-[1m[92m   Compiling[0m hyper-util v0.1.20
-[1m[92m   Compiling[0m ureq v3.3.0
-[1m[92m   Compiling[0m walkdir v2.5.0
-[1m[92m   Compiling[0m roxmltree v0.21.1
-[1m[92m   Compiling[0m axum v0.8.9
-[1m[92m   Compiling[0m hyper-rustls v0.27.9
-[1m[92m   Compiling[0m reqwest v0.13.1
-[1m[92m   Compiling[0m axum-prometheus v0.10.0
-[1m[92m   Compiling[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
-[1m[92m   Compiling[0m yarr v2.2.2 (/_work/yarr/yarr)
-[1m[92m   Compiling[0m xtask v2.2.2 (/_work/yarr/yarr/xtask)
-[1m[92m    Finished[0m `dev` profile [unoptimized] target(s) in 3.36s
-[1m[92m     Running[0m `target/debug/xtask check-test-siblings`
-==> check-test-siblings: all source files have a _tests.rs sibling
-
-===== PATTERNS =====
-[1m[92m   Compiling[0m num-traits v0.2.19
-[1m[92m   Compiling[0m noyalib v0.0.15
-[1m[92m   Compiling[0m num-integer v0.1.46
-[1m[92m   Compiling[0m chrono v0.4.45
-[1m[92m   Compiling[0m num-complex v0.4.6
-[1m[92m   Compiling[0m num-bigint v0.4.6
-[1m[92m   Compiling[0m num-iter v0.1.45
-[1m[92m   Compiling[0m schemars v1.2.1
-[1m[92m   Compiling[0m num-rational v0.4.2
-[1m[92m   Compiling[0m simple_asn1 v0.6.4
-[1m[92m   Compiling[0m jsonwebtoken v10.4.0
-[1m[92m   Compiling[0m rmcp v3.1.4
-[1m[92m   Compiling[0m num v0.4.3
-[1m[92m   Compiling[0m fraction v0.15.4
-[1m[92m   Compiling[0m jsonschema v0.47.0
-[1m[92m   Compiling[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
-[1m[92m   Compiling[0m yarr v2.2.2 (/_work/yarr/yarr)
-[1m[92m   Compiling[0m xtask v2.2.2 (/_work/yarr/yarr/xtask)
-[1m[92m    Finished[0m `dev` profile [unoptimized] target(s) in 1.98s
-[1m[92m     Running[0m `target/debug/xtask patterns`
-OK: required-files: 19 expected files present
-OK: modern-rust: no mod.rs files found
-WARN: file-size: above PATTERNS.md target; split opportunistically: src/app/codemode.rs: 474 effective lines (target 350); src/cli/setup/wizard.rs: 359 effective lines (target 350); src/mcp/rmcp_server.rs: 354 effective lines (target 350); unraid-plugin/api/src/config-codec.ts: 461 effective lines (target 300); unraid-plugin/api/src/config.service.ts: 464 effective lines (target 300); unraid-plugin/api/src/discovery.service.ts: 444 effective lines (target 300); unraid-plugin/api/src/graphql.types.ts: 517 effective lines (target 300); unraid-plugin/api/src/import-parser.ts: 325 effective lines (target 300); unraid-plugin/api/src/update.service.ts: 327 effective lines (target 300). Hint: move unrelated UI, CLI, or handler concerns into focused modules.
-OK: thin-shim: src/mcp/tools.rs looks like a delegation shim
-OK: thin-shim: src/cli.rs looks like a delegation shim
-WARN: surfaces: suspicious surface logic found: src/mcp/tools.rs has 13 json! object literals. Hint: verify this is protocol/UI glue rather than business logic; move validation, normalization, and transformations into app.rs.
-OK: actions: 12 actions appear in schema/help/tests/CLI surfaces
-OK: routes: MCP, health, and status routes are wired
-OK: plugins: 24 plugin manifest(s) omit version
-OK: plugins: plugin setup hook uses the safe local script and ships no binary
-OK: config: .env is ignored
-OK: auth: auth policy states and config toggles are present
-OK: tooling: CI enforcement scripts, lefthook, and taplo config are present
-
-===== COUPLED FILES =====
-Coupled-file check passed (origin/main..HEAD).
-
 ===== CARGO DENY =====
-/_work/_temp/3f3fa7b0-94a6-4dc4-8720-8fdbf2c9a9cb.sh: line 10: cargo-deny: command not found
+error: unexpected argument '--all-features' found
+
+  tip: to pass '--all-features' as a value, use '-- --all-features'
+
+Usage: cargo-deny check [OPTIONS] [WHICH]...
+
+For more information, try '--help'.
