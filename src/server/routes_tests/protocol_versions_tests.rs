@@ -82,6 +82,10 @@ async fn modern_prompt_and_tool_results_carry_complete_discriminator() {
     )
     .await;
     assert_eq!(prompt["result"]["resultType"], "complete");
+    assert_eq!(
+        prompt["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+        "yarr"
+    );
     prompt_server.abort();
 
     let (tool_state, calls, tool_server) = counting_state(crate::config::ToolMode::Flat).await;
@@ -106,6 +110,10 @@ async fn modern_prompt_and_tool_results_carry_complete_discriminator() {
     )
     .await;
     assert_eq!(tool["result"]["resultType"], "complete");
+    assert_eq!(
+        tool["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+        "yarr"
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     tool_server.abort();
 }
@@ -126,6 +134,7 @@ async fn legacy_prompt_and_tool_results_keep_the_pre_0728_wire_shape() {
     )
     .await;
     assert!(prompt["result"]["resultType"].is_null());
+    assert!(prompt["result"]["_meta"]["io.modelcontextprotocol/serverInfo"].is_null());
     prompt_server.abort();
 
     let (tool_state, calls, tool_server) = counting_state(crate::config::ToolMode::Flat).await;
@@ -144,6 +153,7 @@ async fn legacy_prompt_and_tool_results_keep_the_pre_0728_wire_shape() {
     )
     .await;
     assert!(tool["result"]["resultType"].is_null());
+    assert!(tool["result"]["_meta"]["io.modelcontextprotocol/serverInfo"].is_null());
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     tool_server.abort();
 }

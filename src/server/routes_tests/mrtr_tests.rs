@@ -54,6 +54,10 @@ async fn modern_destructive_call_requires_input_then_executes_exactly_once() {
     .await;
     assert_eq!(first["result"]["resultType"], "input_required");
     assert_eq!(
+        first["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+        "yarr"
+    );
+    assert_eq!(
         first["result"]["inputRequests"]["confirm"]["method"],
         "elicitation/create"
     );
@@ -88,6 +92,10 @@ async fn modern_destructive_call_requires_input_then_executes_exactly_once() {
     )
     .await;
     assert_eq!(accepted["result"]["resultType"], "complete");
+    assert_eq!(
+        accepted["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+        "yarr"
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 
     let (replay_status, replay) = authenticated_mcp_response_with_headers(
