@@ -128,11 +128,11 @@ async fn counting_state(
 
 #[path = "routes_tests/auth.rs"]
 mod auth;
-#[path = "routes_tests/cache_hints_tests.rs"]
-mod cache_hints_tests;
+#[path = "routes_tests/cache_hints.rs"]
+mod cache_hints;
 #[path = "routes_tests/metrics.rs"]
 mod metrics;
-#[path = "routes_tests/mrtr_tests.rs"]
-mod mrtr_tests;
+#[path = "routes_tests/mrtr.rs"]
+mod mrtr;
 #[path = "routes_tests/protocol_versions.rs"]
 mod protocol_versions;

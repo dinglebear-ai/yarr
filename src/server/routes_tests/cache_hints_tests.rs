@@ -11,7 +11,7 @@
 //! `MCP-Protocol-Version` HTTP header via rmcp's own stateless
 //! `peer_info_for_stateless_request` reconstruction, not a mocked context.
 
-use super::*;
+use super::super::*;
 
 /// Every SEP-2549-cacheable list/read result yarr handles explicitly, the
 /// JSON-RPC method + params that reaches it, and the `ttlMs`
