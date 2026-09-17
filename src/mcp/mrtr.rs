@@ -26,6 +26,8 @@ use serde_json::{Value, json};
 const CONFIRM_INPUT: &str = "confirm";
 const PENDING_TTL: Duration = Duration::from_secs(300);
 const MAX_PENDING: usize = 256;
+const MAX_CONFIRMATION_TARGETS: usize = 64;
+const MAX_CONFIRMATION_BYTES: usize = 16 * 1024;
 
 #[derive(Debug)]
 struct PendingDestructiveCall {
@@ -34,6 +36,7 @@ struct PendingDestructiveCall {
     tool_name: String,
     action: String,
     arguments: Value,
+    targets: Vec<String>,
 }
 
 fn pending() -> &'static Mutex<HashMap<String, PendingDestructiveCall>> {
@@ -54,6 +57,7 @@ pub(crate) fn gate_destructive(
     tool_name: &str,
     action: &str,
     arguments: &Value,
+    confirmation_targets: &[String],
     request_state: Option<&str>,
     input_responses: Option<&InputResponses>,
 ) -> Result<DeleteGate, ErrorData> {
@@ -68,6 +72,7 @@ pub(crate) fn gate_destructive(
         return Ok(DeleteGate::Declined);
     }
 
+    let targets = normalize_targets(confirmation_targets)?;
     let principal = auth.map(|auth| auth.sub.clone());
     match request_state {
         None => {
@@ -83,9 +88,10 @@ pub(crate) fn gate_destructive(
                 tool_name: tool_name.to_owned(),
                 action: action.to_owned(),
                 arguments: arguments.clone(),
+                targets: targets.clone(),
             })?;
             Ok(DeleteGate::InputRequired(input_required(
-                action, tool_name, handle,
+                action, tool_name, &targets, handle,
             )?))
         }
         Some(handle) => resume_pending(
@@ -94,6 +100,7 @@ pub(crate) fn gate_destructive(
             tool_name,
             action,
             arguments,
+            &targets,
             input_responses,
         ),
     }
@@ -143,6 +150,7 @@ fn resume_pending(
     tool_name: &str,
     action: &str,
     arguments: &Value,
+    targets: &[String],
     input_responses: Option<&InputResponses>,
 ) -> Result<DeleteGate, ErrorData> {
     let mut store = pending().lock().map_err(|_| {
@@ -160,6 +168,7 @@ fn resume_pending(
         || saved.tool_name != tool_name
         || saved.action != action
         || saved.arguments != *arguments
+        || saved.targets != targets
     {
         store.remove(handle);
         return Err(ErrorData::invalid_params(
@@ -173,6 +182,7 @@ fn resume_pending(
         return Ok(DeleteGate::InputRequired(input_required(
             action,
             tool_name,
+            targets,
             handle.to_owned(),
         )?));
     };
@@ -202,6 +212,7 @@ fn resume_pending(
 fn input_required(
     action: &str,
     tool_name: &str,
+    targets: &[String],
     request_state: String,
 ) -> Result<InputRequiredResult, ErrorData> {
     let requested_schema: ElicitationSchema = serde_json::from_value(json!({
@@ -221,7 +232,7 @@ fn input_required(
         InputRequest::Elicitation(ElicitRequest::new(
             ElicitRequestParams::FormElicitationParams {
                 meta: None,
-                message: super::elicit::confirm_message(action, tool_name),
+                message: confirmation_message(action, tool_name, targets),
                 requested_schema,
             },
         )),
@@ -230,6 +241,45 @@ fn input_required(
         Some(requests),
         Some(request_state),
     ))
+}
+
+fn confirmation_message(action: &str, tool_name: &str, targets: &[String]) -> String {
+    let base = super::elicit::confirm_message(action, tool_name);
+    if targets.len() == 1 {
+        return format!("{base}\nTarget: {}", targets[0]);
+    }
+    let rendered = targets
+        .iter()
+        .map(|target| format!("- {target}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("{base}\nDestructive targets ({}):\n{rendered}", targets.len())
+}
+
+fn normalize_targets(targets: &[String]) -> Result<Vec<String>, ErrorData> {
+    if targets.is_empty() {
+        return Err(ErrorData::invalid_params(
+            "destructive confirmation requires at least one exact target",
+            None,
+        ));
+    }
+    let mut normalized = targets.to_vec();
+    normalized.sort();
+    normalized.dedup();
+    if normalized.len() > MAX_CONFIRMATION_TARGETS {
+        return Err(ErrorData::invalid_params(
+            format!("destructive confirmation has too many targets (max {MAX_CONFIRMATION_TARGETS})"),
+            None,
+        ));
+    }
+    let bytes = normalized.iter().map(String::len).sum::<usize>();
+    if bytes > MAX_CONFIRMATION_BYTES {
+        return Err(ErrorData::invalid_params(
+            format!("destructive confirmation target set is too large (max {MAX_CONFIRMATION_BYTES} bytes)"),
+            None,
+        ));
+    }
+    Ok(normalized)
 }
 
 fn random_handle() -> Result<String, ErrorData> {
