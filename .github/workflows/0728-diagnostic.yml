@@ -1,8 +1,9 @@
-name: Temporary rustfmt diagnostics
+name: Temporary 0728 diagnostics
 
 on:
   push:
-    branches: [fix/mcp-2026-07-28-alignment]
+    branches:
+      - fix/mcp-2026-07-28-alignment
 
 permissions:
   contents: write
@@ -10,28 +11,42 @@ permissions:
 jobs:
   diagnose:
     runs-on: ci-pool-rust
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Install Rust and kache
         uses: ./.github/actions/setup-rust-kache
-      - name: Capture rustfmt patch
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@6c1f7cf125e42770ff087ea443901b487cc5471a # v2
+        with:
+          tool: cargo-deny
+      - name: Capture diagnostics
         shell: bash
         run: |
-          cargo fmt --all
-          git diff -- '*.rs' > /tmp/rustfmt.patch
-          git reset --hard HEAD
-          cp /tmp/rustfmt.patch CI_RUSTFMT_DIAGNOSTIC.patch
+          set +e
+          cargo fmt --all -- --check > /tmp/fmt.txt 2>&1
+          fmt_rc=$?
+          cargo clippy -p yarr --all-targets --locked -- -D warnings > /tmp/clippy.txt 2>&1
+          clippy_rc=$?
+          cargo test -p yarr modern_ --locked -- --nocapture > /tmp/tests.txt 2>&1
+          test_rc=$?
+          cargo deny check --all-features > /tmp/deny.txt 2>&1
+          deny_rc=$?
+          set -e
+          {
+            printf 'fmt_rc=%s clippy_rc=%s test_rc=%s deny_rc=%s\n\n' "$fmt_rc" "$clippy_rc" "$test_rc" "$deny_rc"
+            printf '===== FMT =====\n'; cat /tmp/fmt.txt
+            printf '\n===== CLIPPY =====\n'; cat /tmp/clippy.txt
+            printf '\n===== TARGETED TESTS =====\n'; cat /tmp/tests.txt
+            printf '\n===== CARGO DENY =====\n'; cat /tmp/deny.txt
+          } > CI_0728_DIAGNOSTIC.txt
       - name: Publish evidence
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CI_RUSTFMT_DIAGNOSTIC.patch
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "chore(ci): capture temporary rustfmt diagnostics"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git add CI_0728_DIAGNOSTIC.txt
+          git commit -m "chore(ci): capture temporary 0728 diagnostics"
+          git push origin HEAD:fix/mcp-2026-07-28-alignment
