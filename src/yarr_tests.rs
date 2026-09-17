@@ -251,14 +251,67 @@ async fn upstream_metrics_have_bounded_duration_labels_and_exclude_qbit_login() 
     );
 
     let expected_buckets = [
-        "0.005", "0.01", "0.025", "0.05", "0.1", "0.25", "0.5", "1", "2.5", "5", "10", "30",
+        "0.005", "0.01", "0.025", "0.05", "0.1", "0.25", "0.5", "1", "2.5", "5", "10", "30", "+Inf",
     ];
-    for bucket in expected_buckets {
-        assert!(
-            text.contains(&format!(
-                "yarr_upstream_duration_seconds_bucket{{service=\"metrics-contract-sonarr\",le=\"{bucket}\"}}"
-            )),
-            "missing bounded upstream duration bucket {bucket}: {text}"
-        );
+    let mut observed_buckets = std::collections::BTreeSet::new();
+    let mut observed_sum = false;
+    let mut observed_count = false;
+    for line in text.lines().filter(|line| {
+        line.starts_with("yarr_upstream_duration_seconds")
+            && line.contains("service=\"metrics-contract-sonarr\"")
+    }) {
+        let (sample, labels) = line
+            .split_once('{')
+            .and_then(|(sample, rest)| rest.split_once('}').map(|(labels, _)| (sample, labels)))
+            .expect("upstream duration sample must have Prometheus labels");
+        let label_keys: std::collections::BTreeSet<_> = labels
+            .split(',')
+            .map(|label| label.split_once('=').expect("label must be key=value").0)
+            .collect();
+        match sample {
+            "yarr_upstream_duration_seconds_bucket" => {
+                assert_eq!(
+                    label_keys,
+                    std::collections::BTreeSet::from(["le", "service"]),
+                    "duration bucket has unexpected labels: {line}"
+                );
+                let le = labels
+                    .split(',')
+                    .find_map(|label| {
+                        label
+                            .strip_prefix("le=\"")
+                            .and_then(|value| value.strip_suffix('"'))
+                    })
+                    .expect("duration bucket must include le");
+                observed_buckets.insert(le.to_owned());
+            }
+            "yarr_upstream_duration_seconds_sum" => {
+                assert_eq!(
+                    label_keys,
+                    std::collections::BTreeSet::from(["service"]),
+                    "duration sum has unexpected labels: {line}"
+                );
+                observed_sum = true;
+            }
+            "yarr_upstream_duration_seconds_count" => {
+                assert_eq!(
+                    label_keys,
+                    std::collections::BTreeSet::from(["service"]),
+                    "duration count has unexpected labels: {line}"
+                );
+                observed_count = true;
+            }
+            _ => panic!("unexpected upstream duration sample: {line}"),
+        }
     }
+    assert_eq!(
+        observed_buckets,
+        expected_buckets.into_iter().map(str::to_owned).collect(),
+        "upstream duration buckets must exactly match the fixed contract"
+    );
+    assert!(observed_sum, "missing upstream duration sum sample: {text}");
+    assert!(
+        observed_count,
+        "missing upstream duration count sample: {text}"
+    );
 }
