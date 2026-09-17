@@ -57,3 +57,93 @@ async fn discover_advertises_only_yarr_owned_protocol_versions() {
 
     server.abort();
 }
+
+#[tokio::test]
+async fn modern_prompt_and_tool_results_carry_complete_discriminator() {
+    let (prompt_state, _prompt_calls, prompt_server) =
+        counting_state(crate::config::ToolMode::Codemode).await;
+    let prompt = authenticated_mcp_call_with_headers(
+        prompt_state,
+        "read-token",
+        &[
+            ("mcp-protocol-version", "2026-07-28"),
+            ("mcp-method", "prompts/get"),
+            ("mcp-name", "quick_start"),
+        ],
+        json!({
+            "jsonrpc": "2.0",
+            "id": 201,
+            "method": "prompts/get",
+            "params": {
+                "_meta": modern_meta(),
+                "name": "quick_start"
+            },
+        }),
+    )
+    .await;
+    assert_eq!(prompt["result"]["resultType"], "complete");
+    prompt_server.abort();
+
+    let (tool_state, calls, tool_server) = counting_state(crate::config::ToolMode::Flat).await;
+    let tool = authenticated_mcp_call_with_headers(
+        tool_state,
+        "read-token",
+        &[
+            ("mcp-protocol-version", "2026-07-28"),
+            ("mcp-method", "tools/call"),
+            ("mcp-name", "sonarr"),
+        ],
+        json!({
+            "jsonrpc": "2.0",
+            "id": 202,
+            "method": "tools/call",
+            "params": {
+                "_meta": modern_meta(),
+                "name": "sonarr",
+                "arguments": { "action": "service_status" }
+            },
+        }),
+    )
+    .await;
+    assert_eq!(tool["result"]["resultType"], "complete");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    tool_server.abort();
+}
+
+#[tokio::test]
+async fn legacy_prompt_and_tool_results_keep_the_pre_0728_wire_shape() {
+    let (prompt_state, _prompt_calls, prompt_server) =
+        counting_state(crate::config::ToolMode::Codemode).await;
+    let prompt = authenticated_mcp_call(
+        prompt_state,
+        "read-token",
+        json!({
+            "jsonrpc": "2.0",
+            "id": 203,
+            "method": "prompts/get",
+            "params": { "name": "quick_start" },
+        }),
+    )
+    .await;
+    assert!(prompt["result"]["resultType"].is_null());
+    prompt_server.abort();
+
+    let (tool_state, calls, tool_server) = counting_state(crate::config::ToolMode::Flat).await;
+    let tool = authenticated_mcp_call(
+        tool_state,
+        "read-token",
+        json!({
+            "jsonrpc": "2.0",
+            "id": 204,
+            "method": "tools/call",
+            "params": {
+                "name": "sonarr",
+                "arguments": { "action": "service_status" }
+            },
+        }),
+    )
+    .await;
+    assert!(tool["result"]["resultType"].is_null());
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    tool_server.abort();
+}
