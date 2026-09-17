@@ -31,7 +31,11 @@ use crate::{
 
 use crate::server::{AppState, AuthPolicy};
 
-use super::{elicit, mrtr, prompts, schemas::tool_definitions, tools::execute_tool};
+use super::{
+    elicit, mrtr, prompts,
+    schemas::tool_definitions,
+    tools::{direct_destructive_target, execute_tool, preflight_script_destructive_targets},
+};
 
 /// SEP-2549 (`ttlMs`/`cacheScope`) is required on `tools/list`, `resources/list`,
 /// `resources/templates/list`, `resources/read`, and `prompts/list` for clients
@@ -222,17 +226,50 @@ impl ServerHandler for YarrRmcpServer {
         let peer: Peer<RoleServer> = context.peer.clone();
 
         // Destructive confirmation is transport-era aware. Modern 2026-07-28
-        // peers use SEP-2322 MRTR (InputRequiredResult + retry); older session
-        // peers retain the legacy server-initiated elicitation round trip.
+        // Code Mode first runs a side-effect-free preflight so MRTR confirms the
+        // exact destructive target set before the real script executes once.
+        let modern = context
+            .protocol_version()
+            .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+        let modern_script = modern && matches!(action.as_str(), "codemode" | "snippet_run");
+        let script_targets = if modern_script {
+            preflight_script_destructive_targets(
+                &self.state,
+                &tool_name,
+                &arguments,
+                &peer,
+                auth.cloned(),
+            )
+            .await
+            .map_err(|error| {
+                ErrorData::invalid_params(format!("Code Mode preflight failed: {error}"), None)
+            })?
+        } else {
+            Vec::new()
+        };
+
         let destructive = crate::actions::action_is_destructive(&action)
             || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments));
-        if destructive {
+        let confirmation_targets = if destructive {
+            vec![direct_destructive_target(
+                &self.state,
+                &tool_name,
+                &action,
+                &arguments,
+            )
+            .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?]
+        } else {
+            script_targets.clone()
+        };
+
+        if !confirmation_targets.is_empty() {
             match mrtr::gate_destructive(
                 &context,
                 auth,
                 &tool_name,
                 &action,
                 &arguments,
+                &confirmation_targets,
                 request_state.as_deref(),
                 input_responses.as_ref(),
             )? {
@@ -247,8 +284,9 @@ impl ServerHandler for YarrRmcpServer {
                     return declined_result(&action).map(Into::into);
                 }
                 mrtr::DeleteGate::Legacy => {
-                    if elicit::gate_destructive(&peer, &action, &tool_name).await
-                        == elicit::DeleteGate::Declined
+                    if destructive
+                        && elicit::gate_destructive(&peer, &action, &tool_name).await
+                            == elicit::DeleteGate::Declined
                     {
                         tracing::info!(
                             tool = %tool_name,
@@ -259,12 +297,31 @@ impl ServerHandler for YarrRmcpServer {
                     }
                 }
             }
+        } else if modern && (request_state.is_some() || input_responses.is_some()) {
+            return Err(ErrorData::invalid_params(
+                "requestState/inputResponses supplied but this tool call no longer requires confirmation",
+                None,
+            ));
         }
+
+        // Some(empty) is intentional for modern scripts. Runtime then rejects a
+        // destructive branch that was absent during preflight instead of falling
+        // back to legacy elicitation.
+        let confirmed_script_targets = modern_script.then_some(script_targets);
 
         let started = Instant::now();
         tracing::info!(tool = %tool_name, action = %action, "MCP tool execution started");
 
-        match execute_tool(&self.state, &tool_name, arguments, &peer, auth.cloned()).await {
+        match execute_tool(
+            &self.state,
+            &tool_name,
+            arguments,
+            &peer,
+            auth.cloned(),
+            confirmed_script_targets,
+        )
+        .await
+        {
             Ok(result) => {
                 tracing::info!(
                     tool = %tool_name,

@@ -38,7 +38,7 @@ pub mod truncate;
 use std::time::Duration;
 
 pub use engine::{
-    ArtifactWriter, EmbedCaller, EngineLimits, EngineOutcome, PlannedToolCall, ToolCaller,
+    ArtifactWriter, EmbedCaller, EngineLimits, EngineOutcome, ToolCaller,
     plan_tool_calls_with_caller, run,
 };
 pub use proxy::build_preamble;
