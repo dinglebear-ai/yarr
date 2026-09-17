@@ -14,11 +14,11 @@ use lab_auth::AuthContext;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
-        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
-        ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
-        ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
-        ServerInfo, Tool,
+        CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
+        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult, MetaObject,
+        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
+        ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+        Resource, ResourceContents, ServerCapabilities, ServerInfo, Tool,
     },
     service::{Peer, RequestContext},
 };
@@ -31,7 +31,189 @@ use crate::{
 
 use crate::server::{AppState, AuthPolicy};
 
-use super::{elicit, prompts, schemas::tool_definitions, tools::execute_tool};
+use super::{
+    elicit, mrtr, prompts,
+    schemas::tool_definitions,
+    tools::{direct_destructive_target, execute_tool, preflight_script_destructive_targets},
+};
+
+/// SEP-2549 (`ttlMs`/`cacheScope`) is required on `tools/list`, `resources/list`,
+/// `resources/templates/list`, `resources/read`, and `prompts/list` for clients
+/// that negotiate MCP protocol version `2026-07-28` — omitting them (rmcp's
+/// `Default::default()` leaves both `None`, which then don't get serialized)
+/// makes a spec-strict client at that protocol version reject the whole result.
+///
+/// `tools/list`, `resources/list`, `resources/templates/list`, and
+/// `resources/read` are all derived from config loaded once at startup, so a
+/// 5-minute freshness hint is safe for all four.
+pub(crate) const CACHEABLE_RESULT_TTL_MS: u64 = 300_000;
+
+/// The prompt list is static per binary (see `prompts::list_prompts`), so it
+/// can carry a longer freshness hint than the config-derived results above.
+pub(crate) const PROMPTS_LIST_TTL_MS: u64 = 600_000;
+
+/// MCP revisions Yarr deliberately implements and tests. Keep this list owned
+/// here instead of inheriting `rmcp::ProtocolVersion::KNOWN_VERSIONS`: an SDK
+/// upgrade must never silently opt the server into a new protocol contract.
+pub(crate) const SUPPORTED_PROTOCOL_VERSIONS: &[ProtocolVersion] = &[
+    ProtocolVersion::V_2024_11_05,
+    ProtocolVersion::V_2025_03_26,
+    ProtocolVersion::V_2025_06_18,
+    ProtocolVersion::V_2025_11_25,
+    ProtocolVersion::V_2026_07_28,
+];
+
+/// Types that carry SEP-2549's `ttlMs`/`cacheScope` cache hints: every
+/// list/read result this server can return that's covered by the spec's
+/// `CacheableResult` interface. A trait (rather than a call site per method)
+/// keeps "which results are cacheable" and the version gate in
+/// [`with_cache_hints`] in one place, instead of duplicated per handler.
+trait CacheableResult: Sized {
+    fn with_ttl_ms(self, ttl_ms: u64) -> Self;
+    fn with_cache_scope(self, cache_scope: CacheScope) -> Self;
+}
+
+macro_rules! impl_cacheable_result {
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl CacheableResult for $t {
+                fn with_ttl_ms(self, ttl_ms: u64) -> Self {
+                    <$t>::with_ttl_ms(self, ttl_ms)
+                }
+                fn with_cache_scope(self, cache_scope: CacheScope) -> Self {
+                    <$t>::with_cache_scope(self, cache_scope)
+                }
+            }
+        )+
+    };
+}
+
+impl_cacheable_result!(
+    ListToolsResult,
+    ListResourcesResult,
+    ListResourceTemplatesResult,
+    ReadResourceResult,
+    ListPromptsResult,
+);
+
+/// Attach SEP-2549 cache hints to `result` when the caller negotiated MCP
+/// protocol version `2026-07-28` or later — the same gate rmcp's own
+/// `#[tool_handler]`/`#[prompt_handler]` macros apply (see
+/// `rmcp-macros::tool_handler`), which yarr's hand-written `ServerHandler`
+/// doesn't get for free. A caller on an older protocol version gets the
+/// previous wire format unchanged: the fields are additive and ignored by a
+/// client that doesn't understand SEP-2549, but there's no reason to promise a
+/// freshness/cache-sharing contract to a client that never negotiated it.
+///
+/// `cache_scope` is deliberately [`CacheScope::Private`], not rmcp's default
+/// `Public` — yarr is commonly deployed in `flat` tool mode behind a shared
+/// gateway/cache, where `Public` would let an intermediary serve one caller's
+/// `tools/list` (service names) or schema `resources/read` to a different,
+/// unauthenticated caller. Every handler here calls `require_auth_context`
+/// first and returns content that doesn't vary per caller, so this isn't a
+/// cross-user data leak within one process — the risk is purely what a
+/// downstream cache is permitted to do with the response.
+fn with_cache_hints<T: CacheableResult>(
+    result: T,
+    context: &RequestContext<RoleServer>,
+    ttl_ms: u64,
+) -> T {
+    let supports_cache_hints = context
+        .protocol_version()
+        .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+    if supports_cache_hints {
+        result
+            .with_ttl_ms(ttl_ms)
+            .with_cache_scope(CacheScope::Private)
+    } else {
+        result
+    }
+}
+
+const SERVER_INFO_META_KEY: &str = "io.modelcontextprotocol/serverInfo";
+
+trait ResultMetadata {
+    fn meta_mut(&mut self) -> &mut Option<MetaObject>;
+}
+
+macro_rules! impl_result_metadata {
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl ResultMetadata for $t {
+                fn meta_mut(&mut self) -> &mut Option<MetaObject> {
+                    &mut self.meta
+                }
+            }
+        )+
+    };
+}
+
+impl_result_metadata!(
+    ListToolsResult,
+    ListResourcesResult,
+    ListResourceTemplatesResult,
+    ReadResourceResult,
+    ListPromptsResult,
+    rmcp::model::GetPromptResult,
+    CallToolResult,
+    rmcp::model::InputRequiredResult,
+);
+
+/// SEP-2575 recommends identifying the server on every modern result. Preserve
+/// any result-specific metadata and add only the reserved serverInfo entry for
+/// 2026-07-28 callers; legacy peers keep their historical wire shape.
+fn with_server_info<T: ResultMetadata>(
+    mut result: T,
+    state: &AppState,
+    context: &RequestContext<RoleServer>,
+) -> T {
+    let modern = context
+        .protocol_version()
+        .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+    if modern {
+        let implementation = Implementation::new(
+            state.config.server_name.clone(),
+            env!("CARGO_PKG_VERSION"),
+        );
+        let value = serde_json::to_value(implementation)
+            .expect("MCP Implementation serialization cannot fail");
+        result
+            .meta_mut()
+            .get_or_insert_default()
+            .insert(SERVER_INFO_META_KEY.to_owned(), value);
+    }
+    result
+}
+
+/// Yarr keeps permissive stateless compatibility for legacy callers, but an
+/// explicitly modern request must satisfy SEP-2575's self-contained metadata
+/// contract. rmcp's transport leaves this strictness opt-in so mixed-version
+/// servers can preserve older clients; enforce it at Yarr's advertised modern
+/// handler surface instead.
+fn require_modern_request_metadata(
+    context: &RequestContext<RoleServer>,
+) -> Result<(), ErrorData> {
+    let modern = context
+        .protocol_version()
+        .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+    if !modern {
+        return Ok(());
+    }
+    let missing = context
+        .meta
+        .missing_required_keys(&ProtocolVersion::V_2026_07_28);
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(ErrorData::invalid_params(
+            format!(
+                "request _meta is missing or has malformed required fields: {}",
+                missing.join(", ")
+            ),
+            None,
+        ))
+    }
+}
 
 // ── server ────────────────────────────────────────────────────────────────────
 
@@ -80,13 +262,22 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         let tools = rmcp_tool_definitions_for_service(&self.state)?;
         tracing::debug!(tool_count = tools.len(), "MCP tools listed");
-        Ok(ListToolsResult {
-            tools,
-            ..Default::default()
-        })
+        Ok(with_server_info(
+            with_cache_hints(
+                ListToolsResult {
+                    tools,
+                    ..Default::default()
+                },
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
+            &context,
+        ))
     }
 
     async fn call_tool(
@@ -95,6 +286,7 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
         let tool_name = request.name.to_string();
+        require_modern_request_metadata(&context)?;
         let auth = require_auth_context(&self.state, &context)?;
         // Tool identity is authoritative. The default `yarr` tool always means
         // write-scoped Code Mode and never accepts a caller-selected `action`.
@@ -113,6 +305,8 @@ impl ServerHandler for YarrRmcpServer {
 
         let action: String = action_opt.unwrap_or_default();
 
+        let request_state = request.request_state.clone();
+        let input_responses = request.input_responses.clone();
         let arguments = request
             .arguments
             .map(Value::Object)
@@ -122,40 +316,114 @@ impl ServerHandler for YarrRmcpServer {
         // signature.
         let peer: Peer<RoleServer> = context.peer.clone();
 
-        // Destructive-delete gate (MCP-only). Before a destructive action
-        // dispatches, ask the connected client to confirm via elicitation. The
-        // tool name IS the service name (the MCP tool is service-named; `action`
-        // is a parameter). `action_is_destructive` only recognizes literal
-        // destructive action names — it has no notion of `op`'s underlying HTTP
-        // method — so a generated DELETE op dispatched via `action=op` (reachable
-        // directly here in `flat` tool mode; in `codemode` mode `op` is only ever
-        // called from inside a script, which never reaches `call_tool` at all —
-        // see `codemode_dispatch`) is checked separately by
-        // `is_destructive_op_call`.
-        if (crate::actions::action_is_destructive(&action)
-            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments)))
-            && elicit::gate_destructive(&peer, &action, &tool_name).await
-                == elicit::DeleteGate::Declined
-        {
-            tracing::info!(
-                tool = %tool_name,
-                action = %action,
-                "destructive action declined via elicitation; nothing changed"
-            );
-            return declined_result(&action).map(Into::into);
+        // Destructive confirmation is transport-era aware. Modern 2026-07-28
+        // Code Mode first runs a side-effect-free preflight so MRTR confirms the
+        // exact destructive target set before the real script executes once.
+        let modern = context
+            .protocol_version()
+            .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+        let modern_script = modern && matches!(action.as_str(), "codemode" | "snippet_run");
+        let script_targets = if modern_script {
+            preflight_script_destructive_targets(
+                &self.state,
+                &tool_name,
+                &arguments,
+                &peer,
+                auth.cloned(),
+            )
+            .await
+            .map_err(|error| {
+                ErrorData::invalid_params(format!("Code Mode preflight failed: {error}"), None)
+            })?
+        } else {
+            Vec::new()
+        };
+
+        let destructive = crate::actions::action_is_destructive(&action)
+            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments));
+        let confirmation_targets = if destructive {
+            vec![
+                direct_destructive_target(&self.state, &tool_name, &action, &arguments)
+                    .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?,
+            ]
+        } else {
+            script_targets.clone()
+        };
+
+        if !confirmation_targets.is_empty() {
+            match mrtr::gate_destructive(
+                &context,
+                auth,
+                mrtr::DestructiveRequest::new(
+                    &tool_name,
+                    &action,
+                    &arguments,
+                    &confirmation_targets,
+                ),
+                request_state.as_deref(),
+                input_responses.as_ref(),
+            )? {
+                mrtr::DeleteGate::InputRequired(result) => {
+                    return Ok(with_server_info(result, &self.state, &context).into());
+                }
+                mrtr::DeleteGate::Proceed => {}
+                mrtr::DeleteGate::Declined => {
+                    tracing::info!(
+                        tool = %tool_name,
+                        action = %action,
+                        "destructive action declined via MRTR; nothing changed"
+                    );
+                    return declined_result(&action)
+                        .map(|result| with_server_info(result, &self.state, &context).into());
+                }
+                mrtr::DeleteGate::Legacy => {
+                    if destructive
+                        && elicit::gate_destructive(&peer, &action, &tool_name).await
+                            == elicit::DeleteGate::Declined
+                    {
+                        tracing::info!(
+                            tool = %tool_name,
+                            action = %action,
+                            "destructive action declined via elicitation; nothing changed"
+                        );
+                        return declined_result(&action)
+                        .map(|result| with_server_info(result, &self.state, &context).into());
+                    }
+                }
+            }
+        } else if modern && (request_state.is_some() || input_responses.is_some()) {
+            return Err(ErrorData::invalid_params(
+                "requestState/inputResponses supplied but this tool call no longer requires confirmation",
+                None,
+            ));
         }
+
+        // Some(empty) is intentional for modern scripts. Runtime then rejects a
+        // destructive branch that was absent during preflight instead of falling
+        // back to legacy elicitation.
+        let confirmed_script_targets = modern_script.then_some(script_targets);
 
         let started = Instant::now();
         tracing::info!(tool = %tool_name, action = %action, "MCP tool execution started");
 
-        match execute_tool(&self.state, &tool_name, arguments, &peer, auth.cloned()).await {
+        match execute_tool(
+            &self.state,
+            &tool_name,
+            arguments,
+            &peer,
+            auth.cloned(),
+            confirmed_script_targets,
+        )
+        .await
+        {
             Ok(result) => {
                 tracing::info!(
                     tool = %tool_name,
                     elapsed_ms = started.elapsed().as_millis(),
                     "MCP tool execution completed"
                 );
-                tool_result_from_json(result).map(Into::into)
+                tool_result_from_json(result)
+                    .map(|result| with_server_info(result, &self.state, &context).into())
             }
             Err(error) if crate::actions::is_validation_error(&error) => {
                 tracing::warn!(
@@ -172,7 +440,12 @@ impl ServerHandler for YarrRmcpServer {
                     error = %error,
                     "MCP tool execution failed"
                 );
-                Ok(tool_error_result(&tool_name, &action, &error).into())
+                Ok(with_server_info(
+                    tool_error_result(&tool_name, &action, &error),
+                    &self.state,
+                    &context,
+                )
+                .into())
             }
         }
     }
@@ -184,11 +457,44 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
-        Ok(ListResourcesResult {
-            resources: vec![schema_resource()],
-            ..Default::default()
-        })
+        Ok(with_server_info(
+            with_cache_hints(
+                ListResourcesResult {
+                    resources: vec![schema_resource()],
+                    ..Default::default()
+                },
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
+            &context,
+        ))
+    }
+
+    /// Yarr defines no resource *templates* — only the one concrete schema
+    /// resource served by `list_resources`/`read_resource` above — but a
+    /// `2026-07-28` client is still free to call this method. Left
+    /// unimplemented, rmcp's default (`rmcp::handler::server::ServerHandler`)
+    /// returns an empty list with both cache hints unset, which fails the same
+    /// SEP-2549 validation this file exists to fix for the other four methods.
+    async fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
+        require_auth_context(&self.state, &context)?;
+        Ok(with_server_info(
+            with_cache_hints(
+                ListResourceTemplatesResult::default(),
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
+            &context,
+        ))
     }
 
     async fn read_resource(
@@ -196,6 +502,7 @@ impl ServerHandler for YarrRmcpServer {
         request: ReadResourceRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         if request.uri != SCHEMA_RESOURCE_URI {
             return Err(ErrorData::invalid_params(
@@ -206,9 +513,18 @@ impl ServerHandler for YarrRmcpServer {
         let schema = tool_definitions();
         let text = serde_json::to_string_pretty(&schema)
             .map_err(|e| ErrorData::internal_error(format!("serialization error: {e}"), None))?;
-        Ok(ReadResourceResult::new(vec![
-            ResourceContents::text(text, SCHEMA_RESOURCE_URI).with_mime_type("application/json"),
-        ])
+        Ok(with_server_info(
+            with_cache_hints(
+                ReadResourceResult::new(vec![
+                    ResourceContents::text(text, SCHEMA_RESOURCE_URI)
+                        .with_mime_type("application/json"),
+                ]),
+                &context,
+                CACHEABLE_RESULT_TTL_MS,
+            ),
+            &self.state,
+            &context,
+        )
         .into())
     }
 
@@ -219,8 +535,13 @@ impl ServerHandler for YarrRmcpServer {
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
-        Ok(prompts::list_prompts())
+        Ok(with_server_info(
+            with_cache_hints(prompts::list_prompts(), &context, PROMPTS_LIST_TTL_MS),
+            &self.state,
+            &context,
+        ))
     }
 
     async fn get_prompt(
@@ -228,13 +549,18 @@ impl ServerHandler for YarrRmcpServer {
         request: GetPromptRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<GetPromptResponse, ErrorData> {
+        require_modern_request_metadata(&context)?;
         require_auth_context(&self.state, &context)?;
         prompts::get_prompt(request)
-            .map(Into::into)
+            .map(|result| with_server_info(result, &self.state, &context).into())
             .map_err(|e| ErrorData::invalid_params(e.to_string(), None))
     }
 
-    // ── server info ───────────────────────────────────────────────────────────
+    // ── server info / protocol ownership ──────────────────────────────────────
+
+    fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
+        Cow::Borrowed(SUPPORTED_PROTOCOL_VERSIONS)
+    }
 
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(
