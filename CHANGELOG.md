@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
+- Emit SEP-2549 `ttlMs`/`cacheScope` cache hints on `tools/list`, `resources/list`, `resources/templates/list`, `resources/read`, and `prompts/list` for clients negotiating MCP protocol version `2026-07-28`, so spec-strict clients (including Claude Code) no longer reject these results over Streamable HTTP.
 
 ### Changed
 
