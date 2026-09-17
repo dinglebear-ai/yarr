@@ -3,7 +3,10 @@
 
 use std::time::{Duration, Instant};
 
-use super::{ArtifactWriter, EmbedCaller, EngineLimits, ToolCaller, run};
+use super::{
+    ArtifactWriter, EmbedCaller, EngineLimits, ToolCaller, plan_tool_calls,
+    plan_tool_calls_with_caller, run,
+};
 use crate::codemode::build_preamble;
 
 fn limits(ttl: Duration) -> EngineLimits {
@@ -323,5 +326,59 @@ fn search_embed_bridge_is_not_called_for_an_empty_query() {
     assert!(
         !was_called.load(std::sync::atomic::Ordering::SeqCst),
         "codemode.search(\"\") must not call the embed bridge"
+    );
+}
+
+#[test]
+fn planning_records_calls_without_writing_artifacts() {
+    let code = r#"async () => {
+        await callTool("service_status", { service: "sonarr" });
+        await callTool("api_delete", { service: "sonarr", path: "/api/v3/series/1" });
+        await writeArtifact("should-not-exist.txt", "nope");
+        return "planned";
+    }"#;
+    let calls = plan_tool_calls(
+        code,
+        &build_preamble(&[]),
+        &limits(Duration::from_secs(5)),
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].id, "service_status");
+    assert_eq!(calls[1].id, "api_delete");
+    let params: serde_json::Value = serde_json::from_str(&calls[1].params_json).unwrap();
+    assert_eq!(params["path"], "/api/v3/series/1");
+}
+
+#[test]
+fn planning_can_use_real_read_results_to_select_a_destructive_branch() {
+    let code = r#"async () => {
+        const status = await callTool("service_status", { service: "sonarr" });
+        if (status.shouldDelete) {
+            await callTool("api_delete", { service: "sonarr", path: "/api/v3/series/1" });
+        }
+        return status;
+    }"#;
+    let caller: ToolCaller = Box::new(|id, _| {
+        if id == "service_status" {
+            Ok(r#"{"shouldDelete":true}"#.to_owned())
+        } else {
+            Ok("null".to_owned())
+        }
+    });
+    let calls = plan_tool_calls_with_caller(
+        code,
+        &build_preamble(&[]),
+        &limits(Duration::from_secs(5)),
+        None,
+        caller,
+    )
+    .unwrap();
+
+    assert_eq!(
+        calls.iter().map(|call| call.id.as_str()).collect::<Vec<_>>(),
+        vec!["service_status", "api_delete"]
     );
 }
