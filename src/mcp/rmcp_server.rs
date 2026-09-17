@@ -48,6 +48,17 @@ pub(crate) const CACHEABLE_RESULT_TTL_MS: u64 = 300_000;
 /// can carry a longer freshness hint than the config-derived results above.
 pub(crate) const PROMPTS_LIST_TTL_MS: u64 = 600_000;
 
+/// MCP revisions Yarr deliberately implements and tests. Keep this list owned
+/// here instead of inheriting `rmcp::ProtocolVersion::KNOWN_VERSIONS`: an SDK
+/// upgrade must never silently opt the server into a new protocol contract.
+pub(crate) const SUPPORTED_PROTOCOL_VERSIONS: &[ProtocolVersion] = &[
+    ProtocolVersion::V_2024_11_05,
+    ProtocolVersion::V_2025_03_26,
+    ProtocolVersion::V_2025_06_18,
+    ProtocolVersion::V_2025_11_25,
+    ProtocolVersion::V_2026_07_28,
+];
+
 /// Types that carry SEP-2549's `ttlMs`/`cacheScope` cache hints: every
 /// list/read result this server can return that's covered by the spec's
 /// `CacheableResult` interface. A trait (rather than a call site per method)
@@ -352,7 +363,11 @@ impl ServerHandler for YarrRmcpServer {
             .map_err(|e| ErrorData::invalid_params(e.to_string(), None))
     }
 
-    // ── server info ───────────────────────────────────────────────────────────
+    // ── server info / protocol ownership ──────────────────────────────────────
+
+    fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
+        Cow::Borrowed(SUPPORTED_PROTOCOL_VERSIONS)
+    }
 
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(
