@@ -1,4 +1,4 @@
-name: Temporary 0728 diagnostics
+name: Temporary rustfmt diagnostics
 
 on:
   push:
@@ -10,43 +10,28 @@ permissions:
 jobs:
   diagnose:
     runs-on: ci-pool-rust
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
       - name: Install Rust and kache
         uses: ./.github/actions/setup-rust-kache
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@95cc2373c3f00275e315c306e56fef1c7a8854c0 # cargo-deny
-      - name: Capture diagnostics
+      - name: Capture rustfmt patch
         shell: bash
         run: |
-          set +e
-          cargo test -p yarr modern_ -- --nocapture > /tmp/test.txt 2>&1
-          test_rc=$?
-          cargo xtask check-test-siblings > /tmp/siblings.txt 2>&1
-          siblings_rc=$?
-          cargo xtask patterns > /tmp/patterns.txt 2>&1
-          patterns_rc=$?
-          bash scripts/check-coupled-files.sh origin/main HEAD > /tmp/coupled.txt 2>&1
-          coupled_rc=$?
-          cargo-deny check --all-features > /tmp/deny.txt 2>&1
-          deny_rc=$?
-          set -e
-          {
-            printf 'test_rc=%s siblings_rc=%s patterns_rc=%s coupled_rc=%s deny_rc=%s\n\n' "$test_rc" "$siblings_rc" "$patterns_rc" "$coupled_rc" "$deny_rc"
-            printf '===== TARGETED TEST =====\n'; cat /tmp/test.txt
-            printf '\n===== TEST SIBLINGS =====\n'; cat /tmp/siblings.txt
-            printf '\n===== PATTERNS =====\n'; cat /tmp/patterns.txt
-            printf '\n===== COUPLED FILES =====\n'; cat /tmp/coupled.txt
-            printf '\n===== CARGO DENY =====\n'; cat /tmp/deny.txt
-          } > CI_0728_DIAGNOSTIC.txt
+          cargo fmt --all
+          git diff -- '*.rs' > /tmp/rustfmt.patch
+          git reset --hard HEAD
+          cp /tmp/rustfmt.patch CI_RUSTFMT_DIAGNOSTIC.patch
       - name: Publish evidence
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CI_0728_DIAGNOSTIC.txt
-          git commit -m "chore(ci): capture temporary 0728 diagnostics"
+          git add CI_RUSTFMT_DIAGNOSTIC.patch
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(ci): capture temporary rustfmt diagnostics"
           git push origin HEAD:${GITHUB_REF_NAME}
