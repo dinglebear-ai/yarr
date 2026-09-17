@@ -1,265 +1,264 @@
-fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=2
+fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=1
 
 ===== FMT =====
 
 ===== CLIPPY =====
-[1m[92m    Updating[0m git repository `https://github.com/dinglebear-ai/labby.git`
 [1m[92m   Compiling[0m proc-macro2 v1.0.106
-[1m[92m   Compiling[0m unicode-ident v1.0.24
 [1m[92m   Compiling[0m quote v1.0.45
+[1m[92m   Compiling[0m unicode-ident v1.0.24
 [1m[92m   Compiling[0m libc v0.2.186
 [1m[92m    Checking[0m cfg-if v1.0.4
 [1m[92m   Compiling[0m serde_core v1.0.228
-[1m[92m   Compiling[0m find-msvc-tools v0.1.9
 [1m[92m    Checking[0m itoa v1.0.18
 [1m[92m   Compiling[0m shlex v1.3.0
-[1m[92m    Checking[0m once_cell v1.21.4
-[1m[92m   Compiling[0m version_check v0.9.5
+[1m[92m   Compiling[0m find-msvc-tools v0.1.9
 [1m[92m    Checking[0m pin-project-lite v0.2.17
-[1m[92m    Checking[0m bytes v1.11.1
+[1m[92m   Compiling[0m version_check v0.9.5
+[1m[92m    Checking[0m once_cell v1.21.4
 [1m[92m    Checking[0m typenum v1.20.0
-[1m[92m    Checking[0m futures-core v0.3.32
-[1m[92m   Compiling[0m jobserver v0.1.34
-[1m[92m    Checking[0m log v0.4.29
+[1m[92m    Checking[0m bytes v1.11.1
 [1m[92m   Compiling[0m syn v2.0.117
-[1m[92m    Checking[0m memchr v2.8.0
-[1m[92m    Checking[0m getrandom v0.2.17
-[1m[92m    Checking[0m smallvec v1.15.1
+[1m[92m   Compiling[0m jobserver v0.1.34
+[1m[92m    Checking[0m futures-core v0.3.32
+[1m[92m    Checking[0m log v0.4.29
 [1m[92m   Compiling[0m cc v1.2.62
+[1m[92m    Checking[0m smallvec v1.15.1
+[1m[92m    Checking[0m memchr v2.8.0
 [1m[92m   Compiling[0m generic-array v0.14.9
+[1m[92m    Checking[0m getrandom v0.2.17
 [1m[92m    Checking[0m stable_deref_trait v1.2.1
 [1m[92m    Checking[0m slab v0.4.12
 [1m[92m    Checking[0m errno v0.3.14
 [1m[92m    Checking[0m foldhash v0.2.0
 [1m[92m    Checking[0m futures-sink v0.3.32
+[1m[92m    Checking[0m mio v1.2.0
 [1m[92m    Checking[0m signal-hook-registry v1.4.8
 [1m[92m    Checking[0m socket2 v0.6.3
-[1m[92m    Checking[0m mio v1.2.0
 [1m[92m    Checking[0m tracing-core v0.1.36
 [1m[92m    Checking[0m rand_core v0.6.4
 [1m[92m    Checking[0m http v1.4.0
 [1m[92m   Compiling[0m serde v1.0.228
 [1m[92m    Checking[0m futures-channel v0.3.32
-[1m[92m    Checking[0m percent-encoding v2.3.2
 [1m[92m    Checking[0m crypto-common v0.1.6
 [1m[92m    Checking[0m writeable v0.6.3
 [1m[92m    Checking[0m equivalent v1.0.2
-[1m[92m    Checking[0m allocator-api2 v0.2.21
-[1m[92m   Compiling[0m zmij v1.0.21
-[1m[92m    Checking[0m litemap v0.8.2
+[1m[92m    Checking[0m percent-encoding v2.3.2
 [1m[92m    Checking[0m futures-task v0.3.32
+[1m[92m   Compiling[0m zmij v1.0.21
 [1m[92m    Checking[0m futures-io v0.3.32
 [1m[92m    Checking[0m bitflags v2.11.1
+[1m[92m    Checking[0m litemap v0.8.2
+[1m[92m    Checking[0m allocator-api2 v0.2.21
 [1m[92m   Compiling[0m cmake v0.1.58
-[1m[92m   Compiling[0m dunce v1.0.5
-[1m[92m   Compiling[0m fs_extra v1.3.0
-[1m[92m    Checking[0m hashbrown v0.17.1
-[1m[92m    Checking[0m utf8_iter v1.0.4
-[1m[92m   Compiling[0m icu_normalizer_data v2.2.0
-[1m[92m   Compiling[0m icu_properties_data v2.2.0
-[1m[92m    Checking[0m http-body v1.0.1
-[1m[92m   Compiling[0m aws-lc-sys v0.41.0
 [1m[92m   Compiling[0m synstructure v0.13.2
 [1m[92m   Compiling[0m zeroize_derive v1.4.3
 [1m[92m   Compiling[0m zerovec-derive v0.11.3
-[1m[92m   Compiling[0m tokio-macros v2.7.0
 [1m[92m   Compiling[0m displaydoc v0.2.5
-[1m[92m   Compiling[0m zerofrom-derive v0.1.7
-[1m[92m   Compiling[0m yoke-derive v0.8.2
-[1m[92m    Checking[0m zeroize v1.8.2
-[1m[92m    Checking[0m tokio v1.52.3
+[1m[92m   Compiling[0m tokio-macros v2.7.0
 [1m[92m   Compiling[0m serde_derive v1.0.228
-[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m   Compiling[0m zerofrom-derive v0.1.7
+[1m[92m    Checking[0m zeroize v1.8.2
+[1m[92m   Compiling[0m yoke-derive v0.8.2
+[1m[92m    Checking[0m tokio v1.52.3
 [1m[92m    Checking[0m zerofrom v0.1.8
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
 [1m[92m   Compiling[0m futures-macro v0.3.32
-[1m[92m   Compiling[0m getrandom v0.3.4
+[1m[92m    Checking[0m hashbrown v0.17.1
 [1m[92m    Checking[0m yoke v0.8.2
-[1m[92m    Checking[0m futures-util v0.3.32
 [1m[92m    Checking[0m tracing v0.1.44
+[1m[92m    Checking[0m futures-util v0.3.32
 [1m[92m    Checking[0m zerovec v0.11.6
 [1m[92m    Checking[0m zerotrie v0.2.4
+[1m[92m   Compiling[0m dunce v1.0.5
+[1m[92m   Compiling[0m icu_properties_data v2.2.0
+[1m[92m    Checking[0m utf8_iter v1.0.4
+[1m[92m   Compiling[0m fs_extra v1.3.0
 [1m[92m    Checking[0m tinystr v0.8.3
-[1m[92m    Checking[0m icu_locale_core v2.2.0
 [1m[92m    Checking[0m potential_utf v0.1.5
+[1m[92m   Compiling[0m icu_normalizer_data v2.2.0
 [1m[92m    Checking[0m icu_collections v2.2.0
-[1m[92m   Compiling[0m zerocopy v0.8.48
+[1m[92m    Checking[0m icu_locale_core v2.2.0
+[1m[92m   Compiling[0m aws-lc-sys v0.41.0
+[1m[92m    Checking[0m http-body v1.0.1
+[1m[92m   Compiling[0m getrandom v0.3.4
 [1m[92m    Checking[0m icu_provider v2.2.0
-[1m[92m   Compiling[0m thiserror v2.0.18
 [1m[92m    Checking[0m cpufeatures v0.2.17
+[1m[92m   Compiling[0m zerocopy v0.8.48
+[1m[92m   Compiling[0m thiserror v2.0.18
 [1m[92m    Checking[0m icu_normalizer v2.2.0
 [1m[92m    Checking[0m icu_properties v2.2.0
 [1m[92m    Checking[0m indexmap v2.14.0
 [1m[92m   Compiling[0m thiserror-impl v2.0.18
-[1m[92m   Compiling[0m httparse v1.10.1
-[1m[92m   Compiling[0m autocfg v1.5.0
-[1m[92m   Compiling[0m serde_json v1.0.150
 [1m[92m   Compiling[0m aws-lc-rs v1.17.0
-[1m[92m   Compiling[0m crossbeam-utils v0.8.21
 [1m[92m    Checking[0m tower-service v0.3.3
+[1m[92m   Compiling[0m httparse v1.10.1
+[1m[92m   Compiling[0m serde_json v1.0.150
+[1m[92m   Compiling[0m autocfg v1.5.0
 [1m[92m    Checking[0m subtle v2.6.1
-[1m[92m    Checking[0m tokio-util v0.7.18
+[1m[92m   Compiling[0m crossbeam-utils v0.8.21
 [1m[92m   Compiling[0m num-traits v0.2.19
-[1m[92m    Checking[0m idna_adapter v1.2.2
 [1m[92m    Checking[0m rand_core v0.9.5
+[1m[92m    Checking[0m tokio-util v0.7.18
 [1m[92m    Checking[0m form_urlencoded v1.2.2
 [1m[92m    Checking[0m block-buffer v0.10.4
 [1m[92m   Compiling[0m ring v0.17.14
+[1m[92m    Checking[0m idna_adapter v1.2.2
 [1m[92m    Checking[0m digest v0.10.7
 [1m[92m    Checking[0m idna v1.1.0
-[1m[92m    Checking[0m rustls-pki-types v1.14.1
 [1m[92m    Checking[0m http-body-util v0.1.3
-[1m[92m    Checking[0m base64 v0.22.1
+[1m[92m    Checking[0m rustls-pki-types v1.14.1
 [1m[92m   Compiling[0m crc32fast v1.5.0
+[1m[92m    Checking[0m base64 v0.22.1
 [1m[92m    Checking[0m untrusted v0.7.1
-[1m[92m    Checking[0m adler2 v2.0.1
-[1m[92m    Checking[0m simd-adler32 v0.3.9
-[1m[92m    Checking[0m fnv v1.0.7
 [1m[92m   Compiling[0m num-conv v0.2.1
-[1m[92m    Checking[0m tower-layer v0.3.3
-[1m[92m   Compiling[0m time-core v0.1.8
-[1m[92m    Checking[0m untrusted v0.9.0
-[1m[92m    Checking[0m atomic-waker v1.1.2
-[1m[92m    Checking[0m powerfmt v0.2.0
 [1m[92m    Checking[0m try-lock v0.2.5
-[1m[92m   Compiling[0m time-macros v0.2.27
-[1m[92m    Checking[0m deranged v0.5.8
-[1m[92m    Checking[0m want v0.3.1
-[1m[92m    Checking[0m h2 v0.4.16
+[1m[92m   Compiling[0m time-core v0.1.8
+[1m[92m    Checking[0m simd-adler32 v0.3.9
+[1m[92m    Checking[0m powerfmt v0.2.0
+[1m[92m    Checking[0m untrusted v0.9.0
+[1m[92m    Checking[0m tower-layer v0.3.3
+[1m[92m    Checking[0m adler2 v2.0.1
+[1m[92m    Checking[0m fnv v1.0.7
+[1m[92m    Checking[0m atomic-waker v1.1.2
 [1m[92m    Checking[0m miniz_oxide v0.8.9
+[1m[92m    Checking[0m h2 v0.4.16
+[1m[92m    Checking[0m deranged v0.5.8
+[1m[92m    Checking[0m ppv-lite86 v0.2.21
+[1m[92m   Compiling[0m time-macros v0.2.27
+[1m[92m    Checking[0m rand_chacha v0.9.0
+[1m[92m    Checking[0m want v0.3.1
+[1m[92m    Checking[0m rand v0.9.4
 [1m[92m    Checking[0m url v2.5.8
 [1m[92m    Checking[0m sync_wrapper v1.0.2
-[1m[92m    Checking[0m ppv-lite86 v0.2.21
+[1m[92m   Compiling[0m rustls v0.23.40
+[1m[92m    Checking[0m base64ct v1.8.3
+[1m[92m    Checking[0m httpdate v1.0.3
+[1m[92m    Checking[0m rand_core v0.10.1
 [1m[92m   Compiling[0m rustversion v1.0.22
 [1m[92m   Compiling[0m getrandom v0.4.2
-[1m[92m    Checking[0m rand_core v0.10.1
-[1m[92m    Checking[0m httpdate v1.0.3
-[1m[92m    Checking[0m rand_chacha v0.9.0
-[1m[92m    Checking[0m base64ct v1.8.3
-[1m[92m   Compiling[0m rustls v0.23.40
-[1m[92m    Checking[0m rand v0.9.4
-[1m[92m    Checking[0m pem-rfc7468 v0.7.0
 [1m[92m    Checking[0m time v0.3.47
+[1m[92m    Checking[0m pem-rfc7468 v0.7.0
 [1m[92m    Checking[0m flate2 v1.1.9
-[1m[92m    Checking[0m hyper v1.9.0
 [1m[92m    Checking[0m hashbrown v0.16.1
-[1m[92m    Checking[0m const-oid v0.9.6
-[1m[92m    Checking[0m ipnet v2.12.0
-[1m[92m    Checking[0m mime v0.3.17
 [1m[92m   Compiling[0m semver v1.0.28
+[1m[92m    Checking[0m const-oid v0.9.6
+[1m[92m    Checking[0m hyper v1.9.0
+[1m[92m    Checking[0m mime v0.3.17
 [1m[92m    Checking[0m compression-core v0.4.32
-[1m[92m    Checking[0m hyper-util v0.1.20
+[1m[92m    Checking[0m ipnet v2.12.0
 [1m[92m    Checking[0m compression-codecs v0.4.38
 [1m[92m    Checking[0m der v0.7.10
 [1m[92m   Compiling[0m rustc_version v0.4.1
 [1m[92m    Checking[0m tower v0.5.3
+[1m[92m    Checking[0m hyper-util v0.1.20
 [1m[92m    Checking[0m sha1 v0.10.6
 [1m[92m    Checking[0m hybrid-array v0.4.12
 [1m[92m   Compiling[0m syn v3.0.4
 [1m[92m   Compiling[0m cookie v0.18.1
-[1m[92m   Compiling[0m strsim v0.11.1
-[1m[92m    Checking[0m ryu v1.0.23
-[1m[92m    Checking[0m data-encoding v2.11.0
-[1m[92m   Compiling[0m crossbeam-epoch v0.9.20
-[1m[92m   Compiling[0m pkg-config v0.3.33
-[1m[92m   Compiling[0m ident_case v1.0.1
-[1m[92m   Compiling[0m cfg_aliases v0.2.1
-[1m[92m   Compiling[0m unicase v2.9.0
-[1m[92m    Checking[0m cpufeatures v0.3.0
 [1m[92m   Compiling[0m vcpkg v0.2.15
-[1m[92m   Compiling[0m mime_guess v2.0.5
+[1m[92m    Checking[0m data-encoding v2.11.0
+[1m[92m   Compiling[0m unicase v2.9.0
+[1m[92m   Compiling[0m pkg-config v0.3.33
+[1m[92m   Compiling[0m crossbeam-epoch v0.9.20
+[1m[92m   Compiling[0m strsim v0.11.1
+[1m[92m    Checking[0m cpufeatures v0.3.0
+[1m[92m   Compiling[0m cfg_aliases v0.2.1
+[1m[92m    Checking[0m ryu v1.0.23
+[1m[92m   Compiling[0m ident_case v1.0.1
 [1m[92m   Compiling[0m nix v0.31.3
-[1m[92m   Compiling[0m libsqlite3-sys v0.37.0
-[1m[92m    Checking[0m tungstenite v0.29.0
 [1m[92m    Checking[0m serde_urlencoded v0.7.1
+[1m[92m   Compiling[0m libsqlite3-sys v0.37.0
+[1m[92m   Compiling[0m mime_guess v2.0.5
+[1m[92m    Checking[0m tungstenite v0.29.0
 [1m[92m    Checking[0m spki v0.7.3
-[1m[92m   Compiling[0m darling_core v0.24.1
 [1m[92m    Checking[0m rapidhash v4.4.1
 [1m[92m   Compiling[0m curve25519-dalek v4.1.3
 [1m[92m    Checking[0m async-compression v0.4.42
 [1m[92m    Checking[0m num-integer v0.1.46
 [1m[92m    Checking[0m raw-cpuid v11.6.0
+[1m[92m   Compiling[0m darling_core v0.24.1
 [1m[92m    Checking[0m inout v0.1.4
 [1m[92m   Compiling[0m rquickjs-sys v0.12.1
+[1m[92m   Compiling[0m litrs v1.0.0
 [1m[92m   Compiling[0m ref-cast v1.0.25
 [1m[92m   Compiling[0m parking_lot_core v0.9.12
-[1m[92m   Compiling[0m litrs v1.0.0
+[1m[92m    Checking[0m openssl-probe v0.2.1
 [1m[92m    Checking[0m signature v2.2.0
 [1m[92m    Checking[0m psl-types v2.0.11
-[1m[92m    Checking[0m openssl-probe v0.2.1
 [1m[92m    Checking[0m rustls-native-certs v0.8.3
 [1m[92m    Checking[0m publicsuffix v2.3.0
-[1m[92m   Compiling[0m document-features v0.2.12
+[1m[92m    Checking[0m quanta v0.12.6
 [1m[92m   Compiling[0m darling_macro v0.24.1
+[1m[92m   Compiling[0m document-features v0.2.12
 [1m[92m    Checking[0m cipher v0.4.4
 [1m[92m    Checking[0m num-bigint v0.4.6
 [1m[92m    Checking[0m tower-http v0.6.11
-[1m[92m    Checking[0m quanta v0.12.6
 [1m[92m    Checking[0m metrics v0.24.6
-[1m[92m    Checking[0m pkcs8 v0.10.2
 [1m[92m    Checking[0m tokio-tungstenite v0.29.0
-[1m[92m    Checking[0m block-buffer v0.12.0
+[1m[92m    Checking[0m pkcs8 v0.10.2
 [1m[92m    Checking[0m crypto-common v0.2.1
+[1m[92m    Checking[0m block-buffer v0.12.0
 [1m[92m    Checking[0m axum-core v0.5.6
 [1m[92m    Checking[0m left-right v0.11.7
 [1m[92m    Checking[0m rand_xoshiro v0.7.0
 [1m[92m    Checking[0m universal-hash v0.5.1
 [1m[92m    Checking[0m futures-executor v0.3.32
 [1m[92m   Compiling[0m curve25519-dalek-derive v0.1.1
-[1m[92m   Compiling[0m axum-macros v0.5.1
 [1m[92m   Compiling[0m ref-cast-impl v1.0.25
+[1m[92m   Compiling[0m axum-macros v0.5.1
 [1m[92m   Compiling[0m serde_derive_internals v0.29.1
 [1m[92m    Checking[0m serde_path_to_error v0.1.20
-[1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
 [1m[92m    Checking[0m matchit v0.8.4
-[1m[92m    Checking[0m scopeguard v1.2.0
-[1m[92m    Checking[0m sketches-ddsketch v0.3.1
+[1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
 [1m[92m    Checking[0m hashbag v0.1.13
-[1m[92m    Checking[0m regex-syntax v0.8.11
+[1m[92m    Checking[0m const-oid v0.10.2
 [1m[92m    Checking[0m iana-time-zone v0.1.65
 [1m[92m    Checking[0m opaque-debug v0.3.1
-[1m[92m    Checking[0m const-oid v0.10.2
-[1m[92m    Checking[0m digest v0.11.3
+[1m[92m    Checking[0m sketches-ddsketch v0.3.1
+[1m[92m    Checking[0m scopeguard v1.2.0
+[1m[92m    Checking[0m regex-syntax v0.8.11
+[1m[92m    Checking[0m lock_api v0.4.14
 [1m[92m    Checking[0m regex-automata v0.4.14
+[1m[92m    Checking[0m metrics-util v0.20.4
 [1m[92m    Checking[0m poly1305 v0.8.0
 [1m[92m    Checking[0m chrono v0.4.45
+[1m[92m    Checking[0m digest v0.11.3
 [1m[92m    Checking[0m evmap v11.0.0
-[1m[92m    Checking[0m metrics-util v0.20.4
-[1m[92m    Checking[0m lock_api v0.4.14
 [1m[92m    Checking[0m axum v0.8.9
 [1m[92m   Compiling[0m schemars_derive v1.2.1
 [1m[92m    Checking[0m futures v0.3.32
 [1m[92m    Checking[0m cookie_store v0.22.1
 [1m[92m    Checking[0m ed25519 v2.2.3
 [1m[92m    Checking[0m simple_asn1 v0.6.4
-[1m[92m   Compiling[0m darling v0.24.1
 [1m[92m    Checking[0m chacha20 v0.9.1
+[1m[92m   Compiling[0m darling v0.24.1
 [1m[92m    Checking[0m chacha20 v0.10.0
 [1m[92m    Checking[0m hashlink v0.11.0
 [1m[92m    Checking[0m pem v3.0.6
 [1m[92m    Checking[0m webpki-roots v1.0.7
 [1m[92m    Checking[0m sha2 v0.10.9
 [1m[92m    Checking[0m aead v0.5.2
-[1m[92m    Checking[0m lazy_static v1.5.0
-[1m[92m    Checking[0m dyn-clone v1.0.20
 [1m[92m    Checking[0m option-ext v0.2.0
-[1m[92m    Checking[0m fallible-streaming-iterator v0.1.9
-[1m[92m    Checking[0m hashbrown v0.14.5
-[1m[92m    Checking[0m winnow v1.0.3
-[1m[92m   Compiling[0m rmcp v3.1.4
 [1m[92m   Compiling[0m anyhow v1.0.103
+[1m[92m    Checking[0m dyn-clone v1.0.20
 [1m[92m    Checking[0m fallible-iterator v0.3.0
+[1m[92m    Checking[0m winnow v1.0.3
+[1m[92m    Checking[0m hashbrown v0.14.5
+[1m[92m    Checking[0m lazy_static v1.5.0
+[1m[92m   Compiling[0m rmcp v3.1.4
+[1m[92m    Checking[0m fallible-streaming-iterator v0.1.9
 [1m[92m    Checking[0m dashmap v6.2.1
-[1m[92m    Checking[0m toml_parser v1.1.2+spec-1.1.0
-[1m[92m    Checking[0m dirs-sys v0.5.0
-[1m[92m    Checking[0m schemars v1.2.1
 [1m[92m    Checking[0m sharded-slab v0.1.7
+[1m[92m    Checking[0m toml_parser v1.1.2+spec-1.1.0
+[1m[92m    Checking[0m schemars v1.2.1
 [1m[92m    Checking[0m ed25519-dalek v2.2.0
+[1m[92m    Checking[0m dirs-sys v0.5.0
 [1m[92m    Checking[0m chacha20poly1305 v0.10.1
 [1m[92m    Checking[0m rand v0.10.1
 [1m[92m   Compiling[0m rmcp-macros v3.1.4
 [1m[92m    Checking[0m process-wrap v9.1.0
-[1m[92m    Checking[0m matchers v0.2.0
 [1m[92m    Checking[0m sha2 v0.11.0
+[1m[92m    Checking[0m matchers v0.2.0
 [1m[92m    Checking[0m uuid v1.23.1
 [1m[92m    Checking[0m labby-primitives v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
 [1m[92m    Checking[0m sse-stream v0.2.5
@@ -267,16 +266,16 @@ fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=2
 [1m[92m    Checking[0m tracing-serde v0.2.0
 [1m[92m   Compiling[0m async-trait v0.1.89
 [1m[92m    Checking[0m tracing-log v0.2.0
-[1m[92m    Checking[0m toml_datetime v1.1.1+spec-1.1.0
 [1m[92m    Checking[0m serde_spanned v1.1.1
+[1m[92m    Checking[0m toml_datetime v1.1.1+spec-1.1.0
 [1m[92m    Checking[0m thread_local v1.1.9
 [1m[92m    Checking[0m base64 v0.23.0
-[1m[92m    Checking[0m toml_writer v1.1.1+spec-1.1.0
 [1m[92m   Compiling[0m pastey v0.2.2
 [1m[92m   Compiling[0m rustix v1.1.4
+[1m[92m    Checking[0m toml_writer v1.1.1+spec-1.1.0
 [1m[92m    Checking[0m nu-ansi-term v0.50.3
-[1m[92m    Checking[0m tracing-subscriber v0.3.23
 [1m[92m    Checking[0m toml v1.1.2+spec-1.1.0
+[1m[92m    Checking[0m tracing-subscriber v0.3.23
 [1m[92m    Checking[0m axum-prometheus v0.10.0
 [1m[92m    Checking[0m dirs v6.0.0
 [1m[92m    Checking[0m tower-http v0.7.0
@@ -295,10 +294,12 @@ fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=2
 [1m[92m    Checking[0m reqwest v0.13.1
 [1m[92m    Checking[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
 [1m[92m    Checking[0m yarr v2.2.2 (/_work/yarr/yarr)
-[1m[92m    Finished[0m `dev` profile [unoptimized] target(s) in 24.30s
+[1m[92m    Finished[0m `dev` profile [unoptimized] target(s) in 29.88s
 
 ===== TARGETED TESTS =====
+[1m[92m   Compiling[0m proc-macro2 v1.0.106
 [1m[92m   Compiling[0m cfg-if v1.0.4
+[1m[92m   Compiling[0m quote v1.0.45
 [1m[92m   Compiling[0m libc v0.2.186
 [1m[92m   Compiling[0m serde_core v1.0.228
 [1m[92m   Compiling[0m itoa v1.0.18
@@ -310,176 +311,203 @@ fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=2
 [1m[92m   Compiling[0m log v0.4.29
 [1m[92m   Compiling[0m smallvec v1.15.1
 [1m[92m   Compiling[0m memchr v2.8.0
-[1m[92m   Compiling[0m zeroize v1.8.2
-[1m[92m   Compiling[0m zerofrom v0.1.8
 [1m[92m   Compiling[0m stable_deref_trait v1.2.1
 [1m[92m   Compiling[0m slab v0.4.12
-[1m[92m   Compiling[0m foldhash v0.2.0
-[1m[92m   Compiling[0m yoke v0.8.2
+[1m[92m   Compiling[0m syn v2.0.117
 [1m[92m   Compiling[0m generic-array v0.14.9
 [1m[92m   Compiling[0m futures-sink v0.3.32
-[1m[92m   Compiling[0m tracing-core v0.1.36
-[1m[92m   Compiling[0m zerovec v0.11.6
-[1m[92m   Compiling[0m http v1.4.0
-[1m[92m   Compiling[0m serde v1.0.228
-[1m[92m   Compiling[0m futures-channel v0.3.32
-[1m[92m   Compiling[0m tracing v0.1.44
+[1m[92m   Compiling[0m foldhash v0.2.0
 [1m[92m   Compiling[0m getrandom v0.2.17
 [1m[92m   Compiling[0m errno v0.3.14
 [1m[92m   Compiling[0m socket2 v0.6.3
 [1m[92m   Compiling[0m mio v1.2.0
-[1m[92m   Compiling[0m rand_core v0.6.4
+[1m[92m   Compiling[0m tracing-core v0.1.36
 [1m[92m   Compiling[0m signal-hook-registry v1.4.8
-[1m[92m   Compiling[0m tinystr v0.8.3
-[1m[92m   Compiling[0m futures-io v0.3.32
+[1m[92m   Compiling[0m rand_core v0.6.4
+[1m[92m   Compiling[0m http v1.4.0
 [1m[92m   Compiling[0m crypto-common v0.1.6
-[1m[92m   Compiling[0m percent-encoding v2.3.2
-[1m[92m   Compiling[0m futures-task v0.3.32
-[1m[92m   Compiling[0m tokio v1.52.3
-[1m[92m   Compiling[0m allocator-api2 v0.2.21
+[1m[92m   Compiling[0m futures-channel v0.3.32
 [1m[92m   Compiling[0m bitflags v2.11.1
+[1m[92m   Compiling[0m futures-task v0.3.32
 [1m[92m   Compiling[0m writeable v0.6.3
-[1m[92m   Compiling[0m equivalent v1.0.2
+[1m[92m   Compiling[0m allocator-api2 v0.2.21
 [1m[92m   Compiling[0m litemap v0.8.2
-[1m[92m   Compiling[0m futures-util v0.3.32
-[1m[92m   Compiling[0m potential_utf v0.1.5
-[1m[92m   Compiling[0m icu_locale_core v2.2.0
-[1m[92m   Compiling[0m zerotrie v0.2.4
-[1m[92m   Compiling[0m hashbrown v0.17.1
+[1m[92m   Compiling[0m futures-io v0.3.32
+[1m[92m   Compiling[0m percent-encoding v2.3.2
+[1m[92m   Compiling[0m equivalent v1.0.2
 [1m[92m   Compiling[0m utf8_iter v1.0.4
-[1m[92m   Compiling[0m http-body v1.0.1
-[1m[92m   Compiling[0m icu_collections v2.2.0
-[1m[92m   Compiling[0m icu_properties_data v2.2.0
 [1m[92m   Compiling[0m icu_normalizer_data v2.2.0
+[1m[92m   Compiling[0m http-body v1.0.1
+[1m[92m   Compiling[0m icu_properties_data v2.2.0
+[1m[92m   Compiling[0m hashbrown v0.17.1
 [1m[92m   Compiling[0m cpufeatures v0.2.17
-[1m[92m   Compiling[0m thiserror v2.0.18
-[1m[92m   Compiling[0m indexmap v2.14.0
-[1m[92m   Compiling[0m icu_provider v2.2.0
 [1m[92m   Compiling[0m getrandom v0.3.4
+[1m[92m   Compiling[0m subtle v2.6.1
 [1m[92m   Compiling[0m tower-service v0.3.3
+[1m[92m   Compiling[0m zerocopy v0.8.48
+[1m[92m   Compiling[0m synstructure v0.13.2
+[1m[92m   Compiling[0m zeroize_derive v1.4.3
+[1m[92m   Compiling[0m zerovec-derive v0.11.3
+[1m[92m   Compiling[0m tokio-macros v2.7.0
+[1m[92m   Compiling[0m displaydoc v0.2.5
+[1m[92m   Compiling[0m zerofrom-derive v0.1.7
+[1m[92m   Compiling[0m zeroize v1.8.2
+[1m[92m   Compiling[0m yoke-derive v0.8.2
+[1m[92m   Compiling[0m tokio v1.52.3
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m zerofrom v0.1.8
+[1m[92m   Compiling[0m futures-macro v0.3.32
+[1m[92m   Compiling[0m yoke v0.8.2
+[1m[92m   Compiling[0m tracing v0.1.44
+[1m[92m   Compiling[0m zerovec v0.11.6
+[1m[92m   Compiling[0m futures-util v0.3.32
+[1m[92m   Compiling[0m zerotrie v0.2.4
+[1m[92m   Compiling[0m indexmap v2.14.0
+[1m[92m   Compiling[0m tinystr v0.8.3
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m icu_locale_core v2.2.0
+[1m[92m   Compiling[0m potential_utf v0.1.5
+[1m[92m   Compiling[0m thiserror-impl v2.0.18
+[1m[92m   Compiling[0m icu_collections v2.2.0
+[1m[92m   Compiling[0m icu_provider v2.2.0
+[1m[92m   Compiling[0m rand_core v0.9.5
+[1m[92m   Compiling[0m thiserror v2.0.18
+[1m[92m   Compiling[0m form_urlencoded v1.2.2
 [1m[92m   Compiling[0m icu_normalizer v2.2.0
 [1m[92m   Compiling[0m icu_properties v2.2.0
-[1m[92m   Compiling[0m subtle v2.6.1
-[1m[92m   Compiling[0m rand_core v0.9.5
-[1m[92m   Compiling[0m zerocopy v0.8.48
 [1m[92m   Compiling[0m zmij v1.0.21
-[1m[92m   Compiling[0m form_urlencoded v1.2.2
 [1m[92m   Compiling[0m block-buffer v0.10.4
-[1m[92m   Compiling[0m ring v0.17.14
-[1m[92m   Compiling[0m serde_json v1.0.150
+[1m[92m   Compiling[0m ppv-lite86 v0.2.21
 [1m[92m   Compiling[0m digest v0.10.7
-[1m[92m   Compiling[0m httparse v1.10.1
-[1m[92m   Compiling[0m idna_adapter v1.2.2
-[1m[92m   Compiling[0m crossbeam-utils v0.8.21
-[1m[92m   Compiling[0m aws-lc-sys v0.41.0
-[1m[92m   Compiling[0m tokio-util v0.7.18
-[1m[92m   Compiling[0m idna v1.1.0
-[1m[92m   Compiling[0m http-body-util v0.1.3
+[1m[92m   Compiling[0m serde_json v1.0.150
 [1m[92m   Compiling[0m rustls-pki-types v1.14.1
-[1m[92m   Compiling[0m base64 v0.22.1
+[1m[92m   Compiling[0m crossbeam-utils v0.8.21
+[1m[92m   Compiling[0m httparse v1.10.1
+[1m[92m   Compiling[0m http-body-util v0.1.3
+[1m[92m   Compiling[0m aws-lc-sys v0.41.0
 [1m[92m   Compiling[0m untrusted v0.7.1
+[1m[92m   Compiling[0m base64 v0.22.1
+[1m[92m   Compiling[0m idna_adapter v1.2.2
+[1m[92m   Compiling[0m rand_chacha v0.9.0
 [1m[92m   Compiling[0m num-traits v0.2.19
-[1m[92m   Compiling[0m adler2 v2.0.1
-[1m[92m   Compiling[0m aws-lc-rs v1.17.0
-[1m[92m   Compiling[0m tower-layer v0.3.3
-[1m[92m   Compiling[0m untrusted v0.9.0
-[1m[92m   Compiling[0m simd-adler32 v0.3.9
-[1m[92m   Compiling[0m try-lock v0.2.5
+[1m[92m   Compiling[0m idna v1.1.0
 [1m[92m   Compiling[0m fnv v1.0.7
-[1m[92m   Compiling[0m atomic-waker v1.1.2
+[1m[92m   Compiling[0m tokio-util v0.7.18
+[1m[92m   Compiling[0m tower-layer v0.3.3
+[1m[92m   Compiling[0m try-lock v0.2.5
+[1m[92m   Compiling[0m aws-lc-rs v1.17.0
+[1m[92m   Compiling[0m simd-adler32 v0.3.9
 [1m[92m   Compiling[0m powerfmt v0.2.0
-[1m[92m   Compiling[0m h2 v0.4.16
-[1m[92m   Compiling[0m want v0.3.1
+[1m[92m   Compiling[0m adler2 v2.0.1
+[1m[92m   Compiling[0m atomic-waker v1.1.2
+[1m[92m   Compiling[0m untrusted v0.9.0
 [1m[92m   Compiling[0m deranged v0.5.8
 [1m[92m   Compiling[0m miniz_oxide v0.8.9
-[1m[92m   Compiling[0m crc32fast v1.5.0
+[1m[92m   Compiling[0m want v0.3.1
+[1m[92m   Compiling[0m ring v0.17.14
+[1m[92m   Compiling[0m h2 v0.4.16
 [1m[92m   Compiling[0m url v2.5.8
+[1m[92m   Compiling[0m rand v0.9.4
+[1m[92m   Compiling[0m crc32fast v1.5.0
 [1m[92m   Compiling[0m sync_wrapper v1.0.2
-[1m[92m   Compiling[0m ppv-lite86 v0.2.21
-[1m[92m   Compiling[0m httpdate v1.0.3
-[1m[92m   Compiling[0m base64ct v1.8.3
-[1m[92m   Compiling[0m num-conv v0.2.1
 [1m[92m   Compiling[0m time-core v0.1.8
-[1m[92m   Compiling[0m rand_chacha v0.9.0
+[1m[92m   Compiling[0m base64ct v1.8.3
+[1m[92m   Compiling[0m httpdate v1.0.3
+[1m[92m   Compiling[0m num-conv v0.2.1
 [1m[92m   Compiling[0m rand_core v0.10.1
 [1m[92m   Compiling[0m pem-rfc7468 v0.7.0
-[1m[92m   Compiling[0m flate2 v1.1.9
+[1m[92m   Compiling[0m rustls-webpki v0.103.13
+[1m[92m   Compiling[0m rustversion v1.0.22
 [1m[92m   Compiling[0m time v0.3.47
+[1m[92m   Compiling[0m flate2 v1.1.9
 [1m[92m   Compiling[0m hashbrown v0.16.1
-[1m[92m   Compiling[0m rand v0.9.4
 [1m[92m   Compiling[0m const-oid v0.9.6
-[1m[92m   Compiling[0m mime v0.3.17
 [1m[92m   Compiling[0m ipnet v2.12.0
+[1m[92m   Compiling[0m mime v0.3.17
 [1m[92m   Compiling[0m compression-core v0.4.32
-[1m[92m   Compiling[0m compression-codecs v0.4.38
+[1m[92m   Compiling[0m rustls v0.23.40
 [1m[92m   Compiling[0m der v0.7.10
 [1m[92m   Compiling[0m getrandom v0.4.2
+[1m[92m   Compiling[0m compression-codecs v0.4.38
 [1m[92m   Compiling[0m hyper v1.9.0
 [1m[92m   Compiling[0m tower v0.5.3
 [1m[92m   Compiling[0m sha1 v0.10.6
 [1m[92m   Compiling[0m hybrid-array v0.4.12
-[1m[92m   Compiling[0m cpufeatures v0.3.0
-[1m[92m   Compiling[0m ryu v1.0.23
+[1m[92m   Compiling[0m syn v3.0.4
 [1m[92m   Compiling[0m data-encoding v2.11.0
-[1m[92m   Compiling[0m spki v0.7.3
-[1m[92m   Compiling[0m serde_urlencoded v0.7.1
-[1m[92m   Compiling[0m async-compression v0.4.42
-[1m[92m   Compiling[0m rapidhash v4.4.1
-[1m[92m   Compiling[0m hyper-util v0.1.20
+[1m[92m   Compiling[0m ryu v1.0.23
+[1m[92m   Compiling[0m cpufeatures v0.3.0
 [1m[92m   Compiling[0m tungstenite v0.29.0
+[1m[92m   Compiling[0m hyper-util v0.1.20
+[1m[92m   Compiling[0m serde_urlencoded v0.7.1
+[1m[92m   Compiling[0m spki v0.7.3
+[1m[92m   Compiling[0m rapidhash v4.4.1
+[1m[92m   Compiling[0m async-compression v0.4.42
 [1m[92m   Compiling[0m num-integer v0.1.46
 [1m[92m   Compiling[0m raw-cpuid v11.6.0
 [1m[92m   Compiling[0m inout v0.1.4
+[1m[92m   Compiling[0m signature v2.2.0
 [1m[92m   Compiling[0m psl-types v2.0.11
 [1m[92m   Compiling[0m openssl-probe v0.2.1
-[1m[92m   Compiling[0m signature v2.2.0
-[1m[92m   Compiling[0m publicsuffix v2.3.0
-[1m[92m   Compiling[0m rustls-native-certs v0.8.3
 [1m[92m   Compiling[0m cipher v0.4.4
-[1m[92m   Compiling[0m tokio-tungstenite v0.29.0
 [1m[92m   Compiling[0m num-bigint v0.4.6
+[1m[92m   Compiling[0m publicsuffix v2.3.0
+[1m[92m   Compiling[0m darling_core v0.24.1
+[1m[92m   Compiling[0m rustls-native-certs v0.8.3
 [1m[92m   Compiling[0m metrics v0.24.6
 [1m[92m   Compiling[0m tower-http v0.6.11
+[1m[92m   Compiling[0m tokio-rustls v0.26.4
+[1m[92m   Compiling[0m tokio-tungstenite v0.29.0
 [1m[92m   Compiling[0m pkcs8 v0.10.2
 [1m[92m   Compiling[0m cookie v0.18.1
 [1m[92m   Compiling[0m crossbeam-epoch v0.9.20
-[1m[92m   Compiling[0m quanta v0.12.6
 [1m[92m   Compiling[0m block-buffer v0.12.0
 [1m[92m   Compiling[0m crypto-common v0.2.1
 [1m[92m   Compiling[0m axum-core v0.5.6
 [1m[92m   Compiling[0m left-right v0.11.7
-[1m[92m   Compiling[0m futures-executor v0.3.32
 [1m[92m   Compiling[0m rand_xoshiro v0.7.0
+[1m[92m   Compiling[0m darling_macro v0.24.1
+[1m[92m   Compiling[0m quanta v0.12.6
+[1m[92m   Compiling[0m futures-executor v0.3.32
+[1m[92m   Compiling[0m curve25519-dalek-derive v0.1.1
+[1m[92m   Compiling[0m axum-macros v0.5.1
+[1m[92m   Compiling[0m ref-cast-impl v1.0.25
+[1m[92m   Compiling[0m serde_derive_internals v0.29.1
 [1m[92m   Compiling[0m universal-hash v0.5.1
 [1m[92m   Compiling[0m serde_path_to_error v0.1.20
-[1m[92m   Compiling[0m const-oid v0.10.2
-[1m[92m   Compiling[0m opaque-debug v0.3.1
 [1m[92m   Compiling[0m iana-time-zone v0.1.65
-[1m[92m   Compiling[0m scopeguard v1.2.0
-[1m[92m   Compiling[0m matchit v0.8.4
 [1m[92m   Compiling[0m sketches-ddsketch v0.3.1
-[1m[92m   Compiling[0m hashbag v0.1.13
-[1m[92m   Compiling[0m unicase v2.9.0
 [1m[92m   Compiling[0m regex-syntax v0.8.11
-[1m[92m   Compiling[0m metrics-util v0.20.4
-[1m[92m   Compiling[0m axum v0.8.9
-[1m[92m   Compiling[0m evmap v11.0.0
-[1m[92m   Compiling[0m mime_guess v2.0.5
-[1m[92m   Compiling[0m lock_api v0.4.14
-[1m[92m   Compiling[0m chrono v0.4.45
+[1m[92m   Compiling[0m const-oid v0.10.2
+[1m[92m   Compiling[0m unicase v2.9.0
+[1m[92m   Compiling[0m matchit v0.8.4
+[1m[92m   Compiling[0m opaque-debug v0.3.1
+[1m[92m   Compiling[0m scopeguard v1.2.0
+[1m[92m   Compiling[0m hashbag v0.1.13
 [1m[92m   Compiling[0m poly1305 v0.8.0
+[1m[92m   Compiling[0m mime_guess v2.0.5
+[1m[92m   Compiling[0m axum v0.8.9
+[1m[92m   Compiling[0m lock_api v0.4.14
+[1m[92m   Compiling[0m evmap v11.0.0
 [1m[92m   Compiling[0m digest v0.11.3
-[1m[92m   Compiling[0m regex-automata v0.4.14
+[1m[92m   Compiling[0m metrics-util v0.20.4
+[1m[92m   Compiling[0m schemars_derive v1.2.1
+[1m[92m   Compiling[0m chrono v0.4.45
 [1m[92m   Compiling[0m ref-cast v1.0.25
+[1m[92m   Compiling[0m regex-automata v0.4.14
+[1m[92m   Compiling[0m darling v0.24.1
 [1m[92m   Compiling[0m curve25519-dalek v4.1.3
 [1m[92m   Compiling[0m futures v0.3.32
-[1m[92m   Compiling[0m simple_asn1 v0.6.4
 [1m[92m   Compiling[0m cookie_store v0.22.1
+[1m[92m   Compiling[0m simple_asn1 v0.6.4
 [1m[92m   Compiling[0m libsqlite3-sys v0.37.0
 [1m[92m   Compiling[0m nix v0.31.3
 [1m[92m   Compiling[0m ed25519 v2.2.3
-[1m[92m   Compiling[0m chacha20 v0.9.1
+[1m[92m   Compiling[0m hyper-rustls v0.27.9
+[1m[92m   Compiling[0m rustls-platform-verifier v0.6.2
 [1m[92m   Compiling[0m rquickjs-sys v0.12.1
+[1m[92m   Compiling[0m chacha20 v0.9.1
 [1m[92m   Compiling[0m parking_lot_core v0.9.12
 [1m[92m   Compiling[0m chacha20 v0.10.0
 [1m[92m   Compiling[0m hashlink v0.11.0
@@ -487,46 +515,50 @@ fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=2
 [1m[92m   Compiling[0m webpki-roots v1.0.7
 [1m[92m   Compiling[0m sha2 v0.10.9
 [1m[92m   Compiling[0m aead v0.5.2
-[1m[92m   Compiling[0m option-ext v0.2.0
-[1m[92m   Compiling[0m hashbrown v0.14.5
-[1m[92m   Compiling[0m lazy_static v1.5.0
 [1m[92m   Compiling[0m fallible-iterator v0.3.0
 [1m[92m   Compiling[0m dyn-clone v1.0.20
-[1m[92m   Compiling[0m winnow v1.0.3
 [1m[92m   Compiling[0m fallible-streaming-iterator v0.1.9
-[1m[92m   Compiling[0m schemars v1.2.1
-[1m[92m   Compiling[0m dashmap v6.2.1
-[1m[92m   Compiling[0m process-wrap v9.1.0
-[1m[92m   Compiling[0m toml_parser v1.1.2+spec-1.1.0
-[1m[92m   Compiling[0m rusqlite v0.39.0
+[1m[92m   Compiling[0m lazy_static v1.5.0
+[1m[92m   Compiling[0m hashbrown v0.14.5
+[1m[92m   Compiling[0m option-ext v0.2.0
+[1m[92m   Compiling[0m winnow v1.0.3
 [1m[92m   Compiling[0m ed25519-dalek v2.2.0
 [1m[92m   Compiling[0m sharded-slab v0.1.7
 [1m[92m   Compiling[0m dirs-sys v0.5.0
+[1m[92m   Compiling[0m process-wrap v9.1.0
+[1m[92m   Compiling[0m rusqlite v0.39.0
 [1m[92m   Compiling[0m chacha20poly1305 v0.10.1
-[1m[92m   Compiling[0m rand v0.10.1
+[1m[92m   Compiling[0m toml_parser v1.1.2+spec-1.1.0
+[1m[92m   Compiling[0m dashmap v6.2.1
+[1m[92m   Compiling[0m schemars v1.2.1
 [1m[92m   Compiling[0m jsonwebtoken v10.4.0
+[1m[92m   Compiling[0m reqwest v0.13.1
+[1m[92m   Compiling[0m rand v0.10.1
 [1m[92m   Compiling[0m rquickjs-core v0.12.1
 [1m[92m   Compiling[0m matchers v0.2.0
-[1m[92m   Compiling[0m sha2 v0.11.0
+[1m[92m   Compiling[0m rmcp-macros v3.1.4
 [1m[92m   Compiling[0m metrics-exporter-prometheus v0.18.3
+[1m[92m   Compiling[0m sha2 v0.11.0
 [1m[92m   Compiling[0m uuid v1.23.1
 [1m[92m   Compiling[0m labby-primitives v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
-[1m[92m   Compiling[0m sse-stream v0.2.5
 [1m[92m   Compiling[0m tokio-stream v0.1.18
+[1m[92m   Compiling[0m sse-stream v0.2.5
 [1m[92m   Compiling[0m tracing-serde v0.2.0
+[1m[92m   Compiling[0m async-trait v0.1.89
 [1m[92m   Compiling[0m tracing-log v0.2.0
 [1m[92m   Compiling[0m toml_datetime v1.1.1+spec-1.1.0
 [1m[92m   Compiling[0m serde_spanned v1.1.1
 [1m[92m   Compiling[0m thread_local v1.1.9
-[1m[92m   Compiling[0m base64 v0.23.0
-[1m[92m   Compiling[0m nu-ansi-term v0.50.3
 [1m[92m   Compiling[0m toml_writer v1.1.1+spec-1.1.0
+[1m[92m   Compiling[0m nu-ansi-term v0.50.3
+[1m[92m   Compiling[0m base64 v0.23.0
 [1m[92m   Compiling[0m rquickjs v0.12.1
+[1m[92m   Compiling[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
 [1m[92m   Compiling[0m axum-prometheus v0.10.0
 [1m[92m   Compiling[0m tracing-subscriber v0.3.23
-[1m[92m   Compiling[0m rmcp v3.1.4
-[1m[92m   Compiling[0m anyhow v1.0.103
 [1m[92m   Compiling[0m toml v1.1.2+spec-1.1.0
+[1m[92m   Compiling[0m anyhow v1.0.103
+[1m[92m   Compiling[0m rmcp v3.1.4
 [1m[92m   Compiling[0m dirs v6.0.0
 [1m[92m   Compiling[0m tower-http v0.7.0
 [1m[92m   Compiling[0m fs2 v0.4.3
@@ -534,23 +566,17 @@ fmt_rc=0 clippy_rc=0 test_rc=0 deny_rc=2
 [1m[92m   Compiling[0m fastrand v2.4.1
 [1m[92m   Compiling[0m rustix v1.1.4
 [1m[92m   Compiling[0m tempfile v3.27.0
-[1m[92m   Compiling[0m rustls v0.23.40
-[1m[92m   Compiling[0m rustls-webpki v0.103.13
-[1m[92m   Compiling[0m tokio-rustls v0.26.4
-[1m[92m   Compiling[0m rustls-platform-verifier v0.6.2
-[1m[92m   Compiling[0m hyper-rustls v0.27.9
-[1m[92m   Compiling[0m reqwest v0.13.1
-[1m[92m   Compiling[0m labby-auth v1.7.0 (https://github.com/dinglebear-ai/labby.git?rev=53dbc4798567f3cacc0f740b3b4de5839ca39133#53dbc479)
 [1m[92m   Compiling[0m yarr v2.2.2 (/_work/yarr/yarr)
-[1m[92m    Finished[0m `test` profile [unoptimized] target(s) in 25.39s
+[1m[92m    Finished[0m `test` profile [unoptimized] target(s) in 29.58s
 [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/yarr-a449e27e5410b030)
 
-running 3 tests
+running 4 tests
 test server::routes::tests::mrtr::tests::modern_destructive_call_requires_input_then_executes_exactly_once ... ok
 test server::routes::tests::mrtr::tests::modern_decline_and_request_tampering_never_reach_upstream ... ok
 test server::routes::tests::mrtr::tests::modern_codemode_confirms_preflight_targets_then_executes_once ... ok
+test server::routes::tests::protocol_versions::tests::modern_prompt_and_tool_results_carry_complete_discriminator ... ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 613 filtered out; finished in 0.12s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 616 filtered out; finished in 0.12s
 
 [1m[92m     Running[0m unittests src/main.rs (target/debug/deps/yarr-a45e8ab5e9cb1195)
 
@@ -590,9 +616,1706 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; fin
 
 
 ===== CARGO DENY =====
-error: invalid value '--all-features' for '[WHICH]...'
-  [possible values: advisories, ban, bans, license, licenses, sources, all]
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'base64'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:16:1
+   [0m[36m│[0m  
+[0m[36m16[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mbase64 0.22.1 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m17[0m [0m[36m│[0m [0m[33m│[0m [0m[33mbase64 0.23.0 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m base64 v0.22.1
+     ├── axum v0.8.9
+     │   ├── axum-prometheus v0.10.0
+     │   │   └── yarr v2.2.2
+     │   │       └── (dev) yarr v2.2.2 (*)
+     │   ├── labby-auth v1.7.0
+     │   │   └── yarr v2.2.2 (*)
+     │   └── yarr v2.2.2 (*)
+     ├── hyper-util v0.1.20
+     │   ├── axum v0.8.9 (*)
+     │   ├── hyper-rustls v0.27.9
+     │   │   └── reqwest v0.13.1
+     │   │       ├── labby-auth v1.7.0 (*)
+     │   │       └── yarr v2.2.2 (*)
+     │   └── reqwest v0.13.1 (*)
+     ├── jsonwebtoken v10.4.0
+     │   └── labby-auth v1.7.0 (*)
+     ├── labby-auth v1.7.0 (*)
+     ├── metrics-exporter-prometheus v0.18.3
+     │   └── axum-prometheus v0.10.0 (*)
+     ├── pem v3.0.6
+     │   └── jsonwebtoken v10.4.0 (*)
+     ├── reqwest v0.13.1 (*)
+     └── yarr v2.2.2 (*)
+   [0m[36m├[0m base64 v0.23.0
+     └── rmcp v3.1.4
+         └── yarr v2.2.2
+             └── (dev) yarr v2.2.2 (*)
 
-  tip: a similar value exists: 'all'
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'block-buffer'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:20:1
+   [0m[36m│[0m  
+[0m[36m20[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mblock-buffer 0.10.4 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m21[0m [0m[36m│[0m [0m[33m│[0m [0m[33mblock-buffer 0.12.0 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m block-buffer v0.10.4
+     └── digest v0.10.7
+         ├── curve25519-dalek v4.1.3
+         │   └── ed25519-dalek v2.2.0
+         │       └── labby-auth v1.7.0
+         │           └── yarr v2.2.2
+         │               └── (dev) yarr v2.2.2 (*)
+         ├── sha1 v0.10.6
+         │   ├── axum v0.8.9
+         │   │   ├── axum-prometheus v0.10.0
+         │   │   │   └── yarr v2.2.2 (*)
+         │   │   ├── labby-auth v1.7.0 (*)
+         │   │   └── yarr v2.2.2 (*)
+         │   └── tungstenite v0.29.0
+         │       └── tokio-tungstenite v0.29.0
+         │           └── axum v0.8.9 (*)
+         └── sha2 v0.10.9
+             └── ed25519-dalek v2.2.0 (*)
+   [0m[36m├[0m block-buffer v0.12.0
+     └── digest v0.11.3
+         └── sha2 v0.11.0
+             └── labby-auth v1.7.0
+                 └── yarr v2.2.2
+                     └── (dev) yarr v2.2.2 (*)
 
-For more information, try '--help'.
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'chacha20'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:28:1
+   [0m[36m│[0m  
+[0m[36m28[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mchacha20 0.9.1 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m29[0m [0m[36m│[0m [0m[33m│[0m [0m[33mchacha20 0.10.0 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m chacha20 v0.9.1
+     └── chacha20poly1305 v0.10.1
+         └── labby-auth v1.7.0
+             └── yarr v2.2.2
+                 └── (dev) yarr v2.2.2 (*)
+   [0m[36m├[0m chacha20 v0.10.0
+     └── rand v0.10.1
+         └── rmcp v3.1.4
+             └── yarr v2.2.2
+                 └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'const-oid'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:37:1
+   [0m[36m│[0m  
+[0m[36m37[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mconst-oid 0.9.6 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m38[0m [0m[36m│[0m [0m[33m│[0m [0m[33mconst-oid 0.10.2 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m──────────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m const-oid v0.9.6
+     └── der v0.7.10
+         ├── pkcs8 v0.10.2
+         │   └── ed25519 v2.2.3
+         │       └── ed25519-dalek v2.2.0
+         │           └── labby-auth v1.7.0
+         │               └── yarr v2.2.2
+         │                   └── (dev) yarr v2.2.2 (*)
+         └── spki v0.7.3
+             └── pkcs8 v0.10.2 (*)
+   [0m[36m├[0m const-oid v0.10.2
+     └── digest v0.11.3
+         └── sha2 v0.11.0
+             └── labby-auth v1.7.0
+                 └── yarr v2.2.2
+                     └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'cpufeatures'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:43:1
+   [0m[36m│[0m  
+[0m[36m43[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mcpufeatures 0.2.17 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m44[0m [0m[36m│[0m [0m[33m│[0m [0m[33mcpufeatures 0.3.0 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m cpufeatures v0.2.17
+     ├── chacha20 v0.9.1
+     │   └── chacha20poly1305 v0.10.1
+     │       └── labby-auth v1.7.0
+     │           └── yarr v2.2.2
+     │               └── (dev) yarr v2.2.2 (*)
+     ├── curve25519-dalek v4.1.3
+     │   └── ed25519-dalek v2.2.0
+     │       └── labby-auth v1.7.0 (*)
+     ├── poly1305 v0.8.0
+     │   └── chacha20poly1305 v0.10.1 (*)
+     ├── sha1 v0.10.6
+     │   ├── axum v0.8.9
+     │   │   ├── axum-prometheus v0.10.0
+     │   │   │   └── yarr v2.2.2 (*)
+     │   │   ├── labby-auth v1.7.0 (*)
+     │   │   └── yarr v2.2.2 (*)
+     │   └── tungstenite v0.29.0
+     │       └── tokio-tungstenite v0.29.0
+     │           └── axum v0.8.9 (*)
+     └── sha2 v0.10.9
+         └── ed25519-dalek v2.2.0 (*)
+   [0m[36m├[0m cpufeatures v0.3.0
+     ├── chacha20 v0.10.0
+     │   └── rand v0.10.1
+     │       └── rmcp v3.1.4
+     │           └── yarr v2.2.2
+     │               └── (dev) yarr v2.2.2 (*)
+     └── sha2 v0.11.0
+         └── labby-auth v1.7.0
+             └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'crypto-common'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:48:1
+   [0m[36m│[0m  
+[0m[36m48[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mcrypto-common 0.1.6 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m49[0m [0m[36m│[0m [0m[33m│[0m [0m[33mcrypto-common 0.2.1 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m crypto-common v0.1.6
+     ├── aead v0.5.2
+     │   └── chacha20poly1305 v0.10.1
+     │       └── labby-auth v1.7.0
+     │           └── yarr v2.2.2
+     │               └── (dev) yarr v2.2.2 (*)
+     ├── cipher v0.4.4
+     │   ├── chacha20 v0.9.1
+     │   │   └── chacha20poly1305 v0.10.1 (*)
+     │   └── chacha20poly1305 v0.10.1 (*)
+     ├── digest v0.10.7
+     │   ├── curve25519-dalek v4.1.3
+     │   │   └── ed25519-dalek v2.2.0
+     │   │       └── labby-auth v1.7.0 (*)
+     │   ├── sha1 v0.10.6
+     │   │   ├── axum v0.8.9
+     │   │   │   ├── axum-prometheus v0.10.0
+     │   │   │   │   └── yarr v2.2.2 (*)
+     │   │   │   ├── labby-auth v1.7.0 (*)
+     │   │   │   └── yarr v2.2.2 (*)
+     │   │   └── tungstenite v0.29.0
+     │   │       └── tokio-tungstenite v0.29.0
+     │   │           └── axum v0.8.9 (*)
+     │   └── sha2 v0.10.9
+     │       └── ed25519-dalek v2.2.0 (*)
+     └── universal-hash v0.5.1
+         └── poly1305 v0.8.0
+             └── chacha20poly1305 v0.10.1 (*)
+   [0m[36m├[0m crypto-common v0.2.1
+     └── digest v0.11.3
+         └── sha2 v0.11.0
+             └── labby-auth v1.7.0
+                 └── yarr v2.2.2
+                     └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'digest'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:59:1
+   [0m[36m│[0m  
+[0m[36m59[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mdigest 0.10.7 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m60[0m [0m[36m│[0m [0m[33m│[0m [0m[33mdigest 0.11.3 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m digest v0.10.7
+     ├── curve25519-dalek v4.1.3
+     │   └── ed25519-dalek v2.2.0
+     │       └── labby-auth v1.7.0
+     │           └── yarr v2.2.2
+     │               └── (dev) yarr v2.2.2 (*)
+     ├── sha1 v0.10.6
+     │   ├── axum v0.8.9
+     │   │   ├── axum-prometheus v0.10.0
+     │   │   │   └── yarr v2.2.2 (*)
+     │   │   ├── labby-auth v1.7.0 (*)
+     │   │   └── yarr v2.2.2 (*)
+     │   └── tungstenite v0.29.0
+     │       └── tokio-tungstenite v0.29.0
+     │           └── axum v0.8.9 (*)
+     └── sha2 v0.10.9
+         └── ed25519-dalek v2.2.0 (*)
+   [0m[36m├[0m digest v0.11.3
+     └── sha2 v0.11.0
+         └── labby-auth v1.7.0
+             └── yarr v2.2.2
+                 └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 3 duplicate entries for crate 'getrandom'[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:94:1
+   [0m[36m│[0m  
+[0m[36m94[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mgetrandom 0.2.17 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m95[0m [0m[36m│[0m [0m[33m│[0m [0m[33mgetrandom 0.3.4 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m96[0m [0m[36m│[0m [0m[33m│[0m [0m[33mgetrandom 0.4.2 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────┘ lock entries[0m
+   [0m[36m│[0m  
+   [0m[36m├[0m getrandom v0.2.17
+     ├── jsonwebtoken v10.4.0
+     │   └── labby-auth v1.7.0
+     │       └── yarr v2.2.2
+     │           └── (dev) yarr v2.2.2 (*)
+     ├── rand_core v0.6.4
+     │   └── crypto-common v0.1.6
+     │       ├── aead v0.5.2
+     │       │   └── chacha20poly1305 v0.10.1
+     │       │       └── labby-auth v1.7.0 (*)
+     │       ├── cipher v0.4.4
+     │       │   ├── chacha20 v0.9.1
+     │       │   │   └── chacha20poly1305 v0.10.1 (*)
+     │       │   └── chacha20poly1305 v0.10.1 (*)
+     │       ├── digest v0.10.7
+     │       │   ├── curve25519-dalek v4.1.3
+     │       │   │   └── ed25519-dalek v2.2.0
+     │       │   │       └── labby-auth v1.7.0 (*)
+     │       │   ├── sha1 v0.10.6
+     │       │   │   ├── axum v0.8.9
+     │       │   │   │   ├── axum-prometheus v0.10.0
+     │       │   │   │   │   └── yarr v2.2.2 (*)
+     │       │   │   │   ├── labby-auth v1.7.0 (*)
+     │       │   │   │   └── yarr v2.2.2 (*)
+     │       │   │   └── tungstenite v0.29.0
+     │       │   │       └── tokio-tungstenite v0.29.0
+     │       │   │           └── axum v0.8.9 (*)
+     │       │   └── sha2 v0.10.9
+     │       │       └── ed25519-dalek v2.2.0 (*)
+     │       └── universal-hash v0.5.1
+     │           └── poly1305 v0.8.0
+     │               └── chacha20poly1305 v0.10.1 (*)
+     ├── redox_users v0.5.2
+     │   └── dirs-sys v0.5.0
+     │       └── dirs v6.0.0
+     │           └── yarr v2.2.2 (*)
+     └── ring v0.17.14
+         ├── rustls v0.23.40
+         │   ├── hyper-rustls v0.27.9
+         │   │   └── reqwest v0.13.1
+         │   │       ├── labby-auth v1.7.0 (*)
+         │   │       └── yarr v2.2.2 (*)
+         │   ├── labby-auth v1.7.0 (*)
+         │   ├── reqwest v0.13.1 (*)
+         │   ├── rustls-platform-verifier v0.6.2
+         │   │   └── reqwest v0.13.1 (*)
+         │   └── tokio-rustls v0.26.4
+         │       ├── hyper-rustls v0.27.9 (*)
+         │       └── reqwest v0.13.1 (*)
+         └── rustls-webpki v0.103.13
+             ├── rustls v0.23.40 (*)
+             └── rustls-platform-verifier v0.6.2 (*)
+   [0m[36m├[0m getrandom v0.3.4
+     ├── jobserver v0.1.34
+     │   └── cc v1.2.62
+     │       ├── (build) aws-lc-sys v0.41.0
+     │       │   └── aws-lc-rs v1.17.0
+     │       │       ├── jsonwebtoken v10.4.0
+     │       │       │   └── labby-auth v1.7.0
+     │       │       │       └── yarr v2.2.2
+     │       │       │           └── (dev) yarr v2.2.2 (*)
+     │       │       ├── rustls v0.23.40
+     │       │       │   ├── hyper-rustls v0.27.9
+     │       │       │   │   └── reqwest v0.13.1
+     │       │       │   │       ├── labby-auth v1.7.0 (*)
+     │       │       │   │       └── yarr v2.2.2 (*)
+     │       │       │   ├── labby-auth v1.7.0 (*)
+     │       │       │   ├── reqwest v0.13.1 (*)
+     │       │       │   ├── rustls-platform-verifier v0.6.2
+     │       │       │   │   └── reqwest v0.13.1 (*)
+     │       │       │   └── tokio-rustls v0.26.4
+     │       │       │       ├── hyper-rustls v0.27.9 (*)
+     │       │       │       └── reqwest v0.13.1 (*)
+     │       │       └── rustls-webpki v0.103.13
+     │       │           ├── rustls v0.23.40 (*)
+     │       │           └── rustls-platform-verifier v0.6.2 (*)
+     │       ├── cmake v0.1.58
+     │       │   └── (build) aws-lc-sys v0.41.0 (*)
+     │       ├── (build) generator v0.8.9
+     │       │   └── loom v0.7.2
+     │       │       └── left-right v0.11.7
+     │       │           └── evmap v11.0.0
+     │       │               └── metrics-exporter-prometheus v0.18.3
+     │       │                   └── axum-prometheus v0.10.0
+     │       │                       └── yarr v2.2.2 (*)
+     │       ├── (build) iana-time-zone-haiku v0.1.2
+     │       │   └── iana-time-zone v0.1.65
+     │       │       └── chrono v0.4.45
+     │       │           ├── rmcp v3.1.4
+     │       │           │   └── yarr v2.2.2 (*)
+     │       │           ├── schemars v1.2.1
+     │       │           │   ├── rmcp v3.1.4 (*)
+     │       │           │   └── yarr v2.2.2 (*)
+     │       │           └── yarr v2.2.2 (*)
+     │       ├── (build) libsqlite3-sys v0.37.0
+     │       │   └── rusqlite v0.39.0
+     │       │       └── labby-auth v1.7.0 (*)
+     │       ├── (build) ring v0.17.14
+     │       │   ├── rustls v0.23.40 (*)
+     │       │   └── rustls-webpki v0.103.13 (*)
+     │       ├── (build) rquickjs-sys v0.12.1
+     │       │   └── rquickjs-core v0.12.1
+     │       │       └── rquickjs v0.12.1
+     │       │           └── yarr v2.2.2 (*)
+     │       └── (build) sqlite-wasm-rs v0.5.3
+     │           └── rusqlite v0.39.0 (*)
+     └── rand_core v0.9.5
+         ├── rand v0.9.4
+         │   ├── metrics-util v0.20.4
+         │   │   └── metrics-exporter-prometheus v0.18.3 (*)
+         │   └── tungstenite v0.29.0
+         │       └── tokio-tungstenite v0.29.0
+         │           └── axum v0.8.9
+         │               ├── axum-prometheus v0.10.0 (*)
+         │               ├── labby-auth v1.7.0 (*)
+         │               └── yarr v2.2.2 (*)
+         ├── rand_chacha v0.9.0
+         │   └── rand v0.9.4 (*)
+         └── rand_xoshiro v0.7.0
+             └── metrics-util v0.20.4 (*)
+   [0m[36m├[0m getrandom v0.4.2
+     ├── labby-auth v1.7.0
+     │   └── yarr v2.2.2
+     │       └── (dev) yarr v2.2.2 (*)
+     ├── rand v0.10.1
+     │   └── rmcp v3.1.4
+     │       └── yarr v2.2.2 (*)
+     ├── tempfile v3.27.0
+     │   └── (dev) yarr v2.2.2 (*)
+     ├── uuid v1.23.1
+     │   └── rmcp v3.1.4 (*)
+     └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 3 duplicate entries for crate 'hashbrown'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:99:1
+    [0m[36m│[0m  
+[0m[36m 99[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mhashbrown 0.14.5 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m100[0m [0m[36m│[0m [0m[33m│[0m [0m[33mhashbrown 0.16.1 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m101[0m [0m[36m│[0m [0m[33m│[0m [0m[33mhashbrown 0.17.1 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m──────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m hashbrown v0.14.5
+      └── dashmap v6.2.1
+          └── labby-auth v1.7.0
+              └── yarr v2.2.2
+                  └── (dev) yarr v2.2.2 (*)
+    [0m[36m├[0m hashbrown v0.16.1
+      ├── hashlink v0.11.0
+      │   └── rusqlite v0.39.0
+      │       └── labby-auth v1.7.0
+      │           └── yarr v2.2.2
+      │               └── (dev) yarr v2.2.2 (*)
+      ├── metrics-util v0.20.4
+      │   └── metrics-exporter-prometheus v0.18.3
+      │       └── axum-prometheus v0.10.0
+      │           └── yarr v2.2.2 (*)
+      └── rsqlite-vfs v0.1.0
+          └── sqlite-wasm-rs v0.5.3
+              └── rusqlite v0.39.0 (*)
+    [0m[36m├[0m hashbrown v0.17.1
+      ├── indexmap v2.14.0
+      │   ├── h2 v0.4.16
+      │   │   └── hyper v1.9.0
+      │   │       ├── axum v0.8.9
+      │   │       │   ├── axum-prometheus v0.10.0
+      │   │       │   │   └── yarr v2.2.2
+      │   │       │   │       └── (dev) yarr v2.2.2 (*)
+      │   │       │   ├── labby-auth v1.7.0
+      │   │       │   │   └── yarr v2.2.2 (*)
+      │   │       │   └── yarr v2.2.2 (*)
+      │   │       ├── hyper-rustls v0.27.9
+      │   │       │   └── reqwest v0.13.1
+      │   │       │       ├── labby-auth v1.7.0 (*)
+      │   │       │       └── yarr v2.2.2 (*)
+      │   │       ├── hyper-util v0.1.20
+      │   │       │   ├── axum v0.8.9 (*)
+      │   │       │   ├── hyper-rustls v0.27.9 (*)
+      │   │       │   └── reqwest v0.13.1 (*)
+      │   │       └── reqwest v0.13.1 (*)
+      │   ├── metrics-exporter-prometheus v0.18.3
+      │   │   └── axum-prometheus v0.10.0 (*)
+      │   ├── process-wrap v9.1.0
+      │   │   └── rmcp v3.1.4
+      │   │       └── yarr v2.2.2 (*)
+      │   └── rmcp v3.1.4 (*)
+      └── rquickjs-core v0.12.1
+          └── rquickjs v0.12.1
+              └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'r-efi'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:187:1
+    [0m[36m│[0m  
+[0m[36m187[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mr-efi 5.3.0 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m188[0m [0m[36m│[0m [0m[33m│[0m [0m[33mr-efi 6.0.0 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m r-efi v5.3.0
+      └── getrandom v0.3.4
+          ├── jobserver v0.1.34
+          │   └── cc v1.2.62
+          │       ├── (build) aws-lc-sys v0.41.0
+          │       │   └── aws-lc-rs v1.17.0
+          │       │       ├── jsonwebtoken v10.4.0
+          │       │       │   └── labby-auth v1.7.0
+          │       │       │       └── yarr v2.2.2
+          │       │       │           └── (dev) yarr v2.2.2 (*)
+          │       │       ├── rustls v0.23.40
+          │       │       │   ├── hyper-rustls v0.27.9
+          │       │       │   │   └── reqwest v0.13.1
+          │       │       │   │       ├── labby-auth v1.7.0 (*)
+          │       │       │   │       └── yarr v2.2.2 (*)
+          │       │       │   ├── labby-auth v1.7.0 (*)
+          │       │       │   ├── reqwest v0.13.1 (*)
+          │       │       │   ├── rustls-platform-verifier v0.6.2
+          │       │       │   │   └── reqwest v0.13.1 (*)
+          │       │       │   └── tokio-rustls v0.26.4
+          │       │       │       ├── hyper-rustls v0.27.9 (*)
+          │       │       │       └── reqwest v0.13.1 (*)
+          │       │       └── rustls-webpki v0.103.13
+          │       │           ├── rustls v0.23.40 (*)
+          │       │           └── rustls-platform-verifier v0.6.2 (*)
+          │       ├── cmake v0.1.58
+          │       │   └── (build) aws-lc-sys v0.41.0 (*)
+          │       ├── (build) generator v0.8.9
+          │       │   └── loom v0.7.2
+          │       │       └── left-right v0.11.7
+          │       │           └── evmap v11.0.0
+          │       │               └── metrics-exporter-prometheus v0.18.3
+          │       │                   └── axum-prometheus v0.10.0
+          │       │                       └── yarr v2.2.2 (*)
+          │       ├── (build) iana-time-zone-haiku v0.1.2
+          │       │   └── iana-time-zone v0.1.65
+          │       │       └── chrono v0.4.45
+          │       │           ├── rmcp v3.1.4
+          │       │           │   └── yarr v2.2.2 (*)
+          │       │           ├── schemars v1.2.1
+          │       │           │   ├── rmcp v3.1.4 (*)
+          │       │           │   └── yarr v2.2.2 (*)
+          │       │           └── yarr v2.2.2 (*)
+          │       ├── (build) libsqlite3-sys v0.37.0
+          │       │   └── rusqlite v0.39.0
+          │       │       └── labby-auth v1.7.0 (*)
+          │       ├── (build) ring v0.17.14
+          │       │   ├── rustls v0.23.40 (*)
+          │       │   └── rustls-webpki v0.103.13 (*)
+          │       ├── (build) rquickjs-sys v0.12.1
+          │       │   └── rquickjs-core v0.12.1
+          │       │       └── rquickjs v0.12.1
+          │       │           └── yarr v2.2.2 (*)
+          │       └── (build) sqlite-wasm-rs v0.5.3
+          │           └── rusqlite v0.39.0 (*)
+          └── rand_core v0.9.5
+              ├── rand v0.9.4
+              │   ├── metrics-util v0.20.4
+              │   │   └── metrics-exporter-prometheus v0.18.3 (*)
+              │   └── tungstenite v0.29.0
+              │       └── tokio-tungstenite v0.29.0
+              │           └── axum v0.8.9
+              │               ├── axum-prometheus v0.10.0 (*)
+              │               ├── labby-auth v1.7.0 (*)
+              │               └── yarr v2.2.2 (*)
+              ├── rand_chacha v0.9.0
+              │   └── rand v0.9.4 (*)
+              └── rand_xoshiro v0.7.0
+                  └── metrics-util v0.20.4 (*)
+    [0m[36m├[0m r-efi v6.0.0
+      └── getrandom v0.4.2
+          ├── labby-auth v1.7.0
+          │   └── yarr v2.2.2
+          │       └── (dev) yarr v2.2.2 (*)
+          ├── rand v0.10.1
+          │   └── rmcp v3.1.4
+          │       └── yarr v2.2.2 (*)
+          ├── tempfile v3.27.0
+          │   └── (dev) yarr v2.2.2 (*)
+          ├── uuid v1.23.1
+          │   └── rmcp v3.1.4 (*)
+          └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'rand'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:189:1
+    [0m[36m│[0m  
+[0m[36m189[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mrand 0.9.4 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m190[0m [0m[36m│[0m [0m[33m│[0m [0m[33mrand 0.10.1 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m rand v0.9.4
+      ├── metrics-util v0.20.4
+      │   └── metrics-exporter-prometheus v0.18.3
+      │       └── axum-prometheus v0.10.0
+      │           └── yarr v2.2.2
+      │               └── (dev) yarr v2.2.2 (*)
+      └── tungstenite v0.29.0
+          └── tokio-tungstenite v0.29.0
+              └── axum v0.8.9
+                  ├── axum-prometheus v0.10.0 (*)
+                  ├── labby-auth v1.7.0
+                  │   └── yarr v2.2.2 (*)
+                  └── yarr v2.2.2 (*)
+    [0m[36m├[0m rand v0.10.1
+      └── rmcp v3.1.4
+          └── yarr v2.2.2
+              └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 3 duplicate entries for crate 'rand_core'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:192:1
+    [0m[36m│[0m  
+[0m[36m192[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mrand_core 0.6.4 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m193[0m [0m[36m│[0m [0m[33m│[0m [0m[33mrand_core 0.9.5 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m194[0m [0m[36m│[0m [0m[33m│[0m [0m[33mrand_core 0.10.1 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m──────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m rand_core v0.6.4
+      └── crypto-common v0.1.6
+          ├── aead v0.5.2
+          │   └── chacha20poly1305 v0.10.1
+          │       └── labby-auth v1.7.0
+          │           └── yarr v2.2.2
+          │               └── (dev) yarr v2.2.2 (*)
+          ├── cipher v0.4.4
+          │   ├── chacha20 v0.9.1
+          │   │   └── chacha20poly1305 v0.10.1 (*)
+          │   └── chacha20poly1305 v0.10.1 (*)
+          ├── digest v0.10.7
+          │   ├── curve25519-dalek v4.1.3
+          │   │   └── ed25519-dalek v2.2.0
+          │   │       └── labby-auth v1.7.0 (*)
+          │   ├── sha1 v0.10.6
+          │   │   ├── axum v0.8.9
+          │   │   │   ├── axum-prometheus v0.10.0
+          │   │   │   │   └── yarr v2.2.2 (*)
+          │   │   │   ├── labby-auth v1.7.0 (*)
+          │   │   │   └── yarr v2.2.2 (*)
+          │   │   └── tungstenite v0.29.0
+          │   │       └── tokio-tungstenite v0.29.0
+          │   │           └── axum v0.8.9 (*)
+          │   └── sha2 v0.10.9
+          │       └── ed25519-dalek v2.2.0 (*)
+          └── universal-hash v0.5.1
+              └── poly1305 v0.8.0
+                  └── chacha20poly1305 v0.10.1 (*)
+    [0m[36m├[0m rand_core v0.9.5
+      ├── rand v0.9.4
+      │   ├── metrics-util v0.20.4
+      │   │   └── metrics-exporter-prometheus v0.18.3
+      │   │       └── axum-prometheus v0.10.0
+      │   │           └── yarr v2.2.2
+      │   │               └── (dev) yarr v2.2.2 (*)
+      │   └── tungstenite v0.29.0
+      │       └── tokio-tungstenite v0.29.0
+      │           └── axum v0.8.9
+      │               ├── axum-prometheus v0.10.0 (*)
+      │               ├── labby-auth v1.7.0
+      │               │   └── yarr v2.2.2 (*)
+      │               └── yarr v2.2.2 (*)
+      ├── rand_chacha v0.9.0
+      │   └── rand v0.9.4 (*)
+      └── rand_xoshiro v0.7.0
+          └── metrics-util v0.20.4 (*)
+    [0m[36m├[0m rand_core v0.10.1
+      ├── chacha20 v0.10.0
+      │   └── rand v0.10.1
+      │       └── rmcp v3.1.4
+      │           └── yarr v2.2.2
+      │               └── (dev) yarr v2.2.2 (*)
+      ├── getrandom v0.4.2
+      │   ├── labby-auth v1.7.0
+      │   │   └── yarr v2.2.2 (*)
+      │   ├── rand v0.10.1 (*)
+      │   ├── tempfile v3.27.0
+      │   │   └── (dev) yarr v2.2.2 (*)
+      │   ├── uuid v1.23.1
+      │   │   └── rmcp v3.1.4 (*)
+      │   └── yarr v2.2.2 (*)
+      └── rand v0.10.1 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'sha2'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:241:1
+    [0m[36m│[0m  
+[0m[36m241[0m [0m[36m│[0m [0m[33m╭[0m [0m[33msha2 0.10.9 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m242[0m [0m[36m│[0m [0m[33m│[0m [0m[33msha2 0.11.0 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m sha2 v0.10.9
+      └── ed25519-dalek v2.2.0
+          └── labby-auth v1.7.0
+              └── yarr v2.2.2
+                  └── (dev) yarr v2.2.2 (*)
+    [0m[36m├[0m sha2 v0.11.0
+      └── labby-auth v1.7.0
+          └── yarr v2.2.2
+              └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'syn'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:259:1
+    [0m[36m│[0m  
+[0m[36m259[0m [0m[36m│[0m [0m[33m╭[0m [0m[33msyn 2.0.117 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m260[0m [0m[36m│[0m [0m[33m│[0m [0m[33msyn 3.0.4 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m syn v2.0.117
+      ├── async-trait v0.1.89
+      │   └── rmcp v3.1.4
+      │       └── yarr v2.2.2
+      │           └── (dev) yarr v2.2.2 (*)
+      ├── axum-macros v0.5.1
+      │   └── axum v0.8.9
+      │       ├── axum-prometheus v0.10.0
+      │       │   └── yarr v2.2.2 (*)
+      │       ├── labby-auth v1.7.0
+      │       │   └── yarr v2.2.2 (*)
+      │       └── yarr v2.2.2 (*)
+      ├── curve25519-dalek-derive v0.1.1
+      │   └── curve25519-dalek v4.1.3
+      │       └── ed25519-dalek v2.2.0
+      │           └── labby-auth v1.7.0 (*)
+      ├── displaydoc v0.2.5
+      │   ├── icu_collections v2.2.0
+      │   │   ├── icu_normalizer v2.2.0
+      │   │   │   └── idna_adapter v1.2.2
+      │   │   │       └── idna v1.1.0
+      │   │   │           ├── cookie_store v0.22.1
+      │   │   │           │   └── reqwest v0.13.1
+      │   │   │           │       ├── labby-auth v1.7.0 (*)
+      │   │   │           │       └── yarr v2.2.2 (*)
+      │   │   │           ├── publicsuffix v2.3.0
+      │   │   │           │   └── cookie_store v0.22.1 (*)
+      │   │   │           └── url v2.5.8
+      │   │   │               ├── cookie_store v0.22.1 (*)
+      │   │   │               ├── labby-auth v1.7.0 (*)
+      │   │   │               ├── labby-primitives v1.7.0
+      │   │   │               │   └── labby-auth v1.7.0 (*)
+      │   │   │               ├── reqwest v0.13.1 (*)
+      │   │   │               ├── rmcp v3.1.4 (*)
+      │   │   │               ├── tower-http v0.6.11
+      │   │   │               │   ├── axum-prometheus v0.10.0 (*)
+      │   │   │               │   └── reqwest v0.13.1 (*)
+      │   │   │               └── yarr v2.2.2 (*)
+      │   │   └── icu_properties v2.2.0
+      │   │       └── idna_adapter v1.2.2 (*)
+      │   ├── icu_locale_core v2.2.0
+      │   │   ├── icu_properties v2.2.0 (*)
+      │   │   └── icu_provider v2.2.0
+      │   │       ├── icu_normalizer v2.2.0 (*)
+      │   │       └── icu_properties v2.2.0 (*)
+      │   ├── icu_provider v2.2.0 (*)
+      │   ├── tinystr v0.8.3
+      │   │   └── icu_locale_core v2.2.0 (*)
+      │   └── zerotrie v0.2.4
+      │       ├── icu_properties v2.2.0 (*)
+      │       └── icu_provider v2.2.0 (*)
+      ├── futures-macro v0.3.32
+      │   └── futures-util v0.3.32
+      │       ├── axum v0.8.9 (*)
+      │       ├── futures v0.3.32
+      │       │   ├── process-wrap v9.1.0
+      │       │   │   └── rmcp v3.1.4 (*)
+      │       │   └── rmcp v3.1.4 (*)
+      │       ├── futures-executor v0.3.32
+      │       │   └── futures v0.3.32 (*)
+      │       ├── hyper-util v0.1.20
+      │       │   ├── axum v0.8.9 (*)
+      │       │   ├── hyper-rustls v0.27.9
+      │       │   │   └── reqwest v0.13.1 (*)
+      │       │   └── reqwest v0.13.1 (*)
+      │       ├── js-sys v0.3.98
+      │       │   ├── chrono v0.4.45
+      │       │   │   ├── rmcp v3.1.4 (*)
+      │       │   │   ├── schemars v1.2.1
+      │       │   │   │   ├── rmcp v3.1.4 (*)
+      │       │   │   │   └── yarr v2.2.2 (*)
+      │       │   │   └── yarr v2.2.2 (*)
+      │       │   ├── iana-time-zone v0.1.65
+      │       │   │   └── chrono v0.4.45 (*)
+      │       │   ├── jsonwebtoken v10.4.0
+      │       │   │   └── labby-auth v1.7.0 (*)
+      │       │   ├── reqwest v0.13.1 (*)
+      │       │   ├── sqlite-wasm-rs v0.5.3
+      │       │   │   └── rusqlite v0.39.0
+      │       │   │       └── labby-auth v1.7.0 (*)
+      │       │   ├── wasm-bindgen-futures v0.4.71
+      │       │   │   ├── reqwest v0.13.1 (*)
+      │       │   │   └── wasm-streams v0.4.2
+      │       │   │       └── reqwest v0.13.1 (*)
+      │       │   ├── wasm-streams v0.4.2 (*)
+      │       │   └── web-sys v0.3.98
+      │       │       ├── quanta v0.12.6
+      │       │       │   ├── metrics-exporter-prometheus v0.18.3
+      │       │       │   │   └── axum-prometheus v0.10.0 (*)
+      │       │       │   └── metrics-util v0.20.4
+      │       │       │       └── metrics-exporter-prometheus v0.18.3 (*)
+      │       │       ├── reqwest v0.13.1 (*)
+      │       │       └── wasm-streams v0.4.2 (*)
+      │       ├── reqwest v0.13.1 (*)
+      │       ├── sse-stream v0.2.5
+      │       │   └── rmcp v3.1.4 (*)
+      │       ├── tokio-tungstenite v0.29.0
+      │       │   └── axum v0.8.9 (*)
+      │       ├── tower v0.5.3
+      │       │   ├── axum v0.8.9 (*)
+      │       │   ├── axum-prometheus v0.10.0 (*)
+      │       │   ├── labby-auth v1.7.0 (*)
+      │       │   ├── reqwest v0.13.1 (*)
+      │       │   ├── tower-http v0.6.11 (*)
+      │       │   └── (dev) yarr v2.2.2 (*)
+      │       ├── tower-http v0.6.11 (*)
+      │       └── wasm-streams v0.4.2 (*)
+      ├── jni-sys-macros v0.4.1
+      │   └── jni-sys v0.4.1
+      │       └── jni-sys v0.3.1
+      │           └── jni v0.21.1
+      │               └── rustls-platform-verifier v0.6.2
+      │                   └── reqwest v0.13.1 (*)
+      ├── ref-cast-impl v1.0.25
+      │   └── ref-cast v1.0.25
+      │       └── schemars v1.2.1 (*)
+      ├── schemars_derive v1.2.1
+      │   └── schemars v1.2.1 (*)
+      ├── serde_derive v1.0.228
+      │   ├── cookie_store v0.22.1 (*)
+      │   ├── serde v1.0.228
+      │   │   ├── chrono v0.4.45 (*)
+      │   │   ├── cookie_store v0.22.1 (*)
+      │   │   ├── jsonwebtoken v10.4.0 (*)
+      │   │   ├── labby-auth v1.7.0 (*)
+      │   │   ├── reqwest v0.13.1 (*)
+      │   │   ├── rmcp v3.1.4 (*)
+      │   │   ├── schemars v1.2.1 (*)
+      │   │   ├── serde_urlencoded v0.7.1
+      │   │   │   ├── axum v0.8.9 (*)
+      │   │   │   └── reqwest v0.13.1 (*)
+      │   │   ├── tracing-serde v0.2.0
+      │   │   │   └── tracing-subscriber v0.3.23
+      │   │   │       ├── loom v0.7.2
+      │   │   │       │   └── left-right v0.11.7
+      │   │   │       │       └── evmap v11.0.0
+      │   │   │       │           └── metrics-exporter-prometheus v0.18.3 (*)
+      │   │   │       └── yarr v2.2.2 (*)
+      │   │   ├── tracing-subscriber v0.3.23 (*)
+      │   │   ├── url v2.5.8 (*)
+      │   │   └── yarr v2.2.2 (*)
+      │   └── url v2.5.8 (*)
+      ├── serde_derive_internals v0.29.1
+      │   └── schemars_derive v1.2.1 (*)
+      ├── synstructure v0.13.2
+      │   ├── yoke-derive v0.8.2
+      │   │   └── yoke v0.8.2
+      │   │       ├── icu_collections v2.2.0 (*)
+      │   │       ├── icu_provider v2.2.0 (*)
+      │   │       ├── zerotrie v0.2.4 (*)
+      │   │       └── zerovec v0.11.6
+      │   │           ├── icu_collections v2.2.0 (*)
+      │   │           ├── icu_locale_core v2.2.0 (*)
+      │   │           ├── icu_normalizer v2.2.0 (*)
+      │   │           ├── icu_properties v2.2.0 (*)
+      │   │           ├── icu_provider v2.2.0 (*)
+      │   │           ├── potential_utf v0.1.5
+      │   │           │   └── icu_collections v2.2.0 (*)
+      │   │           └── tinystr v0.8.3 (*)
+      │   └── zerofrom-derive v0.1.7
+      │       └── zerofrom v0.1.8
+      │           ├── icu_collections v2.2.0 (*)
+      │           ├── icu_provider v2.2.0 (*)
+      │           ├── yoke v0.8.2 (*)
+      │           ├── zerotrie v0.2.4 (*)
+      │           └── zerovec v0.11.6 (*)
+      ├── thiserror-impl v1.0.69
+      │   └── thiserror v1.0.69
+      │       └── jni v0.21.1 (*)
+      ├── thiserror-impl v2.0.18
+      │   └── thiserror v2.0.18
+      │       ├── labby-auth v1.7.0 (*)
+      │       ├── labby-primitives v1.7.0 (*)
+      │       ├── metrics-exporter-prometheus v0.18.3 (*)
+      │       ├── redox_users v0.5.2
+      │       │   └── dirs-sys v0.5.0
+      │       │       └── dirs v6.0.0
+      │       │           └── yarr v2.2.2 (*)
+      │       ├── rmcp v3.1.4 (*)
+      │       ├── rsqlite-vfs v0.1.0
+      │       │   └── sqlite-wasm-rs v0.5.3 (*)
+      │       ├── simple_asn1 v0.6.4
+      │       │   └── jsonwebtoken v10.4.0 (*)
+      │       ├── tungstenite v0.29.0
+      │       │   └── tokio-tungstenite v0.29.0 (*)
+      │       └── yarr v2.2.2 (*)
+      ├── tokio-macros v2.7.0
+      │   └── tokio v1.52.3
+      │       ├── async-compression v0.4.42
+      │       │   └── tower-http v0.6.11 (*)
+      │       ├── axum v0.8.9 (*)
+      │       ├── axum-prometheus v0.10.0 (*)
+      │       ├── h2 v0.4.16
+      │       │   └── hyper v1.9.0
+      │       │       ├── axum v0.8.9 (*)
+      │       │       ├── hyper-rustls v0.27.9 (*)
+      │       │       ├── hyper-util v0.1.20 (*)
+      │       │       └── reqwest v0.13.1 (*)
+      │       ├── hyper v1.9.0 (*)
+      │       ├── hyper-rustls v0.27.9 (*)
+      │       ├── hyper-util v0.1.20 (*)
+      │       ├── labby-auth v1.7.0 (*)
+      │       ├── process-wrap v9.1.0 (*)
+      │       ├── reqwest v0.13.1 (*)
+      │       ├── rmcp v3.1.4 (*)
+      │       ├── tokio-rustls v0.26.4
+      │       │   ├── hyper-rustls v0.27.9 (*)
+      │       │   └── reqwest v0.13.1 (*)
+      │       ├── tokio-stream v0.1.18
+      │       │   └── rmcp v3.1.4 (*)
+      │       ├── tokio-tungstenite v0.29.0 (*)
+      │       ├── tokio-util v0.7.18
+      │       │   ├── h2 v0.4.16 (*)
+      │       │   ├── reqwest v0.13.1 (*)
+      │       │   ├── rmcp v3.1.4 (*)
+      │       │   └── tower-http v0.6.11 (*)
+      │       ├── tower v0.5.3 (*)
+      │       ├── tower-http v0.6.11 (*)
+      │       └── yarr v2.2.2 (*)
+      ├── tracing-attributes v0.1.31
+      │   └── tracing v0.1.44
+      │       ├── axum v0.8.9 (*)
+      │       ├── axum-core v0.5.6
+      │       │   └── axum v0.8.9 (*)
+      │       ├── h2 v0.4.16 (*)
+      │       ├── hyper-util v0.1.20 (*)
+      │       ├── labby-auth v1.7.0 (*)
+      │       ├── loom v0.7.2 (*)
+      │       ├── process-wrap v9.1.0 (*)
+      │       ├── rmcp v3.1.4 (*)
+      │       ├── tower v0.5.3 (*)
+      │       ├── tower-http v0.7.0
+      │       │   └── yarr v2.2.2 (*)
+      │       ├── tracing-subscriber v0.3.23 (*)
+      │       └── yarr v2.2.2 (*)
+      ├── wasm-bindgen-macro-support v0.2.121
+      │   └── wasm-bindgen-macro v0.2.121
+      │       └── wasm-bindgen v0.2.121
+      │           ├── chrono v0.4.45 (*)
+      │           ├── iana-time-zone v0.1.65 (*)
+      │           ├── js-sys v0.3.98 (*)
+      │           ├── reqwest v0.13.1 (*)
+      │           ├── sqlite-wasm-rs v0.5.3 (*)
+      │           ├── wasm-bindgen-futures v0.4.71 (*)
+      │           ├── wasm-streams v0.4.2 (*)
+      │           └── web-sys v0.3.98 (*)
+      ├── windows-implement v0.60.2
+      │   └── windows-core v0.62.2
+      │       ├── iana-time-zone v0.1.65 (*)
+      │       ├── windows v0.62.2
+      │       │   └── process-wrap v9.1.0 (*)
+      │       ├── windows-collections v0.3.2
+      │       │   └── windows v0.62.2 (*)
+      │       ├── windows-future v0.3.2
+      │       │   └── windows v0.62.2 (*)
+      │       └── windows-numerics v0.3.1
+      │           └── windows v0.62.2 (*)
+      ├── windows-interface v0.59.3
+      │   └── windows-core v0.62.2 (*)
+      ├── yoke-derive v0.8.2 (*)
+      ├── zerofrom-derive v0.1.7 (*)
+      ├── zeroize_derive v1.4.3
+      │   └── zeroize v1.8.2
+      │       ├── aws-lc-rs v1.17.0
+      │       │   ├── jsonwebtoken v10.4.0 (*)
+      │       │   ├── rustls v0.23.40
+      │       │   │   ├── hyper-rustls v0.27.9 (*)
+      │       │   │   ├── labby-auth v1.7.0 (*)
+      │       │   │   ├── reqwest v0.13.1 (*)
+      │       │   │   ├── rustls-platform-verifier v0.6.2 (*)
+      │       │   │   └── tokio-rustls v0.26.4 (*)
+      │       │   └── rustls-webpki v0.103.13
+      │       │       ├── rustls v0.23.40 (*)
+      │       │       └── rustls-platform-verifier v0.6.2 (*)
+      │       ├── chacha20poly1305 v0.10.1
+      │       │   └── labby-auth v1.7.0 (*)
+      │       ├── cipher v0.4.4
+      │       │   ├── chacha20 v0.9.1
+      │       │   │   └── chacha20poly1305 v0.10.1 (*)
+      │       │   └── chacha20poly1305 v0.10.1 (*)
+      │       ├── curve25519-dalek v4.1.3 (*)
+      │       ├── der v0.7.10
+      │       │   ├── pkcs8 v0.10.2
+      │       │   │   └── ed25519 v2.2.3
+      │       │   │       └── ed25519-dalek v2.2.0 (*)
+      │       │   └── spki v0.7.3
+      │       │       └── pkcs8 v0.10.2 (*)
+      │       ├── ed25519-dalek v2.2.0 (*)
+      │       ├── jsonwebtoken v10.4.0 (*)
+      │       ├── rustls v0.23.40 (*)
+      │       └── rustls-pki-types v1.14.1
+      │           ├── reqwest v0.13.1 (*)
+      │           ├── rustls v0.23.40 (*)
+      │           ├── rustls-native-certs v0.8.3
+      │           │   └── rustls-platform-verifier v0.6.2 (*)
+      │           ├── rustls-webpki v0.103.13 (*)
+      │           ├── webpki-root-certs v1.0.7
+      │           │   └── rustls-platform-verifier v0.6.2 (*)
+      │           └── webpki-roots v1.0.7
+      │               └── reqwest v0.13.1 (*)
+      └── zerovec-derive v0.11.3
+          └── zerovec v0.11.6 (*)
+    [0m[36m├[0m syn v3.0.4
+      ├── darling_core v0.24.1
+      │   ├── darling v0.24.1
+      │   │   └── rmcp-macros v3.1.4
+      │   │       └── rmcp v3.1.4
+      │   │           └── yarr v2.2.2
+      │   │               └── (dev) yarr v2.2.2 (*)
+      │   └── darling_macro v0.24.1
+      │       └── darling v0.24.1 (*)
+      ├── darling_macro v0.24.1 (*)
+      └── rmcp-macros v3.1.4 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'thiserror'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:264:1
+    [0m[36m│[0m  
+[0m[36m264[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mthiserror 1.0.69 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m265[0m [0m[36m│[0m [0m[33m│[0m [0m[33mthiserror 2.0.18 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m──────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m thiserror v1.0.69
+      └── jni v0.21.1
+          └── rustls-platform-verifier v0.6.2
+              └── reqwest v0.13.1
+                  ├── labby-auth v1.7.0
+                  │   └── yarr v2.2.2
+                  │       └── (dev) yarr v2.2.2 (*)
+                  └── yarr v2.2.2 (*)
+    [0m[36m├[0m thiserror v2.0.18
+      ├── labby-auth v1.7.0
+      │   └── yarr v2.2.2
+      │       └── (dev) yarr v2.2.2 (*)
+      ├── labby-primitives v1.7.0
+      │   └── labby-auth v1.7.0 (*)
+      ├── metrics-exporter-prometheus v0.18.3
+      │   └── axum-prometheus v0.10.0
+      │       └── yarr v2.2.2 (*)
+      ├── redox_users v0.5.2
+      │   └── dirs-sys v0.5.0
+      │       └── dirs v6.0.0
+      │           └── yarr v2.2.2 (*)
+      ├── rmcp v3.1.4
+      │   └── yarr v2.2.2 (*)
+      ├── rsqlite-vfs v0.1.0
+      │   └── sqlite-wasm-rs v0.5.3
+      │       └── rusqlite v0.39.0
+      │           └── labby-auth v1.7.0 (*)
+      ├── simple_asn1 v0.6.4
+      │   └── jsonwebtoken v10.4.0
+      │       └── labby-auth v1.7.0 (*)
+      ├── tungstenite v0.29.0
+      │   └── tokio-tungstenite v0.29.0
+      │       └── axum v0.8.9
+      │           ├── axum-prometheus v0.10.0 (*)
+      │           ├── labby-auth v1.7.0 (*)
+      │           └── yarr v2.2.2 (*)
+      └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'thiserror-impl'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:266:1
+    [0m[36m│[0m  
+[0m[36m266[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mthiserror-impl 1.0.69 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m267[0m [0m[36m│[0m [0m[33m│[0m [0m[33mthiserror-impl 2.0.18 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m thiserror-impl v1.0.69
+      └── thiserror v1.0.69
+          └── jni v0.21.1
+              └── rustls-platform-verifier v0.6.2
+                  └── reqwest v0.13.1
+                      ├── labby-auth v1.7.0
+                      │   └── yarr v2.2.2
+                      │       └── (dev) yarr v2.2.2 (*)
+                      └── yarr v2.2.2 (*)
+    [0m[36m├[0m thiserror-impl v2.0.18
+      └── thiserror v2.0.18
+          ├── labby-auth v1.7.0
+          │   └── yarr v2.2.2
+          │       └── (dev) yarr v2.2.2 (*)
+          ├── labby-primitives v1.7.0
+          │   └── labby-auth v1.7.0 (*)
+          ├── metrics-exporter-prometheus v0.18.3
+          │   └── axum-prometheus v0.10.0
+          │       └── yarr v2.2.2 (*)
+          ├── redox_users v0.5.2
+          │   └── dirs-sys v0.5.0
+          │       └── dirs v6.0.0
+          │           └── yarr v2.2.2 (*)
+          ├── rmcp v3.1.4
+          │   └── yarr v2.2.2 (*)
+          ├── rsqlite-vfs v0.1.0
+          │   └── sqlite-wasm-rs v0.5.3
+          │       └── rusqlite v0.39.0
+          │           └── labby-auth v1.7.0 (*)
+          ├── simple_asn1 v0.6.4
+          │   └── jsonwebtoken v10.4.0
+          │       └── labby-auth v1.7.0 (*)
+          ├── tungstenite v0.29.0
+          │   └── tokio-tungstenite v0.29.0
+          │       └── axum v0.8.9
+          │           ├── axum-prometheus v0.10.0 (*)
+          │           ├── labby-auth v1.7.0 (*)
+          │           └── yarr v2.2.2 (*)
+          └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'tower-http'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:284:1
+    [0m[36m│[0m  
+[0m[36m284[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mtower-http 0.6.11 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m285[0m [0m[36m│[0m [0m[33m│[0m [0m[33mtower-http 0.7.0 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m──────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m tower-http v0.6.11
+      ├── axum-prometheus v0.10.0
+      │   └── yarr v2.2.2
+      │       └── (dev) yarr v2.2.2 (*)
+      └── reqwest v0.13.1
+          ├── labby-auth v1.7.0
+          │   └── yarr v2.2.2 (*)
+          └── yarr v2.2.2 (*)
+    [0m[36m├[0m tower-http v0.7.0
+      └── yarr v2.2.2
+          └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'untrusted'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:300:1
+    [0m[36m│[0m  
+[0m[36m300[0m [0m[36m│[0m [0m[33m╭[0m [0m[33muntrusted 0.7.1 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m301[0m [0m[36m│[0m [0m[33m│[0m [0m[33muntrusted 0.9.0 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m untrusted v0.7.1
+      └── aws-lc-rs v1.17.0
+          ├── jsonwebtoken v10.4.0
+          │   └── labby-auth v1.7.0
+          │       └── yarr v2.2.2
+          │           └── (dev) yarr v2.2.2 (*)
+          ├── rustls v0.23.40
+          │   ├── hyper-rustls v0.27.9
+          │   │   └── reqwest v0.13.1
+          │   │       ├── labby-auth v1.7.0 (*)
+          │   │       └── yarr v2.2.2 (*)
+          │   ├── labby-auth v1.7.0 (*)
+          │   ├── reqwest v0.13.1 (*)
+          │   ├── rustls-platform-verifier v0.6.2
+          │   │   └── reqwest v0.13.1 (*)
+          │   └── tokio-rustls v0.26.4
+          │       ├── hyper-rustls v0.27.9 (*)
+          │       └── reqwest v0.13.1 (*)
+          └── rustls-webpki v0.103.13
+              ├── rustls v0.23.40 (*)
+              └── rustls-platform-verifier v0.6.2 (*)
+    [0m[36m├[0m untrusted v0.9.0
+      ├── ring v0.17.14
+      │   ├── rustls v0.23.40
+      │   │   ├── hyper-rustls v0.27.9
+      │   │   │   └── reqwest v0.13.1
+      │   │   │       ├── labby-auth v1.7.0
+      │   │   │       │   └── yarr v2.2.2
+      │   │   │       │       └── (dev) yarr v2.2.2 (*)
+      │   │   │       └── yarr v2.2.2 (*)
+      │   │   ├── labby-auth v1.7.0 (*)
+      │   │   ├── reqwest v0.13.1 (*)
+      │   │   ├── rustls-platform-verifier v0.6.2
+      │   │   │   └── reqwest v0.13.1 (*)
+      │   │   └── tokio-rustls v0.26.4
+      │   │       ├── hyper-rustls v0.27.9 (*)
+      │   │       └── reqwest v0.13.1 (*)
+      │   └── rustls-webpki v0.103.13
+      │       ├── rustls v0.23.40 (*)
+      │       └── rustls-platform-verifier v0.6.2 (*)
+      └── rustls-webpki v0.103.13 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 3 duplicate entries for crate 'windows-sys'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:335:1
+    [0m[36m│[0m  
+[0m[36m335[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows-sys 0.45.0 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m336[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows-sys 0.52.0 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m337[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows-sys 0.61.2 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows-sys v0.45.0
+      └── jni v0.21.1
+          └── rustls-platform-verifier v0.6.2
+              └── reqwest v0.13.1
+                  ├── labby-auth v1.7.0
+                  │   └── yarr v2.2.2
+                  │       └── (dev) yarr v2.2.2 (*)
+                  └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows-sys v0.52.0
+      └── ring v0.17.14
+          ├── rustls v0.23.40
+          │   ├── hyper-rustls v0.27.9
+          │   │   └── reqwest v0.13.1
+          │   │       ├── labby-auth v1.7.0
+          │   │       │   └── yarr v2.2.2
+          │   │       │       └── (dev) yarr v2.2.2 (*)
+          │   │       └── yarr v2.2.2 (*)
+          │   ├── labby-auth v1.7.0 (*)
+          │   ├── reqwest v0.13.1 (*)
+          │   ├── rustls-platform-verifier v0.6.2
+          │   │   └── reqwest v0.13.1 (*)
+          │   └── tokio-rustls v0.26.4
+          │       ├── hyper-rustls v0.27.9 (*)
+          │       └── reqwest v0.13.1 (*)
+          └── rustls-webpki v0.103.13
+              ├── rustls v0.23.40 (*)
+              └── rustls-platform-verifier v0.6.2 (*)
+    [0m[36m├[0m windows-sys v0.61.2
+      ├── dirs-sys v0.5.0
+      │   └── dirs v6.0.0
+      │       └── yarr v2.2.2
+      │           └── (dev) yarr v2.2.2 (*)
+      ├── errno v0.3.14
+      │   ├── rustix v1.1.4
+      │   │   └── tempfile v3.27.0
+      │   │       └── (dev) yarr v2.2.2 (*)
+      │   └── signal-hook-registry v1.4.8
+      │       └── tokio v1.52.3
+      │           ├── async-compression v0.4.42
+      │           │   └── tower-http v0.6.11
+      │           │       ├── axum-prometheus v0.10.0
+      │           │       │   └── yarr v2.2.2 (*)
+      │           │       └── reqwest v0.13.1
+      │           │           ├── labby-auth v1.7.0
+      │           │           │   └── yarr v2.2.2 (*)
+      │           │           └── yarr v2.2.2 (*)
+      │           ├── axum v0.8.9
+      │           │   ├── axum-prometheus v0.10.0 (*)
+      │           │   ├── labby-auth v1.7.0 (*)
+      │           │   └── yarr v2.2.2 (*)
+      │           ├── axum-prometheus v0.10.0 (*)
+      │           ├── h2 v0.4.16
+      │           │   └── hyper v1.9.0
+      │           │       ├── axum v0.8.9 (*)
+      │           │       ├── hyper-rustls v0.27.9
+      │           │       │   └── reqwest v0.13.1 (*)
+      │           │       ├── hyper-util v0.1.20
+      │           │       │   ├── axum v0.8.9 (*)
+      │           │       │   ├── hyper-rustls v0.27.9 (*)
+      │           │       │   └── reqwest v0.13.1 (*)
+      │           │       └── reqwest v0.13.1 (*)
+      │           ├── hyper v1.9.0 (*)
+      │           ├── hyper-rustls v0.27.9 (*)
+      │           ├── hyper-util v0.1.20 (*)
+      │           ├── labby-auth v1.7.0 (*)
+      │           ├── process-wrap v9.1.0
+      │           │   └── rmcp v3.1.4
+      │           │       └── yarr v2.2.2 (*)
+      │           ├── reqwest v0.13.1 (*)
+      │           ├── rmcp v3.1.4 (*)
+      │           ├── tokio-rustls v0.26.4
+      │           │   ├── hyper-rustls v0.27.9 (*)
+      │           │   └── reqwest v0.13.1 (*)
+      │           ├── tokio-stream v0.1.18
+      │           │   └── rmcp v3.1.4 (*)
+      │           ├── tokio-tungstenite v0.29.0
+      │           │   └── axum v0.8.9 (*)
+      │           ├── tokio-util v0.7.18
+      │           │   ├── h2 v0.4.16 (*)
+      │           │   ├── reqwest v0.13.1 (*)
+      │           │   ├── rmcp v3.1.4 (*)
+      │           │   └── tower-http v0.6.11 (*)
+      │           ├── tower v0.5.3
+      │           │   ├── axum v0.8.9 (*)
+      │           │   ├── axum-prometheus v0.10.0 (*)
+      │           │   ├── labby-auth v1.7.0 (*)
+      │           │   ├── reqwest v0.13.1 (*)
+      │           │   ├── tower-http v0.6.11 (*)
+      │           │   └── (dev) yarr v2.2.2 (*)
+      │           ├── tower-http v0.6.11 (*)
+      │           └── yarr v2.2.2 (*)
+      ├── mio v1.2.0
+      │   └── tokio v1.52.3 (*)
+      ├── nu-ansi-term v0.50.3
+      │   └── tracing-subscriber v0.3.23
+      │       ├── loom v0.7.2
+      │       │   └── left-right v0.11.7
+      │       │       └── evmap v11.0.0
+      │       │           └── metrics-exporter-prometheus v0.18.3
+      │       │               └── axum-prometheus v0.10.0 (*)
+      │       └── yarr v2.2.2 (*)
+      ├── rustix v1.1.4 (*)
+      ├── rustls-platform-verifier v0.6.2
+      │   └── reqwest v0.13.1 (*)
+      ├── schannel v0.1.29
+      │   └── rustls-native-certs v0.8.3
+      │       └── rustls-platform-verifier v0.6.2 (*)
+      ├── socket2 v0.6.3
+      │   ├── hyper-util v0.1.20 (*)
+      │   └── tokio v1.52.3 (*)
+      ├── tempfile v3.27.0 (*)
+      ├── tokio v1.52.3 (*)
+      └── winapi-util v0.1.11
+          ├── same-file v1.0.6
+          │   └── walkdir v2.5.0
+          │       └── (build) jni v0.21.1
+          │           └── rustls-platform-verifier v0.6.2 (*)
+          └── walkdir v2.5.0 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows-targets'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:338:1
+    [0m[36m│[0m  
+[0m[36m338[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows-targets 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m339[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows-targets 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows-targets v0.42.2
+      └── windows-sys v0.45.0
+          └── jni v0.21.1
+              └── rustls-platform-verifier v0.6.2
+                  └── reqwest v0.13.1
+                      ├── labby-auth v1.7.0
+                      │   └── yarr v2.2.2
+                      │       └── (dev) yarr v2.2.2 (*)
+                      └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows-targets v0.52.6
+      └── windows-sys v0.52.0
+          └── ring v0.17.14
+              ├── rustls v0.23.40
+              │   ├── hyper-rustls v0.27.9
+              │   │   └── reqwest v0.13.1
+              │   │       ├── labby-auth v1.7.0
+              │   │       │   └── yarr v2.2.2
+              │   │       │       └── (dev) yarr v2.2.2 (*)
+              │   │       └── yarr v2.2.2 (*)
+              │   ├── labby-auth v1.7.0 (*)
+              │   ├── reqwest v0.13.1 (*)
+              │   ├── rustls-platform-verifier v0.6.2
+              │   │   └── reqwest v0.13.1 (*)
+              │   └── tokio-rustls v0.26.4
+              │       ├── hyper-rustls v0.27.9 (*)
+              │       └── reqwest v0.13.1 (*)
+              └── rustls-webpki v0.103.13
+                  ├── rustls v0.23.40 (*)
+                  └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_aarch64_gnullvm'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:341:1
+    [0m[36m│[0m  
+[0m[36m341[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_aarch64_gnullvm 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m342[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_aarch64_gnullvm 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m────────────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_aarch64_gnullvm v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_aarch64_gnullvm v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_aarch64_msvc'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:343:1
+    [0m[36m│[0m  
+[0m[36m343[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_aarch64_msvc 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m344[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_aarch64_msvc 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_aarch64_msvc v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_aarch64_msvc v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_i686_gnu'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:345:1
+    [0m[36m│[0m  
+[0m[36m345[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_i686_gnu 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m346[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_i686_gnu 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m─────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_i686_gnu v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_i686_gnu v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_i686_msvc'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:348:1
+    [0m[36m│[0m  
+[0m[36m348[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_i686_msvc 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m349[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_i686_msvc 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m──────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_i686_msvc v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_i686_msvc v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_x86_64_gnu'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:350:1
+    [0m[36m│[0m  
+[0m[36m350[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_x86_64_gnu 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m351[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_x86_64_gnu 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_x86_64_gnu v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_x86_64_gnu v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_x86_64_gnullvm'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:352:1
+    [0m[36m│[0m  
+[0m[36m352[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_x86_64_gnullvm 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m353[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_x86_64_gnullvm 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m───────────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_x86_64_gnullvm v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_x86_64_gnullvm v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'windows_x86_64_msvc'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:354:1
+    [0m[36m│[0m  
+[0m[36m354[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwindows_x86_64_msvc 0.42.2 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m355[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwindows_x86_64_msvc 0.52.6 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m────────────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m windows_x86_64_msvc v0.42.2
+      └── windows-targets v0.42.2
+          └── windows-sys v0.45.0
+              └── jni v0.21.1
+                  └── rustls-platform-verifier v0.6.2
+                      └── reqwest v0.13.1
+                          ├── labby-auth v1.7.0
+                          │   └── yarr v2.2.2
+                          │       └── (dev) yarr v2.2.2 (*)
+                          └── yarr v2.2.2 (*)
+    [0m[36m├[0m windows_x86_64_msvc v0.52.6
+      └── windows-targets v0.52.6
+          └── windows-sys v0.52.0
+              └── ring v0.17.14
+                  ├── rustls v0.23.40
+                  │   ├── hyper-rustls v0.27.9
+                  │   │   └── reqwest v0.13.1
+                  │   │       ├── labby-auth v1.7.0
+                  │   │       │   └── yarr v2.2.2
+                  │   │       │       └── (dev) yarr v2.2.2 (*)
+                  │   │       └── yarr v2.2.2 (*)
+                  │   ├── labby-auth v1.7.0 (*)
+                  │   ├── reqwest v0.13.1 (*)
+                  │   ├── rustls-platform-verifier v0.6.2
+                  │   │   └── reqwest v0.13.1 (*)
+                  │   └── tokio-rustls v0.26.4
+                  │       ├── hyper-rustls v0.27.9 (*)
+                  │       └── reqwest v0.13.1 (*)
+                  └── rustls-webpki v0.103.13
+                      ├── rustls v0.23.40 (*)
+                      └── rustls-platform-verifier v0.6.2 (*)
+
+[0m[1m[38;5;11mwarning[duplicate][0m[1m: found 2 duplicate entries for crate 'wit-bindgen'[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:357:1
+    [0m[36m│[0m  
+[0m[36m357[0m [0m[36m│[0m [0m[33m╭[0m [0m[33mwit-bindgen 0.51.0 registry+https://github.com/rust-lang/crates.io-index[0m
+[0m[36m358[0m [0m[36m│[0m [0m[33m│[0m [0m[33mwit-bindgen 0.57.1 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[33m╰[0m[0m[33m────────────────────────────────────────────────────────────────────────┘ lock entries[0m
+    [0m[36m│[0m  
+    [0m[36m├[0m wit-bindgen v0.51.0
+      └── wasip3 v0.4.0+wasi-0.3.0-rc-2026-01-06
+          └── getrandom v0.4.2
+              ├── labby-auth v1.7.0
+              │   └── yarr v2.2.2
+              │       └── (dev) yarr v2.2.2 (*)
+              ├── rand v0.10.1
+              │   └── rmcp v3.1.4
+              │       └── yarr v2.2.2 (*)
+              ├── tempfile v3.27.0
+              │   └── (dev) yarr v2.2.2 (*)
+              ├── uuid v1.23.1
+              │   └── rmcp v3.1.4 (*)
+              └── yarr v2.2.2 (*)
+    [0m[36m├[0m wit-bindgen v0.57.1
+      └── wasip2 v1.0.3+wasi-0.2.9
+          ├── getrandom v0.3.4
+          │   ├── jobserver v0.1.34
+          │   │   └── cc v1.2.62
+          │   │       ├── (build) aws-lc-sys v0.41.0
+          │   │       │   └── aws-lc-rs v1.17.0
+          │   │       │       ├── jsonwebtoken v10.4.0
+          │   │       │       │   └── labby-auth v1.7.0
+          │   │       │       │       └── yarr v2.2.2
+          │   │       │       │           └── (dev) yarr v2.2.2 (*)
+          │   │       │       ├── rustls v0.23.40
+          │   │       │       │   ├── hyper-rustls v0.27.9
+          │   │       │       │   │   └── reqwest v0.13.1
+          │   │       │       │   │       ├── labby-auth v1.7.0 (*)
+          │   │       │       │   │       └── yarr v2.2.2 (*)
+          │   │       │       │   ├── labby-auth v1.7.0 (*)
+          │   │       │       │   ├── reqwest v0.13.1 (*)
+          │   │       │       │   ├── rustls-platform-verifier v0.6.2
+          │   │       │       │   │   └── reqwest v0.13.1 (*)
+          │   │       │       │   └── tokio-rustls v0.26.4
+          │   │       │       │       ├── hyper-rustls v0.27.9 (*)
+          │   │       │       │       └── reqwest v0.13.1 (*)
+          │   │       │       └── rustls-webpki v0.103.13
+          │   │       │           ├── rustls v0.23.40 (*)
+          │   │       │           └── rustls-platform-verifier v0.6.2 (*)
+          │   │       ├── cmake v0.1.58
+          │   │       │   └── (build) aws-lc-sys v0.41.0 (*)
+          │   │       ├── (build) generator v0.8.9
+          │   │       │   └── loom v0.7.2
+          │   │       │       └── left-right v0.11.7
+          │   │       │           └── evmap v11.0.0
+          │   │       │               └── metrics-exporter-prometheus v0.18.3
+          │   │       │                   └── axum-prometheus v0.10.0
+          │   │       │                       └── yarr v2.2.2 (*)
+          │   │       ├── (build) iana-time-zone-haiku v0.1.2
+          │   │       │   └── iana-time-zone v0.1.65
+          │   │       │       └── chrono v0.4.45
+          │   │       │           ├── rmcp v3.1.4
+          │   │       │           │   └── yarr v2.2.2 (*)
+          │   │       │           ├── schemars v1.2.1
+          │   │       │           │   ├── rmcp v3.1.4 (*)
+          │   │       │           │   └── yarr v2.2.2 (*)
+          │   │       │           └── yarr v2.2.2 (*)
+          │   │       ├── (build) libsqlite3-sys v0.37.0
+          │   │       │   └── rusqlite v0.39.0
+          │   │       │       └── labby-auth v1.7.0 (*)
+          │   │       ├── (build) ring v0.17.14
+          │   │       │   ├── rustls v0.23.40 (*)
+          │   │       │   └── rustls-webpki v0.103.13 (*)
+          │   │       ├── (build) rquickjs-sys v0.12.1
+          │   │       │   └── rquickjs-core v0.12.1
+          │   │       │       └── rquickjs v0.12.1
+          │   │       │           └── yarr v2.2.2 (*)
+          │   │       └── (build) sqlite-wasm-rs v0.5.3
+          │   │           └── rusqlite v0.39.0 (*)
+          │   └── rand_core v0.9.5
+          │       ├── rand v0.9.4
+          │       │   ├── metrics-util v0.20.4
+          │       │   │   └── metrics-exporter-prometheus v0.18.3 (*)
+          │       │   └── tungstenite v0.29.0
+          │       │       └── tokio-tungstenite v0.29.0
+          │       │           └── axum v0.8.9
+          │       │               ├── axum-prometheus v0.10.0 (*)
+          │       │               ├── labby-auth v1.7.0 (*)
+          │       │               └── yarr v2.2.2 (*)
+          │       ├── rand_chacha v0.9.0
+          │       │   └── rand v0.9.4 (*)
+          │       └── rand_xoshiro v0.7.0
+          │           └── metrics-util v0.20.4 (*)
+          └── getrandom v0.4.2
+              ├── labby-auth v1.7.0 (*)
+              ├── rand v0.10.1
+              │   └── rmcp v3.1.4 (*)
+              ├── tempfile v3.27.0
+              │   └── (dev) yarr v2.2.2 (*)
+              ├── uuid v1.23.1
+              │   └── rmcp v3.1.4 (*)
+              └── yarr v2.2.2 (*)
+
+[0m[1m[38;5;9merror[vulnerability][0m[1m: TLS 1.3 handshake messages incorrectly accepted across encryption level boundaries[0m
+    [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:215:1
+    [0m[36m│[0m
+[0m[36m215[0m [0m[36m│[0m [0m[31mrustls 0.23.40 registry+https://github.com/rust-lang/crates.io-index[0m
+    [0m[36m│[0m [0m[31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [0m[31msecurity vulnerability detected[0m
+    [0m[36m│[0m
+    [0m[36m├[0m ID: RUSTSEC-2026-0285
+    [0m[36m├[0m Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0285
+    [0m[36m├[0m Rustls accepted TLS 1.3 handshake messages sent at the wrong encryption level
+      when they followed a key-changing message in the same record. For example,
+      a plaintext `EncryptedExtensions` message packed into the same record as the
+      `ServerHello` was accepted.
+      
+      RFC 8446 section 5.1 requires that handshake messages do not span key changes,
+      and that implementations terminate the connection with an "unexpected_message"
+      alert if they do.
+      
+      The handshake transcript is still authenticated, so a network-position attacker
+      cannot use this to alter or complete a handshake; the practical effect is that
+      a peer could send handshake messages that should be encrypted in plaintext
+      without rustls rejecting the connection.
+      
+      This is functionally the same bug as Go's
+      [GO-2026-4340](https://pkg.go.dev/vuln/GO-2026-4340) (CVE-2025-61730).
+    [0m[36m├[0m Announcement: https://github.com/rustls/rustls/security/advisories/GHSA-2mjx-qc3c-rqvc
+    [0m[36m├[0m Solution: Upgrade to >=0.23.45 (try `cargo update -p rustls`)
+    [0m[36m├[0m rustls v0.23.40
+      ├── hyper-rustls v0.27.9
+      │   └── reqwest v0.13.1
+      │       ├── labby-auth v1.7.0
+      │       │   └── yarr v2.2.2
+      │       │       └── (dev) yarr v2.2.2 (*)
+      │       └── yarr v2.2.2 (*)
+      ├── labby-auth v1.7.0 (*)
+      ├── reqwest v0.13.1 (*)
+      ├── rustls-platform-verifier v0.6.2
+      │   └── reqwest v0.13.1 (*)
+      └── tokio-rustls v0.26.4
+          ├── hyper-rustls v0.27.9 (*)
+          └── reqwest v0.13.1 (*)
+
+[0m[1m[38;5;11mwarning[yanked][0m[1m: detected yanked crate (try `cargo update -p chacha20`)[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/Cargo.lock:29:1
+   [0m[36m│[0m
+[0m[36m29[0m [0m[36m│[0m [0m[33mchacha20 0.10.0 registry+https://github.com/rust-lang/crates.io-index[0m
+   [0m[36m│[0m [0m[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [0m[33myanked version[0m
+   [0m[36m│[0m
+   [0m[36m├[0m chacha20 v0.10.0
+     └── rand v0.10.1
+         └── rmcp v3.1.4
+             └── yarr v2.2.2
+                 └── (dev) yarr v2.2.2 (*)
+
+[0m[1m[38;5;11mwarning[advisory-not-detected][0m[1m: advisory was not encountered[0m
+   [0m[36m┌─[0m /_work/yarr/yarr/deny.toml:28:11
+   [0m[36m│[0m
+[0m[36m28[0m [0m[36m│[0m   { id = "[0m[33mRUSTSEC-2023-0071[0m", reason = "temporary JWT-only exception through 2026-10-01; HTTPS, restrictive key storage, validated grants, token rate limiting and monitoring mitigate timing-oracle exposure" },
+   [0m[36m│[0m           [0m[33m━━━━━━━━━━━━━━━━━[0m             [0m[36m─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m [0m[36mignore reason[0m
+   [0m[36m│[0m           [0m[33m│[0m                              
+   [0m[36m│[0m           [0m[33mno crate matched advisory criteria[0m
+
+advisories [31mFAILED[0m, bans [32mok[0m, licenses [32mok[0m, sources [32mok[0m
