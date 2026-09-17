@@ -1,6 +1,6 @@
 //! Wire-level SEP-2322 MRTR tests for destructive tools/call.
 
-use super::*;
+use super::super::*;
 
 fn modern_meta_with_elicitation() -> Value {
     json!({
@@ -185,7 +185,14 @@ async fn modern_decline_and_request_tampering_never_reach_upstream() {
         }),
     )
     .await;
-    assert_eq!(declined["result"]["isError"], true);
+    assert_eq!(declined["result"]["isError"], false);
+    let declined_payload: Value = serde_json::from_str(
+        declined["result"]["content"][0]["text"]
+            .as_str()
+            .expect("decline result should contain JSON text"),
+    )
+    .expect("decline result text should be JSON");
+    assert_eq!(declined_payload["declined"], true);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     server.abort();
 }
