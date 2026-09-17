@@ -31,7 +31,7 @@ jobs:
           patterns_rc=$?
           bash scripts/check-coupled-files.sh origin/main HEAD > /tmp/coupled.txt 2>&1
           coupled_rc=$?
-          cargo deny check --all-features > /tmp/deny.txt 2>&1
+          cargo-deny check --all-features > /tmp/deny.txt 2>&1
           deny_rc=$?
           set -e
           {
