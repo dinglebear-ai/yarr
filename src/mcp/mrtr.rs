@@ -85,9 +85,7 @@ pub(crate) fn gate_destructive(
                 arguments: arguments.clone(),
             })?;
             Ok(DeleteGate::InputRequired(input_required(
-                action,
-                tool_name,
-                handle,
+                action, tool_name, handle,
             )?))
         }
         Some(handle) => resume_pending(
@@ -106,8 +104,7 @@ fn supports_form_elicitation(context: &RequestContext<RoleServer>) -> bool {
         .client_capabilities()
         .and_then(|capabilities| capabilities.elicitation)
         .is_some_and(|elicitation| {
-            elicitation.form.is_some()
-                || (elicitation.form.is_none() && elicitation.url.is_none())
+            elicitation.form.is_some() || (elicitation.form.is_none() && elicitation.url.is_none())
         })
 }
 
@@ -229,7 +226,10 @@ fn input_required(
             },
         )),
     );
-    Ok(InputRequiredResult::new(Some(requests), Some(request_state)))
+    Ok(InputRequiredResult::new(
+        Some(requests),
+        Some(request_state),
+    ))
 }
 
 fn random_handle() -> Result<String, ErrorData> {

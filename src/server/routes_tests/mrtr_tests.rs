@@ -30,9 +30,7 @@ fn destructive_params() -> Value {
     })
 }
 
-fn write_enabled_flat_state(
-    mut state: crate::server::AppState,
-) -> crate::server::AppState {
+fn write_enabled_flat_state(mut state: crate::server::AppState) -> crate::server::AppState {
     state.config.static_token_scopes = vec![crate::actions::WRITE_SCOPE.to_owned()];
     state.config.tool_mode = crate::config::ToolMode::Flat;
     state
@@ -92,7 +90,7 @@ async fn modern_destructive_call_requires_input_then_executes_exactly_once() {
     assert_eq!(accepted["result"]["resultType"], "complete");
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 
-    let replay = authenticated_mcp_call_with_headers(
+    let (replay_status, replay) = authenticated_mcp_response_with_headers(
         state,
         "read-token",
         &modern_headers(),
@@ -104,6 +102,7 @@ async fn modern_destructive_call_requires_input_then_executes_exactly_once() {
         }),
     )
     .await;
+    assert_eq!(replay_status, axum::http::StatusCode::BAD_REQUEST);
     assert!(
         replay["error"]["message"]
             .as_str()
@@ -138,7 +137,7 @@ async fn modern_decline_and_request_tampering_never_reach_upstream() {
         "inputResponses".into(),
         json!({"confirm": {"action": "accept", "content": {"confirm": true}}}),
     );
-    let tampered = authenticated_mcp_call_with_headers(
+    let (tampered_status, tampered) = authenticated_mcp_response_with_headers(
         state.clone(),
         "read-token",
         &modern_headers(),
@@ -148,7 +147,11 @@ async fn modern_decline_and_request_tampering_never_reach_upstream() {
         }),
     )
     .await;
-    assert!(tampered.get("error").is_some(), "unexpected tamper response: {tampered}");
+    assert_eq!(tampered_status, axum::http::StatusCode::BAD_REQUEST);
+    assert!(
+        tampered.get("error").is_some(),
+        "unexpected tamper response: {tampered}"
+    );
     assert_eq!(calls.load(Ordering::SeqCst), 0);
 
     let second = authenticated_mcp_call_with_headers(
@@ -161,7 +164,10 @@ async fn modern_decline_and_request_tampering_never_reach_upstream() {
         }),
     )
     .await;
-    let second_state = second["result"]["requestState"].as_str().unwrap().to_owned();
+    let second_state = second["result"]["requestState"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let mut declined_params = destructive_params();
     let params = declined_params.as_object_mut().unwrap();
     params.insert("requestState".into(), json!(second_state));
