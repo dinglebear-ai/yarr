@@ -334,7 +334,7 @@ There is no `confirm` argument. CLI destructive commands dispatch immediately.
 MCP destructive calls fail closed. For protocol `2026-07-28`, direct calls and
 nested Code Mode use SEP-2322 multi-round-trip responses: Yarr returns
 `input_required`, binds the opaque one-time `requestState` to the authenticated
-caller and exact destructive target set, and consumes it before dispatch. Code Mode
+caller and exact destructive target occurrences, and consumes it before dispatch. Code Mode
 preflights without mutations before asking for approval, then executes the real script
 once with only the confirmed destructive targets allowed. Older protocol peers use
 legacy elicitation when the connected peer supports it; otherwise the destructive
