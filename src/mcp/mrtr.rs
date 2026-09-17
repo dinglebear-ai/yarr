@@ -122,17 +122,22 @@ fn insert_pending(call: PendingDestructiveCall) -> Result<String, ErrorData> {
             None,
         ));
     }
+    let mut handle = None;
     for _ in 0..4 {
-        let handle = random_handle()?;
-        if !store.contains_key(&handle) {
-            store.insert(handle.clone(), call);
-            return Ok(handle);
+        let candidate = random_handle()?;
+        if !store.contains_key(&candidate) {
+            handle = Some(candidate);
+            break;
         }
     }
-    Err(ErrorData::internal_error(
-        "could not allocate unique destructive-confirmation state",
-        None,
-    ))
+    let handle = handle.ok_or_else(|| {
+        ErrorData::internal_error(
+            "could not allocate unique destructive-confirmation state",
+            None,
+        )
+    })?;
+    store.insert(handle.clone(), call);
+    Ok(handle)
 }
 
 fn resume_pending(
