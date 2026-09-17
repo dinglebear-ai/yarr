@@ -1,0 +1,1061 @@
+# Fully reviewed generator-owned operation safety manifest.
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteAlternateSources"
+method = "DELETE"
+path = "/Videos/{itemId}/AlternateSources"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteCustomSplashscreen"
+method = "DELETE"
+path = "/Branding/Splashscreen"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteDevice"
+method = "DELETE"
+path = "/Devices"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteItem"
+method = "DELETE"
+path = "/Items/{itemId}"
+safety = "Destructive"
+reason = "Jellyfin summary explicitly deletes library/filesystem item or live-TV recording."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteItemImage"
+method = "DELETE"
+path = "/Items/{itemId}/Images/{imageType}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteItemImageByIndex"
+method = "DELETE"
+path = "/Items/{itemId}/Images/{imageType}/{imageIndex}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteItems"
+method = "DELETE"
+path = "/Items"
+safety = "Destructive"
+reason = "Jellyfin summary explicitly deletes library/filesystem item or live-TV recording."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteListingProvider"
+method = "DELETE"
+path = "/LiveTv/ListingProviders"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteLyrics"
+method = "DELETE"
+path = "/Audio/{itemId}/Lyrics"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteRecording"
+method = "DELETE"
+path = "/LiveTv/Recordings/{recordingId}"
+safety = "Destructive"
+reason = "Jellyfin summary explicitly deletes library/filesystem item or live-TV recording."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteSubtitle"
+method = "DELETE"
+path = "/Videos/{itemId}/Subtitles/{index}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteTunerHost"
+method = "DELETE"
+path = "/LiveTv/TunerHosts"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteUser"
+method = "DELETE"
+path = "/Users/{userId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteUserImage"
+method = "DELETE"
+path = "/UserImage"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "DeleteUserItemRating"
+method = "DELETE"
+path = "/UserItems/{itemId}/Rating"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "GetMetadataEditorInfo"
+method = "GET"
+path = "/Items/{itemId}/MetadataEditor"
+safety = "ReadOnly"
+reason = "GET summary is a retrieval: Gets metadata editor info for an item."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "GetPasswordResetProviders"
+method = "GET"
+path = "/Auth/PasswordResetProviders"
+safety = "ReadOnly"
+reason = "GET summary is a retrieval: Get all password reset providers."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "ResetTuner"
+method = "POST"
+path = "/LiveTv/Tuners/{tunerId}/Reset"
+safety = "Mutation"
+reason = "Source operation is a write; no source claim establishes permanent/hard-to-recreate loss."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "ShutdownApplication"
+method = "POST"
+path = "/System/Shutdown"
+safety = "Mutation"
+reason = "Stops a restartable application; project destructive definition explicitly excludes this."
+
+[[operation]]
+kind = "jellyfin"
+operation_id = "StartRestoreBackup"
+method = "POST"
+path = "/Backup/Restore"
+safety = "Destructive"
+reason = "Summary: restart server and apply backup; reviewer separately confirms consequence."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/issue/{issueId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/issueComment/{commentId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/media/{mediaId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/request/{requestId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/settings/discover/{sliderId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/settings/radarr/{radarrId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/settings/sonarr/{sonarrId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/user/{userId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "DELETE"
+path = "/api/v1/user/{userId}/pushSubscription/{endpoint}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "overseerr"
+method = "GET"
+path = "/api/v1/settings/discover/reset"
+safety = "Mutation"
+reason = "GET summary says reset all discover sliders; HTTP verb is not safety evidence."
+
+[[operation]]
+kind = "overseerr"
+method = "POST"
+path = "/api/v1/auth/reset-password"
+safety = "Mutation"
+reason = "Summary says send reset-password email, not deletion (review correction)."
+
+[[operation]]
+kind = "overseerr"
+method = "POST"
+path = "/api/v1/auth/reset-password/{guid}"
+safety = "Mutation"
+reason = "Summary says reset user password; state change, no source claim of irrecoverable loss."
+
+[[operation]]
+kind = "overseerr"
+method = "POST"
+path = "/api/v1/settings/main/regenerate"
+safety = "Mutation"
+reason = "Summary says generate a new API key; credential rotation is state mutation."
+
+[[operation]]
+kind = "plex"
+operation_id = "addSubtitles"
+method = "GET"
+path = "/library/metadata/{ids}/subtitles"
+safety = "Mutation"
+reason = "GET summary says “Add subtitles”; HTTP verb is not safety evidence."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteCaches"
+method = "DELETE"
+path = "/library/caches"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteCollection"
+method = "DELETE"
+path = "/library/sections/{sectionId}/collection/{collectionId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteCollectionItem"
+method = "PUT"
+path = "/library/collections/{collectionId}/items/{itemId}"
+safety = "Mutation"
+reason = "Summary says delete item from collection membership, not media (review correction)."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteCustomHub"
+method = "DELETE"
+path = "/hubs/sections/{sectionId}/manage/{identifier}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteDVR"
+method = "DELETE"
+path = "/livetv/dvrs/{dvrId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteHistory"
+method = "DELETE"
+path = "/status/sessions/history/{historyId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteIndexes"
+method = "DELETE"
+path = "/library/sections/{sectionId}/indexes"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteIntros"
+method = "DELETE"
+path = "/library/sections/{sectionId}/intros"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteLibrarySection"
+method = "DELETE"
+path = "/library/sections/{sectionId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteLineup"
+method = "DELETE"
+path = "/livetv/dvrs/{dvrId}/lineups"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteMarker"
+method = "DELETE"
+path = "/library/metadata/{ids}/marker/{marker}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteMediaItem"
+method = "DELETE"
+path = "/library/metadata/{ids}/media/{mediaItem}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteMediaProvider"
+method = "DELETE"
+path = "/media/providers/{provider}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteMetadataItem"
+method = "DELETE"
+path = "/library/metadata/{ids}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deletePlayQueueItem"
+method = "DELETE"
+path = "/playQueues/{playQueueId}/items/{playQueueItemId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deletePlaylist"
+method = "DELETE"
+path = "/playlists/{playlistId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deletePlaylistItem"
+method = "DELETE"
+path = "/playlists/{playlistId}/items/{generatorId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteStream"
+method = "DELETE"
+path = "/library/streams/{streamId}.{ext}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "deleteSubscription"
+method = "DELETE"
+path = "/media/subscriptions/{subscriptionId}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "emptyTrash"
+method = "PUT"
+path = "/library/sections/{sectionId}/emptyTrash"
+safety = "Destructive"
+reason = "Summary is “Empty section trash”; purge, not merely move to trash."
+
+[[operation]]
+kind = "plex"
+operation_id = "resetPlayQueue"
+method = "PUT"
+path = "/playQueues/{playQueueId}/reset"
+safety = "Mutation"
+reason = "Source operation is a write; no source claim establishes permanent/hard-to-recreate loss."
+
+[[operation]]
+kind = "plex"
+operation_id = "resetSectionDefaults"
+method = "DELETE"
+path = "/hubs/sections/{sectionId}/manage"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "plex"
+operation_id = "startTranscodeSession"
+method = "GET"
+path = "/{transcodeType}/:/transcode/universal/start.{extension}"
+safety = "Mutation"
+reason = "GET summary says “Start A Transcoding Session”; HTTP verb is not safety evidence."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/applications/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/applications/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/appprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/command/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/customfilter/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/downloadclient/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/downloadclient/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/indexer/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/indexer/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/indexerproxy/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/notification/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/system/backup/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "DELETE"
+path = "/api/v1/tag/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "prowlarr"
+method = "POST"
+path = "/api/v1/system/backup/restore/{id}"
+safety = "Destructive"
+reason = "Backup restore replaces current state; reviewer explicitly corrected both restore variants to destructive."
+
+[[operation]]
+kind = "prowlarr"
+method = "POST"
+path = "/api/v1/system/backup/restore/upload"
+safety = "Destructive"
+reason = "Backup restore replaces current state; reviewer explicitly corrected both restore variants to destructive."
+
+[[operation]]
+kind = "prowlarr"
+method = "POST"
+path = "/api/v1/system/shutdown"
+safety = "Mutation"
+reason = "Stops a restartable application; project destructive definition explicitly excludes this."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/autotagging/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/blocklist/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/blocklist/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/command/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/customfilter/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/customformat/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/customformat/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/delayprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/downloadclient/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/downloadclient/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/exclusions/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/exclusions/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/importlist/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/importlist/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/indexer/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/indexer/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/metadata/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/movie/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/movie/editor"
+safety = "Destructive"
+reason = "DELETE editor is capable of deleteFiles; static classification must cover permitted input."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/moviefile/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/moviefile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/notification/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/qualityprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/queue/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/queue/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/releaseprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/remotepathmapping/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/rootfolder/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/system/backup/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "DELETE"
+path = "/api/v3/tag/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "radarr"
+method = "POST"
+path = "/api/v3/system/backup/restore/{id}"
+safety = "Destructive"
+reason = "Backup restore replaces current state; reviewer explicitly corrected both restore variants to destructive."
+
+[[operation]]
+kind = "radarr"
+method = "POST"
+path = "/api/v3/system/backup/restore/upload"
+safety = "Destructive"
+reason = "Backup restore replaces current state; reviewer explicitly corrected both restore variants to destructive."
+
+[[operation]]
+kind = "radarr"
+method = "POST"
+path = "/api/v3/system/shutdown"
+safety = "Mutation"
+reason = "Stops a restartable application; project destructive definition explicitly excludes this."
+
+[[operation]]
+kind = "radarr"
+method = "PUT"
+path = "/api/v3/movie/editor"
+safety = "Mutation"
+reason = "PUT editor source supports moveFiles/rootFolderPath; deleteFiles shared with DELETE is not PUT evidence (review correction)."
+
+[[operation]]
+kind = "radarr"
+method = "PUT"
+path = "/api/v3/moviefile/editor"
+safety = "Mutation"
+reason = "PUT editor source supports moveFiles/rootFolderPath; deleteFiles shared with DELETE is not PUT evidence (review correction)."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/autotagging/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/blocklist/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/blocklist/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/command/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/customfilter/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/customformat/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/customformat/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/delayprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/downloadclient/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/downloadclient/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/episodefile/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/episodefile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/importlist/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/importlist/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/importlistexclusion/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/importlistexclusion/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/indexer/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/indexer/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/languageprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/metadata/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/notification/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/qualityprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/queue/bulk"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/queue/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/releaseprofile/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/remotepathmapping/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/rootfolder/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/series/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/series/editor"
+safety = "Destructive"
+reason = "DELETE editor is capable of deleteFiles; static classification must cover permitted input."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/system/backup/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "DELETE"
+path = "/api/v3/tag/{id}"
+safety = "Mutation"
+reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+
+[[operation]]
+kind = "sonarr"
+method = "POST"
+path = "/api/v3/system/backup/restore/{id}"
+safety = "Destructive"
+reason = "Backup restore replaces current state; reviewer explicitly corrected both restore variants to destructive."
+
+[[operation]]
+kind = "sonarr"
+method = "POST"
+path = "/api/v3/system/backup/restore/upload"
+safety = "Destructive"
+reason = "Backup restore replaces current state; reviewer explicitly corrected both restore variants to destructive."
+
+[[operation]]
+kind = "sonarr"
+method = "POST"
+path = "/api/v3/system/shutdown"
+safety = "Mutation"
+reason = "Stops a restartable application; project destructive definition explicitly excludes this."
+
+[[operation]]
+kind = "sonarr"
+method = "PUT"
+path = "/api/v3/episodefile/editor"
+safety = "Mutation"
+reason = "PUT editor source supports moveFiles/rootFolderPath; deleteFiles shared with DELETE is not PUT evidence (review correction)."
+
+[[operation]]
+kind = "sonarr"
+method = "PUT"
+path = "/api/v3/series/editor"
+safety = "Mutation"
+reason = "PUT editor source supports moveFiles/rootFolderPath; deleteFiles shared with DELETE is not PUT evidence (review correction)."
+
+[[operation]]
+kind = "plex"
+operation_id = "terminateSession"
+method = "POST"
+path = "/status/sessions/terminate"
+safety = "Destructive"
+reason = "Reviewed explicit session termination is a destructive operator action."

@@ -25,6 +25,92 @@ fn find_operation_resolves_known_and_rejects_unknown() {
 }
 
 #[test]
+fn generated_operation_safety_matches_reviewed_examples() {
+    for kind in [
+        ServiceKind::Sonarr,
+        ServiceKind::Radarr,
+        ServiceKind::Prowlarr,
+        ServiceKind::Overseerr,
+        ServiceKind::Jellyfin,
+        ServiceKind::Plex,
+    ] {
+        for operation in operations_for_kind(kind) {
+            assert_eq!(
+                operation.safety.is_mutating(),
+                operation.safety != OperationSafety::ReadOnly,
+                "{}.{} has inconsistent safety metadata",
+                kind.as_str(),
+                operation.name
+            );
+        }
+    }
+
+    assert_eq!(
+        find_operation(ServiceKind::Sonarr, "get_system_status")
+            .unwrap()
+            .safety,
+        OperationSafety::Mutation
+    );
+    for (kind, name) in [
+        (ServiceKind::Overseerr, "get_settings_discover_reset"),
+        (ServiceKind::Plex, "add_subtitles"),
+        (ServiceKind::Plex, "start_transcode_session"),
+    ] {
+        assert_eq!(
+            find_operation(kind, name).unwrap().safety,
+            OperationSafety::Mutation,
+            "{kind:?}.{name} is a reviewed side-effecting GET"
+        );
+    }
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "get_metadata_editor_info")
+            .unwrap()
+            .safety,
+        OperationSafety::ReadOnly
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "delete_device")
+            .unwrap()
+            .safety,
+        OperationSafety::Mutation
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "delete_item")
+            .unwrap()
+            .safety,
+        OperationSafety::Destructive
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "start_restore_backup")
+            .unwrap()
+            .safety,
+        OperationSafety::Destructive
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Plex, "terminate_session")
+            .unwrap()
+            .safety,
+        OperationSafety::Destructive
+    );
+    for kind in [
+        ServiceKind::Prowlarr,
+        ServiceKind::Radarr,
+        ServiceKind::Sonarr,
+    ] {
+        for name in [
+            "post_system_backup_restore_by_id",
+            "post_system_backup_restore_upload",
+        ] {
+            assert_eq!(
+                find_operation(kind, name).unwrap().safety,
+                OperationSafety::Destructive,
+                "{kind:?}.{name} replaces current state"
+            );
+        }
+    }
+}
+
+#[test]
 fn generated_registry_exposes_explicit_omission_markers() {
     for kind in [
         ServiceKind::Sonarr,

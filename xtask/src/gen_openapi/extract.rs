@@ -96,6 +96,11 @@ fn extract_operation(
     let response_type = responses
         .first()
         .and_then(|representation| type_name_from_json(&representation.schema));
+    let operation_id = operation
+        .get("operationId")
+        .and_then(Value::as_str)
+        .filter(|operation_id| !operation_id.trim().is_empty())
+        .map(str::to_string);
     let base_name = operation
         .get("operationId")
         .and_then(Value::as_str)
@@ -124,8 +129,10 @@ fn extract_operation(
 
     OperationOut {
         name,
+        operation_id,
         method: method.to_uppercase(),
         path: path.to_string(),
+        safety: super::DEFAULT_SAFETY.to_string(),
         parameters,
         request_body,
         responses,
