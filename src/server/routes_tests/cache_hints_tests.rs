@@ -118,6 +118,10 @@ async fn cacheable_results_carry_sep_2549_hints_for_2026_07_28_callers() {
             response["result"]["cacheScope"], "private",
             "{method} cacheScope should be private, not rmcp's Public default: {response}"
         );
+        assert_eq!(
+            response["result"]["resultType"], "complete",
+            "{method} must carry resultType=complete for a 2026-07-28 caller: {response}"
+        );
     }
     server.abort();
 }
@@ -149,6 +153,7 @@ async fn flat_tools_list_carries_sep_2549_cache_hints_for_2026_07_28_callers() {
         crate::mcp::rmcp_server::CACHEABLE_RESULT_TTL_MS
     );
     assert_eq!(response["result"]["cacheScope"], "private");
+    assert_eq!(response["result"]["resultType"], "complete");
     assert_eq!(response["result"]["tools"][0]["name"], "sonarr");
     server.abort();
 }
@@ -176,6 +181,10 @@ async fn cacheable_results_omit_sep_2549_hints_for_legacy_callers() {
         assert!(
             response["result"]["cacheScope"].is_null(),
             "{method} should omit cacheScope for a legacy caller: {response}"
+        );
+        assert!(
+            response["result"]["resultType"].is_null(),
+            "{method} should omit resultType for a legacy caller: {response}"
         );
     }
     server.abort();
