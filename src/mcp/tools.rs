@@ -18,22 +18,60 @@ pub(super) async fn execute_tool(
     args: Value,
     peer: &Peer<RoleServer>,
     auth: Option<AuthContext>,
+    confirmed_destructive_targets: Option<Vec<String>>,
 ) -> anyhow::Result<Value> {
-    let guarded_script = name == YARR_TOOL_NAME
-        || args
-            .get("action")
-            .and_then(Value::as_str)
-            .is_some_and(|action| matches!(action, "codemode" | "snippet_run"));
-    if guarded_script {
+    if guarded_script(name, &args) {
+        let destructive_authorization = match confirmed_destructive_targets {
+            Some(targets) => DestructiveAuthorization::Confirmed(Arc::new(
+                targets.into_iter().collect(),
+            )),
+            None => DestructiveAuthorization::Legacy,
+        };
         let guard = Arc::new(McpCodeModeGuard {
             state: state.clone(),
             peer: peer.clone(),
             auth,
-            destructive_authorization: DestructiveAuthorization::Legacy,
+            destructive_authorization,
         });
         return dispatch_script_with_guard(state, name, args, guard).await;
     }
     dispatch_tool(state, name, args).await
+}
+
+pub(super) async fn preflight_script_destructive_targets(
+    state: &AppState,
+    name: &str,
+    args: &Value,
+    peer: &Peer<RoleServer>,
+    auth: Option<AuthContext>,
+) -> anyhow::Result<Vec<String>> {
+    if !guarded_script(name, args) {
+        return Ok(Vec::new());
+    }
+    let guard = Arc::new(McpCodeModeGuard {
+        state: state.clone(),
+        peer: peer.clone(),
+        auth,
+        destructive_authorization: DestructiveAuthorization::Planning,
+    });
+    match parse_script_action(name, args.clone())? {
+        YarrAction::CodeMode { code } => state.service.codemode_destructive_targets(&code, guard).await,
+        YarrAction::SnippetRun { name, input } => {
+            state
+                .service
+                .snippet_destructive_targets(&name, &input, guard)
+                .await
+        }
+        _ => Ok(Vec::new()),
+    }
+}
+
+fn guarded_script(name: &str, args: &Value) -> bool {
+    name == YARR_TOOL_NAME
+        || args
+            .get("action")
+            .and_then(Value::as_str)
+            .is_some_and(|action| matches!(action, "codemode" | "snippet_run"))
 }
 
 #[cfg(any(test, feature = "test-support"))]
@@ -81,17 +119,7 @@ async fn dispatch_script_with_guard(
     args: Value,
     guard: Arc<dyn CodeModeCallGuard>,
 ) -> anyhow::Result<Value> {
-    let mut object = match args {
-        Value::Object(map) => map,
-        _ => Map::new(),
-    };
-    if tool_name == YARR_TOOL_NAME {
-        object.insert("action".to_owned(), Value::String("codemode".to_owned()));
-    } else {
-        object.insert("service".to_owned(), Value::String(tool_name.to_owned()));
-    }
-    let action = YarrAction::from_mcp_args(&Value::Object(object))?;
-    match action {
+    match parse_script_action(tool_name, args)? {
         YarrAction::CodeMode { code } => state.service.codemode_with_guard(&code, guard).await,
         YarrAction::SnippetRun { name, input } => {
             state
@@ -101,6 +129,19 @@ async fn dispatch_script_with_guard(
         }
         _ => unreachable!("only Code Mode and snippet execution use the guarded script path"),
     }
+}
+
+fn parse_script_action(tool_name: &str, args: Value) -> anyhow::Result<YarrAction> {
+    let mut object = match args {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+    if tool_name == YARR_TOOL_NAME {
+        object.insert("action".to_owned(), Value::String("codemode".to_owned()));
+    } else {
+        object.insert("service".to_owned(), Value::String(tool_name.to_owned()));
+    }
+    YarrAction::from_mcp_args(&Value::Object(object)).map_err(Into::into)
 }
 
 enum DestructiveAuthorization {
