@@ -378,7 +378,10 @@ fn planning_can_use_real_read_results_to_select_a_destructive_branch() {
     .unwrap();
 
     assert_eq!(
-        calls.iter().map(|call| call.id.as_str()).collect::<Vec<_>>(),
+        calls
+            .iter()
+            .map(|call| call.id.as_str())
+            .collect::<Vec<_>>(),
         vec!["service_status", "api_delete"]
     );
 }

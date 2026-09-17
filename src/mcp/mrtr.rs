@@ -51,16 +51,42 @@ pub(crate) enum DeleteGate {
     Declined,
 }
 
+pub(crate) struct DestructiveRequest<'a> {
+    tool_name: &'a str,
+    action: &'a str,
+    arguments: &'a Value,
+    confirmation_targets: &'a [String],
+}
+
+impl<'a> DestructiveRequest<'a> {
+    pub(crate) fn new(
+        tool_name: &'a str,
+        action: &'a str,
+        arguments: &'a Value,
+        confirmation_targets: &'a [String],
+    ) -> Self {
+        Self {
+            tool_name,
+            action,
+            arguments,
+            confirmation_targets,
+        }
+    }
+}
+
 pub(crate) fn gate_destructive(
     context: &RequestContext<RoleServer>,
     auth: Option<&AuthContext>,
-    tool_name: &str,
-    action: &str,
-    arguments: &Value,
-    confirmation_targets: &[String],
+    request: DestructiveRequest<'_>,
     request_state: Option<&str>,
     input_responses: Option<&InputResponses>,
 ) -> Result<DeleteGate, ErrorData> {
+    let DestructiveRequest {
+        tool_name,
+        action,
+        arguments,
+        confirmation_targets,
+    } = request;
     let modern = context
         .protocol_version()
         .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
@@ -253,7 +279,10 @@ fn confirmation_message(action: &str, tool_name: &str, targets: &[String]) -> St
         .map(|target| format!("- {target}"))
         .collect::<Vec<_>>()
         .join("\n");
-    format!("{base}\nDestructive targets ({}):\n{rendered}", targets.len())
+    format!(
+        "{base}\nDestructive targets ({}):\n{rendered}",
+        targets.len()
+    )
 }
 
 fn normalize_targets(targets: &[String]) -> Result<Vec<String>, ErrorData> {
@@ -268,14 +297,18 @@ fn normalize_targets(targets: &[String]) -> Result<Vec<String>, ErrorData> {
     normalized.dedup();
     if normalized.len() > MAX_CONFIRMATION_TARGETS {
         return Err(ErrorData::invalid_params(
-            format!("destructive confirmation has too many targets (max {MAX_CONFIRMATION_TARGETS})"),
+            format!(
+                "destructive confirmation has too many targets (max {MAX_CONFIRMATION_TARGETS})"
+            ),
             None,
         ));
     }
     let bytes = normalized.iter().map(String::len).sum::<usize>();
     if bytes > MAX_CONFIRMATION_BYTES {
         return Err(ErrorData::invalid_params(
-            format!("destructive confirmation target set is too large (max {MAX_CONFIRMATION_BYTES} bytes)"),
+            format!(
+                "destructive confirmation target set is too large (max {MAX_CONFIRMATION_BYTES} bytes)"
+            ),
             None,
         ));
     }

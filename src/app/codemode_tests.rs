@@ -212,10 +212,7 @@ impl super::CodeModeCallGuard for PreflightGuard {
         Box::pin(async { Ok(()) })
     }
 
-    fn planned_destructive_target(
-        &self,
-        action: &crate::actions::YarrAction,
-    ) -> Option<String> {
+    fn planned_destructive_target(&self, action: &crate::actions::YarrAction) -> Option<String> {
         match action {
             crate::actions::YarrAction::ApiDelete { service, path, .. } => {
                 Some(format!("{service}:api_delete:{path}"))
