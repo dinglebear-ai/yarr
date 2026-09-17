@@ -32,7 +32,7 @@ jobs:
           clippy_rc=$?
           cargo test -p yarr modern_ --locked -- --nocapture > /tmp/tests.txt 2>&1
           test_rc=$?
-          cargo deny check -- --all-features > /tmp/deny.txt 2>&1
+          cargo deny --all-features check > /tmp/deny.txt 2>&1
           deny_rc=$?
           set -e
           {
