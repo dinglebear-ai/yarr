@@ -246,3 +246,7 @@ fn random_handle() -> Result<String, ErrorData> {
 fn prune_expired(store: &mut HashMap<String, PendingDestructiveCall>) {
     store.retain(|_, call| call.created_at.elapsed() <= PENDING_TTL);
 }
+
+#[cfg(test)]
+#[path = "mrtr_tests.rs"]
+mod tests;
