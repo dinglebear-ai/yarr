@@ -294,7 +294,6 @@ fn normalize_targets(targets: &[String]) -> Result<Vec<String>, ErrorData> {
     }
     let mut normalized = targets.to_vec();
     normalized.sort();
-    normalized.dedup();
     if normalized.len() > MAX_CONFIRMATION_TARGETS {
         return Err(ErrorData::invalid_params(
             format!(

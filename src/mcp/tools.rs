@@ -1,6 +1,9 @@
 //! MCP tool dispatch — thin shims only.
 
-use std::{collections::BTreeSet, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
+};
 
 use lab_auth::AuthContext;
 use rmcp::{RoleServer, service::Peer};
@@ -23,7 +26,7 @@ pub(super) async fn execute_tool(
     if guarded_script(name, &args) {
         let destructive_authorization = match confirmed_destructive_targets {
             Some(targets) => {
-                DestructiveAuthorization::Confirmed(Arc::new(targets.into_iter().collect()))
+                DestructiveAuthorization::Confirmed(Arc::new(Mutex::new(target_budget(targets))))
             }
             None => DestructiveAuthorization::Legacy,
         };
@@ -171,7 +174,7 @@ fn parse_script_action(tool_name: &str, args: Value) -> anyhow::Result<YarrActio
 enum DestructiveAuthorization {
     Legacy,
     Planning,
-    Confirmed(Arc<BTreeSet<String>>),
+    Confirmed(Arc<Mutex<BTreeMap<String, usize>>>),
 }
 
 struct McpCodeModeGuard {
@@ -212,14 +215,12 @@ impl CodeModeCallGuard for McpCodeModeGuard {
                     action.name()
                 )),
                 DestructiveAuthorization::Confirmed(authorized) => {
-                    if authorized.contains(&target) {
-                        Ok(())
-                    } else {
-                        Err(format!(
-                            "destructive inner Code Mode action '{}' was not present in the confirmed preflight target set; nothing changed",
+                    consume_confirmed_target(authorized, &target).map_err(|_| {
+                        format!(
+                            "destructive inner Code Mode action '{}' exceeded the confirmed preflight occurrence count or was not present in the confirmed target set; nothing changed",
                             action.name()
-                        ))
-                    }
+                        )
+                    })
                 }
                 DestructiveAuthorization::Legacy => {
                     if self.peer.supported_elicitation_modes().is_empty() {
@@ -254,6 +255,29 @@ impl CodeModeCallGuard for McpCodeModeGuard {
     fn planned_destructive_target(&self, action: &YarrAction) -> Option<String> {
         destructive_target(&self.state, action)
     }
+}
+
+fn target_budget(targets: Vec<String>) -> BTreeMap<String, usize> {
+    let mut budget = BTreeMap::new();
+    for target in targets {
+        *budget.entry(target).or_insert(0) += 1;
+    }
+    budget
+}
+
+fn consume_confirmed_target(
+    authorized: &Mutex<BTreeMap<String, usize>>,
+    target: &str,
+) -> Result<(), ()> {
+    let mut authorized = authorized.lock().map_err(|_| ())?;
+    let Some(remaining) = authorized.get_mut(target) else {
+        return Err(());
+    };
+    if *remaining == 0 {
+        return Err(());
+    }
+    *remaining -= 1;
+    Ok(())
 }
 
 fn destructive_target(state: &AppState, action: &YarrAction) -> Option<String> {

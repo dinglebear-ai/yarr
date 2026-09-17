@@ -453,7 +453,7 @@ impl YarrService {
                 }),
             )
         });
-        let mut targets = std::collections::BTreeSet::new();
+        let mut targets = Vec::new();
         while let Some(request) = rx.recv().await {
             let outcome = tokio::time::timeout_at(
                 tokio_deadline,
@@ -473,7 +473,7 @@ impl YarrService {
         handle
             .await
             .map_err(|error| format!("codemode planning task panicked: {error}"))??;
-        Ok(targets.into_iter().collect())
+        Ok(targets)
     }
 
     async fn codemode_plan_dispatch(
@@ -482,7 +482,7 @@ impl YarrService {
         params_json: &str,
         in_snippet: bool,
         guard: std::sync::Arc<dyn CodeModeCallGuard>,
-        targets: &mut std::collections::BTreeSet<String>,
+        targets: &mut Vec<String>,
         deadline: std::time::Instant,
     ) -> Result<String, String> {
         if id == "codemode" {
@@ -504,7 +504,7 @@ impl YarrService {
             YarrAction::from_mcp_args(&Value::Object(args)).map_err(|error| error.to_string())?;
         guard.authorize_planning_action(&action).await?;
         if let Some(target) = guard.planned_destructive_target(&action) {
-            targets.insert(target);
+            targets.push(target);
             return Ok("null".to_owned());
         }
         if let YarrAction::SnippetRun { name, input } = &action {

@@ -68,3 +68,20 @@ fn canonical_target_json_sorts_object_keys() {
     let right = json!({"a": {"b": 3, "y": 2}, "z": 1});
     assert_eq!(super::canonical_json(&left), super::canonical_json(&right));
 }
+
+#[test]
+fn confirmed_target_budget_is_occurrence_bounded() {
+    let target = "{\"action\":\"api_delete\"}".to_owned();
+    let budget = super::target_budget(vec![target.clone()]);
+    let budget = std::sync::Mutex::new(budget);
+
+    assert!(super::consume_confirmed_target(&budget, &target).is_ok());
+    assert!(super::consume_confirmed_target(&budget, &target).is_err());
+}
+
+#[test]
+fn target_budget_preserves_duplicate_confirmation_counts() {
+    let budget = super::target_budget(vec!["x".to_owned(), "x".to_owned(), "y".to_owned()]);
+    assert_eq!(budget.get("x"), Some(&2));
+    assert_eq!(budget.get("y"), Some(&1));
+}
