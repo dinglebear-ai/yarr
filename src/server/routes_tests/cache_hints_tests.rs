@@ -1,5 +1,8 @@
 //! Wire-level tests for SEP-2549 cache hints (`ttlMs`/`cacheScope`) across all
-//! five cacheable results (`mcp/rmcp_server.rs`'s `with_cache_hints`).
+//! five cacheable list/read results that yarr handles explicitly
+//! (`mcp/rmcp_server.rs`'s `with_cache_hints`). `server/discover` is the sixth
+//! cacheable result in MCP 2026-07-28; rmcp constructs that result itself with
+//! spec-valid cache hints, so it is intentionally outside this helper/table.
 //!
 //! These POST raw JSON-RPC through the real router/transport (no `initialize`
 //! handshake needed — the transport is stateless, `with_legacy_session_mode
@@ -10,9 +13,10 @@
 
 use super::*;
 
-/// Every SEP-2549-cacheable result this server returns, the JSON-RPC method +
-/// params that reaches it, and the `ttlMs` `with_cache_hints` should attach.
-/// Mirrors `with_cache_hints`'s five `CacheableResult` impls in
+/// Every SEP-2549-cacheable list/read result yarr handles explicitly, the
+/// JSON-RPC method + params that reaches it, and the `ttlMs`
+/// `with_cache_hints` should attach. Mirrors `with_cache_hints`'s five
+/// `CacheableResult` impls in
 /// `mcp/rmcp_server.rs` one-for-one — add a case here whenever a case is
 /// added there. Asserting the exact TTL (not just that one is present) is
 /// what would catch e.g. `list_prompts` accidentally getting
@@ -115,6 +119,37 @@ async fn cacheable_results_carry_sep_2549_hints_for_2026_07_28_callers() {
             "{method} cacheScope should be private, not rmcp's Public default: {response}"
         );
     }
+    server.abort();
+}
+
+/// Flat mode has a different tools/list payload (one service-named tool per
+/// configured service), so pin the same SEP-2549 wire contract there too.
+#[tokio::test]
+async fn flat_tools_list_carries_sep_2549_cache_hints_for_2026_07_28_callers() {
+    let (state, _calls, server) = counting_state(crate::config::ToolMode::Flat).await;
+    let method = "tools/list";
+    let response = authenticated_mcp_call_with_headers(
+        state,
+        "read-token",
+        &[
+            ("mcp-protocol-version", "2026-07-28"),
+            ("mcp-method", method),
+        ],
+        json!({
+            "jsonrpc": "2.0",
+            "id": 99,
+            "method": method,
+            "params": params_for_2026_07_28("{}"),
+        }),
+    )
+    .await;
+
+    assert_eq!(
+        response["result"]["ttlMs"],
+        crate::mcp::rmcp_server::CACHEABLE_RESULT_TTL_MS
+    );
+    assert_eq!(response["result"]["cacheScope"], "private");
+    assert_eq!(response["result"]["tools"][0]["name"], "sonarr");
     server.abort();
 }
 
