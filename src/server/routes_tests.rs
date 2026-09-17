@@ -124,5 +124,7 @@ mod auth;
 mod cache_hints_tests;
 #[path = "routes_tests/metrics.rs"]
 mod metrics;
+#[path = "routes_tests/mrtr_tests.rs"]
+mod mrtr_tests;
 #[path = "routes_tests/protocol_versions.rs"]
 mod protocol_versions;
