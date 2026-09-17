@@ -44,12 +44,7 @@ fn expired_pending_confirmations_are_pruned() {
 
 #[test]
 fn confirmation_targets_are_sorted_deduplicated_and_bounded() {
-    let normalized = normalize_targets(&[
-        "b".to_owned(),
-        "a".to_owned(),
-        "a".to_owned(),
-    ])
-    .unwrap();
+    let normalized = normalize_targets(&["b".to_owned(), "a".to_owned(), "a".to_owned()]).unwrap();
     assert_eq!(normalized, vec!["a", "b"]);
     assert!(normalize_targets(&[]).is_err());
     assert!(normalize_targets(&vec!["x".to_owned(); MAX_CONFIRMATION_TARGETS + 1]).is_err());

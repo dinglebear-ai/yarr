@@ -205,9 +205,7 @@ fn modern_yarr_headers() -> [(&'static str, &'static str); 3] {
     ]
 }
 
-fn write_enabled_codemode_state(
-    mut state: crate::server::AppState,
-) -> crate::server::AppState {
+fn write_enabled_codemode_state(mut state: crate::server::AppState) -> crate::server::AppState {
     state.config.static_token_scopes = vec![crate::actions::WRITE_SCOPE.to_owned()];
     state.config.tool_mode = crate::config::ToolMode::Codemode;
     state

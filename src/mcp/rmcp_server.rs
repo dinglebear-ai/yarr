@@ -251,13 +251,10 @@ impl ServerHandler for YarrRmcpServer {
         let destructive = crate::actions::action_is_destructive(&action)
             || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments));
         let confirmation_targets = if destructive {
-            vec![direct_destructive_target(
-                &self.state,
-                &tool_name,
-                &action,
-                &arguments,
-            )
-            .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?]
+            vec![
+                direct_destructive_target(&self.state, &tool_name, &action, &arguments)
+                    .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?,
+            ]
         } else {
             script_targets.clone()
         };
@@ -266,10 +263,12 @@ impl ServerHandler for YarrRmcpServer {
             match mrtr::gate_destructive(
                 &context,
                 auth,
-                &tool_name,
-                &action,
-                &arguments,
-                &confirmation_targets,
+                mrtr::DestructiveRequest::new(
+                    &tool_name,
+                    &action,
+                    &arguments,
+                    &confirmation_targets,
+                ),
                 request_state.as_deref(),
                 input_responses.as_ref(),
             )? {

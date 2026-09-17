@@ -22,9 +22,9 @@ pub(super) async fn execute_tool(
 ) -> anyhow::Result<Value> {
     if guarded_script(name, &args) {
         let destructive_authorization = match confirmed_destructive_targets {
-            Some(targets) => DestructiveAuthorization::Confirmed(Arc::new(
-                targets.into_iter().collect(),
-            )),
+            Some(targets) => {
+                DestructiveAuthorization::Confirmed(Arc::new(targets.into_iter().collect()))
+            }
             None => DestructiveAuthorization::Legacy,
         };
         let guard = Arc::new(McpCodeModeGuard {
@@ -55,7 +55,12 @@ pub(super) async fn preflight_script_destructive_targets(
         destructive_authorization: DestructiveAuthorization::Planning,
     });
     match parse_script_action(name, args.clone())? {
-        YarrAction::CodeMode { code } => state.service.codemode_destructive_targets(&code, guard).await,
+        YarrAction::CodeMode { code } => {
+            state
+                .service
+                .codemode_destructive_targets(&code, guard)
+                .await
+        }
         YarrAction::SnippetRun { name, input } => {
             state
                 .service
@@ -160,7 +165,7 @@ fn parse_script_action(tool_name: &str, args: Value) -> anyhow::Result<YarrActio
     } else {
         object.insert("service".to_owned(), Value::String(tool_name.to_owned()));
     }
-    YarrAction::from_mcp_args(&Value::Object(object)).map_err(Into::into)
+    YarrAction::from_mcp_args(&Value::Object(object))
 }
 
 enum DestructiveAuthorization {
@@ -224,7 +229,8 @@ impl CodeModeCallGuard for McpCodeModeGuard {
                         ));
                     }
                     let (_, service_name) = destructive_inner_call(&self.state, action);
-                    if super::elicit::gate_destructive(&self.peer, action.name(), service_name).await
+                    if super::elicit::gate_destructive(&self.peer, action.name(), service_name)
+                        .await
                         == super::elicit::DeleteGate::Declined
                     {
                         return Err(format!(
@@ -255,19 +261,55 @@ fn destructive_target(state: &AppState, action: &YarrAction) -> Option<String> {
         return None;
     }
     let value = match action {
-        YarrAction::ServiceStatus { service } => serde_json::json!({"action": "service_status", "service": service}),
-        YarrAction::ApiGet { service, path } => serde_json::json!({"action": "api_get", "service": service, "path": path}),
-        YarrAction::ApiPost { service, path, body } => serde_json::json!({"action": "api_post", "service": service, "path": path, "body": body}),
-        YarrAction::ApiPut { service, path, body } => serde_json::json!({"action": "api_put", "service": service, "path": path, "body": body}),
-        YarrAction::ApiDelete { service, path, body } => serde_json::json!({"action": "api_delete", "service": service, "path": path, "body": body}),
+        YarrAction::ServiceStatus { service } => {
+            serde_json::json!({"action": "service_status", "service": service})
+        }
+        YarrAction::ApiGet { service, path } => {
+            serde_json::json!({"action": "api_get", "service": service, "path": path})
+        }
+        YarrAction::ApiPost {
+            service,
+            path,
+            body,
+        } => {
+            serde_json::json!({"action": "api_post", "service": service, "path": path, "body": body})
+        }
+        YarrAction::ApiPut {
+            service,
+            path,
+            body,
+        } => {
+            serde_json::json!({"action": "api_put", "service": service, "path": path, "body": body})
+        }
+        YarrAction::ApiDelete {
+            service,
+            path,
+            body,
+        } => {
+            serde_json::json!({"action": "api_delete", "service": service, "path": path, "body": body})
+        }
         YarrAction::Help => serde_json::json!({"action": "help"}),
         YarrAction::CodeMode { code } => serde_json::json!({"action": "codemode", "code": code}),
         YarrAction::SnippetList => serde_json::json!({"action": "snippet_list"}),
-        YarrAction::SnippetSave { name, code, description } => serde_json::json!({"action": "snippet_save", "name": name, "code": code, "description": description}),
-        YarrAction::SnippetRun { name, input } => serde_json::json!({"action": "snippet_run", "name": name, "input": input}),
-        YarrAction::SnippetDelete { name } => serde_json::json!({"action": "snippet_delete", "name": name}),
-        YarrAction::Op { service, op, args } => serde_json::json!({"action": "op", "service": service, "op": op, "args": args}),
-        YarrAction::Curated { name, params } => serde_json::json!({"action": name, "params": params}),
+        YarrAction::SnippetSave {
+            name,
+            code,
+            description,
+        } => {
+            serde_json::json!({"action": "snippet_save", "name": name, "code": code, "description": description})
+        }
+        YarrAction::SnippetRun { name, input } => {
+            serde_json::json!({"action": "snippet_run", "name": name, "input": input})
+        }
+        YarrAction::SnippetDelete { name } => {
+            serde_json::json!({"action": "snippet_delete", "name": name})
+        }
+        YarrAction::Op { service, op, args } => {
+            serde_json::json!({"action": "op", "service": service, "op": op, "args": args})
+        }
+        YarrAction::Curated { name, params } => {
+            serde_json::json!({"action": name, "params": params})
+        }
     };
     Some(canonical_json(&value))
 }
@@ -279,7 +321,11 @@ fn canonical_json(value: &Value) -> String {
         }
         Value::Array(values) => format!(
             "[{}]",
-            values.iter().map(canonical_json).collect::<Vec<_>>().join(",")
+            values
+                .iter()
+                .map(canonical_json)
+                .collect::<Vec<_>>()
+                .join(",")
         ),
         Value::Object(map) => {
             let mut keys = map.keys().collect::<Vec<_>>();
