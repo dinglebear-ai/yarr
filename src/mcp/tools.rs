@@ -66,6 +66,25 @@ pub(super) async fn preflight_script_destructive_targets(
     }
 }
 
+pub(super) fn direct_destructive_target(
+    state: &AppState,
+    tool_name: &str,
+    action_name: &str,
+    args: &Value,
+) -> anyhow::Result<String> {
+    let mut object = match args.clone() {
+        Value::Object(map) => map,
+        _ => Map::new(),
+    };
+    object.insert("action".to_owned(), Value::String(action_name.to_owned()));
+    if tool_name != YARR_TOOL_NAME {
+        object.insert("service".to_owned(), Value::String(tool_name.to_owned()));
+    }
+    let action = YarrAction::from_mcp_args(&Value::Object(object))?;
+    destructive_target(state, &action)
+        .ok_or_else(|| anyhow::anyhow!("action is not destructive: {action_name}"))
+}
+
 fn guarded_script(name: &str, args: &Value) -> bool {
     name == YARR_TOOL_NAME
         || args
