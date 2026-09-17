@@ -347,7 +347,16 @@ path = "/purge"
 safety = "Destructive"
 reason = "Source documents irreversible purge behavior."
 "#;
-    let reviewed = validate_safety_manifest("inline", &operations, manifest, &[]).unwrap();
+    let reviewed = validate_safety_manifest(
+        "inline",
+        &operations,
+        manifest,
+        &[
+            SafetyCandidate::operation_id("Read", "GET", "/read"),
+            SafetyCandidate::operation_id("Purge", "GET", "/purge"),
+        ],
+    )
+    .unwrap();
 
     assert_eq!(
         reviewed

@@ -190,6 +190,9 @@ fn load_spec(path: &str) -> Result<Value> {
 #[path = "gen_openapi/safety_audit_tests.rs"]
 mod safety_audit_tests;
 #[cfg(test)]
+#[path = "gen_openapi/safety_manifest_tests.rs"]
+mod safety_manifest_tests;
+#[cfg(test)]
 #[path = "gen_openapi/safety_tests.rs"]
 mod safety_tests;
 #[cfg(test)]

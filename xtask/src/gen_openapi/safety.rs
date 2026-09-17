@@ -141,6 +141,18 @@ pub(super) fn validate_safety_manifest_for_services(
                 row.path
             );
         }
+        let is_reviewed_candidate = candidates.iter().any(|candidate| {
+            candidate.operation_id == row.operation_id
+                && candidate.method == row.method
+                && candidate.path == row.path
+        });
+        if !is_reviewed_candidate && !is_permitted_non_candidate(service, &row) {
+            bail!(
+                "unconsumed safety manifest row for {service} {} {}",
+                row.method,
+                row.path
+            );
+        }
         let identity = (
             row.operation_id.clone(),
             row.method.clone(),
@@ -178,6 +190,26 @@ pub(super) fn validate_safety_manifest_for_services(
         }
     }
     Ok(resolved)
+}
+
+/// The audited inventory intentionally includes one operation whose source ID
+/// does not match the candidate selector's review triggers. Keep this exception
+/// source-identity-pinned so all other source-valid but unconsumed rows fail.
+fn is_permitted_non_candidate(service: &str, row: &ManifestRow) -> bool {
+    matches!(
+        (
+            service,
+            row.operation_id.as_deref(),
+            row.method.as_str(),
+            row.path.as_str(),
+        ),
+        (
+            "plex",
+            Some("terminateSession"),
+            "POST",
+            "/status/sessions/terminate",
+        )
+    )
 }
 
 #[cfg(test)]
