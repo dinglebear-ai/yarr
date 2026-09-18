@@ -34,13 +34,21 @@ and `callTool`. Discover what's available with `codemode.search`/`codemode.descr
 - **Per-service callables** with the service baked in (no `service` param):
   `sonarr.get_series()`, `radarr.post_movie({ body })`, `prowlarr.get_indexer()`,
   `plex.get_sessions()`, … For the 6 spec-backed services these are generated from
-  the upstream OpenAPI spec (the full API surface), including DELETE ops — see
-  Gotcha 3 below for the MCP confirmation boundary.
+  the upstream OpenAPI spec (the full API surface), including the reviewed
+  `Destructive` operations — see Gotcha 3 below for the MCP confirmation boundary.
 - **Raw passthrough**: `api.<service>.get/post/put/delete(path, body)`.
+- **Fleet fan-out**: `fleet.of(name)` / `fleet.all(kind?)` select configured
+  services; `fleet.map(selector, action, params?)` runs one action once per
+  selected service (at most 32 targets, 4 in flight, 30 s per leaf), and
+  `fleet.status()` reports reachability/version/latency for every service. A map
+  freezes and validates its whole leaf set before running, asks once for the
+  exact destructive set, and audits every leaf in `calls`.
 - **Discovery**: `codemode.search(query)` returns fully-qualified callables;
   `codemode.describe(path)` returns a callable's signature OR a response type's
   TypeScript interface (e.g. `codemode.describe("sonarr.SeriesResource")`).
-- **Snippets**: `codemode.run(name, input)` and `codemode.snippets()`.
+- **Snippets**: `codemode.run(name, input)` and `codemode.snippets()`. The
+  builtins `fleet_health`, `fleet_activity`, `fleet_library_sizes`, and
+  `fleet_transcode_load` always list and cannot be overwritten or deleted.
 - **Artifacts**: `writeArtifact(path, content, options?)`.
 
 The supporting actions (MCP-only; also on the CLI as `yarr codemode` /

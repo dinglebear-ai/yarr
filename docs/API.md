@@ -1,7 +1,7 @@
 ---
 title: "yarr API"
 created: 2026-05-22
-updated: 2026-07-30
+updated: 2026-09-18
 ---
 
 # yarr API
@@ -26,11 +26,22 @@ Inside `code` you have:
   parameters available in this build.
 - **Raw passthrough**: `api.<service>.get/post/put/delete(path, body)`.
 - **Escape hatch**: `callTool(action, params)` dispatches any action directly.
+- **Fleet fan-out**: `fleet.of(name)` / `fleet.all(kind?)` select configured
+  services; `fleet.map(selector, action, params?)` runs one action once per
+  selected service (bounded: at most 32 services, 4 in flight, 30 s per leaf,
+  ordered partial results), and `fleet.status()` reports
+  reachability/version/latency for every configured service. Each invocation
+  validates its whole leaf set before anything runs; a map whose resolved
+  leaves are Destructive needs one exact batch approval covering only those
+  leaves, and every executed leaf is audited individually in `calls`.
 - **Discovery**: `codemode.search(query)` lists matching callables;
   `codemode.describe(path)` returns a callable's signature or a response type's
   TypeScript interface.
 - **Snippets / artifacts**: `codemode.run(name, input)`, `codemode.snippets()`,
-  `writeArtifact(path, content, options?)`.
+  `writeArtifact(path, content, options?)`. Four canonical read-only builtin
+  snippets (`fleet_health`, `fleet_activity`, `fleet_library_sizes`,
+  `fleet_transcode_load`) ship with the binary, always list, and cannot be
+  overwritten or deleted.
 
 Example `yarr` call:
 
