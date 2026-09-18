@@ -179,7 +179,7 @@ kind = "overseerr"
 method = "DELETE"
 path = "/api/v1/media/{mediaId}"
 safety = "Mutation"
-reason = "Summary is “Delete media item”; the vendored source establishes no file or media-file removal, so Mutation stands (record removal)."
+reason = "Summary is “Delete media item” (MANAGE_REQUESTS); the vendored source exposes no file or path model, so Mutation stands (record removal)."
 
 [[operation]]
 kind = "overseerr"
@@ -721,14 +721,14 @@ kind = "radarr"
 method = "DELETE"
 path = "/api/v3/queue/bulk"
 safety = "Mutation"
-reason = "Removes queue items and, by default, the downloads from the client; the vendored source documents no media or file removal, so Mutation stands."
+reason = "Removes queue items; `removeFromClient` defaults to true (removal at the download client), but the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "radarr"
 method = "DELETE"
 path = "/api/v3/queue/{id}"
 safety = "Mutation"
-reason = "Removes a queue item and, by default, the download from the client; the vendored source documents no media or file removal, so Mutation stands."
+reason = "Removes a queue item; `removeFromClient` defaults to true (removal at the download client), but the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "radarr"
@@ -959,14 +959,14 @@ kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/queue/bulk"
 safety = "Mutation"
-reason = "Removes queue items and, by default, the downloads from the client; the vendored source documents no media or file removal, so Mutation stands."
+reason = "Removes queue items; `removeFromClient` defaults to true (removal at the download client), but the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/queue/{id}"
 safety = "Mutation"
-reason = "Removes a queue item and, by default, the download from the client; the vendored source documents no media or file removal, so Mutation stands."
+reason = "Removes a queue item; `removeFromClient` defaults to true (removal at the download client), but the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "sonarr"
