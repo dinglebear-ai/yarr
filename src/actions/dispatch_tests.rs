@@ -72,13 +72,27 @@ fn generated_operation_metadata_controls_destructive_admission() {
         &sonarr,
         &YarrAction::Op {
             service: "sonarr".into(),
-            op: "delete_series_by_id".into(),
+            op: "delete_queue_by_id".into(),
             args: serde_json::json!({}),
         },
     )
     .expect("known generated operation classifies");
     assert_eq!(mutation_delete.safety, OperationSafety::Mutation);
     assert!(!mutation_delete.destructive);
+
+    // The file-deleting delete-by-id route (`deleteFiles`) classifies
+    // Destructive through the generic passthrough too.
+    let destructive_generic = super::classify_action(
+        &sonarr,
+        &YarrAction::ApiDelete {
+            service: "sonarr".into(),
+            path: "/api/v3/series/1".into(),
+            body: None,
+        },
+    )
+    .expect("reviewed file-deleting DELETE route classifies");
+    assert_eq!(destructive_generic.safety, OperationSafety::Destructive);
+    assert!(destructive_generic.destructive);
 
     let plex = generated_service("plex", ServiceKind::Plex);
     let destructive_put = super::classify_action(

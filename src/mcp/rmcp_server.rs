@@ -108,10 +108,7 @@ impl ServerHandler for YarrRmcpServer {
             .unwrap_or_else(|| Value::Object(Map::new()));
         let mut classification = None;
         if let Some(action_str) = action_opt.as_deref()
-            && matches!(
-                action_str,
-                "api_get" | "api_post" | "api_put" | "api_delete" | "op"
-            )
+            && crate::actions::action_has_route_dependent_safety(action_str)
         {
             let mut scoped_args = arguments.clone();
             if tool_name != crate::mcp::schemas::YARR_TOOL_NAME {

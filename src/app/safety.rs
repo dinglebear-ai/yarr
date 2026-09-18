@@ -4,9 +4,10 @@
 //! caller of [`crate::app::YarrService`] — is admitted here before any upstream
 //! request can be built. Admission is exact and fail-closed:
 //!
-//! - the raw path must pass [`crate::yarr::validate_safe_path`];
-//! - query text is stripped for route identity only (never decoded, so an
-//!   encoded separator like `%2F` stays a single segment);
+//! - the raw path must pass [`crate::yarr::validate_safe_path`]; encoded
+//!   separators (`%2F`, `%5C`) are rejected there, before matching;
+//! - query text is stripped for route identity only, and the matcher compares
+//!   raw segments without decoding;
 //! - exactly one generated `(method, path-template)` pair must match for the
 //!   configured kind — unmatched or ambiguous routes deny the call.
 //!
@@ -24,8 +25,9 @@ use crate::openapi::{HttpMethod, OperationSafety, operations_for_kind};
 /// single generated operation it addresses, or fail closed.
 ///
 /// Route identity ignores query text only; the raw path is what validation and
-/// transport receive, so `%2F`-style encoding is never re-interpreted as a
-/// segment separator.
+/// transport receive. Encoded separators never survive
+/// [`crate::yarr::validate_safe_path`], and the matcher compares raw segments
+/// without decoding, so an encoded separator can never be re-interpreted.
 pub(crate) fn classify_generic_route(
     kind: ServiceKind,
     method: HttpMethod,

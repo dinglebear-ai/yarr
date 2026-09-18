@@ -1,7 +1,11 @@
 use super::*;
 
 #[test]
-fn matcher_preserves_encoded_segments_and_embedded_placeholders() {
+fn matcher_compares_raw_segments_without_decoding() {
+    // The matcher itself never percent-decodes: `a%2Fb` is one raw segment and
+    // cannot split a segment. Runtime admission rejects encoded separators
+    // earlier (see `encoded_separator_routes_fail_closed_before_matching`), so
+    // this stays defense in depth rather than a reachable match.
     assert!(path_matches_template(
         "/Audio/a%2Fb/stream.mp3",
         "/Audio/{itemId}/stream.{container}",
@@ -10,6 +14,22 @@ fn matcher_preserves_encoded_segments_and_embedded_placeholders() {
         "/Audio/a/b/stream.mp3",
         "/Audio/{itemId}/stream.{container}",
     ));
+}
+
+#[test]
+fn encoded_separator_routes_fail_closed_before_matching() {
+    let encoded = classify_generic_route(
+        ServiceKind::Jellyfin,
+        HttpMethod::Get,
+        "/Audio/a%2Fb/stream.mp3",
+    )
+    .expect_err("encoded separators are rejected by path validation");
+    assert!(
+        encoded
+            .to_string()
+            .contains("path must not contain encoded path separators"),
+        "error: {encoded}"
+    );
 }
 
 #[test]
@@ -25,9 +45,16 @@ fn reviewed_routes_resolve_to_their_safety() {
 
     // A DELETE that the manifest records as a Mutation is not destructive.
     let mutation =
-        classify_generic_route(ServiceKind::Sonarr, HttpMethod::Delete, "/api/v3/series/1")
+        classify_generic_route(ServiceKind::Sonarr, HttpMethod::Delete, "/api/v3/queue/5")
             .expect("reviewed DELETE route resolves");
     assert_eq!(mutation, OperationSafety::Mutation);
+
+    // A DELETE the manifest records as Destructive keeps that classification:
+    // the verb never decides it, the permitted input does (`deleteFiles`).
+    let destructive_delete =
+        classify_generic_route(ServiceKind::Sonarr, HttpMethod::Delete, "/api/v3/series/1")
+            .expect("reviewed file-deleting DELETE route resolves");
+    assert_eq!(destructive_delete, OperationSafety::Destructive);
 
     // A route the manifest records as Destructive keeps that classification.
     let destructive = classify_generic_route(

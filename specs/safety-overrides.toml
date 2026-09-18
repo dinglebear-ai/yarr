@@ -5,8 +5,8 @@ kind = "jellyfin"
 operation_id = "DeleteAlternateSources"
 method = "DELETE"
 path = "/Videos/{itemId}/AlternateSources"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary removes alternate video sources; classified Destructive to cover the media removal."
 
 [[operation]]
 kind = "jellyfin"
@@ -69,8 +69,8 @@ kind = "jellyfin"
 operation_id = "DeleteLyrics"
 method = "DELETE"
 path = "/Audio/{itemId}/Lyrics"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary deletes an external lyric file; classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "jellyfin"
@@ -85,8 +85,8 @@ kind = "jellyfin"
 operation_id = "DeleteSubtitle"
 method = "DELETE"
 path = "/Videos/{itemId}/Subtitles/{index}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary deletes an external subtitle file; classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "jellyfin"
@@ -352,8 +352,8 @@ kind = "plex"
 operation_id = "deleteMediaItem"
 method = "DELETE"
 path = "/library/metadata/{ids}/media/{mediaItem}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Plex summary deletes a single media from a metadata item in the library; classified Destructive to cover the media removal."
 
 [[operation]]
 kind = "plex"
@@ -368,8 +368,8 @@ kind = "plex"
 operation_id = "deleteMetadataItem"
 method = "DELETE"
 path = "/library/metadata/{ids}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Plex summary deletes a metadata item, removing a library item; classified Destructive to cover the media removal."
 
 [[operation]]
 kind = "plex"
@@ -678,8 +678,8 @@ reason = "DELETE establishes a state change; vendored source does not establish 
 kind = "radarr"
 method = "DELETE"
 path = "/api/v3/movie/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE accepts `deleteFiles`, removing movie files from disk; static classification must cover permitted input."
 
 [[operation]]
 kind = "radarr"
@@ -993,8 +993,8 @@ reason = "DELETE establishes a state change; vendored source does not establish 
 kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/series/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE accepts `deleteFiles`, removing episode files from disk; static classification must cover permitted input."
 
 [[operation]]
 kind = "sonarr"

@@ -447,7 +447,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
         name: "delete_movie_by_id",
         method: HttpMethod::Delete,
         path: "/api/v3/movie/{id}",
-        safety: OperationSafety::Mutation,
+        safety: OperationSafety::Destructive,
         path_params: &["id"],
         query_params: &["addImportExclusion", "deleteFiles"],
         has_body: false,

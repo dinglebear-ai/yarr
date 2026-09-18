@@ -111,6 +111,65 @@ fn generated_operation_safety_matches_reviewed_examples() {
 }
 
 #[test]
+fn file_deleting_operations_are_reviewed_destructive() {
+    // These reviewed rows remove media or files from disk, so they must be
+    // Destructive — the classification never keys off the HTTP verb, and it
+    // has to cover the permitted input (for example `deleteFiles`).
+    for (kind, name, why) in [
+        (
+            ServiceKind::Sonarr,
+            "delete_series_by_id",
+            "accepts `deleteFiles`",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_movie_by_id",
+            "accepts `deleteFiles`",
+        ),
+        (
+            ServiceKind::Plex,
+            "delete_media_item",
+            "removes a library media item",
+        ),
+        (
+            ServiceKind::Plex,
+            "delete_metadata_item",
+            "removes a library item",
+        ),
+        (
+            ServiceKind::Jellyfin,
+            "delete_alternate_sources",
+            "removes alternate video sources",
+        ),
+        (
+            ServiceKind::Jellyfin,
+            "delete_lyrics",
+            "deletes an external lyric file",
+        ),
+        (
+            ServiceKind::Jellyfin,
+            "delete_subtitle",
+            "deletes an external subtitle file",
+        ),
+    ] {
+        assert_eq!(
+            find_operation(kind, name).unwrap().safety,
+            OperationSafety::Destructive,
+            "{kind:?}.{name} {why}"
+        );
+    }
+
+    // A reviewed record-only DELETE stays a Mutation: safety is never inferred
+    // from the verb, in either direction.
+    assert_eq!(
+        find_operation(ServiceKind::Sonarr, "delete_queue_by_id")
+            .unwrap()
+            .safety,
+        OperationSafety::Mutation
+    );
+}
+
+#[test]
 fn generated_registry_exposes_explicit_omission_markers() {
     for kind in [
         ServiceKind::Sonarr,

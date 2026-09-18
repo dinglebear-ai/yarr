@@ -54,15 +54,15 @@ async fn codemode_roundtrips_a_local_action() {
 #[tokio::test]
 async fn per_service_callable_bakes_in_the_service() {
     // The loopback stub configures a `sonarr` (spec-backed) service, so its
-    // generated callables exist. `sonarr.delete_series_by_id({id})` is a generated
+    // generated callables exist. `sonarr.delete_queue_by_id({id})` is a generated
     // DELETE op: it dispatches through the `op` action with the service baked
     // in, all the way to the network (the stub points at unreachable
     // `localhost:1`) — a clean assertion of the generated per-service callable
-    // path, and that a destructive op is not blocked mid-script.
+    // path for a reviewed Mutation route.
     let service = loopback_state().service;
     let code = r#"
         async () => {
-            try { await sonarr.delete_series_by_id({ id: 1 }); return "ran"; }
+            try { await sonarr.delete_queue_by_id({ id: 1 }); return "ran"; }
             catch (e) { return "err:" + e.message; }
         }
     "#;
@@ -77,14 +77,14 @@ async fn per_service_callable_bakes_in_the_service() {
 
 #[tokio::test]
 async fn codemode_allows_reviewed_mutation_delete_to_dispatch() {
-    // Sonarr's delete-by-id route is a reviewed Mutation. Code Mode has no MCP
-    // peer on this direct path, so it dispatches like any other mutation and
-    // fails only at the unreachable stub upstream.
+    // Sonarr's queue-item delete route is a reviewed Mutation. Code Mode has no
+    // MCP peer on this direct path, so it dispatches like any other mutation
+    // and fails only at the unreachable stub upstream.
     let service = loopback_state().service;
     let code = r#"
         async () => {
             try {
-                await callTool("api_delete", { service: "sonarr", path: "/api/v3/series/1" });
+                await callTool("api_delete", { service: "sonarr", path: "/api/v3/queue/5" });
                 return "ran";
             } catch (e) {
                 return "err:" + e.message;
@@ -222,7 +222,7 @@ async fn codemode_api_client_delete_dispatches() {
     let code = r#"
         async () => {
             try {
-                await api.sonarr.delete("/api/v3/series/1");
+                await api.sonarr.delete("/api/v3/queue/5");
                 return "ran";
             } catch (e) {
                 return "err:" + e.message;

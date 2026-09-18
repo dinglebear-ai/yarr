@@ -774,7 +774,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
         name: "delete_series_by_id",
         method: HttpMethod::Delete,
         path: "/api/v3/series/{id}",
-        safety: OperationSafety::Mutation,
+        safety: OperationSafety::Destructive,
         path_params: &["id"],
         query_params: &["addImportListExclusion", "deleteFiles"],
         has_body: false,

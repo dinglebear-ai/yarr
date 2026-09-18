@@ -48,9 +48,17 @@ fn each_entry_carries_its_service() {
     // HTTP verb.
     let del = cat
         .iter()
-        .find(|e| e.path() == "sonarr.delete_series_by_id")
+        .find(|e| e.path() == "sonarr.delete_queue_by_id")
         .unwrap();
     assert!(!del.destructive());
+
+    // The file-deleting delete-by-id route (`deleteFiles`) is reviewed
+    // Destructive, so the catalog carries that metadata too.
+    let file_delete = cat
+        .iter()
+        .find(|e| e.path() == "sonarr.delete_series_by_id")
+        .unwrap();
+    assert!(file_delete.destructive());
 }
 
 #[test]

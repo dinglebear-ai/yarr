@@ -355,7 +355,7 @@ async fn authenticated_write_token_cannot_bypass_inner_destructive_elicitation()
             "params": {
                 "name": "yarr",
                 "arguments": {
-                    "code": "async () => await callTool('api_delete', {service:'sonarr', path:'/api/v3/series/1'})"
+                    "code": "async () => await callTool('api_delete', {service:'sonarr', path:'/api/v3/queue/5'})"
                 }
             }
         }),
@@ -381,7 +381,7 @@ async fn authenticated_write_token_cannot_bypass_inner_destructive_elicitation()
             7,
             json!({
                 "action": "codemode",
-                "code": "async () => await callTool('api_delete', {service:'sonarr', path:'/api/v3/series/1'})"
+                "code": "async () => await callTool('api_delete', {service:'sonarr', path:'/api/v3/queue/5'})"
             }),
         ),
         (

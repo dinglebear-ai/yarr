@@ -95,6 +95,64 @@ async fn cli_generic_get_rejects_unknown_route_before_transport() {
     );
 }
 
+#[tokio::test]
+async fn cli_generic_delete_rejects_unknown_route_before_transport() {
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "sonarr".into(),
+            kind: ServiceKind::Sonarr,
+            // No listener is required: correct admission rejects before an HTTP call.
+            base_url: "http://127.0.0.1:1".into(),
+            ..ServiceConfig::default()
+        }],
+    };
+    let error = run(
+        Command::Delete {
+            service: "sonarr".into(),
+            path: "/api/v3/not-a-generated-route".into(),
+            body: None,
+        },
+        &config,
+    )
+    .await
+    .expect_err("CLI generic DELETE must use shared fail-closed admission");
+    assert!(
+        error
+            .to_string()
+            .contains("no unique generated operation match"),
+        "error: {error:#}"
+    );
+}
+
+#[tokio::test]
+async fn cli_op_rejects_unknown_operation_before_transport() {
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "sonarr".into(),
+            kind: ServiceKind::Sonarr,
+            // No listener is required: the shared dispatch rejects before an HTTP call.
+            base_url: "http://127.0.0.1:1".into(),
+            ..ServiceConfig::default()
+        }],
+    };
+    let error = run(
+        Command::Op {
+            service: "sonarr".into(),
+            op: "not_a_real_operation".into(),
+            args: json!({}),
+        },
+        &config,
+    )
+    .await
+    .expect_err("CLI op must reject unknown generated operations before transport");
+    assert!(
+        error
+            .to_string()
+            .contains("unknown or unsupported sonarr operation"),
+        "error: {error:#}"
+    );
+}
+
 #[test]
 fn put_subcommand() {
     let put = parse_args_from([
