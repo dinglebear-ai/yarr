@@ -122,6 +122,16 @@ fn leaf_action(json: Value) -> crate::actions::YarrAction {
     crate::actions::YarrAction::from_mcp_args(&json).expect("leaf action parses")
 }
 
+/// Trusted local (guard-less) dispatch through the same plan → frozen-set path
+/// the CLI/bridge uses; `None` guard keeps documented local-trust behavior.
+async fn dispatch_fleet(
+    service: &crate::app::YarrService,
+    invocation: crate::fleet::FleetInvocation,
+) -> anyhow::Result<Vec<crate::fleet::FleetResult>> {
+    let plan = service.plan_fleet(invocation)?;
+    service.dispatch_fleet_plan(plan, None).await
+}
+
 /// Recordable guard: counts scope checks, records every destructive batch it is
 /// asked to authorize, and can be configured to deny either phase.
 #[derive(Default)]
@@ -280,14 +290,16 @@ async fn map_rejects_an_inadmissible_leaf_before_any_execution() {
         ("sonarr", ServiceKind::Sonarr, &url),
         ("radarr", ServiceKind::Radarr, &url),
     ]);
-    let error = service
-        .dispatch_fleet(invocation(
+    let error = dispatch_fleet(
+        &service,
+        invocation(
             FleetSelector::All { kind: None },
             "api_get",
             json!({"path": "/api/v3/not-a-generated-route"}),
-        ))
-        .await
-        .expect_err("inadmissible leaf rejects the map");
+        ),
+    )
+    .await
+    .expect_err("inadmissible leaf rejects the map");
     let message = error.to_string();
     assert!(message.contains("rejected before execution"), "{message}");
     assert!(
@@ -310,14 +322,16 @@ async fn map_runs_every_leaf_exactly_once_with_status_metadata() {
         ("radarr", ServiceKind::Radarr, &url),
         ("prowlarr", ServiceKind::Prowlarr, &url),
     ]);
-    let results = service
-        .dispatch_fleet(invocation(
+    let results = dispatch_fleet(
+        &service,
+        invocation(
             FleetSelector::All { kind: None },
             "service_status",
             json!({}),
-        ))
-        .await
-        .expect("map dispatches");
+        ),
+    )
+    .await
+    .expect("map dispatches");
     assert_eq!(results.len(), 3);
     assert_eq!(total.load(Ordering::SeqCst), 3, "exactly once per leaf");
     let names: Vec<&str> = results.iter().map(|r| r.service.as_str()).collect();
@@ -356,16 +370,18 @@ async fn oversized_leaf_values_truncate_with_usable_metadata() {
     let big: &'static str = Box::leak(big.into_boxed_str());
     let (url, _total, _max, _handle) = counted_upstream(big, Duration::ZERO).await;
     let service = fleet_service(&[("sonarr", ServiceKind::Sonarr, &url)]);
-    let results = service
-        .dispatch_fleet(invocation(
+    let results = dispatch_fleet(
+        &service,
+        invocation(
             FleetSelector::Of {
                 name: "sonarr".to_owned(),
             },
             "api_get",
             json!({"path": "/api/v3/system/status"}),
-        ))
-        .await
-        .expect("map dispatches");
+        ),
+    )
+    .await
+    .expect("map dispatches");
     let result = &results[0];
     assert!(result.ok, "{result:?}");
     assert!(result.truncated);
@@ -391,14 +407,16 @@ async fn map_concurrency_stays_within_the_bound() {
         .map(|(name, kind, url)| (name.as_str(), *kind, url.as_str()))
         .collect();
     let service = fleet_service(&services);
-    let results = service
-        .dispatch_fleet(invocation(
+    let results = dispatch_fleet(
+        &service,
+        invocation(
             FleetSelector::All { kind: None },
             "service_status",
             json!({}),
-        ))
-        .await
-        .expect("map dispatches");
+        ),
+    )
+    .await
+    .expect("map dispatches");
     assert_eq!(results.len(), 8);
     assert_eq!(total.load(Ordering::SeqCst), 8);
     let observed_max = max_in_flight.load(Ordering::SeqCst);
@@ -423,14 +441,16 @@ async fn per_leaf_timeout_preserves_partial_results() {
     ])
     .with_fleet_timeout(Duration::from_millis(300));
     let started = std::time::Instant::now();
-    let results = service
-        .dispatch_fleet(invocation(
+    let results = dispatch_fleet(
+        &service,
+        invocation(
             FleetSelector::All { kind: None },
             "service_status",
             json!({}),
-        ))
-        .await
-        .expect("map dispatches");
+        ),
+    )
+    .await
+    .expect("map dispatches");
     assert!(started.elapsed() < Duration::from_secs(10));
     assert_eq!(results.len(), 2, "partial results preserved");
     let alpha = results.iter().find(|r| r.service == "alpha").unwrap();
@@ -588,16 +608,18 @@ async fn local_cli_dispatch_runs_without_a_guard() {
     // CLI keeps its documented local-trust behavior: no guard, no prompt.
     let (url, total, _max, _handle) = counted_upstream(r#"{"ok":true}"#, Duration::ZERO).await;
     let service = fleet_service(&[("sonarr", ServiceKind::Sonarr, &url)]);
-    let results = service
-        .dispatch_fleet(invocation(
+    let results = dispatch_fleet(
+        &service,
+        invocation(
             FleetSelector::Of {
                 name: "sonarr".to_owned(),
             },
             "api_post",
             json!({"path": "/api/v3/system/backup/restore/7", "body": {}}),
-        ))
-        .await
-        .expect("local dispatch");
+        ),
+    )
+    .await
+    .expect("local dispatch");
     assert_eq!(results.len(), 1);
     assert!(results[0].ok, "{results:?}");
     assert_eq!(total.load(Ordering::SeqCst), 1);

@@ -88,33 +88,6 @@ impl YarrService {
         Ok(PlannedFleetInvocation { leaves })
     }
 
-    /// Dispatch a fleet invocation for trusted local callers (CLI, direct app
-    /// use). No guard: no scope gate and no elicitation channel exists locally.
-    pub(crate) async fn dispatch_fleet(
-        &self,
-        invocation: FleetInvocation,
-    ) -> Result<Vec<FleetResult>> {
-        let plan = self.plan_fleet(invocation)?;
-        self.dispatch_fleet_plan(plan, None).await
-    }
-
-    /// Status across every configured service (the `fleet.status()` sugar).
-    pub(crate) async fn fleet_status(&self) -> Result<Vec<FleetResult>> {
-        self.fleet_status_with_guard(None).await
-    }
-
-    pub(crate) async fn fleet_status_with_guard(
-        &self,
-        guard: Option<Arc<dyn CodeModeCallGuard>>,
-    ) -> Result<Vec<FleetResult>> {
-        let plan = self.plan_fleet(FleetInvocation {
-            selector: FleetSelector::All { kind: None },
-            action: "service_status".to_owned(),
-            params: serde_json::Map::new(),
-        })?;
-        self.dispatch_fleet_plan(plan, guard).await
-    }
-
     /// Execute a frozen leaf set. Returns `Err` only for a whole-map rejection
     /// *before any leaf runs* (invalid route, insufficient scope). Per-leaf
     /// failures — including destructive leaves denied by the single batch
