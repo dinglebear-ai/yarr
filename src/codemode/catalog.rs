@@ -204,7 +204,9 @@ pub fn service_action_names(kind: ServiceKind) -> Vec<&'static str> {
 pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
     let mut out: Vec<CatalogEntry> = Vec::new();
     for (name, kind) in services {
-        if crate::codemode::is_reserved_global(&crate::codemode::javascript_namespace(name)) {
+        if crate::codemode_contract::is_reserved_global(
+            &crate::codemode_contract::javascript_namespace(name),
+        ) {
             continue;
         }
         if crate::openapi::is_generated(*kind) {
@@ -229,7 +231,7 @@ pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
 /// resolved operation (see `docs/API.md`). The OpenAPI `tag` is surfaced as the
 /// capability for grouping.
 fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> CatalogEntry {
-    let namespace = crate::codemode::javascript_namespace(service);
+    let namespace = crate::codemode_contract::javascript_namespace(service);
     let mut required: Vec<&'static str> = op.path_params.to_vec();
     if op.has_body {
         required.push("body");
@@ -259,7 +261,7 @@ fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> Catalog
 
 /// A `<service>.<action>` callable entry.
 fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
-    let namespace = crate::codemode::javascript_namespace(service);
+    let namespace = crate::codemode_contract::javascript_namespace(service);
     let cmd: Option<&'static CommandDescriptor> = curated_command(action);
     let scope = match required_scope_for_action(action) {
         Some(WRITE_SCOPE) => CatalogScope::Write,

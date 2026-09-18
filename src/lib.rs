@@ -24,6 +24,7 @@ mod app;
 mod capability;
 mod cli;
 mod codemode;
+mod codemode_contract;
 mod config;
 pub(crate) mod logging;
 mod mcp;

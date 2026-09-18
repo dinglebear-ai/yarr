@@ -120,8 +120,8 @@ pub fn type_catalog_json_for(services: &[(String, crate::config::ServiceKind)]) 
     let mut out: Vec<TypeEntry> = Vec::new();
     let model_entries = type_entries();
     for (name, kind) in services {
-        let namespace = crate::codemode::javascript_namespace(name);
-        if crate::codemode::is_reserved_global(&namespace) {
+        let namespace = crate::codemode_contract::javascript_namespace(name);
+        if crate::codemode_contract::is_reserved_global(&namespace) {
             continue;
         }
         if crate::openapi::is_generated(*kind) {

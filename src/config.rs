@@ -52,8 +52,8 @@ impl YarrConfig {
     pub(crate) fn validate(&self) -> anyhow::Result<()> {
         let mut namespaces = std::collections::BTreeMap::<String, &str>::new();
         for service in &self.services {
-            let namespace = crate::codemode::javascript_namespace(&service.name);
-            if crate::codemode::is_reserved_global(&namespace) {
+            let namespace = crate::codemode_contract::javascript_namespace(&service.name);
+            if crate::codemode_contract::is_reserved_global(&namespace) {
                 anyhow::bail!(
                     "Code Mode namespace {namespace:?} for service {:?} is reserved",
                     service.name,

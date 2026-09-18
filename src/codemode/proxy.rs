@@ -108,8 +108,8 @@ pub fn build_preamble(services: &[(String, ServiceKind)]) -> String {
 fn render_service_namespaces(services: &[(String, ServiceKind)]) -> String {
     let mut out = String::new();
     for (name, kind) in services {
-        let namespace = super::javascript_namespace(name);
-        if super::is_reserved_global(&namespace) {
+        let namespace = crate::codemode_contract::javascript_namespace(name);
+        if crate::codemode_contract::is_reserved_global(&namespace) {
             continue;
         }
         // `{namespace:?}` emits a quoted, escaped JS string literal. `service` is
@@ -224,8 +224,8 @@ globalThis.codemode.run = (name, input) =>
 fn render_api_namespace(service_names: &[String]) -> String {
     let mut out = String::from("globalThis.api = {};\n");
     for name in service_names {
-        let namespace = super::javascript_namespace(name);
-        if super::is_reserved_global(&namespace) {
+        let namespace = crate::codemode_contract::javascript_namespace(name);
+        if crate::codemode_contract::is_reserved_global(&namespace) {
             continue;
         }
         // `{namespace:?}` emits a quoted, escaped JS string literal — never raw

@@ -318,10 +318,13 @@ fn default_runtime_limits_are_pinned() {
     // wait — the documented public limits (docs/CONFIG.md, docs/ENV.md).
     // Changing any of these is a deliberate decision that must update this pin
     // and the docs together.
-    assert_eq!(crate::codemode::CODEMODE_TIMEOUT, Duration::from_secs(30));
-    assert_eq!(crate::codemode::CODEMODE_MAX_CONCURRENT, 4);
     assert_eq!(
-        crate::codemode::CODEMODE_QUEUE_TIMEOUT,
+        crate::codemode_contract::CODEMODE_TIMEOUT,
+        Duration::from_secs(30)
+    );
+    assert_eq!(crate::codemode_contract::CODEMODE_MAX_CONCURRENT, 4);
+    assert_eq!(
+        crate::codemode_contract::CODEMODE_QUEUE_TIMEOUT,
         Duration::from_millis(500)
     );
 }

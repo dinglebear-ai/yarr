@@ -56,7 +56,7 @@ fn reserved_global_name_is_not_clobbered() {
 
 #[test]
 fn runtime_owned_globals_are_excluded_from_codemode_surfaces() {
-    let services: Vec<(String, ServiceKind)> = crate::codemode::RESERVED_GLOBALS
+    let services: Vec<(String, ServiceKind)> = crate::codemode_contract::RESERVED_GLOBALS
         .iter()
         .map(|name| ((*name).to_string(), ServiceKind::Sonarr))
         .collect();
@@ -64,8 +64,8 @@ fn runtime_owned_globals_are_excluded_from_codemode_surfaces() {
     let catalog = crate::codemode::catalog::catalog_json(&services);
     let types = crate::codemode::dts::type_catalog_json_for(&services);
 
-    for name in crate::codemode::RESERVED_GLOBALS {
-        let namespace = crate::codemode::javascript_namespace(name);
+    for name in crate::codemode_contract::RESERVED_GLOBALS {
+        let namespace = crate::codemode_contract::javascript_namespace(name);
         assert!(
             !preamble.contains(&format!("globalThis[{namespace:?}] = {{")),
             "runtime-owned global {namespace:?} must not be emitted as a service namespace"

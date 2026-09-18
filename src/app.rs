@@ -60,10 +60,10 @@ impl YarrService {
             codemode_preamble: crate::codemode::build_preamble(&configured).into(),
             codemode_catalog: crate::codemode::catalog::build_catalog(&configured).into(),
             codemode_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(
-                crate::codemode::CODEMODE_MAX_CONCURRENT,
+                crate::codemode_contract::CODEMODE_MAX_CONCURRENT,
             )),
-            codemode_queue_timeout: crate::codemode::CODEMODE_QUEUE_TIMEOUT,
-            codemode_execution_timeout: crate::codemode::CODEMODE_TIMEOUT,
+            codemode_queue_timeout: crate::codemode_contract::CODEMODE_QUEUE_TIMEOUT,
+            codemode_execution_timeout: crate::codemode_contract::CODEMODE_TIMEOUT,
         }
     }
 
