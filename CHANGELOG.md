@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject unknown service fields: a typo'd credential reference field (for example `api_key_from`) now fails the config load instead of silently producing a credential-less service, a service whose own env namespace starts with `mcp_`/`fleet_` can reference its own canonical variable, and reference rejections distinguish a wrong field in the service's own namespace from a foreign service's variable.
+- Generate `docs/MCP_SCHEMA.md` with route-derived scope for `api_get`/`api_post`/`api_put`/`api_delete`/`op`, read the route-derived action names directly from `action_has_route_dependent_safety` (the schema-docs checker and the tool-docs generator now share the same library source of truth with a parity test), and stop describing `api_delete` as statically destructive in `docs/PHILOSOPHY.md`.
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
 - Normalize Code Mode service namespaces consistently and reject configured names that collide with runtime bindings or another normalized namespace.

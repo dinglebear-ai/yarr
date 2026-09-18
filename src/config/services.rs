@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(super) const SERVICE_HOME_DIRNAME: &str = ".yarr";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ServiceConfig {
     pub name: String,
     pub kind: ServiceKind,
@@ -370,14 +370,23 @@ fn resolve_credential_reference(
             "service {service_name:?} credential reference {reference:?} must name a YARR_* environment variable (expected {expected:?})"
         );
     }
-    if reference.starts_with("YARR_MCP_") || reference.starts_with("YARR_FLEET_") {
-        anyhow::bail!(
-            "service {service_name:?} credential reference {reference:?} is a runtime variable, not a service credential (expected {expected:?})"
-        );
-    }
     if reference != expected {
+        // Everything below fails closed; the branches only sharpen the
+        // diagnostics. A reference inside this service's own namespace names
+        // the wrong field, the runtime prefixes name server/fleet plumbing,
+        // and anything else belongs to a different service.
+        if reference.starts_with(&format!("YARR_{prefix}_")) {
+            anyhow::bail!(
+                "service {service_name:?} credential reference {reference:?} names the wrong field for this service; only {suffix} may reference {expected:?}"
+            );
+        }
+        if reference.starts_with("YARR_MCP_") || reference.starts_with("YARR_FLEET_") {
+            anyhow::bail!(
+                "service {service_name:?} credential reference {reference:?} is a runtime variable, not a service credential (expected {expected:?})"
+            );
+        }
         anyhow::bail!(
-            "service {service_name:?} credential reference {reference:?} is outside this service's credential namespace (expected {expected:?})"
+            "service {service_name:?} credential reference {reference:?} belongs to another service's credential namespace (expected {expected:?})"
         );
     }
     if literal.is_some() {

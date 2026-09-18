@@ -24,6 +24,19 @@ fn route_dependent_actions_render_a_route_derived_scope() {
 }
 
 #[test]
+fn route_dependent_mirror_matches_the_library_for_every_action() {
+    // The generator's mirror must never drift from the library contract: this
+    // asserts parity across the full action inventory, not a hand-pinned list.
+    for action in yarr::all_action_names() {
+        assert_eq!(
+            route_dependent(action),
+            yarr::action_has_route_dependent_safety(action),
+            "generator mirror drifted from the library for {action}"
+        );
+    }
+}
+
+#[test]
 fn small_render_helpers_are_stable() {
     assert_eq!(scope(None), "public");
     assert_eq!(yes_no(true), "yes");

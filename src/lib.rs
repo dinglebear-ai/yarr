@@ -38,8 +38,8 @@ mod yarr;
 
 pub use actions::{
     ACTION_SPECS, ActionSpec, CommandDescriptor, READ_SCOPE, WRITE_SCOPE, YarrAction,
-    action_allowed_for_kind, action_is_destructive, all_action_names, curated_commands,
-    required_scope_for_action, valid_actions_for_kind,
+    action_allowed_for_kind, action_has_route_dependent_safety, action_is_destructive,
+    all_action_names, curated_commands, required_scope_for_action, valid_actions_for_kind,
 };
 pub use app::YarrService;
 pub use capability::Capability;

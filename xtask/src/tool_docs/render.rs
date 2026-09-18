@@ -84,13 +84,11 @@ pub(super) fn scope(scope: Option<&'static str>) -> &'static str {
 
 /// Actions whose effective scope (and destructive admission) is decided per
 /// call by the resolved reviewed operation, not by static registry metadata.
-/// Mirrors `action_has_route_dependent_safety` in the library (which is not
-/// exported for the doc generator to call).
+/// Delegates to the library contract; a parity test pins the generator to
+/// `yarr::action_has_route_dependent_safety` for every action name, so the
+/// two can never drift.
 pub(super) fn route_dependent(action: &str) -> bool {
-    matches!(
-        action,
-        "api_get" | "api_post" | "api_put" | "api_delete" | "op"
-    )
+    yarr::action_has_route_dependent_safety(action)
 }
 
 /// The Scope column text for a generic action row.

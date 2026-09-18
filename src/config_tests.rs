@@ -189,7 +189,7 @@ fn credential_references_reject_runtime_and_cross_service_names() {
         ),
         (
             "api_key_env = \"YARR_RADARR_API_KEY\"\n",
-            "outside this service's credential namespace",
+            "belongs to another service's credential namespace",
         ),
         (
             "api_key_env = \"HOME\"\n",
@@ -197,7 +197,7 @@ fn credential_references_reject_runtime_and_cross_service_names() {
         ),
         (
             "api_key_env = \"YARR_SONARR_TOKEN\"\n",
-            "outside this service's credential namespace",
+            "names the wrong field for this service; only API_KEY",
         ),
     ];
     for (extra, fragment) in cases {
@@ -214,6 +214,47 @@ fn credential_references_reject_runtime_and_cross_service_names() {
             "expected {fragment:?} in {error:#}"
         );
     }
+}
+
+#[test]
+fn unknown_service_fields_are_rejected_as_typos() {
+    // A typo'd field must fail the load instead of silently producing a
+    // credential-less service (serde_ignored is not wired into config loading).
+    let error = load_toml(
+        &service_toml("sonarr", "api_key_from = \"YARR_SONARR_API_KEY\"\n"),
+        |env| {
+            env.set("YARR_SONARR_API_KEY", "x");
+        },
+    )
+    .expect_err("a typo'd service field must fail the load");
+    assert!(
+        error.to_string().contains("api_key_from"),
+        "expected the unknown field name in {error:#}"
+    );
+}
+
+#[test]
+fn own_canonical_reference_is_accepted_for_runtime_looking_names() {
+    // A service whose own env namespace starts with mcp_/fleet_ may still
+    // reference its own canonical variable; only foreign runtime variables
+    // are rejected. Env-based loading of the identical name already works, so
+    // the TOML path must agree.
+    let loaded = load_toml(
+        &service_toml(
+            "mcp_gateway",
+            "api_key_env = \"YARR_MCP_GATEWAY_API_KEY\"\n",
+        ),
+        |env| {
+            env.set("YARR_MCP_GATEWAY_API_KEY", "resolved-secret");
+        },
+    )
+    .expect("the service's own canonical variable must load");
+    let service = &loaded.yarr.services[0];
+    assert_eq!(service.api_key.as_deref(), Some("resolved-secret"));
+    assert_eq!(
+        service.api_key_env.as_deref(),
+        Some("YARR_MCP_GATEWAY_API_KEY")
+    );
 }
 
 #[test]
