@@ -284,6 +284,32 @@ impl YarrClient {
         self.finish_with_retry(service, request).await
     }
 
+    /// GET an absolute URL with explicit request headers using the shared
+    /// client (shared timeouts and connect policy). CLI-only operator flows —
+    /// Plex account discovery against plex.tv — use this through
+    /// [`crate::app::discovery`]; it is never part of service dispatch, and
+    /// neither the headers nor the body are ever logged.
+    pub async fn fetch_text(
+        &self,
+        url: reqwest::Url,
+        headers: &[(&'static str, String)],
+    ) -> Result<(reqwest::StatusCode, String)> {
+        let mut request = self.client.get(url);
+        for (name, value) in headers {
+            request = request.header(*name, value.clone());
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|error| anyhow::anyhow!("discovery request failed: {error}"))?;
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .map_err(|error| anyhow::anyhow!("discovery response could not be read: {error}"))?;
+        Ok((status, body))
+    }
+
     /// Send a pre-built request (used by query-style helpers) and parse it.
     pub async fn send_get(
         &self,

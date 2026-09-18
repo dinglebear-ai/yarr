@@ -52,6 +52,7 @@ pub use config::{
     AuthConfig, Config, McpConfig, ServiceConfig, ServiceKind, YarrConfig,
     acquire_oauth_instance_lock, resolve_data_dir,
 };
+pub use fleet::discovery::PlexDiscoveryOptions;
 /// Initialise dual logging for the binary: pretty colored output on stderr plus
 /// a JSON-lines file at `{data_dir}/logs/{service}.log` (non-blocking and
 /// rotated at 10 MiB with three retained backups).

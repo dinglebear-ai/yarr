@@ -10,6 +10,7 @@ use crate::{
 };
 
 pub mod codemode;
+pub mod discovery;
 pub mod download;
 pub mod fleet;
 pub mod openapi_ops;

@@ -35,6 +35,9 @@ fn build_usage() -> String {
     out.push_str("  yarr snippet list|save|run|delete  Manage saved Code Mode snippets\n");
     out.push_str("  yarr doctor [--json]           Run environment pre-flight checks\n");
     out.push_str(
+        "  yarr discover plex --token-env NAME [--out PATH] [--include-shared] [--diff]  Discover Plex servers and write a merge-ready export\n",
+    );
+    out.push_str(
         "  yarr watch [--url URL] [--interval N] [--once]  Poll server health; --once exits non-zero unless healthy\n",
     );
     out.push_str("  yarr setup check               Check plugin setup without mutating appdata\n");

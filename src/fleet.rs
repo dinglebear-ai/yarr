@@ -12,6 +12,8 @@ use std::str::FromStr;
 
 use crate::{actions::YarrAction, config::ServiceKind};
 
+pub mod discovery;
+pub mod pairing;
 pub mod snippets;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

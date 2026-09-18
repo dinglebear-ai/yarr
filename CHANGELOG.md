@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add CLI-only `yarr discover plex`: strict plex.tv resource parsing, local→HTTPS→relay connection selection, owned-only defaults, and a marker-guarded mode-0600 export (`YARR_<NAME>_URL`/`_KIND`/`_TOKEN` assignments) that never touches caller config or secret files; `--diff` reports drift against configured services without writing (exit code 2 on drift), and tokens are redacted from `Debug` and structured output. Read-only Tautulli↔Plex identity pairing lands as an app-layer operation with the same loopback-only test discipline.
 - TOML service entries accept `api_key_env`/`username_env`/`password_env`/`token_env` credential references resolved at load time from exactly that service's own canonical `YARR_<SERVICE>_*` variable; runtime (`YARR_MCP_*`/`YARR_FLEET_*`) and cross-service references are rejected, literal-plus-reference collisions fail the load, and missing or empty referenced variables fail fast. Literal credentials are never resolved, and the reference is preserved for provenance.
 
 ### Fixed

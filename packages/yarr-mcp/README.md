@@ -446,6 +446,16 @@ base_url = "http://sonarr:8989"
 api_key_env = "YARR_SONARR_API_KEY"
 ```
 
+Plex servers can be discovered from your plex.tv account (CLI-only):
+
+```bash
+yarr discover plex --token-env YARR_PLEX_ACCOUNT_TOKEN --out ./plex-export.env
+```
+
+The export is merge-ready (`YARR_<NAME>_URL`/`_KIND`/`_TOKEN` assignments,
+mode `0600`, marker-guarded so it never overwrites foreign files); `--diff`
+reports drift against your configured services without writing.
+
 `YARR_MCP_TOOL_MODE=codemode` is the default. Use
 `YARR_MCP_TOOL_MODE=flat` only when a gateway should see separate per-service
 tools.

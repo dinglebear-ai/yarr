@@ -17,6 +17,7 @@
 //! them as run modes before `parse_args` is called.
 
 use super::setup::SetupCommand;
+use std::path::PathBuf;
 
 // `Eq` is intentionally not derived: the `Curated` variant carries a
 // `serde_json::Value` (which is `PartialEq` but not `Eq`). `PartialEq` is all the
@@ -106,6 +107,22 @@ pub enum Command {
     },
     /// `yarr setup ...` — plugin setup wizard. Dispatched in `main.rs::run_cli`.
     Setup(SetupCommand),
+    /// `yarr discover plex ...` — explicit, CLI-only plex.tv discovery.
+    ///
+    /// Dispatched in `main.rs::run_cli`; intentionally absent from MCP, Code
+    /// Mode, and normal service routing. Writes only the operator-chosen
+    /// `--out` export — never a caller config or secret file.
+    DiscoverPlex {
+        /// Environment variable (name only) holding the Plex account token.
+        token_env: String,
+        /// Operator-chosen export destination; `None` prints the (redacted)
+        /// report only.
+        out: Option<PathBuf>,
+        /// Include servers shared with the account (owned-only by default).
+        include_shared: bool,
+        /// Report drift but write nothing (exit code 2 when drift exists).
+        diff: bool,
+    },
     /// `yarr <service> <curated-verb> [flags]` — a curated, capability-scoped
     /// command resolved from the registry. `action` is the MCP (snake_case) name;
     /// `params` is the JSON args object the router assembled from the positional
