@@ -32,8 +32,8 @@ pub struct PlexDiscoveryOptions {
     pub include_shared: bool,
     /// Compare-only: report drift but write nothing.
     pub diff: bool,
-    /// Override for the plex.tv resources endpoint. `None` uses
-    /// [`PLEX_RESOURCES_URL`]; loopback HTTP is accepted for tests.
+    /// Override for the plex.tv resources endpoint. `None` uses the built-in
+    /// plex.tv resources URL; loopback HTTP is accepted for tests.
     pub resources_url: Option<reqwest::Url>,
 }
 

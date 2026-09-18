@@ -206,11 +206,18 @@ async fn run_discover(
             path.display()
         );
     }
-    if diff && !report.drift.is_empty() {
+    if let Some(code) = discovery_diff_exit_code(diff, report.drift.len()) {
         // Drift exists: distinct exit code so scripts can gate on it.
-        std::process::exit(2);
+        std::process::exit(code);
     }
     Ok(())
+}
+
+/// Exit-code contract for `yarr discover plex --diff`: `Some(2)` when drift
+/// exists, `None` otherwise. Extracted so the contract is unit-testable
+/// without a live plex.tv round trip.
+fn discovery_diff_exit_code(diff: bool, drift_count: usize) -> Option<i32> {
+    (diff && drift_count > 0).then_some(2)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -357,4 +364,17 @@ async fn shutdown_signal() {
 
     tokio::select! { _ = ctrl_c => {}, _ = terminate => {} }
     tracing::info!("Shutdown signal received");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::discovery_diff_exit_code;
+
+    #[test]
+    fn discovery_diff_exit_code_is_two_only_on_drift() {
+        assert_eq!(discovery_diff_exit_code(true, 2), Some(2));
+        assert_eq!(discovery_diff_exit_code(true, 1), Some(2));
+        assert_eq!(discovery_diff_exit_code(true, 0), None);
+        assert_eq!(discovery_diff_exit_code(false, 3), None);
+    }
 }

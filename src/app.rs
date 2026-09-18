@@ -160,8 +160,8 @@ impl YarrService {
         self.client.get_json(service, path).await
     }
 
-    /// Generic POST passthrough. Admission is identical to [`api_get`]
-    /// (Self::api_get): the resolved reviewed operation — not the verb —
+    /// Generic POST passthrough. Admission is identical to [`Self::api_get`]:
+    /// the resolved reviewed operation — not the verb —
     /// decides whether this is a Mutation (runs immediately) or Destructive
     /// (MCP transports elicit first).
     pub async fn api_post(&self, service: &str, path: &str, body: Value) -> Result<Value> {

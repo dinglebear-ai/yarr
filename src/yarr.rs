@@ -286,9 +286,9 @@ impl YarrClient {
 
     /// GET an absolute URL with explicit request headers using the shared
     /// client (shared timeouts and connect policy). CLI-only operator flows —
-    /// Plex account discovery against plex.tv — use this through
-    /// [`crate::app::discovery`]; it is never part of service dispatch, and
-    /// neither the headers nor the body are ever logged.
+    /// Plex account discovery against plex.tv — use this through the private
+    /// app-layer discovery orchestration; it is never part of service
+    /// dispatch, and neither the headers nor the body are ever logged.
     pub async fn fetch_text(
         &self,
         url: reqwest::Url,

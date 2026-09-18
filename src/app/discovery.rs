@@ -180,15 +180,21 @@ fn atomic_write_secret(path: &Path, contents: &[u8]) -> Result<()> {
     let temporary = parent.join(format!(".{name}.{}.{nanos}.tmp", std::process::id()));
     let result = (|| -> Result<()> {
         use std::io::Write as _;
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temporary)
-            .with_context(|| {
-                format!("could not create temporary export {}", temporary.display())
-            })?;
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        // Set the mode at creation so the temp file never exists with
+        // umask-derived permissions, even briefly.
         #[cfg(unix)]
         {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary).with_context(|| {
+            format!("could not create temporary export {}", temporary.display())
+        })?;
+        #[cfg(unix)]
+        {
+            // Belt and braces for filesystems that ignore the open-time mode.
             use std::os::unix::fs::PermissionsExt;
             file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
         }
