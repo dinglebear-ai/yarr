@@ -432,6 +432,20 @@ Supported service kinds are `sonarr`, `radarr`, `prowlarr`, `tautulli`,
 `*_API_KEY` covers most Arr-style services. qBittorrent uses username/password
 login. Plex and Jellyfin token headers are handled separately.
 
+Services declared in `config.toml` can keep credentials out of the file with
+`*_env` references — each must name that service's own canonical variable
+(`YARR_<SERVICE>_API_KEY`, `_USERNAME`, `_PASSWORD`, or `_TOKEN`); runtime
+variables and other services' credentials are rejected, and a literal plus a
+reference for the same field is a collision:
+
+```toml
+[[yarr.services]]
+name = "sonarr"
+kind = "sonarr"
+base_url = "http://sonarr:8989"
+api_key_env = "YARR_SONARR_API_KEY"
+```
+
 `YARR_MCP_TOOL_MODE=codemode` is the default. Use
 `YARR_MCP_TOOL_MODE=flat` only when a gateway should see separate per-service
 tools.

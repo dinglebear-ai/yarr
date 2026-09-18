@@ -209,6 +209,7 @@ impl Config {
         }
 
         load_services_from_env(&mut config.yarr)?;
+        services::resolve_service_credential_references(&mut config.yarr)?;
         config.yarr.validate()?;
 
         if config.mcp.static_token_scopes.is_empty() {

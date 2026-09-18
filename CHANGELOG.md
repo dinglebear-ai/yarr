@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- TOML service entries accept `api_key_env`/`username_env`/`password_env`/`token_env` credential references resolved at load time from exactly that service's own canonical `YARR_<SERVICE>_*` variable; runtime (`YARR_MCP_*`/`YARR_FLEET_*`) and cross-service references are rejected, literal-plus-reference collisions fail the load, and missing or empty referenced variables fail fast. Literal credentials are never resolved, and the reference is preserved for provenance.
+
 ### Fixed
 
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
