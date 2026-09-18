@@ -319,6 +319,12 @@ matches a reviewed generated OpenAPI operation on a spec-backed configured servi
 Unknown or ambiguous routes fail closed. `route-derived` means `ReadOnly` uses
 `yarr:read`, while `Mutation` and `Destructive` use `yarr:write`.
 
+Ambiguity is real: when a literal path also matches a sibling `{placeholder}`
+template of the same method (for example `DELETE /api/v3/series/editor` against
+the `series/{id}` template), the generic route fails closed and the operation
+stays reachable only through `op`. The doc-backed kinds without a generated
+table have no generic passthrough at all.
+
 | Action | Scope | CLI | Description |
 |---|---|---|---|
 | `service_status` | `yarr:read` | `yarr <service> status` | Fetch an upstream service status endpoint |
@@ -440,6 +446,9 @@ Curated write operations and the opaque Code Mode outer tool require `yarr:write
 write satisfies read.
 
 Destructiveness comes only from reviewed operation metadata—not from `DELETE`.
+Reviewed routes that remove media or files (for example a delete that accepts
+`deleteFiles`) are classified `Destructive` and elicit like any other destructive
+operation.
 CLI commands dispatch resolved operations immediately. MCP callers get an
 interactive elicitation prompt at the actual destructive dispatch point, including
 inside Code Mode, with no call argument or nested `callTool` path that can skip it.

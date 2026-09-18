@@ -353,7 +353,7 @@ operation_id = "deleteMediaItem"
 method = "DELETE"
 path = "/library/metadata/{ids}/media/{mediaItem}"
 safety = "Destructive"
-reason = "Plex summary deletes a single media from a metadata item in the library; classified Destructive to cover the media removal."
+reason = "Plex description deletes a single media from a metadata item in the library; classified Destructive to cover the media removal."
 
 [[operation]]
 kind = "plex"
@@ -369,7 +369,7 @@ operation_id = "deleteMetadataItem"
 method = "DELETE"
 path = "/library/metadata/{ids}"
 safety = "Destructive"
-reason = "Plex summary deletes a metadata item, removing a library item; classified Destructive to cover the media removal."
+reason = "Plex description deletes a metadata item from the library, deleting media as well; classified Destructive to cover the media removal."
 
 [[operation]]
 kind = "plex"
@@ -401,7 +401,7 @@ operation_id = "deleteStream"
 method = "DELETE"
 path = "/library/streams/{streamId}.{ext}"
 safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+reason = "Summary and description are both “Delete a stream”; the vendored source does not establish library media or file removal."
 
 [[operation]]
 kind = "plex"
@@ -524,8 +524,8 @@ reason = "DELETE establishes a state change; vendored source does not establish 
 kind = "prowlarr"
 method = "DELETE"
 path = "/api/v1/system/backup/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE removes a stored backup archive (BackupResource carries `path`/`size`); classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "prowlarr"
@@ -692,15 +692,15 @@ reason = "DELETE editor is capable of deleteFiles; static classification must co
 kind = "radarr"
 method = "DELETE"
 path = "/api/v3/moviefile/bulk"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE takes MovieFileListResource (movie file ids); classified Destructive to cover the bulk media-file removal."
 
 [[operation]]
 kind = "radarr"
 method = "DELETE"
 path = "/api/v3/moviefile/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE removes a movie file (MovieFileResource carries `path`/`size`); classified Destructive to cover the media-file removal."
 
 [[operation]]
 kind = "radarr"
@@ -728,7 +728,7 @@ kind = "radarr"
 method = "DELETE"
 path = "/api/v3/queue/{id}"
 safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+reason = "Removes a queue item; the vendored source documents no media or file removal (including `removeFromClient`), so Mutation stands."
 
 [[operation]]
 kind = "radarr"
@@ -755,8 +755,8 @@ reason = "DELETE establishes a state change; vendored source does not establish 
 kind = "radarr"
 method = "DELETE"
 path = "/api/v3/system/backup/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE removes a stored backup archive (BackupResource carries `path`/`size`); classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "radarr"
@@ -874,15 +874,15 @@ reason = "DELETE establishes a state change; vendored source does not establish 
 kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/episodefile/bulk"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE takes EpisodeFileListResource (episode file ids); classified Destructive to cover the bulk media-file removal."
 
 [[operation]]
 kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/episodefile/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE removes an episode file (EpisodeFileResource carries `path`/`size`); classified Destructive to cover the media-file removal."
 
 [[operation]]
 kind = "sonarr"
@@ -966,7 +966,7 @@ kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/queue/{id}"
 safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+reason = "Removes a queue item; the vendored source documents no media or file removal (including `removeFromClient`), so Mutation stands."
 
 [[operation]]
 kind = "sonarr"
@@ -1007,8 +1007,8 @@ reason = "DELETE editor is capable of deleteFiles; static classification must co
 kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/system/backup/{id}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "DELETE removes a stored backup archive (BackupResource carries `path`/`size`); classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "sonarr"

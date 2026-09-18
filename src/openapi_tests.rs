@@ -151,6 +151,41 @@ fn file_deleting_operations_are_reviewed_destructive() {
             "delete_subtitle",
             "deletes an external subtitle file",
         ),
+        (
+            ServiceKind::Sonarr,
+            "delete_episodefile_by_id",
+            "removes an episode file",
+        ),
+        (
+            ServiceKind::Sonarr,
+            "delete_episodefile_bulk",
+            "takes a list of episode file ids",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_moviefile_by_id",
+            "removes a movie file",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_moviefile_bulk",
+            "takes a list of movie file ids",
+        ),
+        (
+            ServiceKind::Sonarr,
+            "delete_system_backup_by_id",
+            "removes a stored backup archive",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_system_backup_by_id",
+            "removes a stored backup archive",
+        ),
+        (
+            ServiceKind::Prowlarr,
+            "delete_system_backup_by_id",
+            "removes a stored backup archive",
+        ),
     ] {
         assert_eq!(
             find_operation(kind, name).unwrap().safety,
