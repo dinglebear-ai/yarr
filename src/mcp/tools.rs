@@ -6,7 +6,7 @@ use lab_auth::AuthContext;
 use rmcp::{RoleServer, service::Peer};
 use serde_json::{Map, Value};
 
-use crate::actions::{YarrAction, execute_service_action, required_scope_for_action};
+use crate::actions::{YarrAction, execute_service_action};
 use crate::app::codemode::CodeModeCallGuard;
 use crate::server::AppState;
 
@@ -114,18 +114,21 @@ impl CodeModeCallGuard for McpCodeModeGuard {
         action: &'a YarrAction,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
-            if let (Some(auth), Some(required)) =
-                (self.auth.as_ref(), required_scope_for_action(action.name()))
-                && !crate::actions::scopes_satisfy(&auth.scopes, required)
+            let classification = crate::actions::classify_action(&self.state.service, action)
+                .map_err(|error| error.to_string())?;
+            if let (Some(auth), Some(required_scope)) =
+                (self.auth.as_ref(), classification.required_scope)
+                && !crate::actions::scopes_satisfy(&auth.scopes, required_scope)
             {
                 return Err(format!(
-                    "forbidden inner Code Mode action `{}`: requires scope {required}",
-                    action.name()
+                    "forbidden inner Code Mode action `{}`: requires scope {}",
+                    action.name(),
+                    required_scope
                 ));
             }
 
-            let (destructive, service_name) = destructive_inner_call(&self.state, action);
-            if !destructive {
+            let service_name = action_service_name(action);
+            if !classification.destructive {
                 return Ok(());
             }
             if self.peer.supported_elicitation_modes().is_empty() {
@@ -147,8 +150,8 @@ impl CodeModeCallGuard for McpCodeModeGuard {
     }
 }
 
-fn destructive_inner_call<'a>(state: &AppState, action: &'a YarrAction) -> (bool, &'a str) {
-    let service = match action {
+fn action_service_name(action: &YarrAction) -> &str {
+    match action {
         YarrAction::ServiceStatus { service }
         | YarrAction::ApiGet { service, .. }
         | YarrAction::ApiPost { service, .. }
@@ -160,21 +163,7 @@ fn destructive_inner_call<'a>(state: &AppState, action: &'a YarrAction) -> (bool
             .and_then(Value::as_str)
             .unwrap_or(YARR_TOOL_NAME),
         _ => YARR_TOOL_NAME,
-    };
-    let generated_delete = match action {
-        YarrAction::Op { service, op, .. } => state
-            .service
-            .kind_of(service)
-            .ok()
-            .flatten()
-            .and_then(|kind| crate::openapi::find_operation(kind, op))
-            .is_some_and(|spec| spec.method.is_delete()),
-        _ => false,
-    };
-    (
-        crate::actions::action_is_destructive(action.name()) || generated_delete,
-        service,
-    )
+    }
 }
 
 async fn dispatch_service_tool(

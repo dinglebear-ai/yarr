@@ -65,7 +65,7 @@ does not drift between "agent used the tool" and "operator ran the command."
 Primary capabilities:
 
 - Fleet status checks across the configured services.
-- Credentialed upstream API passthrough for known service kinds.
+- Credentialed upstream API passthrough for **uniquely matched generated OpenAPI routes** on spec-backed service kinds; unmatched routes fail closed.
 - Table-driven OpenAPI operation metadata for Sonarr, Radarr, Prowlarr,
   Overseerr, Jellyfin, and Plex. The executor preserves the declared parameter,
   request-media, and successful-response transport contract; unsupported rows
@@ -314,15 +314,18 @@ async () => {
 
 ### Generic Actions
 
-These actions work for every configured service kind:
+These raw transport shapes are admitted only when their exact method/path uniquely
+matches a reviewed generated OpenAPI operation on a spec-backed configured service.
+Unknown or ambiguous routes fail closed. `route-derived` means `ReadOnly` uses
+`yarr:read`, while `Mutation` and `Destructive` use `yarr:write`.
 
 | Action | Scope | CLI | Description |
 |---|---|---|---|
 | `service_status` | `yarr:read` | `yarr <service> status` | Fetch an upstream service status endpoint |
-| `api_get` | `yarr:write` | `yarr <service> get --path <path>` | Proxy a credentialed GET request |
-| `api_post` | `yarr:write` | `yarr <service> post --path <path> --body <json>` | Proxy a POST request |
-| `api_put` | `yarr:write` | `yarr <service> put --path <path> --body <json>` | Proxy a PUT request |
-| `api_delete` | `yarr:write` | `yarr <service> delete --path <path>` | Proxy a DELETE request |
+| `api_get` | route-derived | `yarr <service> get --path <path>` | Request a uniquely matched reviewed operation |
+| `api_post` | route-derived | `yarr <service> post --path <path> --body <json>` | Request a uniquely matched reviewed operation |
+| `api_put` | route-derived | `yarr <service> put --path <path> --body <json>` | Request a uniquely matched reviewed operation |
+| `api_delete` | route-derived | `yarr <service> delete --path <path>` | Request a uniquely matched reviewed operation |
 | `help` | public | `yarr help` | Return action reference |
 
 ### Code Mode Actions
@@ -330,7 +333,7 @@ These actions work for every configured service kind:
 | Action | Scope | Surface | Description |
 |---|---|---|---|
 | `codemode` | `yarr:write` | `yarr` tool / `yarr codemode --code <JS>` | Run a JS arrow function over the fleet |
-| `op` | `yarr:write` | `<service>.<operation>()` / `yarr <service> op <name>` | Dispatch a generated OpenAPI operation |
+| `op` | route-derived (flat/CLI); Code Mode outer tool is `yarr:write` | `<service>.<operation>()` / `yarr <service> op <name>` | Dispatch a generated OpenAPI operation using reviewed safety metadata |
 | `snippet_list` | `yarr:read` | `yarr snippet list` / `codemode.snippets()` | List saved snippets |
 | `snippet_save` | `yarr:write` | `yarr snippet save` | Save a reusable snippet |
 | `snippet_run` | `yarr:write` | `yarr snippet run` / `codemode.run(name, input)` | Run a saved snippet |
@@ -430,15 +433,16 @@ tokens. Query-string secrets such as `apikey=`, `token=`, and `X-Plex-Token`
 are rejected by path validation.
 
 `help` is public at the action layer, but mounted HTTP transports still require
-bearer or OAuth transport auth. `service_status` requires `yarr:read`.
-Credentialed passthrough, generated operations, curated write operations, and
-Code Mode require `yarr:write`; write satisfies read.
+bearer or OAuth transport auth. `service_status` requires `yarr:read`. Generic
+API actions and generated operations require one exact reviewed operation match:
+`ReadOnly` accepts `yarr:read`; `Mutation` and `Destructive` require `yarr:write`.
+Curated write operations and the opaque Code Mode outer tool require `yarr:write`;
+write satisfies read.
 
-Generated DELETE operations, `api_delete`, `download_remove`,
-`stats_delete_image_cache`, and `trace_terminate_stream` are destructive. CLI
-commands dispatch them immediately. MCP callers get an interactive elicitation
-prompt at the actual dispatch point, including inside Code Mode, with no call
-argument or nested `callTool` path that can skip it.
+Destructiveness comes only from reviewed operation metadata—not from `DELETE`.
+CLI commands dispatch resolved operations immediately. MCP callers get an
+interactive elicitation prompt at the actual destructive dispatch point, including
+inside Code Mode, with no call argument or nested `callTool` path that can skip it.
 
 Responses are capped by the shared token-limit layer before they are returned to
 MCP clients.

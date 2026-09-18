@@ -48,7 +48,7 @@ pub fn rmcp_server(state: AppState) -> YarrRmcpServer {
 /// S5: `TrustedGatewayUnscoped` disables auth middleware *and* bypasses scope
 /// checks entirely (see `require_auth_context`). When mutating actions are
 /// registered, emit a one-time startup warning so operators know writes are not
-/// scope-gated in this mode. Note that plain writes (and destructive deletes)
+/// scope-gated in this mode. Note that plain writes (and destructive operations)
 /// run with no per-call scope gate at all in this mode — elicitation is a UX
 /// confirmation, not an authz boundary — so the gateway is the sole authz
 /// boundary for writes.
@@ -58,9 +58,7 @@ fn warn_if_unscoped_with_mutations(state: &AppState) {
     }
     let mutating: Vec<&str> = crate::actions::all_action_names()
         .into_iter()
-        .filter(|name| {
-            crate::actions::required_scope_for_action(name) == Some(crate::actions::WRITE_SCOPE)
-        })
+        .filter(|name| crate::actions::action_may_mutate(name))
         .collect();
     if mutating.is_empty() {
         return;
@@ -68,7 +66,7 @@ fn warn_if_unscoped_with_mutations(state: &AppState) {
     tracing::warn!(
         mutating_actions = %mutating.join(", "),
         "AuthPolicy::TrustedGatewayUnscoped bypasses scope checks; mutating actions (including \
-         destructive deletes) are NOT scope-gated. Ensure the upstream gateway enforces authz."
+         destructive operations) are NOT scope-gated. Ensure the upstream gateway enforces authz."
     );
 }
 
@@ -103,37 +101,53 @@ impl ServerHandler for YarrRmcpServer {
         if let Some(action_str) = action_opt.as_deref() {
             reject_unknown_action_before_scope(action_str)?;
         }
-        // Only scope-check when a known action is present; dispatch_yarr will
-        // return the validation error for a missing action below.
-        if let (Some(auth), Some(action_str)) = (auth, action_opt.as_deref())
-            && let Some(required_scope) = required_scope_for_action(action_str)
-        {
-            check_scope(auth, required_scope, action_str)?;
-        }
-
-        let action: String = action_opt.unwrap_or_default();
-
+        let action: String = action_opt.clone().unwrap_or_default();
         let arguments = request
             .arguments
             .map(Value::Object)
             .unwrap_or_else(|| Value::Object(Map::new()));
+        let mut classification = None;
+        if let Some(action_str) = action_opt.as_deref()
+            && matches!(
+                action_str,
+                "api_get" | "api_post" | "api_put" | "api_delete" | "op"
+            )
+        {
+            let mut scoped_args = arguments.clone();
+            if tool_name != crate::mcp::schemas::YARR_TOOL_NAME {
+                scoped_args
+                    .as_object_mut()
+                    .expect("arguments is always an object")
+                    .insert("service".to_owned(), Value::String(tool_name.clone()));
+            }
+            let action = crate::actions::YarrAction::from_mcp_args(&scoped_args)
+                .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+            classification = Some(
+                crate::actions::classify_action(&self.state.service, &action)
+                    .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?,
+            );
+        }
+        if let (Some(auth), Some(action_str)) = (auth, action_opt.as_deref()) {
+            let required_scope = classification
+                .and_then(|classification| classification.required_scope)
+                .or_else(|| required_scope_for_action(action_str));
+            if let Some(required_scope) = required_scope {
+                check_scope(auth, required_scope, action_str)?;
+            }
+        }
 
         // Clone the peer for client interaction (elicitation) and the dispatcher
         // signature.
         let peer: Peer<RoleServer> = context.peer.clone();
 
-        // Destructive-delete gate (MCP-only). Before a destructive action
-        // dispatches, ask the connected client to confirm via elicitation. The
-        // tool name IS the service name (the MCP tool is service-named; `action`
-        // is a parameter). `action_is_destructive` only recognizes literal
-        // destructive action names — it has no notion of `op`'s underlying HTTP
-        // method — so a generated DELETE op dispatched via `action=op` (reachable
-        // directly here in `flat` tool mode; in `codemode` mode `op` is only ever
-        // called from inside a script, which never reaches `call_tool` at all —
-        // see `codemode_dispatch`) is checked separately by
-        // `is_destructive_op_call`.
-        if (crate::actions::action_is_destructive(&action)
-            || (action == "op" && is_destructive_op_call(&self.state, &tool_name, &arguments)))
+        // Destructive-action gate (MCP-only). The route/operation classification
+        // above is authoritative for generic actions and generated operations;
+        // all remaining action shapes use their static registry metadata. Before a
+        // resolved Destructive action dispatches, ask the connected client to
+        // confirm via elicitation. Code Mode inner actions are handled by the
+        // same classifier in `McpCodeModeGuard`.
+        if (classification.is_some_and(|classification| classification.destructive)
+            || (classification.is_none() && crate::actions::action_is_destructive(&action)))
             && elicit::gate_destructive(&peer, &action, &tool_name).await
                 == elicit::DeleteGate::Declined
         {

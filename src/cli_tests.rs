@@ -1,4 +1,5 @@
-use super::{Command, SetupCommand, parse_args_from, usage};
+use super::{Command, SetupCommand, parse_args_from, run, usage};
+use crate::config::{ServiceConfig, ServiceKind, YarrConfig};
 use serde_json::json;
 
 #[test]
@@ -63,6 +64,34 @@ fn get_and_post_subcommands() {
             path: "/api/v1/request".into(),
             body: json!({"mediaId": 1}),
         }
+    );
+}
+
+#[tokio::test]
+async fn cli_generic_get_rejects_unknown_route_before_transport() {
+    let config = YarrConfig {
+        services: vec![ServiceConfig {
+            name: "sonarr".into(),
+            kind: ServiceKind::Sonarr,
+            // No listener is required: correct admission rejects before an HTTP call.
+            base_url: "http://127.0.0.1:1".into(),
+            ..ServiceConfig::default()
+        }],
+    };
+    let error = run(
+        Command::Get {
+            service: "sonarr".into(),
+            path: "/api/v3/not-a-generated-route".into(),
+        },
+        &config,
+    )
+    .await
+    .expect_err("CLI generic GET must use shared fail-closed admission");
+    assert!(
+        error
+            .to_string()
+            .contains("no unique generated operation match"),
+        "error: {error:#}"
     );
 }
 

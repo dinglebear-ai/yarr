@@ -1,12 +1,12 @@
-//! Destructive-delete elicitation gate (MCP-only).
+//! Destructive-action elicitation gate (MCP-only).
 //!
-//! Destructive deletes ([`crate::actions::action_is_destructive`]) get a real,
-//! interactive confirmation prompt on the MCP surface via *elicitation* (rmcp
-//! [`Peer::elicit_with_timeout`]): before a destructive action dispatches, the
-//! server asks the connected client to confirm, and there is no way to
-//! pre-authorize or skip that prompt from the call arguments — the client must
-//! actually answer. A client without elicitation capability fails closed; this
-//! remote protocol surface never treats missing confirmation as approval.
+//! Operations classified [`crate::openapi::OperationSafety::Destructive`] get a
+//! real, interactive confirmation prompt on the MCP surface via *elicitation*
+//! (rmcp [`Peer::elicit_with_timeout`]). Before a destructive action dispatches,
+//! the server asks the connected client to confirm. There is no reusable grant or
+//! argument-based bypass: the client must actually answer for that concrete call.
+//! A client without elicitation capability fails closed; this remote protocol
+//! surface never treats missing confirmation as approval.
 //!
 //! This lives in the MCP protocol layer (not `tools.rs` / the app layer) because
 //! elicitation needs the client [`Peer`], exactly like the scope checks in
@@ -21,18 +21,18 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-/// Max time to wait for the user to answer a destructive-delete prompt. On expiry
-/// the elicit call returns a timeout error which `normalize` treats as `Refused`
-/// — a stuck prompt fails safe (no delete) instead of holding the request open
+/// Max time to wait for the user to answer a destructive-operation prompt. On
+/// expiry the elicit call returns a timeout error which `normalize` treats as
+/// `Refused` — a stuck prompt fails safe instead of holding the request open
 /// indefinitely.
 const ELICIT_TIMEOUT: Duration = Duration::from_secs(300);
 
-/// Structured payload requested from the user for a destructive delete. A single
-/// boolean: the client renders a confirm prompt from the generated schema.
+/// Structured payload requested from the user for a destructive operation. A
+/// single boolean: the client renders a confirm prompt from the generated schema.
 /// `Accept` with `confirm=true` proceeds; anything else aborts.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub(crate) struct DeleteConfirmation {
-    /// Set true to confirm and run this destructive delete.
+    /// Set true to confirm and run this destructive operation.
     pub confirm: bool,
 }
 
@@ -64,7 +64,7 @@ enum ElicitOutcome {
     Unsupported,
 }
 
-/// The elicitation prompt shown to the user before a destructive delete.
+/// The elicitation prompt shown to the user before a destructive operation.
 pub(crate) fn confirm_message(action: &str, service: &str) -> String {
     format!(
         "Confirm destructive action '{action}' on service '{service}'. This permanently \

@@ -109,8 +109,8 @@ fn preamble_injects_discovery_catalog_and_helpers() {
     assert!(pre.contains("globalThis.__codemodeCatalog = ["));
     assert!(pre.contains("globalThis.codemode.search ="));
     assert!(pre.contains("globalThis.codemode.describe ="));
-    // The catalog embeds fully-qualified generated callable paths + a destructive
-    // flag (DELETE ops).
+    // The catalog embeds fully-qualified generated callable paths and reviewed
+    // destructive-operation metadata.
     assert!(pre.contains(r#""path":"sonarr.get_series""#));
     assert!(pre.contains("\"destructive\":true"));
     // The type catalog is injected so describe/search can surface response types.

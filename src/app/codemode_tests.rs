@@ -76,10 +76,10 @@ async fn per_service_callable_bakes_in_the_service() {
 }
 
 #[tokio::test]
-async fn codemode_allows_destructive_actions_to_dispatch() {
-    // api_delete is destructive, but Code Mode has no confirmation channel
-    // mid-script, so it just dispatches immediately like any other action —
-    // failing only at the network layer (unreachable stub).
+async fn codemode_allows_reviewed_mutation_delete_to_dispatch() {
+    // Sonarr's delete-by-id route is a reviewed Mutation. Code Mode has no MCP
+    // peer on this direct path, so it dispatches like any other mutation and
+    // fails only at the unreachable stub upstream.
     let service = loopback_state().service;
     let code = r#"
         async () => {
@@ -111,6 +111,7 @@ async fn codemode_discovery_search_and_describe_run() {
                 found: hits.results.some(e => e.path === "api.<service>.get"),
                 total: hits.total,
                 describedDestructive: desc.destructive,
+                scope: desc.scope,
                 signature: desc.signature,
                 missing: codemode.describe("nope_not_real"),
             };
@@ -119,7 +120,8 @@ async fn codemode_discovery_search_and_describe_run() {
     let out = service.codemode(code).await.unwrap();
     assert_eq!(out["result"]["found"], true);
     assert!(out["result"]["total"].as_i64().unwrap() >= 4);
-    assert_eq!(out["result"]["describedDestructive"], true);
+    assert_eq!(out["result"]["describedDestructive"], false);
+    assert_eq!(out["result"]["scope"], "route_dependent");
     assert_eq!(out["result"]["signature"], "api.<service>.delete(path)");
     assert!(out["result"]["missing"].is_null());
 }
@@ -231,4 +233,28 @@ async fn codemode_api_client_delete_dispatches() {
     let result = out["result"].as_str().unwrap();
     assert!(!result.contains("destructive"), "got: {result}");
     assert_eq!(out["calls"][0]["action"], "api_delete");
+}
+
+#[tokio::test]
+async fn codemode_raw_api_unknown_route_fails_before_transport() {
+    let service = loopback_state().service;
+    let code = r#"
+        async () => {
+            try {
+                await api.sonarr.get("/api/v3/not-a-generated-route");
+                return "unexpected";
+            } catch (e) {
+                return e.message;
+            }
+        }
+    "#;
+    let out = service.codemode(code).await.unwrap();
+    assert!(
+        out["result"]
+            .as_str()
+            .is_some_and(|message| message.contains("no unique generated operation match")),
+        "result: {out}"
+    );
+    assert_eq!(out["calls"][0]["action"], "api_get");
+    assert_eq!(out["calls"][0]["ok"], false);
 }
