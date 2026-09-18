@@ -6311,7 +6311,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
         name: "delete_stream",
         method: HttpMethod::Delete,
         path: "/library/streams/{streamId}.{ext}",
-        safety: OperationSafety::Mutation,
+        safety: OperationSafety::Destructive,
         path_params: &["ext", "streamId"],
         query_params: &[],
         has_body: false,

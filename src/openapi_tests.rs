@@ -204,6 +204,74 @@ fn file_deleting_operations_are_reviewed_destructive() {
     );
 }
 
+fn manifest_kind(name: &str) -> ServiceKind {
+    match name {
+        "sonarr" => ServiceKind::Sonarr,
+        "radarr" => ServiceKind::Radarr,
+        "prowlarr" => ServiceKind::Prowlarr,
+        "overseerr" => ServiceKind::Overseerr,
+        "jellyfin" => ServiceKind::Jellyfin,
+        "plex" => ServiceKind::Plex,
+        other => panic!("unexpected service kind in the safety manifest: {other}"),
+    }
+}
+
+fn manifest_method(name: &str) -> HttpMethod {
+    match name {
+        "GET" => HttpMethod::Get,
+        "POST" => HttpMethod::Post,
+        "PUT" => HttpMethod::Put,
+        "DELETE" => HttpMethod::Delete,
+        "PATCH" => HttpMethod::Patch,
+        other => panic!("unexpected HTTP method in the safety manifest: {other}"),
+    }
+}
+
+fn manifest_safety(name: &str) -> OperationSafety {
+    match name {
+        "ReadOnly" => OperationSafety::ReadOnly,
+        "Mutation" => OperationSafety::Mutation,
+        "Destructive" => OperationSafety::Destructive,
+        other => panic!("unexpected safety value in the safety manifest: {other}"),
+    }
+}
+
+#[test]
+fn every_manifest_row_matches_its_generated_safety() {
+    // The reviewed manifest is the source of truth for safety, and the
+    // committed tables are its generator output. Pinning every row against the
+    // compiled tables means a manifest edit that is not regenerated fails here
+    // instead of drifting silently, and a reviewed classification cannot be
+    // loosened without either regenerating or tripping this assertion.
+    let manifest = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("specs/safety-overrides.toml"),
+    )
+    .expect("safety manifest is readable");
+    let parsed: toml::Value = toml::from_str(&manifest).expect("safety manifest parses");
+    let rows = parsed
+        .get("operation")
+        .and_then(|value| value.as_array())
+        .expect("safety manifest has [[operation]] rows");
+    assert_eq!(rows.len(), 145, "reviewed manifest row count");
+
+    for row in rows {
+        let kind = manifest_kind(row.get("kind").and_then(|v| v.as_str()).expect("kind"));
+        let method = manifest_method(row.get("method").and_then(|v| v.as_str()).expect("method"));
+        let path = row.get("path").and_then(|v| v.as_str()).expect("path");
+        let expected = manifest_safety(row.get("safety").and_then(|v| v.as_str()).expect("safety"));
+        let matches: Vec<_> = operations_for_kind(kind)
+            .iter()
+            .filter(|operation| operation.method == method && operation.path == path)
+            .collect();
+        assert_eq!(
+            matches.len(),
+            1,
+            "{kind:?} {method:?} {path}: expected exactly one generated operation"
+        );
+        assert_eq!(matches[0].safety, expected, "{kind:?} {method:?} {path}");
+    }
+}
+
 #[test]
 fn generated_registry_exposes_explicit_omission_markers() {
     for kind in [

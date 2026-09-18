@@ -13,8 +13,8 @@ kind = "jellyfin"
 operation_id = "DeleteCustomSplashscreen"
 method = "DELETE"
 path = "/Branding/Splashscreen"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary deletes a custom splashscreen (an uploaded brand image); classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "jellyfin"
@@ -37,16 +37,16 @@ kind = "jellyfin"
 operation_id = "DeleteItemImage"
 method = "DELETE"
 path = "/Items/{itemId}/Images/{imageType}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary deletes an item image; classified Destructive to cover the image-file removal."
 
 [[operation]]
 kind = "jellyfin"
 operation_id = "DeleteItemImageByIndex"
 method = "DELETE"
 path = "/Items/{itemId}/Images/{imageType}/{imageIndex}"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary deletes an item image; classified Destructive to cover the image-file removal."
 
 [[operation]]
 kind = "jellyfin"
@@ -109,8 +109,8 @@ kind = "jellyfin"
 operation_id = "DeleteUserImage"
 method = "DELETE"
 path = "/UserImage"
-safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+safety = "Destructive"
+reason = "Jellyfin summary deletes the user image; classified Destructive to cover the image-file removal."
 
 [[operation]]
 kind = "jellyfin"
@@ -179,7 +179,7 @@ kind = "overseerr"
 method = "DELETE"
 path = "/api/v1/media/{mediaId}"
 safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+reason = "Summary is “Delete media item”; the vendored source establishes no file or media-file removal, so Mutation stands (record removal)."
 
 [[operation]]
 kind = "overseerr"
@@ -400,8 +400,8 @@ kind = "plex"
 operation_id = "deleteStream"
 method = "DELETE"
 path = "/library/streams/{streamId}.{ext}"
-safety = "Mutation"
-reason = "Summary and description are both “Delete a stream”; the vendored source does not establish library media or file removal."
+safety = "Destructive"
+reason = "Plex description deletes a downloaded subtitle stream or a sidecar subtitle when media deletion is enabled; classified Destructive to cover the file removal."
 
 [[operation]]
 kind = "plex"
@@ -721,14 +721,14 @@ kind = "radarr"
 method = "DELETE"
 path = "/api/v3/queue/bulk"
 safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+reason = "Removes queue items and, by default, the downloads from the client; the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "radarr"
 method = "DELETE"
 path = "/api/v3/queue/{id}"
 safety = "Mutation"
-reason = "Removes a queue item; the vendored source documents no media or file removal (including `removeFromClient`), so Mutation stands."
+reason = "Removes a queue item and, by default, the download from the client; the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "radarr"
@@ -959,14 +959,14 @@ kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/queue/bulk"
 safety = "Mutation"
-reason = "DELETE establishes a state change; vendored source does not establish irreversible/destructive impact."
+reason = "Removes queue items and, by default, the downloads from the client; the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "sonarr"
 method = "DELETE"
 path = "/api/v3/queue/{id}"
 safety = "Mutation"
-reason = "Removes a queue item; the vendored source documents no media or file removal (including `removeFromClient`), so Mutation stands."
+reason = "Removes a queue item and, by default, the download from the client; the vendored source documents no media or file removal, so Mutation stands."
 
 [[operation]]
 kind = "sonarr"
