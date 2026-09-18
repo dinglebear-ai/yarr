@@ -11,6 +11,7 @@ use crate::{
 
 pub mod codemode;
 pub mod download;
+pub mod fleet;
 pub mod openapi_ops;
 pub mod safety;
 pub mod stats;
@@ -43,6 +44,8 @@ pub struct YarrService {
     codemode_slots: std::sync::Arc<tokio::sync::Semaphore>,
     codemode_queue_timeout: std::time::Duration,
     codemode_execution_timeout: std::time::Duration,
+    /// Per-leaf bound for one fleet invocation (`fleet.map` / `fleet.status`).
+    pub(crate) fleet_instance_timeout: std::time::Duration,
 }
 
 impl YarrService {
@@ -64,6 +67,7 @@ impl YarrService {
             )),
             codemode_queue_timeout: crate::codemode_contract::CODEMODE_QUEUE_TIMEOUT,
             codemode_execution_timeout: crate::codemode_contract::CODEMODE_TIMEOUT,
+            fleet_instance_timeout: crate::app::fleet::DEFAULT_FLEET_INSTANCE_TIMEOUT,
         }
     }
 
@@ -93,6 +97,13 @@ impl YarrService {
     /// The configured artifacts root, if Code Mode `writeArtifact` is enabled.
     pub(crate) fn data_dir(&self) -> Option<&std::path::Path> {
         self.data_dir.as_deref()
+    }
+
+    /// Override the per-leaf fleet bound. Tests use this to exercise
+    /// slow-upstream/timeout behavior quickly; production keeps the default.
+    pub fn with_fleet_timeout(mut self, instance_timeout: std::time::Duration) -> Self {
+        self.fleet_instance_timeout = instance_timeout;
+        self
     }
 
     /// The shared semantic-search cache for `codemode.search()` — see

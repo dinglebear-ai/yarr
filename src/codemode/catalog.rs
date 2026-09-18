@@ -221,8 +221,60 @@ pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
             }
         }
     }
+    out.extend(fleet_entries());
     out.extend(generic_api_entries());
     out
+}
+
+/// The Code Mode `fleet` bridge callables. The `__yarrFleetMap` /
+/// `__yarrFleetStatus` engine ids are internal — agents discover and call the
+/// `fleet.*` surface, which materializes a bounded frozen leaf set per
+/// invocation and runs each leaf exactly once.
+fn fleet_entries() -> Vec<CatalogEntry> {
+    [
+        (
+            "fleet.of",
+            "of",
+            vec!["name"],
+            CatalogScope::Public,
+            "Select one exact configured service identity for a fleet fan-out.",
+        ),
+        (
+            "fleet.all",
+            "all",
+            vec!["kind"],
+            CatalogScope::Public,
+            "Select every configured service, optionally filtered by service kind.",
+        ),
+        (
+            "fleet.map",
+            "map",
+            vec!["selector", "action", "params"],
+            CatalogScope::RouteDependent,
+            "Run one action across the selected services once each; scope and destructive confirmation follow the resolved per-leaf operation.",
+        ),
+        (
+            "fleet.status",
+            "status",
+            vec![],
+            CatalogScope::Read,
+            "Reachability, version, and latency for every configured service.",
+        ),
+    ]
+    .into_iter()
+    .map(
+        |(path, method, required_params, scope, description)| CatalogEntry::Generic {
+            path: path.to_string(),
+            service: None,
+            method,
+            scope,
+            destructive: false,
+            capability: "fleet",
+            required_params,
+            description,
+        },
+    )
+    .collect()
 }
 
 /// A catalog entry for one generated OpenAPI operation. The callable is

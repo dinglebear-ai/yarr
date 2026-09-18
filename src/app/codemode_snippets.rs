@@ -1,4 +1,9 @@
 //! Persisted Code Mode snippet lifecycle.
+//!
+//! Canonical fleet snippets are built into the binary (see
+//! [`crate::fleet::snippets`]); they are listed alongside stored snippets,
+//! resolved by `snippet_run`, and their names are reserved by the store so a
+//! builtin can never be overwritten or deleted.
 
 use std::path::{Path, PathBuf};
 
@@ -20,9 +25,24 @@ impl YarrService {
 
     pub async fn snippet_list(&self) -> Result<Value> {
         let result = (|| {
-            let dir = self.snippet_store_root()?;
-            let snippets =
-                codemode::store::list(&dir).map_err(|error| anyhow::anyhow!("{error}"))?;
+            let mut snippets = match self.data_dir() {
+                Some(dir) => {
+                    codemode::store::list(dir).map_err(|error| anyhow::anyhow!("{error}"))?
+                }
+                None => Vec::new(),
+            };
+            // Canonical builtins win name collisions: a pre-existing user
+            // snippet saved under a reserved name is shadowed — its file is
+            // left untouched, but the canonical builtin is what lists, runs,
+            // and owns the name from here on.
+            snippets.retain(|meta| crate::fleet::snippets::get(&meta.name).is_none());
+            snippets.extend(crate::fleet::snippets::builtins().iter().map(|snippet| {
+                codemode::store::SnippetMeta {
+                    name: snippet.name.to_owned(),
+                    description: Some(snippet.description.to_owned()),
+                    bytes: snippet.source.len() as u64,
+                }
+            }));
             Ok(json!({ "snippets": snippets }))
         })();
         record_snippet_operation("list", &result);
@@ -36,6 +56,9 @@ impl YarrService {
         description: Option<&str>,
     ) -> Result<Value> {
         let result = (|| {
+            if crate::fleet::snippets::get(name).is_some() {
+                anyhow::bail!("protected snippet `{name}` cannot be overwritten");
+            }
             if code.trim().is_empty() {
                 anyhow::bail!("snippet_save requires a non-empty `code`");
             }
@@ -68,15 +91,22 @@ impl YarrService {
         result
     }
 
+    /// Resolve a snippet's source: canonical builtins first, then the store.
+    fn snippet_source(&self, name: &str) -> Result<String> {
+        if let Some(snippet) = crate::fleet::snippets::get(name) {
+            return Ok(snippet.source.to_owned());
+        }
+        let dir = self.snippet_store_root()?;
+        codemode::store::load_source(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))
+    }
+
     async fn snippet_run_inner(
         &self,
         name: &str,
         input: &Value,
         guard: Option<std::sync::Arc<dyn CodeModeCallGuard>>,
     ) -> Result<Value> {
-        let dir = self.snippet_store_root()?;
-        let source =
-            codemode::store::load_source(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))?;
+        let source = self.snippet_source(name)?;
         let input_json = serde_json::to_string(input).map_err(|error| {
             anyhow::anyhow!("snippet input is not serializable as JSON: {error}")
         })?;
@@ -85,6 +115,9 @@ impl YarrService {
 
     pub async fn snippet_delete(&self, name: &str) -> Result<Value> {
         let result = (|| {
+            if crate::fleet::snippets::get(name).is_some() {
+                anyhow::bail!("protected snippet `{name}` cannot be deleted");
+            }
             let dir = self.snippet_store_root()?;
             let existed =
                 codemode::store::delete(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))?;

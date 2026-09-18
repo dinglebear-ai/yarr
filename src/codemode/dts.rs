@@ -149,8 +149,35 @@ pub fn type_catalog_json_for(services: &[(String, crate::config::ServiceKind)]) 
             }
         }
     }
+    out.extend(fleet_type_entries());
     out.sort_by(|a, b| a.name.cmp(&b.name));
     serde_json::to_string(&out).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// The `fleet` bridge namespace types. Hand-written (the bridge is host JS, not
+/// a model), surfaced through `codemode.describe("fleet.…")` like any other
+/// type so agents can author fan-out scripts without guessing shapes.
+fn fleet_type_entries() -> Vec<TypeEntry> {
+    vec![
+        TypeEntry {
+            name: "fleet.Callables".to_owned(),
+            service: "fleet",
+            type_name: "Callables".to_owned(),
+            dts: "export interface FleetCallables {\n  of(name: string): FleetSelector;\n  all(kind?: string | null): FleetSelector;\n  map(selector: FleetSelector, action: string, params?: Record<string, unknown>): Promise<FleetResult[]>;\n  status(): Promise<FleetResult[]>;\n}".to_owned(),
+        },
+        TypeEntry {
+            name: "fleet.Result".to_owned(),
+            service: "fleet",
+            type_name: "Result".to_owned(),
+            dts: "export interface FleetResult {\n  service: string;\n  kind: string;\n  ok: boolean;\n  elapsed_ms: number;\n  latency_ms?: number;\n  reachable?: boolean;\n  version?: unknown;\n  truncated: boolean;\n  summary?: { type: string; item_count: number; observed_bytes: number };\n  value: unknown;\n  error: string | null;\n}".to_owned(),
+        },
+        TypeEntry {
+            name: "fleet.Selector".to_owned(),
+            service: "fleet",
+            type_name: "Selector".to_owned(),
+            dts: "export type FleetSelector =\n  | { type: \"of\"; name: string }\n  | { type: \"all\"; kind: string | null };".to_owned(),
+        },
+    ]
 }
 
 /// A single TS declaration for one schema node: an `interface` for an object, a

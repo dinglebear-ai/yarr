@@ -454,6 +454,20 @@ impl super::CodeModeCallGuard for SlowGuard {
             Ok(())
         })
     }
+
+    fn authorize_leaf_scope<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+
+    fn authorize_destructive_leaves<'a>(
+        &'a self,
+        _leaves: &'a [crate::fleet::FleetLeafLabel],
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
 }
 
 #[tokio::test]
@@ -483,4 +497,108 @@ async fn slow_guard_cannot_hold_a_slot_past_the_deadline() {
     // The single slot was released: an ordinary script runs afterwards.
     let out = service.codemode("async () => 6 * 7").await.unwrap();
     assert_eq!(out["result"], 42);
+}
+
+// ---------------------------------------------------------------------------
+// Fleet bridge: bounded frozen fan-out through the Code Mode engine.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn fleet_status_script_runs_each_leaf_once_with_leaf_audit_rows() {
+    let (url, calls, handle) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Sonarr, &url);
+    let out = service
+        .codemode("async () => fleet.status()")
+        .await
+        .unwrap();
+    let results = out["result"].as_array().expect("fleet status array");
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["service"], "sonarr");
+    assert_eq!(results[0]["ok"], true, "result: {out}");
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "one leaf, one upstream call"
+    );
+    // Leaf-level audit: the real action is recorded, not the internal bridge id.
+    let audits = out["calls"].as_array().unwrap();
+    assert_eq!(audits.len(), 1, "calls: {out}");
+    assert_eq!(audits[0]["action"], "service_status");
+    assert_eq!(audits[0]["service"], "sonarr");
+    assert_eq!(audits[0]["ok"], true);
+    assert_eq!(audits[0]["delivered"], true);
+    drop(handle);
+}
+
+#[tokio::test]
+async fn fleet_map_script_fans_out_exactly_once_per_selected_service() {
+    let (url, calls, handle) = counting_upstream().await;
+    let config = crate::config::YarrConfig {
+        services: vec![
+            crate::config::ServiceConfig {
+                name: "sonarr".into(),
+                kind: crate::config::ServiceKind::Sonarr,
+                base_url: url.clone(),
+                api_key: Some("upstream-secret".into()),
+                ..Default::default()
+            },
+            crate::config::ServiceConfig {
+                name: "radarr".into(),
+                kind: crate::config::ServiceKind::Radarr,
+                base_url: url.clone(),
+                api_key: Some("upstream-secret".into()),
+                ..Default::default()
+            },
+        ],
+    };
+    let client = crate::yarr::YarrClient::new(&config).expect("stub client builds");
+    let service = crate::app::YarrService::new(client, config);
+    let out = service
+        .codemode(r#"async () => fleet.map(fleet.all(), "service_status")"#)
+        .await
+        .unwrap();
+    let results = out["result"].as_array().expect("fleet map array");
+    assert_eq!(results.len(), 2, "result: {out}");
+    assert_eq!(calls.load(Ordering::SeqCst), 2, "exactly once per leaf");
+    let audits = out["calls"].as_array().unwrap();
+    assert_eq!(audits.len(), 2, "one audit row per leaf: {out}");
+    let audited: Vec<&str> = audits
+        .iter()
+        .map(|row| row["service"].as_str().unwrap())
+        .collect();
+    assert_eq!(audited, vec!["radarr", "sonarr"], "deterministic order");
+    drop(handle);
+}
+
+#[tokio::test]
+async fn fleet_map_script_fails_closed_on_unknown_bridge_params() {
+    let (url, calls, handle) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Sonarr, &url);
+    let out = service
+        .codemode(
+            r#"
+        async () => {
+            try {
+                await callTool("__yarrFleetMap", {
+                    selector: { type: "all" },
+                    action: "service_status",
+                    surprise: 1,
+                });
+                return "ran";
+            } catch (e) {
+                return "blocked:" + e.message;
+            }
+        }
+    "#,
+        )
+        .await
+        .unwrap();
+    assert!(
+        out["result"]
+            .as_str()
+            .is_some_and(|message| message.contains("unknown field")),
+        "result: {out}"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 0, "nothing executed");
+    drop(handle);
 }

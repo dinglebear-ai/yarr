@@ -349,6 +349,32 @@ There is no `confirm` argument. CLI destructive commands dispatch immediately.
 MCP direct and nested Code Mode destructive calls require elicitation and fail
 closed if the peer cannot elicit or approval is not granted.
 
+### Fleet Fan-out
+
+`fleet` is a Code Mode global for running one action across the configured
+services with bounded fan-out (the internal `__yarrFleet*` bridge ids are never
+callable directly):
+
+| Callable | Scope | Description |
+|---|---|---|
+| `fleet.of(name)` | — | Select one exact configured service identity |
+| `fleet.all(kind?)` | — | Select every configured service, optionally filtered by kind |
+| `fleet.map(selector, action, params?)` | route-derived per leaf | Run one action once per selected service (at most 32 services, 4 in flight) |
+| `fleet.status()` | `yarr:read` | Reachability, version, and latency for every configured service |
+
+Each `fleet.map` invocation freezes its leaf set, validates every leaf before
+anything runs, and executes each leaf exactly once with a 30-second per-leaf
+bound; partial results are preserved and oversized values are replaced by typed
+truncation metadata instead of a silent cut. When a resolved leaf is
+Destructive, MCP asks **once** for that exact frozen set — never a service-wide,
+script-wide, or reusable grant — and a declined (or elicitation-incapable) peer
+fails only those leaves closed while the rest still run. Every executed leaf is
+audited individually in the run's `calls` log.
+
+Four canonical read-only builtin snippets ship inside the binary and their
+names cannot be overwritten or deleted: `fleet_health`, `fleet_activity`,
+`fleet_library_sizes`, `fleet_transcode_load`.
+
 ## CLI Reference
 
 The CLI is service-grouped:

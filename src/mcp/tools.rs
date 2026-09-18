@@ -108,29 +108,41 @@ struct McpCodeModeGuard {
     auth: Option<AuthContext>,
 }
 
+impl McpCodeModeGuard {
+    /// Classify the action and enforce the token scope. Returns the
+    /// classification so callers can branch on destructiveness without
+    /// re-classifying.
+    fn check_scope(
+        &self,
+        action: &YarrAction,
+    ) -> Result<crate::actions::ActionClassification, String> {
+        let classification = crate::actions::classify_action(&self.state.service, action)
+            .map_err(|error| error.to_string())?;
+        if let (Some(auth), Some(required_scope)) =
+            (self.auth.as_ref(), classification.required_scope)
+            && !crate::actions::scopes_satisfy(&auth.scopes, required_scope)
+        {
+            return Err(format!(
+                "forbidden inner Code Mode action `{}`: requires scope {}",
+                action.name(),
+                required_scope
+            ));
+        }
+        Ok(classification)
+    }
+}
+
 impl CodeModeCallGuard for McpCodeModeGuard {
     fn authorize<'a>(
         &'a self,
         action: &'a YarrAction,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
         Box::pin(async move {
-            let classification = crate::actions::classify_action(&self.state.service, action)
-                .map_err(|error| error.to_string())?;
-            if let (Some(auth), Some(required_scope)) =
-                (self.auth.as_ref(), classification.required_scope)
-                && !crate::actions::scopes_satisfy(&auth.scopes, required_scope)
-            {
-                return Err(format!(
-                    "forbidden inner Code Mode action `{}`: requires scope {}",
-                    action.name(),
-                    required_scope
-                ));
-            }
-
-            let service_name = action_service_name(action);
+            let classification = self.check_scope(action)?;
             if !classification.destructive {
                 return Ok(());
             }
+            let service_name = action_service_name(action);
             if self.peer.supported_elicitation_modes().is_empty() {
                 return Err(format!(
                     "destructive inner Code Mode action `{}` requires an elicitation-capable MCP client; nothing changed",
@@ -143,6 +155,49 @@ impl CodeModeCallGuard for McpCodeModeGuard {
                 return Err(format!(
                     "destructive inner Code Mode action `{}` was not confirmed; nothing changed",
                     action.name()
+                ));
+            }
+            Ok(())
+        })
+    }
+
+    /// Scope-only gate for one fleet leaf: no elicitation here. Destructive
+    /// leaves are covered by the single batch decision below; everything else
+    /// needs only scope.
+    fn authorize_leaf_scope<'a>(
+        &'a self,
+        action: &'a YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move {
+            self.check_scope(action)?;
+            Ok(())
+        })
+    }
+
+    /// One elicitation for the exact destructive leaf set of a single fleet
+    /// invocation. Missing elicitation capability or any non-confirm answer
+    /// denies the whole set (fail closed); approval covers only the listed
+    /// concrete calls.
+    fn authorize_destructive_leaves<'a>(
+        &'a self,
+        leaves: &'a [crate::fleet::FleetLeafLabel],
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async move {
+            if leaves.is_empty() {
+                return Ok(());
+            }
+            if self.peer.supported_elicitation_modes().is_empty() {
+                return Err(format!(
+                    "{} destructive fleet call(s) require an elicitation-capable MCP client; nothing changed",
+                    leaves.len()
+                ));
+            }
+            if super::elicit::gate_destructive_fleet(&self.peer, leaves).await
+                == super::elicit::DeleteGate::Declined
+            {
+                return Err(format!(
+                    "{} destructive fleet call(s) were not confirmed; nothing changed",
+                    leaves.len()
                 ));
             }
             Ok(())

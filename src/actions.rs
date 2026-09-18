@@ -23,6 +23,7 @@ pub mod registry;
 
 // ── re-exports: stable `crate::actions::` surface ───────────────────────────────
 
+pub(crate) use dispatch::ActionClassification;
 pub(crate) use dispatch::classify_action;
 pub use dispatch::execute_service_action;
 pub use help::rest_help;

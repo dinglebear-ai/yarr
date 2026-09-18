@@ -120,6 +120,44 @@ pub(crate) async fn gate_destructive(
     classify(normalize(result))
 }
 
+/// The elicitation prompt shown before a fleet batch runs its destructive leaves.
+/// Lists every concrete call; the approved set is exactly this list.
+pub(crate) fn confirm_fleet_message(leaves: &[crate::fleet::FleetLeafLabel]) -> String {
+    let mut listed = String::new();
+    for leaf in leaves {
+        listed.push_str(&format!("\n- '{}' on '{}'", leaf.action, leaf.service));
+    }
+    format!(
+        "Confirm {} destructive operation(s) in this fleet map. Each listed call permanently \
+         modifies or deletes data and cannot be undone:{listed}\nApprove to run exactly these calls.",
+        leaves.len()
+    )
+}
+
+/// Gate ONE fleet-map batch of destructive leaves. Same fail-safe contract as
+/// [`gate_destructive`]: missing capability or any non-confirm answer declines
+/// the whole batch. The approved set is exactly the frozen leaf list — there is
+/// no service-wide, script-wide, or reusable grant, and an empty list needs no
+/// prompt.
+pub(crate) async fn gate_destructive_fleet(
+    peer: &Peer<RoleServer>,
+    leaves: &[crate::fleet::FleetLeafLabel],
+) -> DeleteGate {
+    if leaves.is_empty() {
+        return DeleteGate::Proceed;
+    }
+    if peer.supported_elicitation_modes().is_empty() {
+        return DeleteGate::Declined;
+    }
+    let result = peer
+        .elicit_with_timeout::<DeleteConfirmation>(
+            confirm_fleet_message(leaves),
+            Some(ELICIT_TIMEOUT),
+        )
+        .await;
+    classify(normalize(result))
+}
+
 #[cfg(test)]
 #[path = "elicit_tests.rs"]
 mod tests;

@@ -421,3 +421,105 @@ async fn authenticated_write_token_cannot_bypass_inner_destructive_elicitation()
     );
     server.abort();
 }
+
+#[tokio::test]
+async fn fleet_batch_gate_fails_closed_and_read_maps_still_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut state = crate::testing::oauth_state(dir.path()).await;
+    let (counting, calls, server) = counting_state(crate::config::ToolMode::Codemode).await;
+    state.service = counting.service.with_data_dir(dir.path().to_path_buf());
+    state.config.auth.mode = crate::config::AuthMode::OAuth;
+
+    let crate::server::AuthPolicy::Mounted {
+        auth_state: Some(auth_state),
+    } = &state.auth_policy
+    else {
+        panic!("OAuth state expected")
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as usize;
+    let issuer = auth_state
+        .config
+        .public_url
+        .as_ref()
+        .unwrap()
+        .as_str()
+        .trim_end_matches('/')
+        .to_owned();
+    let token = auth_state
+        .signing_keys
+        .issue_access_token(&lab_auth::jwt::AccessClaims {
+            iss: issuer,
+            sub: "writer@yarr.test".into(),
+            aud: lab_auth::metadata::canonical_resource_url(auth_state),
+            exp: now + 60,
+            iat: now,
+            jti: "fleet-batch-gate-test".into(),
+            scope: "yarr:write".into(),
+            azp: String::new(),
+        })
+        .unwrap();
+
+    // A frozen fleet set whose only leaf resolves Destructive: the MCP peer
+    // cannot elicit, so the single batch boundary denies the whole destructive
+    // subset — nothing reaches upstream and the denial surfaces as a per-leaf
+    // result (fail closed, no whole-map crash).
+    let response = authenticated_mcp_call(
+        state.clone(),
+        &token,
+        json!({
+            "jsonrpc": "2.0", "id": 10, "method": "tools/call",
+            "params": {
+                "name": "yarr",
+                "arguments": {
+                    "code": "async () => fleet.map(fleet.of('sonarr'), 'api_post', {path: '/api/v3/system/backup/restore/1'})"
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(response["result"]["isError"], false, "response: {response}");
+    let text = response["result"]["content"][0]["text"].as_str().unwrap();
+    let payload: serde_json::Value = serde_json::from_str(text).unwrap();
+    let result = payload["result"].as_array().expect("fleet results array");
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["ok"], false, "payload: {payload}");
+    assert!(
+        result[0]["error"]
+            .as_str()
+            .unwrap()
+            .contains("destructive authorization denied"),
+        "payload: {payload}"
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "the denied destructive leaf never executed"
+    );
+    // The leaf is still audited individually.
+    assert_eq!(payload["calls"][0]["action"], "api_post");
+    assert_eq!(payload["calls"][0]["ok"], false);
+
+    // A read-only fleet set runs through the same guarded surface.
+    let response = authenticated_mcp_call(
+        state.clone(),
+        &token,
+        json!({
+            "jsonrpc": "2.0", "id": 11, "method": "tools/call",
+            "params": {"name": "yarr", "arguments": {"code": "async () => fleet.status()"}}
+        }),
+    )
+    .await;
+    assert_eq!(response["result"]["isError"], false, "response: {response}");
+    let text = response["result"]["content"][0]["text"].as_str().unwrap();
+    let payload: serde_json::Value = serde_json::from_str(text).unwrap();
+    assert_eq!(payload["result"][0]["service"], "sonarr");
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "the read leaf dispatched exactly once"
+    );
+    server.abort();
+}

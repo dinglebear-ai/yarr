@@ -133,7 +133,23 @@ fn catalog_json_is_valid_json_array() {
 #[test]
 fn empty_services_yields_only_raw_api_docs() {
     let cat = build_catalog(&[]);
-    // No services configured → only the four service-agnostic raw-API entries.
-    assert_eq!(cat.len(), 4);
+    // No services configured → only the service-agnostic raw-API and fleet
+    // bridge entries.
+    assert_eq!(cat.len(), 8);
     assert!(cat.iter().all(|e| e.service().is_none()));
+}
+
+#[test]
+fn fleet_bridge_surface_is_discoverable() {
+    let cat = build_catalog(&[]);
+    let paths: Vec<&str> = cat.iter().map(CatalogEntry::path).collect();
+    for path in ["fleet.of", "fleet.all", "fleet.map", "fleet.status"] {
+        assert!(paths.contains(&path), "missing {path}");
+    }
+    let map = cat.iter().find(|e| e.path() == "fleet.map").unwrap();
+    assert_eq!(map.scope().as_str(), "route_dependent");
+    assert!(!map.destructive());
+    assert_eq!(map.required_params(), ["selector", "action", "params"]);
+    let status = cat.iter().find(|e| e.path() == "fleet.status").unwrap();
+    assert_eq!(status.scope().as_str(), "read");
 }

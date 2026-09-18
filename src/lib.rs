@@ -26,6 +26,7 @@ mod cli;
 mod codemode;
 mod codemode_contract;
 mod config;
+mod fleet;
 pub(crate) mod logging;
 mod mcp;
 pub mod models;

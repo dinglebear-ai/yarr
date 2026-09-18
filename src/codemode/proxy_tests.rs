@@ -21,6 +21,19 @@ fn preamble_defines_calltool_and_runner() {
 }
 
 #[test]
+fn preamble_defines_the_bounded_fleet_bridge() {
+    let pre = build_preamble(&[]);
+    assert!(pre.contains("globalThis.fleet = {"));
+    assert!(pre.contains("of: (name) =>"));
+    assert!(pre.contains("all: (kind) =>"));
+    assert!(pre.contains("map: (selector, action, params = {}) =>"));
+    assert!(pre.contains("status: () =>"));
+    // The bridge families go through the same emit channel as every other call.
+    assert!(pre.contains(r#"__yarrEmitToolCall("__yarrFleetMap""#));
+    assert!(pre.contains(r#"__yarrEmitToolCall("__yarrFleetStatus""#));
+}
+
+#[test]
 fn per_service_namespaces_bake_in_the_service() {
     let pre = build_preamble(&services());
     // One object per configured service, keyed by service name.
