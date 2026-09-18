@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Normalize Code Mode service namespaces consistently and reject configured names that collide with runtime bindings or another normalized namespace.
 - Bound upstream request metric labels and add fixed-bucket upstream duration histograms; qBittorrent SID login is excluded from generic upstream request counts.
 - Classify the reviewed media/file-deleting generated routes (Sonarr and Radarr delete-by-id with `deleteFiles`, Plex media/metadata deletes, and Jellyfin external-file and alternate-source deletes) as `Destructive` so the MCP elicitation gate covers them.
+- Bound Code Mode deadline failures to a consistent `codemode: timed out` error (an interrupted run no longer surfaces an opaque QuickJS job error), and pin the documented runtime limits with regression tests: busy admission fails closed without executing, runaway scripts are cut off at the execution deadline, and each bridge call — including a side-effecting GET — executes exactly once.
 
 ### Changed
 

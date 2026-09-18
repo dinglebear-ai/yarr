@@ -6,6 +6,9 @@
 //! being blocked mid-script.
 
 use crate::testing::loopback_state;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 #[path = "codemode_artifacts_tests.rs"]
 mod artifacts;
@@ -257,4 +260,224 @@ async fn codemode_raw_api_unknown_route_fails_before_transport() {
     );
     assert_eq!(out["calls"][0]["action"], "api_get");
     assert_eq!(out["calls"][0]["ok"], false);
+}
+
+// ---------------------------------------------------------------------------
+// Runtime-boundary verification: admission, deadline, exactly-once execution.
+// ---------------------------------------------------------------------------
+
+/// Minimal counting upstream for exactly-once assertions: accepts TCP
+/// connections, counts each one, and replies with a fixed JSON body. Same shape
+/// as the MCP route tests' counting stub, kept local because these tests drive
+/// the app bridge directly (no `AppState`).
+async fn counting_upstream() -> (String, Arc<AtomicUsize>, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let server_calls = calls.clone();
+    let handle = tokio::spawn(async move {
+        loop {
+            let Ok((mut stream, _)) = listener.accept().await else {
+                break;
+            };
+            server_calls.fetch_add(1, Ordering::SeqCst);
+            tokio::spawn(async move {
+                use tokio::io::{AsyncReadExt, AsyncWriteExt};
+                let mut request = [0_u8; 2048];
+                let _ = stream.read(&mut request).await;
+                let body = br#"{"ok":true}"#;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = stream.write_all(response.as_bytes()).await;
+                let _ = stream.write_all(body).await;
+            });
+        }
+    });
+    (format!("http://{addr}"), calls, handle)
+}
+
+fn counting_service(kind: crate::config::ServiceKind, base_url: &str) -> crate::app::YarrService {
+    let config = crate::config::YarrConfig {
+        services: vec![crate::config::ServiceConfig {
+            name: kind.as_str().into(),
+            kind,
+            base_url: base_url.to_string(),
+            api_key: Some("upstream-secret".into()),
+            ..Default::default()
+        }],
+    };
+    let client = crate::yarr::YarrClient::new(&config).expect("stub client builds");
+    crate::app::YarrService::new(client, config)
+}
+
+#[test]
+fn default_runtime_limits_are_pinned() {
+    // 30-second execution deadline, 4-slot execution pool, 500 ms admission
+    // wait — the documented public limits (docs/CONFIG.md, docs/ENV.md).
+    // Changing any of these is a deliberate decision that must update this pin
+    // and the docs together.
+    assert_eq!(crate::codemode::CODEMODE_TIMEOUT, Duration::from_secs(30));
+    assert_eq!(crate::codemode::CODEMODE_MAX_CONCURRENT, 4);
+    assert_eq!(
+        crate::codemode::CODEMODE_QUEUE_TIMEOUT,
+        Duration::from_millis(500)
+    );
+}
+
+#[tokio::test]
+async fn busy_admission_rejects_without_executing() {
+    let (base_url, calls, _upstream) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Jellyfin, &base_url)
+        .with_codemode_limits(1, Duration::from_millis(50), Duration::from_secs(5));
+    // Occupy the only execution slot, then attempt admission: the request must
+    // fail closed as busy without executing the script or touching upstream.
+    let held = service
+        .codemode_slots
+        .clone()
+        .try_acquire_owned()
+        .expect("slot is free at test start");
+    let error = service
+        .codemode(r#"async () => await api.jellyfin.get("/Items/abc/MetadataEditor")"#)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("codemode is busy"),
+        "error: {error:#}"
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "a rejected admission must not execute the script or touch upstream"
+    );
+    // Releasing the slot restores admission; the same script then runs once.
+    drop(held);
+    let out = service
+        .codemode(
+            r#"async () => { await api.jellyfin.get("/Items/abc/MetadataEditor"); return "ran"; }"#,
+        )
+        .await
+        .unwrap();
+    assert_eq!(out["result"], "ran");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn runaway_script_is_bounded_by_the_execution_deadline() {
+    let (base_url, calls, _upstream) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Jellyfin, &base_url)
+        .with_codemode_limits(1, Duration::from_millis(500), Duration::from_millis(300));
+    let started = std::time::Instant::now();
+    let error = service
+        .codemode("async () => { while (true) {} }")
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("timed out"), "error: {error:#}");
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "the deadline must end a runaway run promptly"
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    // The slot was released: an ordinary script still executes afterwards.
+    let out = service.codemode("async () => 6 * 7").await.unwrap();
+    assert_eq!(out["result"], 42);
+}
+
+#[tokio::test]
+async fn generic_read_hits_upstream_exactly_once_per_run() {
+    let (base_url, calls, _upstream) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Jellyfin, &base_url);
+    let code =
+        r#"async () => { await api.jellyfin.get("/Items/abc/MetadataEditor"); return "ran"; }"#;
+    let first = service.codemode(code).await.unwrap();
+    assert_eq!(first["result"], "ran");
+    assert_eq!(first["calls"].as_array().unwrap().len(), 1);
+    assert_eq!(first["calls"][0]["action"], "api_get");
+    assert_eq!(first["calls"][0]["delivered"], true);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "one script call hits upstream exactly once"
+    );
+    // A second identical run performs exactly one more execution: the runtime
+    // never retries or replays a completed call.
+    let second = service.codemode(code).await.unwrap();
+    assert_eq!(second["result"], "ran");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn side_effecting_get_executes_exactly_once() {
+    // Plex's `add_subtitles` is a GET that mutates (the upstream models a write
+    // as GET), exactly the kind of call a retry/replay bug would duplicate.
+    // Dispatch it through the public Code Mode path and count upstream hits.
+    let (base_url, calls, _upstream) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Plex, &base_url);
+    let code = r#"
+        async () => {
+            try {
+                await api.plex.get("/library/metadata/1/subtitles");
+                return "ran";
+            } catch (e) {
+                return "err:" + e.message;
+            }
+        }
+    "#;
+    let out = service.codemode(code).await.unwrap();
+    assert_eq!(out["calls"].as_array().unwrap().len(), 1);
+    assert_eq!(out["calls"][0]["action"], "api_get");
+    assert_eq!(out["calls"][0]["delivered"], true);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "a side-effecting GET must execute exactly once"
+    );
+}
+
+/// Stalling guard standing in for an interactive confirmation round-trip: the
+/// runtime must bound the wait by the absolute deadline and release the slot,
+/// never letting confirmation latency hold execution capacity unboundedly.
+struct SlowGuard(Duration);
+
+impl super::CodeModeCallGuard for SlowGuard {
+    fn authorize<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+        let delay = self.0;
+        Box::pin(async move {
+            tokio::time::sleep(delay).await;
+            Ok(())
+        })
+    }
+}
+
+#[tokio::test]
+async fn slow_guard_cannot_hold_a_slot_past_the_deadline() {
+    // A stalling guard (standing in for an interactive confirmation round-trip)
+    // must not extend a run past the absolute deadline: the run fails closed as
+    // a timeout, and the slot is released for the next request.
+    let (base_url, _calls, _upstream) = counting_upstream().await;
+    let service = counting_service(crate::config::ServiceKind::Jellyfin, &base_url)
+        .with_codemode_limits(1, Duration::from_millis(500), Duration::from_millis(200));
+    let code = r#"
+        async () => {
+            try { await callTool("help", {}); return "ran"; }
+            catch (e) { return "err:" + e.message; }
+        }
+    "#;
+    let started = std::time::Instant::now();
+    let error = service
+        .codemode_with_guard(code, Arc::new(SlowGuard(Duration::from_secs(2))))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("timed out"), "error: {error:#}");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "a guard stall must be cut off by the absolute deadline"
+    );
+    // The single slot was released: an ordinary script runs afterwards.
+    let out = service.codemode("async () => 6 * 7").await.unwrap();
+    assert_eq!(out["result"], 42);
 }
