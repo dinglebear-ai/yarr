@@ -40,6 +40,70 @@ async fn unknown_service_is_actionable() {
     assert!(error.to_string().contains("unknown yarr service"));
 }
 
+#[tokio::test]
+async fn direct_generic_calls_cannot_bypass_route_admission() {
+    // Regression: the public generic methods enforce the shared route
+    // admission themselves, so a direct call — outside the CLI/MCP/Code Mode
+    // dispatch paths — still fails closed before any upstream request. The
+    // configured base_url is unreachable (localhost:1), so a transport error
+    // would prove a request was attempted; instead the admission error must
+    // surface.
+    let svc = service();
+    for error in [
+        svc.api_get("sonarr", "/api/v3/not-a-generated-route")
+            .await
+            .unwrap_err(),
+        svc.api_post(
+            "sonarr",
+            "/api/v3/not-a-generated-route",
+            serde_json::json!({}),
+        )
+        .await
+        .unwrap_err(),
+        svc.api_put(
+            "sonarr",
+            "/api/v3/not-a-generated-route",
+            serde_json::json!({}),
+        )
+        .await
+        .unwrap_err(),
+        svc.api_delete("sonarr", "/api/v3/not-a-generated-route", None)
+            .await
+            .unwrap_err(),
+    ] {
+        assert!(
+            error
+                .to_string()
+                .contains("no unique generated operation match"),
+            "error: {error:#}"
+        );
+    }
+
+    // A raw path that matches more than one generated template fails closed as
+    // ambiguous rather than guessing which operation the caller meant.
+    let ambiguous = svc
+        .api_delete("sonarr", "/api/v3/series/editor", None)
+        .await
+        .unwrap_err();
+    assert!(
+        ambiguous
+            .to_string()
+            .contains("ambiguous generated operation match"),
+        "error: {ambiguous:#}"
+    );
+
+    // A uniquely matched route passes admission and fails at the unreachable
+    // transport instead — proof that admission (not the network) gates the call.
+    let matched = svc
+        .api_get("sonarr", "/api/v3/system/status")
+        .await
+        .unwrap_err();
+    assert!(
+        !matched.to_string().contains("generated operation match"),
+        "error: {matched:#}"
+    );
+}
+
 fn multi_instance_service() -> YarrService {
     let config = YarrConfig {
         services: vec![

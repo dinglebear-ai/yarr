@@ -11,10 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
+- Normalize Code Mode service namespaces consistently and reject configured names that collide with runtime bindings or another normalized namespace.
+- Bound upstream request metric labels and add fixed-bucket upstream duration histograms; qBittorrent SID login is excluded from generic upstream request counts.
+- Classify the reviewed media/file-deleting generated routes (Sonarr and Radarr delete-by-id with `deleteFiles`, Plex media/metadata deletes, and Jellyfin external-file and alternate-source deletes) as `Destructive` so the MCP elicitation gate covers them.
+- Bound Code Mode deadline failures to a consistent `codemode: timed out` error (an interrupted run no longer surfaces an opaque QuickJS job error), and pin the documented runtime limits with regression tests: busy admission fails closed without executing, runaway scripts are cut off at the execution deadline, and each bridge call — including a side-effecting GET — executes exactly once.
 
 ### Changed
 
-
+- Add the bounded `fleet` Code Mode bridge (`fleet.of/all/map/status`): each invocation freezes and validates its leaf set before anything runs, executes every leaf exactly once with bounded concurrency and a per-leaf timeout, preserves ordered partial results, truncates oversized values with typed metadata, audits each real leaf action individually, and asks for **one** exact batch confirmation covering only a map's frozen destructive leaves.
+- Ship four canonical read-only builtin snippets (`fleet_health`, `fleet_activity`, `fleet_library_sizes`, `fleet_transcode_load`) inside the binary; their names are reserved, so they can be neither overwritten nor deleted, and pre-existing user snippets under those names are shadowed by the canonical source.
+- Move the shared Code Mode naming contract (reserved globals, namespace normalization, and the public runtime-budget defaults) into a neutral `codemode_contract` module consumed by both configuration and Code Mode, so configuration no longer imports the Code Mode facade; a new `naming` xtask pattern check enforces the boundary.
+- Enforce route-derived safety for generic API passthrough and generated operations in the shared app layer: every call must uniquely match one reviewed generated operation, unmatched or ambiguous routes fail closed before any upstream request, and destructiveness comes only from reviewed operation metadata rather than the HTTP verb.
 - Relicense Dinglebear-owned original work under AGPL-3.0-only and document separate commercial licensing; third-party material retains its original terms.
 - Regenerate the committed Unraid package and release manifest from the pinned v2.1.0 assets, restoring byte-for-byte reproducibility across umask settings.
 - Allow Compose deployments to select the service env file with `YARR_ENV_FILE`.

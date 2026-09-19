@@ -47,6 +47,29 @@ pub struct YarrConfig {
     pub services: Vec<ServiceConfig>,
 }
 
+impl YarrConfig {
+    /// Reject service names that would collide in the public Code Mode namespace.
+    pub(crate) fn validate(&self) -> anyhow::Result<()> {
+        let mut namespaces = std::collections::BTreeMap::<String, &str>::new();
+        for service in &self.services {
+            let namespace = crate::codemode_contract::javascript_namespace(&service.name);
+            if crate::codemode_contract::is_reserved_global(&namespace) {
+                anyhow::bail!(
+                    "Code Mode namespace {namespace:?} for service {:?} is reserved",
+                    service.name,
+                );
+            }
+            if let Some(existing) = namespaces.insert(namespace.clone(), &service.name) {
+                anyhow::bail!(
+                    "Code Mode namespace collision: services {existing:?} and {:?} both map to {namespace:?}",
+                    service.name,
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 // ── Config loading ────────────────────────────────────────────────────────────
 
 impl Config {
@@ -186,6 +209,7 @@ impl Config {
         }
 
         load_services_from_env(&mut config.yarr)?;
+        config.yarr.validate()?;
 
         if config.mcp.static_token_scopes.is_empty() {
             anyhow::bail!("YARR_MCP_STATIC_TOKEN_SCOPES must contain at least one scope");

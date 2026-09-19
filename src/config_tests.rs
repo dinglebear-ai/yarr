@@ -11,6 +11,33 @@ fn mcp_with_host(host: &str) -> McpConfig {
 }
 
 #[test]
+fn config_load_rejects_runtime_owned_service_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let config_path = dir.path().join("config.toml");
+    std::fs::write(
+        &config_path,
+        r#"
+[yarr]
+[[yarr.services]]
+name = "fleet"
+kind = "sonarr"
+base_url = "http://127.0.0.1:8989"
+"#,
+    )
+    .unwrap();
+
+    let mut env = TestEnv::new();
+    env.set("YARR_CONFIG", config_path.as_os_str());
+    env.set("YARR_HOME", dir.path());
+    env.set("HOME", dir.path());
+    env.remove("YARR_SERVICES");
+
+    let error = Config::load().expect_err("runtime-owned Code Mode name must be rejected");
+    assert!(error.to_string().contains("fleet"), "{error:#}");
+    assert!(error.to_string().contains("reserved"), "{error:#}");
+}
+
+#[test]
 fn test_env_guard_restores_values_when_dropped() {
     const KEY: &str = "YARR_TEST_ENV_GUARD_RESTORE";
     let original = std::env::var_os(KEY);

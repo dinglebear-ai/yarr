@@ -98,3 +98,15 @@ fn corrupt_atomic_record_is_reported_instead_of_synthesized() {
     let error = list(tmp.path()).unwrap_err();
     assert!(error.contains("broken"), "{error}");
 }
+
+#[test]
+fn builtin_snippet_names_are_protected_at_the_store_layer() {
+    // Defense in depth: even a direct store caller cannot reserve-collide with
+    // a canonical builtin (the app layer checks the same names first).
+    let tmp = tempfile::tempdir().unwrap();
+    let error = save(tmp.path(), "fleet_health", "async () => 1", None).unwrap_err();
+    assert!(error.contains("protected snippet"), "{error}");
+    let error = delete(tmp.path(), "fleet_health").unwrap_err();
+    assert!(error.contains("protected snippet"), "{error}");
+    assert!(list(tmp.path()).unwrap().is_empty());
+}

@@ -43,12 +43,52 @@ mod snippets;
 use artifacts::{prune_artifact_runs, write_codemode_artifact};
 use runtime::{ActiveRunMetric, ArtifactRequest, EmbedRequest, ToolRequest};
 
+/// What one dispatched tool call returned to the engine.
+///
+/// Ordinary calls carry only their JSON `value`; the runtime records one
+/// generic audit row for the call. Fleet bridges additionally return one audit
+/// row per executed leaf (`leaf_calls`) so every real leaf action is visible in
+/// the `calls` log — the outer bridge id is an internal implementation detail
+/// and is not recorded as a call of its own.
+#[derive(Debug)]
+pub(crate) struct DispatchOutcome {
+    pub value: String,
+    pub leaf_calls: Vec<Value>,
+}
+
+impl DispatchOutcome {
+    /// An ordinary single-action result with no leaf-level audit rows.
+    pub(crate) fn value_only(value: String) -> Self {
+        Self {
+            value,
+            leaf_calls: Vec::new(),
+        }
+    }
+}
+
 /// MCP-supplied defense-in-depth policy for every action emitted by a Code
 /// Mode script. CLI runs use no guard and retain their local-trust behavior.
 pub(crate) trait CodeModeCallGuard: Send + Sync {
     fn authorize<'a>(
         &'a self,
         action: &'a YarrAction,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
+
+    /// Scope-only admission for one fleet leaf. Deliberately never elicits:
+    /// destructive leaves of a fleet invocation are authorized exactly once,
+    /// as one batch, by [`Self::authorize_destructive_leaves`].
+    fn authorize_leaf_scope<'a>(
+        &'a self,
+        action: &'a YarrAction,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
+
+    /// One batch authorization for the exact destructive leaf set materialized
+    /// by a single fleet invocation. The decision covers only these concrete
+    /// leaves and must never be cached or widened into a service-wide,
+    /// script-wide, or reusable grant.
+    fn authorize_destructive_leaves<'a>(
+        &'a self,
+        leaves: &'a [crate::fleet::FleetLeafLabel],
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
 }
 
@@ -217,17 +257,31 @@ impl YarrService {
                         .await
                         .unwrap_or_else(|_| Err("codemode absolute deadline exceeded".to_string()));
                         let elapsed_ms = started.elapsed().as_millis();
-                        let ok = outcome.is_ok();
-                        let error = outcome.as_ref().err().cloned();
+                        let (ok, error, leaf_calls) = match &outcome {
+                            Ok(dispatched) => (true, None, dispatched.leaf_calls.clone()),
+                            Err(error) => (false, Some(error.clone()), Vec::new()),
+                        };
                         // Record whether the script actually received the result: a
                         // failed send means the engine already abandoned this call
                         // (deadline fired mid-flight), so `ok` describes the action
                         // but the script never saw it — surface that, never hide it.
-                        let delivered = req.reply.send(outcome).is_ok();
-                        calls.push(json!({
-                            "action": req.id, "ok": ok, "error": error,
-                            "delivered": delivered, "elapsed_ms": elapsed_ms,
-                        }));
+                        let delivered = req
+                            .reply
+                            .send(outcome.map(|dispatched| dispatched.value))
+                            .is_ok();
+                        if leaf_calls.is_empty() {
+                            calls.push(json!({
+                                "action": req.id, "ok": ok, "error": error,
+                                "delivered": delivered, "elapsed_ms": elapsed_ms,
+                            }));
+                        } else {
+                            // Fleet bridge: audit each real leaf action instead of
+                            // the opaque internal bridge id.
+                            for mut row in leaf_calls {
+                                row["delivered"] = json!(delivered);
+                                calls.push(row);
+                            }
+                        }
                     }
                     None => req_done = true,
                 },

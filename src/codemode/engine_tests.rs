@@ -318,8 +318,9 @@ fn search_embed_bridge_is_not_called_for_an_empty_query() {
         None,
     )
     .unwrap();
-    // Zero configured services -> only the 4 generic api.<service>.* entries.
-    assert_eq!(out.result, serde_json::json!(4));
+    // Zero configured services -> the 4 generic api.<service>.* callables, the
+    // 4 fleet bridge callables, and the 3 fleet type entries.
+    assert_eq!(out.result, serde_json::json!(11));
     assert!(
         !was_called.load(std::sync::atomic::Ordering::SeqCst),
         "codemode.search(\"\") must not call the embed bridge"

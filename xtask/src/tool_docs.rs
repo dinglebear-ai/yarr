@@ -143,7 +143,7 @@ fn render_generic_actions(out: &mut String) {
             "| `{}` | {} | {} | {} | {} |",
             spec.name,
             params,
-            scope(spec.required_scope),
+            scope_column(spec),
             yes_no(spec.mutates),
             endpoint,
         );

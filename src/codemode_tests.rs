@@ -20,7 +20,7 @@ fn engine_limits_build_from_the_constants() {
     let limits = EngineLimits {
         memory_bytes: CODEMODE_MEMORY_LIMIT,
         stack_bytes: CODEMODE_STACK_LIMIT,
-        deadline: std::time::Instant::now() + CODEMODE_TIMEOUT,
+        deadline: std::time::Instant::now() + crate::codemode_contract::CODEMODE_TIMEOUT,
     };
     assert!(limits.memory_bytes >= CODEMODE_STACK_LIMIT);
     assert!(limits.deadline > std::time::Instant::now());

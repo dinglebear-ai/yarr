@@ -25,6 +25,254 @@ fn find_operation_resolves_known_and_rejects_unknown() {
 }
 
 #[test]
+fn generated_operation_safety_matches_reviewed_examples() {
+    for kind in [
+        ServiceKind::Sonarr,
+        ServiceKind::Radarr,
+        ServiceKind::Prowlarr,
+        ServiceKind::Overseerr,
+        ServiceKind::Jellyfin,
+        ServiceKind::Plex,
+    ] {
+        for operation in operations_for_kind(kind) {
+            assert_eq!(
+                operation.safety.is_mutating(),
+                operation.safety != OperationSafety::ReadOnly,
+                "{}.{} has inconsistent safety metadata",
+                kind.as_str(),
+                operation.name
+            );
+        }
+    }
+
+    assert_eq!(
+        find_operation(ServiceKind::Sonarr, "get_system_status")
+            .unwrap()
+            .safety,
+        OperationSafety::Mutation
+    );
+    for (kind, name) in [
+        (ServiceKind::Overseerr, "get_settings_discover_reset"),
+        (ServiceKind::Plex, "add_subtitles"),
+        (ServiceKind::Plex, "start_transcode_session"),
+    ] {
+        assert_eq!(
+            find_operation(kind, name).unwrap().safety,
+            OperationSafety::Mutation,
+            "{kind:?}.{name} is a reviewed side-effecting GET"
+        );
+    }
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "get_metadata_editor_info")
+            .unwrap()
+            .safety,
+        OperationSafety::ReadOnly
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "delete_device")
+            .unwrap()
+            .safety,
+        OperationSafety::Mutation
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "delete_item")
+            .unwrap()
+            .safety,
+        OperationSafety::Destructive
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Jellyfin, "start_restore_backup")
+            .unwrap()
+            .safety,
+        OperationSafety::Destructive
+    );
+    assert_eq!(
+        find_operation(ServiceKind::Plex, "terminate_session")
+            .unwrap()
+            .safety,
+        OperationSafety::Destructive
+    );
+    for kind in [
+        ServiceKind::Prowlarr,
+        ServiceKind::Radarr,
+        ServiceKind::Sonarr,
+    ] {
+        for name in [
+            "post_system_backup_restore_by_id",
+            "post_system_backup_restore_upload",
+        ] {
+            assert_eq!(
+                find_operation(kind, name).unwrap().safety,
+                OperationSafety::Destructive,
+                "{kind:?}.{name} replaces current state"
+            );
+        }
+    }
+}
+
+#[test]
+fn file_deleting_operations_are_reviewed_destructive() {
+    // These reviewed rows remove media or files from disk, so they must be
+    // Destructive — the classification never keys off the HTTP verb, and it
+    // has to cover the permitted input (for example `deleteFiles`).
+    for (kind, name, why) in [
+        (
+            ServiceKind::Sonarr,
+            "delete_series_by_id",
+            "accepts `deleteFiles`",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_movie_by_id",
+            "accepts `deleteFiles`",
+        ),
+        (
+            ServiceKind::Plex,
+            "delete_media_item",
+            "removes a library media item",
+        ),
+        (
+            ServiceKind::Plex,
+            "delete_metadata_item",
+            "removes a library item",
+        ),
+        (
+            ServiceKind::Jellyfin,
+            "delete_alternate_sources",
+            "removes alternate video sources",
+        ),
+        (
+            ServiceKind::Jellyfin,
+            "delete_lyrics",
+            "deletes an external lyric file",
+        ),
+        (
+            ServiceKind::Jellyfin,
+            "delete_subtitle",
+            "deletes an external subtitle file",
+        ),
+        (
+            ServiceKind::Sonarr,
+            "delete_episodefile_by_id",
+            "removes an episode file",
+        ),
+        (
+            ServiceKind::Sonarr,
+            "delete_episodefile_bulk",
+            "takes a list of episode file ids",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_moviefile_by_id",
+            "removes a movie file",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_moviefile_bulk",
+            "takes a list of movie file ids",
+        ),
+        (
+            ServiceKind::Sonarr,
+            "delete_system_backup_by_id",
+            "removes a stored backup archive",
+        ),
+        (
+            ServiceKind::Radarr,
+            "delete_system_backup_by_id",
+            "removes a stored backup archive",
+        ),
+        (
+            ServiceKind::Prowlarr,
+            "delete_system_backup_by_id",
+            "removes a stored backup archive",
+        ),
+    ] {
+        assert_eq!(
+            find_operation(kind, name).unwrap().safety,
+            OperationSafety::Destructive,
+            "{kind:?}.{name} {why}"
+        );
+    }
+
+    // A reviewed record-only DELETE stays a Mutation: safety is never inferred
+    // from the verb, in either direction.
+    assert_eq!(
+        find_operation(ServiceKind::Sonarr, "delete_queue_by_id")
+            .unwrap()
+            .safety,
+        OperationSafety::Mutation
+    );
+}
+
+fn manifest_kind(name: &str) -> ServiceKind {
+    match name {
+        "sonarr" => ServiceKind::Sonarr,
+        "radarr" => ServiceKind::Radarr,
+        "prowlarr" => ServiceKind::Prowlarr,
+        "overseerr" => ServiceKind::Overseerr,
+        "jellyfin" => ServiceKind::Jellyfin,
+        "plex" => ServiceKind::Plex,
+        other => panic!("unexpected service kind in the safety manifest: {other}"),
+    }
+}
+
+fn manifest_method(name: &str) -> HttpMethod {
+    match name {
+        "GET" => HttpMethod::Get,
+        "POST" => HttpMethod::Post,
+        "PUT" => HttpMethod::Put,
+        "DELETE" => HttpMethod::Delete,
+        "PATCH" => HttpMethod::Patch,
+        other => panic!("unexpected HTTP method in the safety manifest: {other}"),
+    }
+}
+
+fn manifest_safety(name: &str) -> OperationSafety {
+    match name {
+        "ReadOnly" => OperationSafety::ReadOnly,
+        "Mutation" => OperationSafety::Mutation,
+        "Destructive" => OperationSafety::Destructive,
+        other => panic!("unexpected safety value in the safety manifest: {other}"),
+    }
+}
+
+#[test]
+fn every_manifest_row_matches_its_generated_safety() {
+    // The reviewed manifest is the source of truth for safety, and the
+    // committed tables are its generator output. Pinning every row against the
+    // compiled tables means a manifest edit that is not regenerated fails here
+    // instead of drifting silently, and a reviewed classification cannot be
+    // loosened without either regenerating or tripping this assertion.
+    let manifest = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("specs/safety-overrides.toml"),
+    )
+    .expect("safety manifest is readable");
+    let parsed: toml::Value = toml::from_str(&manifest).expect("safety manifest parses");
+    let rows = parsed
+        .get("operation")
+        .and_then(|value| value.as_array())
+        .expect("safety manifest has [[operation]] rows");
+    assert_eq!(rows.len(), 145, "reviewed manifest row count");
+
+    for row in rows {
+        let kind = manifest_kind(row.get("kind").and_then(|v| v.as_str()).expect("kind"));
+        let method = manifest_method(row.get("method").and_then(|v| v.as_str()).expect("method"));
+        let path = row.get("path").and_then(|v| v.as_str()).expect("path");
+        let expected = manifest_safety(row.get("safety").and_then(|v| v.as_str()).expect("safety"));
+        let matches: Vec<_> = operations_for_kind(kind)
+            .iter()
+            .filter(|operation| operation.method == method && operation.path == path)
+            .collect();
+        assert_eq!(
+            matches.len(),
+            1,
+            "{kind:?} {method:?} {path}: expected exactly one generated operation"
+        );
+        assert_eq!(matches[0].safety, expected, "{kind:?} {method:?} {path}");
+    }
+}
+
+#[test]
 fn generated_registry_exposes_explicit_omission_markers() {
     for kind in [
         ServiceKind::Sonarr,
