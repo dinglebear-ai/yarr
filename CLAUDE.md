@@ -45,6 +45,8 @@ The MCP surface is a single `yarr` tool that runs Code Mode (the `codemode` acti
 | `src/app/subtitles.rs` | Bazarr subtitle status, inventory, wanted, provider, and language reads |
 | `src/app/trace.rs` | Tracearr health, analytics, streams, users, violations, history, and elicited stream termination |
 | `src/app/codemode_{runtime,dispatch,artifacts,snippets}.rs` | Bounded Code Mode orchestration, independently authorized inner dispatch, quota-managed artifacts, and atomic snippet lifecycle |
+| `src/app/safety.rs` | Shared route-admission core: `classify_generic_route(kind, method, path)` resolves a raw generic path to exactly one reviewed generated operation and returns its reviewed `OperationSafety`; unmatched/ambiguous routes and unresolvable paths fail closed before transport |
+| `src/app/fleet.rs` + `src/fleet.rs` + `src/fleet/snippets.rs` | Bounded Fleet Code Mode bridge: frozen validated leaf sets, one exact batch destructive authorization, per-leaf audit rows, and the canonical read-only builtin snippets |
 
 The 6 spec-backed kinds have **no hand-written app modules** (the old `arr`/`indexer`/
 `media_server`/`requests` capability handlers were removed) — their entire API is
@@ -68,21 +70,22 @@ are surfaced via `codemode.describe`.
 
 **Code Mode (`src/codemode*` + `src/app/codemode.rs`)**
 
-Run a JS async arrow fn that calls yarr actions — port of lab's gateway Code Mode. The `codemode` action (the single MCP `yarr` tool) / `yarr codemode --code|--file` (CLI) take a `code` string; the script gets **per-service callables `<service>.<verb>(params)`** with the service baked in (generated OpenAPI operations for the 6 spec-backed kinds via the `op` action, curated commands for download/stats/subtitles/trace), a typed `api.<service>.get/post/put/delete(path, body)` client, `callTool(action, params)` escape hatch, `codemode.search`/`describe` discovery, `codemode.run(name, input)`/`codemode.snippets()`, and `writeArtifact(path, content, options?)`. Returns `{result, calls, logs, artifacts, artifactsRunId?}`. Engine is in-process QuickJS via `rquickjs` (no wasmtime/subprocess), with four concurrent runtimes, a 500 ms admission timeout, and a 30 s absolute deadline. It runs on a `spawn_blocking` thread; `callTool`/`writeArtifact`/the internal embed bridge are synchronous native fns that block on a channel round-trip to the async dispatcher, so JS `async`/`await` is driven by a microtask pump. Requires `yarr:write`. Every inner action is independently reauthorized; destructive inner calls require MCP elicitation and fail closed when the peer cannot elicit. Direct trusted CLI execution has no elicitation channel. `YarrService.data_dir` (set from `resolve_data_dir()` in main.rs/cli.rs) roots both quota-managed artifacts and the atomic snippet store; `None` disables both.
+Run a JS async arrow fn that calls yarr actions — port of lab's gateway Code Mode. The `codemode` action (the single MCP `yarr` tool) / `yarr codemode --code|--file` (CLI) take a `code` string; the script gets **per-service callables `<service>.<verb>(params)`** with the service baked in (generated OpenAPI operations for the 6 spec-backed kinds via the `op` action, curated commands for download/stats/subtitles/trace), a typed `api.<service>.get/post/put/delete(path, body)` client, `callTool(action, params)` escape hatch, `codemode.search`/`describe` discovery, `codemode.run(name, input)`/`codemode.snippets()`, the bounded `fleet.of/all/map/status` fan-out bridge, and `writeArtifact(path, content, options?)`. Canonical read-only builtin snippets (`fleet_health`, `fleet_activity`, `fleet_library_sizes`, `fleet_transcode_load`) ship with the binary and are listed/run like saved ones. Returns `{result, calls, logs, artifacts, artifactsRunId?}`. Engine is in-process QuickJS via `rquickjs` (no wasmtime/subprocess), with four concurrent runtimes, a 500 ms admission timeout, and a 30 s absolute deadline. It runs on a `spawn_blocking` thread; `callTool`/`writeArtifact`/the internal embed bridge are synchronous native fns that block on a channel round-trip to the async dispatcher, so JS `async`/`await` is driven by a microtask pump. Requires `yarr:write`. Every inner action is independently reauthorized; destructive inner calls require MCP elicitation and fail closed when the peer cannot elicit. Direct trusted CLI execution has no elicitation channel. `YarrService.data_dir` (set from `resolve_data_dir()` in main.rs/cli.rs) roots both quota-managed artifacts and the atomic snippet store; `None` disables both.
 
 `codemode.search` is lexical (token/substring) by default. Setting `YARR_CODEMODE_TEI_URL` blends in a semantic-similarity score (see `src/codemode/semantic.rs`) computed via a TEI (Text Embeddings Inference) server, so a query sharing no tokens with the right catalog entry (a synonym) can still surface it. Unset by default (no network call ever attempted); fails open to today's lexical-only ranking on any TEI error/timeout/cooldown. Catalog embeddings are computed lazily on first use and cached for the process's lifetime on `YarrService.semantic_cache` (`Arc<SemanticCache>`, shared across every clone).
 
 | File | Role |
 |------|------|
-| `src/codemode.rs` | Facade + limits (admission/deadline, 64 MiB heap, stack, per-run/global artifact quotas and retention, code/snippet sizes) |
+| `src/codemode.rs` | Facade + limits (admission/deadline, 64 MiB heap, stack, per-run/global artifact quotas and retention, code/snippet sizes; the reserved-global names and the public admission defaults live in `src/codemode_contract.rs`) |
+| `src/codemode_contract.rs` | Neutral Code Mode contract consumed by configuration and Code Mode alike: reserved globals, service-namespace normalization, and the public runtime-budget defaults (enforced by the `naming` xtask pattern check) |
 | `src/codemode/engine.rs` | rquickjs harness: register `__yarrEmitToolCall` + `__yarrEmitWriteArtifact` + `__yarrEmbedQuery`, bind `input` JSON, eval preamble + wrapped user code, drain microtasks (outside `ctx.with`), read back `{result, logs}`. Opaque `ToolCaller`/`ArtifactWriter`/`EmbedCaller` (`Box<dyn Fn>`); pure of tokio/domain |
-| `src/codemode/proxy.rs` | Cached preamble builder — `callTool`, `console`, `__yarrRun`, per-service generated/curated callables, `api.<service>`, and discovery/snippet helpers |
+| `src/codemode/proxy.rs` | Cached preamble builder — `callTool`, `console`, `__yarrRun`, per-service generated/curated callables, `api.<service>`, the bounded `fleet` bridge global, and discovery/snippet helpers |
 | `src/codemode/semantic.rs` | `SemanticCache` (catalog-embedding cache + failure cooldown) and `semantic_scores(cache, tei_url, catalog, query)` — the TEI HTTP client + cosine-similarity ranking behind `codemode.search`'s blend. Fails open, always |
 | `src/codemode/catalog.rs` | Registry-derived discovery catalog (`catalog_json()`), one entry per action — name/kind/scope/destructive/required_params/capability/allowed_kinds |
 | `src/codemode/dts.rs` | JsonSchema→TypeScript converter for the **5 doc-based** `src/models` contracts → `service.TypeName` entries; `type_catalog_json_for(services)` MERGES these with the **generated** TS for the 6 spec-backed kinds, injected as `__codemodeTypes` and surfaced ON DEMAND via `codemode.describe`/`search` (configured-service-scoped) |
 | `src/codemode/artifact.rs` | Pure fail-closed artifact-path validation (`validate_artifact_path`, `resolve_under_root`) + content-type inference |
 | `src/codemode/store.rs` | Snippet store: `validate_snippet_name` (allowlist), `list`/`save`/`load_source`/`delete` under `<data_dir>/codemode/snippets` |
-| `src/app/codemode.rs` | `YarrService::run_script` (shared executor; `codemode` = `run_script(code,None,false)`), dual-channel drain loop (calls + artifacts), `codemode_dispatch` (boxed recursion; refuses self/`snippet_run`-in-snippet — destructive actions dispatch normally), `snippet_list/save/run/delete`, `write_codemode_artifact` |
+| `src/app/codemode.rs` | `YarrService::run_script` (shared executor; `codemode` = `run_script(code,None,false)`), dual-channel drain loop (calls + artifacts), `codemode_dispatch` (boxed recursion; refuses self/`snippet_run`-in-snippet; routes the internal `__yarrFleetMap`/`__yarrFleetStatus` bridges through the bounded fleet dispatcher, which returns per-leaf audit rows), `snippet_list/save/run/delete`, `write_codemode_artifact` |
 
 **Typed upstream contracts (`src/models*`)** — the **5 doc-based** services only
 
@@ -192,7 +195,7 @@ the doc-based download/stats/subtitles/trace capabilities (descriptor-table driv
 
 1. **`src/app/<cap>.rs`** — add `pub async fn your_command(&self, ...) -> Result<Value>` with the business logic and the actual HTTP call (via `YarrClient`). All logic lives here.
 
-2. **`src/actions/commands/<cap>.rs`** — append a `CommandDescriptor` to the capability's const slice: `name` (globally-unique snake_case action), `capability`, `description`, `required_scope`, `required_params`/`optional_params`, `destructive`, `mutates`, and the `handler`. **`destructive` marks a delete that loses hard-to-recreate data** — it is the SSOT for `action_is_destructive`. Direct trusted CLI calls run without a confirm flag. On MCP, both outer calls and inner Code Mode calls are reauthorized; destructive calls require real interactive elicitation and fail closed when the client cannot elicit. Set `destructive: true` only for destructive deletes; every other write keeps `mutates: true, destructive: false`. The invariant is **`destructive => mutates`**, and `destructive` agrees with `action_is_destructive` — enforced by `tests/parity.rs`. The slice is concatenated at the single extension point in `src/actions/registry.rs::build_curated_commands` — no enum/match edits.
+2. **`src/actions/commands/<cap>.rs`** — append a `CommandDescriptor` to the capability's const slice: `name` (globally-unique snake_case action), `capability`, `description`, `required_scope`, `required_params`/`optional_params`, `destructive`, `mutates`, and the `handler`. **`destructive` marks an action that loses hard-to-recreate data** (media/file/backup deletion, session termination — the HTTP verb alone never decides) — it is the SSOT for `action_is_destructive`. Direct trusted CLI calls run without a confirm flag. On MCP, both outer calls and inner Code Mode calls are reauthorized; destructive calls require real interactive elicitation and fail closed when the client cannot elicit. Set `destructive: true` only when the action destroys hard-to-recreate data; every other write keeps `mutates: true, destructive: false`. The invariant is **`destructive => mutates`**, and `destructive` agrees with `action_is_destructive` — enforced by `tests/parity.rs`. The slice is concatenated at the single extension point in `src/actions/registry.rs::build_curated_commands` — no enum/match edits.
 
 3. **`src/cli/commands/<cap>.rs`** — add a `(friendly-verb, action)` entry to that module's `VERBS` table (SSOT for USAGE + parity), and a parse arm that marshals flags → JSON `params` into `Command::Curated { action, params }`. No business logic.
 
@@ -215,15 +218,19 @@ For actions with parameters, extract them with `string_arg`/`i64_arg`/`string_ar
 
 ## Destructive actions
 
-`destructive` (`CommandDescriptor.destructive`, SSOT'd through `action_is_destructive`)
-is metadata only — nothing in the app layer refuses to run a destructive action, and
-there is no `confirm` parameter anywhere in the codebase. The only place `destructive`
-changes behavior is `src/mcp/rmcp_server.rs`, which elicits the connected MCP client
-(`src/mcp/elicit.rs::gate_destructive`) for a real interactive confirmation before a
-destructive action dispatches. There is no way to pre-authorize or skip that prompt
-from the call arguments. A client that cannot elicit fails closed. The CLI is a direct
-trusted operator surface and runs without elicitation. Code Mode scripts reauthorize
-every inner call, and destructive inner calls use the same fail-closed elicitation gate.
+For generated operations and generic passthrough, "destructive" is never a verb
+property: every call must uniquely match one reviewed generated operation
+(`src/app/safety.rs`), and only reviewed metadata marks a resolved operation
+Destructive (reviewed manifest rows for generated ops; curated descriptors for
+curated commands, SSOT'd through `action_is_destructive`). Unmatched or ambiguous
+routes fail closed before any upstream request. Nothing in the app layer refuses to
+run a resolved destructive action, and there is no `confirm` parameter anywhere in
+the codebase. Destructiveness changes behavior only at the MCP transport:
+`src/mcp/rmcp_server.rs` elicits flat calls, and the Code Mode guard
+(`src/mcp/tools.rs`, via `src/mcp/elicit.rs`) elicits a single inner call or one
+exact batch at a `fleet.map` boundary. There is no way to pre-authorize or skip a
+prompt from the call arguments. A client that cannot elicit fails closed. The CLI is
+a direct trusted operator surface and runs without elicitation.
 
 ## Auth model
 
@@ -236,9 +243,9 @@ every inner call, and destructive inner calls use the same fail-closed elicitati
 | `AuthPolicy::Mounted { auth_state: None }` | Default non-loopback | Static bearer token required |
 | `AuthPolicy::Mounted { auth_state: Some(_) }` | `auth_mode = "oauth"` | Full Google OAuth + short-lived RS256 JWT issuance; `/token` is rate-limited while the time-bounded Ed25519 migration is open |
 
-Auth is selected in `build_auth_policy()` in `main.rs`. Scopes are `yarr:read` and `yarr:write` (write satisfies read). `help` requires no scope; `service_status` and `snippet_list` need `yarr:read`; `api_get/post/put/delete`, `codemode`, `op`, and `snippet_save/run/delete` need `yarr:write`. Unknown actions get `DENY_SCOPE`.
+Auth is selected in `build_auth_policy()` in `main.rs`. Scopes are `yarr:read` and `yarr:write` (write satisfies read). `help` requires no scope; `service_status` and `snippet_list` need `yarr:read`; `api_get/post/put/delete` and `op` are route-derived (a reviewed `ReadOnly` operation accepts `yarr:read`; `Mutation`/`Destructive` require `yarr:write`); `codemode` and `snippet_save/run/delete` need `yarr:write`. Unknown actions get `DENY_SCOPE`.
 
-**Code Mode is write-only.** The single `yarr` MCP tool dispatches the `codemode` action, which requires `yarr:write` — so a read-only token cannot run Code Mode at all, even for a script that only reads. The script body is opaque and may call any op (including writes/deletes), so it cannot be scoped to read; the whole surface is gated at write. A read-scoped token is limited to `service_status`, `snippet_list`, and `help`.
+**Code Mode is write-only.** The single `yarr` MCP tool dispatches the `codemode` action, which requires `yarr:write` — so a read-only token cannot run Code Mode at all, even for a script that only reads. The script body is opaque and may call any op (including writes/deletes), so it cannot be scoped to read; the whole surface is gated at write. A read-scoped token is limited to `service_status`, `snippet_list`, and `help`. The `fleet` bridge lives inside the write-gated Code Mode surface, but every fleet leaf is still individually scope-checked and a map's destructive leaves need the single exact batch elicitation.
 
 ## Environment variables
 
@@ -369,8 +376,8 @@ Representative summary (full set lives in the registry + `VERBS` tables):
 | Surface area | MCP action(s) | CLI |
 |---|---|---|
 | Infra | `service_status`, `help`, `codemode` (the single `yarr` tool; `yarr:write`; runs JS), `op` (generated-op dispatch; MCP/Code-Mode-only), `snippet_*` | `yarr <service> status`, `yarr help`, `yarr codemode --code\|--file`, `yarr snippet …` |
-| Generic passthrough | `api_get`/`api_post`/`api_put`/`api_delete` (all run immediately; `api_delete` is destructive — elicited on MCP) — all `yarr:write` | `yarr <service> get\|post\|put\|delete --path P [--body JSON]` |
-| Sonarr/Radarr/Prowlarr/Overseerr/Jellyfin/Plex (generated) | Generated OpenAPI operations via `op`, reached in Code Mode as `<service>.<op>()` (e.g. `sonarr.get_series`, `radarr.post_movie`), including DELETE ops | Code Mode only (no per-op CLI verbs); raw passthrough via `yarr <service> get/post/...` |
+| Generic passthrough | `api_get`/`api_post`/`api_put`/`api_delete` (route-derived scope: every call must uniquely match one reviewed generated operation; unmatched routes fail closed; resolved Destructive ops elicit on MCP) | `yarr <service> get\|post\|put\|delete --path P [--body JSON]` |
+| Sonarr/Radarr/Prowlarr/Overseerr/Jellyfin/Plex (generated) | Generated OpenAPI operations via `op`, reached in Code Mode as `<service>.<op>()` (e.g. `sonarr.get_series`, `radarr.post_movie`) — reviewed metadata decides safety; resolved Destructive ops elicit | Code Mode only (no per-op CLI verbs); raw passthrough via `yarr <service> get/post/...` |
 | DownloadClient (sabnzbd/qbittorrent) | `download_queue`, `download_add`, … `download_remove` (destructive — elicited on MCP) | `yarr qbittorrent queue \| add --url X \| remove --hash H` |
 | Stats (tautulli) | `stats_activity`, `stats_history`, `stats_refresh_libraries`, … `stats_delete_image_cache` (destructive — elicited on MCP) | `yarr tautulli activity \| history [--start N --length N --user U] \| refresh-libraries`; `delete-image-cache` |
 
@@ -442,7 +449,7 @@ python3 scripts/check-doc-links.py
 
 - **Stdio mode suppresses logs** — `main.rs` sets log level to `warn` in stdio mode so JSON-RPC is not corrupted by log lines on stdout.
 - **Scope checks run in `rmcp_server.rs`**, not in `tools.rs`. `tools.rs` only dispatches.
-- **`help` action is public** — `required_scope_for_action("help")` (in `actions.rs`) returns `None`. `service_status` needs `yarr:read`; `api_get`/`api_post`/`op`/`codemode` need `yarr:write`. Unknown actions get `DENY_SCOPE`.
+- **`help` action is public** — `required_scope_for_action("help")` (in `actions.rs`) returns `None`. `service_status` needs `yarr:read`; `codemode` needs `yarr:write`; `api_*`/`op` are route-derived (reviewed `ReadOnly` accepts `yarr:read`). Unknown actions get `DENY_SCOPE`.
 - **Default port is 40070** — set in `default_mcp_port()` in `config.rs`. Override with `YARR_MCP_PORT`.
 - **`watch`, `serve`, and `doctor` are CLI infrastructure** — they are not MCP actions and have no parity requirement. `watch` polls `/health` and emits state-change lines to stdout (used by the plugin monitor). `serve` starts the HTTP server. `doctor` runs pre-flight checks. None belong in the MCP parity table.
 

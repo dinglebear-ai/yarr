@@ -24,14 +24,20 @@ fn help_text_lists_every_action() {
 }
 
 #[test]
-fn help_text_marks_write_actions() {
+fn help_text_marks_route_dependent_api_actions() {
     let text = help_text();
-    // api_post requires yarr:write — generated help must flag it.
     let line = text
         .lines()
-        .find(|l| l.contains("`api_post`"))
+        .find(|line| line.contains("`api_post`"))
         .expect("api_post line present");
-    assert!(line.contains("yarr:write"), "api_post not flagged as write");
+    assert!(
+        line.contains("reviewed generated operation"),
+        "api_post must explain route-derived admission: {line}"
+    );
+    assert!(
+        !line.contains("[requires yarr:write]"),
+        "api_post must not advertise a verb-wide scope: {line}"
+    );
 }
 
 #[test]

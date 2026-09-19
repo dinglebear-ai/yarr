@@ -3,8 +3,8 @@ use serde_json::json;
 
 use crate::config::{ServiceConfig, ServiceKind, YarrConfig};
 use crate::openapi::{
-    BodyEncoding, HttpMethod, OperationSpec, ParameterLocation, ParameterSpec, ParameterStyle,
-    RepresentationSpec, RequestBodySpec,
+    BodyEncoding, HttpMethod, OperationSafety, OperationSpec, ParameterLocation, ParameterSpec,
+    ParameterStyle, RepresentationSpec, RequestBodySpec,
 };
 use crate::yarr::YarrClient;
 
@@ -87,6 +87,7 @@ fn operation(
         name: "recording_test",
         method,
         path,
+        safety: OperationSafety::ReadOnly,
         path_params: &[],
         query_params: &[],
         has_body: request_body.is_some(),

@@ -163,10 +163,12 @@ fn generic_action_metadata(kind: ServiceKind, action: &'static str) -> Value {
         .iter()
         .find(|spec| spec.name == action)
         .expect("valid generic action should have an ActionSpec");
+    let route_dependent = crate::actions::action_has_route_dependent_safety(spec.name);
     json!({
         "name": spec.name,
         "kind": "generic",
-        "scope": spec.required_scope.unwrap_or("public"),
+        "scope": if route_dependent { "route_dependent" } else { spec.required_scope.unwrap_or("public") },
+        "operation_safety": if route_dependent { "route_dependent" } else { "static" },
         "transport": action_transport_label(spec.transport),
         "description": spec.description,
         "required_params": required_params_for_action(spec.name)
@@ -174,8 +176,8 @@ fn generic_action_metadata(kind: ServiceKind, action: &'static str) -> Value {
             .filter(|param| *param != "service")
             .collect::<Vec<_>>(),
         "optional_params": spec.optional_params,
-        "destructive": spec.destructive,
-        "mutates": spec.mutates,
+        "destructive": if route_dependent { false } else { spec.destructive },
+        "mutates": if route_dependent { true } else { spec.mutates },
         "allowed_kinds": allowed_kinds_for_action(spec.name),
         "available_on_this_tool": action_allowed_for_kind(spec.name, kind),
     })
@@ -226,16 +228,14 @@ fn agent_guidance(kind: ServiceKind) -> Value {
         "cost_order": ["read", "write"],
         "first_pass": read_first,
         "generic_passthrough": {
-            "read": "api_get",
-            "write": ["api_post", "api_put", "api_delete"],
+            "actions": ["api_get", "api_post", "api_put", "api_delete"],
+            "scope": "route_dependent",
+            "admission": "Every generic method/path must uniquely match a reviewed generated operation; unknown or ambiguous routes fail closed.",
             "path_allowlist": kind.descriptor().path_allowlist,
         },
         "write_guard": {
-            "model": "Writes run immediately. Only DESTRUCTIVE deletes get an extra step: on the \
-                MCP surface the client is prompted to confirm via elicitation before the delete \
-                runs, including inner Code Mode calls, with no way to skip that prompt from call \
-                arguments. A client that cannot elicit is denied and nothing changes.",
-            "gated_actions": "see x-yarr-action-metadata[*].destructive (true == destructive/elicited on MCP)"
+            "model": "Resolved operations classified Mutation run immediately. Only resolved operations classified Destructive prompt the connected MCP client via elicitation before dispatch; no action argument can skip it, and a client that cannot elicit is denied.",
+            "gated_actions": "resolved operation safety=destructive"
         },
         "response_shaping": {
             "default": "slim",

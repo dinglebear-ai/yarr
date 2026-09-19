@@ -155,6 +155,7 @@ mod tests {
             name: "get_auth_providers",
             method: openapi::HttpMethod::Get,
             path: "/Auth/Providers",
+            safety: openapi::OperationSafety::ReadOnly,
             path_params: &[],
             query_params: &[],
             has_body: false,

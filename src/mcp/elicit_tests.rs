@@ -57,3 +57,32 @@ fn classify_refused_declines() {
 fn classify_unsupported_declines() {
     assert_eq!(classify(ElicitOutcome::Unsupported), DeleteGate::Declined);
 }
+
+// ── fleet batch prompt: lists exactly the frozen destructive set ─────────────
+
+#[test]
+fn fleet_message_lists_every_leaf_exactly_once() {
+    let leaves = vec![
+        crate::fleet::FleetLeafLabel {
+            service: "sonarr".to_owned(),
+            action: "api_post".to_owned(),
+        },
+        crate::fleet::FleetLeafLabel {
+            service: "radarr".to_owned(),
+            action: "delete_movie_by_id".to_owned(),
+        },
+    ];
+    let message = super::confirm_fleet_message(&leaves);
+    assert!(message.contains("2 destructive operation(s)"), "{message}");
+    assert!(message.contains("- 'api_post' on 'sonarr'"), "{message}");
+    assert!(
+        message.contains("- 'delete_movie_by_id' on 'radarr'"),
+        "{message}"
+    );
+    // Exactness: the prompt names the set and nothing wider — no service-wide
+    // or wildcard wording that could read as a broader grant.
+    assert!(message.contains("exactly these calls"), "{message}");
+    for widening in ["all destructive", "any destructive", "any operation"] {
+        assert!(!message.contains(widening), "{message}");
+    }
+}

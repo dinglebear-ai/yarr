@@ -247,17 +247,26 @@ pub fn body_preview(text: &str) -> String {
     for needle in [
         "apikey=",
         "api_key=",
+        "access_token=",
+        "accesstoken=",
         "x-api-key=",
         "token=",
         "x-plex-token=",
         "x-emby-token=",
         "password=",
+        "authorization=",
+        "cookie=",
     ] {
         // `needle` is already a lowercase literal — only the (mutating) preview
         // needs case-folding, and only because `replace_range` shifts offsets.
         while let Some(index) = preview.to_ascii_lowercase().find(needle) {
+            let delimiters: &[char] = if matches!(needle, "authorization=" | "cookie=") {
+                &['&', '\n', '\r']
+            } else {
+                &['&', ' ', '\n', '\r']
+            };
             let end = preview[index..]
-                .find(['&', ' ', '\n', '\r'])
+                .find(|ch| delimiters.contains(&ch))
                 .map(|offset| index + offset)
                 .unwrap_or(preview.len());
             preview.replace_range(index..end, "[redacted]");
@@ -278,11 +287,15 @@ fn redact_json_secrets(preview: &mut String) {
     const SECRET_KEYS: &[&str] = &[
         "apikey",
         "api_key",
+        "access_token",
+        "accesstoken",
         "x-api-key",
         "x-plex-token",
         "x-emby-token",
         "token",
         "password",
+        "authorization",
+        "cookie",
     ];
     let lower = preview.to_ascii_lowercase();
     // Collect (value_start, value_end) byte ranges to replace, then apply from
@@ -312,12 +325,12 @@ fn redact_json_secrets(preview: &mut String) {
                 continue;
             }
             let value_start = i; // points at the opening quote
-            // Find the closing quote (no escape handling — previews are truncated
-            // and this is best-effort log hygiene).
+            // Find the closing unescaped quote. Escaped quotes are part of the
+            // secret value and must not leave the suffix exposed.
             i += 1;
             let mut value_end = None;
             while i < bytes.len() {
-                if bytes[i] == b'"' {
+                if bytes[i] == b'"' && (i == value_start + 1 || bytes[i - 1] != b'\\') {
                     value_end = Some(i + 1); // include the closing quote
                     break;
                 }
