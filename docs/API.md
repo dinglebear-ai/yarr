@@ -1,7 +1,7 @@
 ---
 title: "yarr API"
 created: 2026-05-22
-updated: 2026-07-30
+updated: 2026-09-18
 ---
 
 # yarr API
@@ -26,11 +26,22 @@ Inside `code` you have:
   parameters available in this build.
 - **Raw passthrough**: `api.<service>.get/post/put/delete(path, body)`.
 - **Escape hatch**: `callTool(action, params)` dispatches any action directly.
+- **Fleet fan-out**: `fleet.of(name)` / `fleet.all(kind?)` select configured
+  services; `fleet.map(selector, action, params?)` runs one action once per
+  selected service (bounded: at most 32 services, 4 in flight, 30 s per leaf,
+  ordered partial results), and `fleet.status()` reports
+  reachability/version/latency for every configured service. Each invocation
+  validates its whole leaf set before anything runs; a map whose resolved
+  leaves are Destructive needs one exact batch approval covering only those
+  leaves, and every executed leaf is audited individually in `calls`.
 - **Discovery**: `codemode.search(query)` lists matching callables;
   `codemode.describe(path)` returns a callable's signature or a response type's
   TypeScript interface.
 - **Snippets / artifacts**: `codemode.run(name, input)`, `codemode.snippets()`,
-  `writeArtifact(path, content, options?)`.
+  `writeArtifact(path, content, options?)`. Four canonical read-only builtin
+  snippets (`fleet_health`, `fleet_activity`, `fleet_library_sizes`,
+  `fleet_transcode_load`) ship with the binary, always list, and cannot be
+  overwritten or deleted.
 
 Example `yarr` call:
 
@@ -59,11 +70,11 @@ dispatch arguments are:
 | `path` | string | action-dependent | Relative upstream API path for the generic passthrough actions |
 | `body` | object | no | JSON body forwarded upstream for `api_post`/`api_put`; defaults to `{}` |
 
-There is no `confirm` parameter. CLI destructive actions run immediately. On
-the MCP surface, direct and nested Code Mode destructive calls require an
-elicitation-capable peer and explicit approval; unsupported, declined, or
-missing elicitation fails closed. A script cannot bypass that decision by
-calling `callTool` or an operation callable.
+There is no `confirm` parameter. CLI actions run immediately. On the MCP
+surface, any call that resolves to a reviewed `Destructive` operation — direct,
+flat, or nested Code Mode — requires an elicitation-capable peer and explicit
+approval; unsupported, declined, or missing elicitation fails closed. A script
+cannot bypass that decision by calling `callTool` or an operation callable.
 
 Generated operations are dispatched via the `op` action (`{action:"op", service, op, args}`); inside Code Mode they are the per-service callables above. The action set is **registry-derived** — run the `help` action (or `yarr help`) for the current full list and per-action params.
 
@@ -124,7 +135,7 @@ intentionally different.
 
 - `help` has no action scope, but mounted HTTP transports still require bearer/OAuth transport auth.
 - `service_status` requires `yarr:read`.
-- `api_get`, `api_post`, `api_put`, `api_delete`, `op`, and `codemode` require `yarr:write` because generic/credentialed upstream calls and arbitrary scripts can mutate services.
+- `api_get`, `api_post`, `api_put`, `api_delete`, and `op` are route-derived: each call must uniquely match one reviewed generated operation, and the resolved operation's safety decides scope (`ReadOnly` needs `yarr:read`; `Mutation`/`Destructive` need `yarr:write`). Unmatched or ambiguous routes fail closed before any upstream request. `codemode` requires `yarr:write` because arbitrary scripts can mutate services.
 - `yarr:write` satisfies read.
 - Paths with traversal or embedded query-string secrets are rejected.
 - Responses are capped by the shared token-limit layer (and Code Mode shapes its envelope below that cap) before being returned to MCP clients.

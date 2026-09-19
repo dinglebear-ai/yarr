@@ -63,6 +63,24 @@ pub fn action_is_destructive(action: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// These action names are transport shapes. Their actual scope and destructive
+/// status come from an exact generated operation resolved at runtime.
+pub fn action_has_route_dependent_safety(action: &str) -> bool {
+    matches!(
+        action,
+        "api_get" | "api_post" | "api_put" | "api_delete" | "op"
+    )
+}
+
+/// Whether an action can mutate in at least one admitted form. Startup warnings
+/// deliberately use this conservative classification.
+pub fn action_may_mutate(action: &str) -> bool {
+    action_spec(action)
+        .map(|spec| spec.mutates)
+        .or_else(|| curated_command(action).map(|command| command.mutates))
+        .unwrap_or(false)
+}
+
 fn is_infra_action(action: &str) -> bool {
     action_spec(action).is_some()
 }

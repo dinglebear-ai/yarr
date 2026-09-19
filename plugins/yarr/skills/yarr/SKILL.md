@@ -34,13 +34,21 @@ and `callTool`. Discover what's available with `codemode.search`/`codemode.descr
 - **Per-service callables** with the service baked in (no `service` param):
   `sonarr.get_series()`, `radarr.post_movie({ body })`, `prowlarr.get_indexer()`,
   `plex.get_sessions()`, … For the 6 spec-backed services these are generated from
-  the upstream OpenAPI spec (the full API surface), including DELETE ops — see
-  Gotcha 3 below for the MCP confirmation boundary.
+  the upstream OpenAPI spec (the full API surface), including the reviewed
+  `Destructive` operations — see Gotcha 3 below for the MCP confirmation boundary.
 - **Raw passthrough**: `api.<service>.get/post/put/delete(path, body)`.
+- **Fleet fan-out**: `fleet.of(name)` / `fleet.all(kind?)` select configured
+  services; `fleet.map(selector, action, params?)` runs one action once per
+  selected service (at most 32 targets, 4 in flight, 30 s per leaf), and
+  `fleet.status()` reports reachability/version/latency for every service. A map
+  freezes and validates its whole leaf set before running, asks once for the
+  exact destructive set, and audits every leaf in `calls`.
 - **Discovery**: `codemode.search(query)` returns fully-qualified callables;
   `codemode.describe(path)` returns a callable's signature OR a response type's
   TypeScript interface (e.g. `codemode.describe("sonarr.SeriesResource")`).
-- **Snippets**: `codemode.run(name, input)` and `codemode.snippets()`.
+- **Snippets**: `codemode.run(name, input)` and `codemode.snippets()`. The
+  builtins `fleet_health`, `fleet_activity`, `fleet_library_sizes`, and
+  `fleet_transcode_load` always list and cannot be overwritten or deleted.
 - **Artifacts**: `writeArtifact(path, content, options?)`.
 
 The supporting actions (MCP-only; also on the CLI as `yarr codemode` /
@@ -176,15 +184,19 @@ async () => ({
    tools — pass a `code` script to `yarr` and reach services via per-service
    callables, `api.<service>`, or `callTool`.
 
-2. **`api_get`/`api_post`/`api_put` require write scope.** The generic passthrough
-   dispatches arbitrary upstream requests, so all of it is write-gated to prevent
-   credential leakage via crafted paths. Your MCP token must have write scope.
+2. **Generic passthrough scope is route-derived.** `api_get`/`api_post`/`api_put`/
+   `api_delete`/`op` are admitted only when the method and path uniquely match a
+   reviewed generated operation; unmatched or ambiguous routes fail closed before
+   any upstream request. Reviewed `ReadOnly` routes accept `yarr:read`; `Mutation`
+   and `Destructive` routes require `yarr:write`.
 
 3. **There is no caller-supplied confirm parameter.** Direct trusted CLI writes
    run immediately. On MCP, every inner Code Mode call is independently
-   reauthorized, and destructive deletes (DELETE ops, `api_delete`, curated
-   deletes like `download_remove`) require a real interactive elicitation prompt.
-   Missing elicitation capability, cancellation, timeout, or refusal fails closed.
+   reauthorized, and any call that resolves to a reviewed `Destructive` operation
+   (for example the file-deleting Sonarr delete-by-id route with `deleteFiles`,
+   or curated deletes like `download_remove`) requires a real interactive
+   elicitation prompt. Destructiveness is never inferred from the HTTP verb;
+   missing elicitation capability, cancellation, timeout, or refusal fails closed.
 
 4. **Never include credentials in `path`.** Configured service credentials live in
    server environment variables; the server injects auth automatically. Do not

@@ -21,6 +21,19 @@ fn preamble_defines_calltool_and_runner() {
 }
 
 #[test]
+fn preamble_defines_the_bounded_fleet_bridge() {
+    let pre = build_preamble(&[]);
+    assert!(pre.contains("globalThis.fleet = {"));
+    assert!(pre.contains("of: (name) =>"));
+    assert!(pre.contains("all: (kind) =>"));
+    assert!(pre.contains("map: (selector, action, params = {}) =>"));
+    assert!(pre.contains("status: () =>"));
+    // The bridge families go through the same emit channel as every other call.
+    assert!(pre.contains(r#"__yarrEmitToolCall("__yarrFleetMap""#));
+    assert!(pre.contains(r#"__yarrEmitToolCall("__yarrFleetStatus""#));
+}
+
+#[test]
 fn per_service_namespaces_bake_in_the_service() {
     let pre = build_preamble(&services());
     // One object per configured service, keyed by service name.
@@ -55,6 +68,37 @@ fn reserved_global_name_is_not_clobbered() {
 }
 
 #[test]
+fn runtime_owned_globals_are_excluded_from_codemode_surfaces() {
+    let services: Vec<(String, ServiceKind)> = crate::codemode_contract::RESERVED_GLOBALS
+        .iter()
+        .map(|name| ((*name).to_string(), ServiceKind::Sonarr))
+        .collect();
+    let preamble = build_preamble(&services);
+    let catalog = crate::codemode::catalog::catalog_json(&services);
+    let types = crate::codemode::dts::type_catalog_json_for(&services);
+
+    for name in crate::codemode_contract::RESERVED_GLOBALS {
+        let namespace = crate::codemode_contract::javascript_namespace(name);
+        assert!(
+            !preamble.contains(&format!("globalThis[{namespace:?}] = {{")),
+            "runtime-owned global {namespace:?} must not be emitted as a service namespace"
+        );
+        assert!(
+            !preamble.contains(&format!("globalThis.api[{namespace:?}] = {{")),
+            "runtime-owned global {namespace:?} must not be emitted below api"
+        );
+        assert!(
+            !catalog.contains(&format!("{namespace}.service_status")),
+            "runtime-owned global {namespace:?} must not be advertised by discovery"
+        );
+        assert!(
+            !types.contains(&format!("{namespace}.SeriesResource")),
+            "runtime-owned global {namespace:?} must not be advertised by type discovery"
+        );
+    }
+}
+
+#[test]
 fn api_namespace_generated_per_configured_service() {
     let pre = build_preamble(&services());
     assert!(pre.contains("globalThis.api = {};"));
@@ -78,8 +122,8 @@ fn preamble_injects_discovery_catalog_and_helpers() {
     assert!(pre.contains("globalThis.__codemodeCatalog = ["));
     assert!(pre.contains("globalThis.codemode.search ="));
     assert!(pre.contains("globalThis.codemode.describe ="));
-    // The catalog embeds fully-qualified generated callable paths + a destructive
-    // flag (DELETE ops).
+    // The catalog embeds fully-qualified generated callable paths and reviewed
+    // destructive-operation metadata.
     assert!(pre.contains(r#""path":"sonarr.get_series""#));
     assert!(pre.contains("\"destructive\":true"));
     // The type catalog is injected so describe/search can surface response types.

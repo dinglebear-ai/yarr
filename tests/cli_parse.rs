@@ -7,6 +7,36 @@ fn help_parsed() {
 }
 
 #[test]
+fn discover_plex_parsed() {
+    assert_eq!(
+        parse_args_from([
+            "discover",
+            "plex",
+            "--token-env",
+            "YARR_PLEX_ACCOUNT_TOKEN",
+            "--out",
+            "/tmp/plex-export.env",
+            "--include-shared",
+            "--diff",
+        ])
+        .unwrap(),
+        Some(Command::DiscoverPlex {
+            token_env: "YARR_PLEX_ACCOUNT_TOKEN".into(),
+            out: Some("/tmp/plex-export.env".into()),
+            include_shared: true,
+            diff: true,
+        })
+    );
+    // Strict grammar: a provider is required and must be `plex`.
+    assert!(parse_args_from(["discover"]).is_err());
+    assert!(parse_args_from(["discover", "sonarr"]).is_err());
+    // --token-env is required.
+    assert!(parse_args_from(["discover", "plex"]).is_err());
+    // Unknown flags fail closed.
+    assert!(parse_args_from(["discover", "plex", "--token-env", "X", "--force"]).is_err());
+}
+
+#[test]
 fn op_verb_parses_name_and_args() {
     // `yarr <service> op <name> [--args JSON]` drives a generated operation
     // directly (the harness/operator path for the spec-backed kinds).

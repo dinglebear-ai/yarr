@@ -65,7 +65,7 @@ does not drift between "agent used the tool" and "operator ran the command."
 Primary capabilities:
 
 - Fleet status checks across the configured services.
-- Credentialed upstream API passthrough for known service kinds.
+- Credentialed upstream API passthrough for **uniquely matched generated OpenAPI routes** on spec-backed service kinds; unmatched routes fail closed.
 - Table-driven OpenAPI operation metadata for Sonarr, Radarr, Prowlarr,
   Overseerr, Jellyfin, and Plex. The executor preserves the declared parameter,
   request-media, and successful-response transport contract; unsupported rows
@@ -287,6 +287,12 @@ Inside Code Mode, scripts can use:
 - `codemode.run(name, input)`, `codemode.snippets()`, and `writeArtifact(...)`
   for reusable scripts and artifacts.
 
+Configured service names become Code Mode namespaces with hyphens replaced by
+underscores: `home-media` is available as `home_media` in callables,
+`api.<service>`, and discovery/type paths. Only that normalized spelling is
+exposed. Names that collide after normalization or with Code Mode runtime
+bindings are rejected at startup.
+
 Generated callables come from metadata tables. They preserve method/path,
 required path arguments, known query names, JSON-body presence, and a bounded
 single-file multipart escape hatch. They do not enforce every required query,
@@ -308,15 +314,24 @@ async () => {
 
 ### Generic Actions
 
-These actions work for every configured service kind:
+These raw transport shapes are admitted only when their exact method/path uniquely
+matches a reviewed generated OpenAPI operation on a spec-backed configured service.
+Unknown or ambiguous routes fail closed. `route-derived` means `ReadOnly` uses
+`yarr:read`, while `Mutation` and `Destructive` use `yarr:write`.
+
+Ambiguity is real: when a literal path also matches a sibling `{placeholder}`
+template of the same method (for example `DELETE /api/v3/series/editor` against
+the `series/{id}` template), the generic route fails closed and the operation
+stays reachable only through `op`. The doc-backed kinds without a generated
+table have no generic passthrough at all.
 
 | Action | Scope | CLI | Description |
 |---|---|---|---|
 | `service_status` | `yarr:read` | `yarr <service> status` | Fetch an upstream service status endpoint |
-| `api_get` | `yarr:write` | `yarr <service> get --path <path>` | Proxy a credentialed GET request |
-| `api_post` | `yarr:write` | `yarr <service> post --path <path> --body <json>` | Proxy a POST request |
-| `api_put` | `yarr:write` | `yarr <service> put --path <path> --body <json>` | Proxy a PUT request |
-| `api_delete` | `yarr:write` | `yarr <service> delete --path <path>` | Proxy a DELETE request |
+| `api_get` | route-derived | `yarr <service> get --path <path>` | Request a uniquely matched reviewed operation |
+| `api_post` | route-derived | `yarr <service> post --path <path> --body <json>` | Request a uniquely matched reviewed operation |
+| `api_put` | route-derived | `yarr <service> put --path <path> --body <json>` | Request a uniquely matched reviewed operation |
+| `api_delete` | route-derived | `yarr <service> delete --path <path>` | Request a uniquely matched reviewed operation |
 | `help` | public | `yarr help` | Return action reference |
 
 ### Code Mode Actions
@@ -324,7 +339,7 @@ These actions work for every configured service kind:
 | Action | Scope | Surface | Description |
 |---|---|---|---|
 | `codemode` | `yarr:write` | `yarr` tool / `yarr codemode --code <JS>` | Run a JS arrow function over the fleet |
-| `op` | `yarr:write` | `<service>.<operation>()` / `yarr <service> op <name>` | Dispatch a generated OpenAPI operation |
+| `op` | route-derived (flat/CLI); Code Mode outer tool is `yarr:write` | `<service>.<operation>()` / `yarr <service> op <name>` | Dispatch a generated OpenAPI operation using reviewed safety metadata |
 | `snippet_list` | `yarr:read` | `yarr snippet list` / `codemode.snippets()` | List saved snippets |
 | `snippet_save` | `yarr:write` | `yarr snippet save` | Save a reusable snippet |
 | `snippet_run` | `yarr:write` | `yarr snippet run` / `codemode.run(name, input)` | Run a saved snippet |
@@ -333,6 +348,32 @@ These actions work for every configured service kind:
 There is no `confirm` argument. CLI destructive commands dispatch immediately.
 MCP direct and nested Code Mode destructive calls require elicitation and fail
 closed if the peer cannot elicit or approval is not granted.
+
+### Fleet Fan-out
+
+`fleet` is a Code Mode global for running one action across the configured
+services with bounded fan-out (the internal `__yarrFleet*` bridge ids are never
+callable directly):
+
+| Callable | Scope | Description |
+|---|---|---|
+| `fleet.of(name)` | — | Select one exact configured service identity |
+| `fleet.all(kind?)` | — | Select every configured service, optionally filtered by kind |
+| `fleet.map(selector, action, params?)` | route-derived per leaf | Run one action once per selected service (at most 32 services, 4 in flight) |
+| `fleet.status()` | `yarr:read` | Reachability, version, and latency for every configured service |
+
+Each `fleet.map` invocation freezes its leaf set, validates every leaf before
+anything runs, and executes each leaf exactly once with a 30-second per-leaf
+bound; partial results are preserved and oversized values are replaced by typed
+truncation metadata instead of a silent cut. When a resolved leaf is
+Destructive, MCP asks **once** for that exact frozen set — never a service-wide,
+script-wide, or reusable grant — and a declined (or elicitation-incapable) peer
+fails only those leaves closed while the rest still run. Every executed leaf is
+audited individually in the run's `calls` log.
+
+Four canonical read-only builtin snippets ship inside the binary and their
+names cannot be overwritten or deleted: `fleet_health`, `fleet_activity`,
+`fleet_library_sizes`, `fleet_transcode_load`.
 
 ## CLI Reference
 
@@ -391,6 +432,30 @@ Supported service kinds are `sonarr`, `radarr`, `prowlarr`, `tautulli`,
 `*_API_KEY` covers most Arr-style services. qBittorrent uses username/password
 login. Plex and Jellyfin token headers are handled separately.
 
+Services declared in `config.toml` can keep credentials out of the file with
+`*_env` references — each must name that service's own canonical variable
+(`YARR_<SERVICE>_API_KEY`, `_USERNAME`, `_PASSWORD`, or `_TOKEN`); runtime
+variables and other services' credentials are rejected, and a literal plus a
+reference for the same field is a collision:
+
+```toml
+[[yarr.services]]
+name = "sonarr"
+kind = "sonarr"
+base_url = "http://sonarr:8989"
+api_key_env = "YARR_SONARR_API_KEY"
+```
+
+Plex servers can be discovered from your plex.tv account (CLI-only):
+
+```bash
+yarr discover plex --token-env YARR_PLEX_ACCOUNT_TOKEN --out ./plex-export.env
+```
+
+The export is merge-ready (`YARR_<NAME>_URL`/`_KIND`/`_TOKEN` assignments,
+mode `0600`, marker-guarded so it never overwrites foreign files); `--diff`
+reports drift against your configured services without writing.
+
 `YARR_MCP_TOOL_MODE=codemode` is the default. Use
 `YARR_MCP_TOOL_MODE=flat` only when a gateway should see separate per-service
 tools.
@@ -424,15 +489,19 @@ tokens. Query-string secrets such as `apikey=`, `token=`, and `X-Plex-Token`
 are rejected by path validation.
 
 `help` is public at the action layer, but mounted HTTP transports still require
-bearer or OAuth transport auth. `service_status` requires `yarr:read`.
-Credentialed passthrough, generated operations, curated write operations, and
-Code Mode require `yarr:write`; write satisfies read.
+bearer or OAuth transport auth. `service_status` requires `yarr:read`. Generic
+API actions and generated operations require one exact reviewed operation match:
+`ReadOnly` accepts `yarr:read`; `Mutation` and `Destructive` require `yarr:write`.
+Curated write operations and the opaque Code Mode outer tool require `yarr:write`;
+write satisfies read.
 
-Generated DELETE operations, `api_delete`, `download_remove`,
-`stats_delete_image_cache`, and `trace_terminate_stream` are destructive. CLI
-commands dispatch them immediately. MCP callers get an interactive elicitation
-prompt at the actual dispatch point, including inside Code Mode, with no call
-argument or nested `callTool` path that can skip it.
+Destructiveness comes only from reviewed operation metadata—not from `DELETE`.
+Reviewed routes that remove media or files (for example a delete that accepts
+`deleteFiles`) are classified `Destructive` and elicit like any other destructive
+operation.
+CLI commands dispatch resolved operations immediately. MCP callers get an
+interactive elicitation prompt at the actual destructive dispatch point, including
+inside Code Mode, with no call argument or nested `callTool` path that can skip it.
 
 Responses are capped by the shared token-limit layer before they are returned to
 MCP clients.

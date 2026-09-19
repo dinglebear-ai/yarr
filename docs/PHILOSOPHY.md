@@ -130,7 +130,7 @@ destructive).
 
 "Destructive" is narrower than "mutating": it means permanent loss of data that cannot be quickly and easily regenerated or recreated with minimal effort. Formatting a drive, deleting a code folder without recovery, or hard-resetting a repo past easy restore is destructive. Removing re-downloadable media, stopping containers, clearing OAuth tokens, toggling a gateway, or killing restartable processes is mutating but not destructive.
 
-Actions flagged destructive (e.g. `api_delete`, a generated DELETE `op`, `download_remove`, `stats_delete_image_cache`) get the MCP elicitation prompt described above. Non-destructive writes — refreshes, searches, monitor toggles, adds — never get one.
+Actions flagged destructive (`download_remove`, `stats_delete_image_cache`, `trace_terminate_stream`, and the reviewed generated DELETE routes) get the MCP elicitation prompt described above. Generic `api_get`/`api_post`/`api_put`/`api_delete`/`op` calls are route-derived instead: each call is admitted only when it resolves to exactly one reviewed generated operation, and only an operation resolved as destructive receives the prompt. Non-destructive writes — refreshes, searches, monitor toggles, adds — never get one.
 
 ## Plugin setup is data-only
 

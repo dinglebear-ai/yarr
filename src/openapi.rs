@@ -35,6 +35,20 @@ pub enum HttpMethod {
     Patch,
 }
 
+/// Reviewed, total safety classification emitted by the OpenAPI generator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum OperationSafety {
+    ReadOnly,
+    Mutation,
+    Destructive,
+}
+
+impl OperationSafety {
+    pub const fn is_mutating(self) -> bool {
+        !matches!(self, Self::ReadOnly)
+    }
+}
+
 impl HttpMethod {
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -76,6 +90,8 @@ pub struct OperationSpec {
     pub method: HttpMethod,
     /// Path template with `{param}` placeholders, e.g. `/api/v3/series/{id}`.
     pub path: &'static str,
+    /// Generator-owned reviewed safety classification.
+    pub safety: OperationSafety,
     /// Compatibility projection of path parameter names. New code should use
     /// [`Self::parameters`] so requiredness and serialization are retained.
     pub path_params: &'static [&'static str],

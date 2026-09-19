@@ -24,7 +24,9 @@ mod app;
 mod capability;
 mod cli;
 mod codemode;
+mod codemode_contract;
 mod config;
+mod fleet;
 pub(crate) mod logging;
 mod mcp;
 pub mod models;
@@ -36,8 +38,8 @@ mod yarr;
 
 pub use actions::{
     ACTION_SPECS, ActionSpec, CommandDescriptor, READ_SCOPE, WRITE_SCOPE, YarrAction,
-    action_allowed_for_kind, action_is_destructive, all_action_names, curated_commands,
-    required_scope_for_action, valid_actions_for_kind,
+    action_allowed_for_kind, action_has_route_dependent_safety, action_is_destructive,
+    all_action_names, curated_commands, required_scope_for_action, valid_actions_for_kind,
 };
 pub use app::YarrService;
 pub use capability::Capability;
@@ -50,6 +52,7 @@ pub use config::{
     AuthConfig, Config, McpConfig, ServiceConfig, ServiceKind, YarrConfig,
     acquire_oauth_instance_lock, resolve_data_dir,
 };
+pub use fleet::discovery::PlexDiscoveryOptions;
 /// Initialise dual logging for the binary: pretty colored output on stderr plus
 /// a JSON-lines file at `{data_dir}/logs/{service}.log` (non-blocking and
 /// rotated at 10 MiB with three retained backups).

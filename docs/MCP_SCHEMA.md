@@ -28,13 +28,13 @@ python3 scripts/check-schema-docs.py --check
 | Action | Scope | Description |
 |---|---|---|
 | `service_status` | `yarr:read` | Fetch the service-specific status endpoint for one configured service. |
-| `api_get` | `yarr:write` | Proxy a credentialed GET request to an allowed upstream API prefix. |
-| `api_post` | `yarr:write` | Proxy a credentialed POST request to an allowed upstream API prefix. |
-| `api_put` | `yarr:write` | Proxy a credentialed PUT request to an allowed upstream API prefix. |
-| `api_delete` | `yarr:write` | Proxy a credentialed DELETE request to an allowed upstream API prefix. |
+| `api_get` | route-derived | Proxy a credentialed GET request to an allowed upstream API prefix. |
+| `api_post` | route-derived | Proxy a credentialed POST request to an allowed upstream API prefix. |
+| `api_put` | route-derived | Proxy a credentialed PUT request to an allowed upstream API prefix. |
+| `api_delete` | route-derived | Proxy a credentialed DELETE request to an allowed upstream API prefix. |
 | `help` | public | Return the in-tool action reference. Public; no scope required. |
 | `codemode` | `yarr:write` | Run a JavaScript async arrow function that orchestrates yarr actions (the single `yarr` tool); returns { result, calls, logs }. |
-| `op` | `yarr:write` | Invoke a generated OpenAPI operation by name on a spec-backed service (sonarr/radarr/prowlarr/overseerr/jellyfin/plex). |
+| `op` | route-derived | Invoke a generated OpenAPI operation by name on a spec-backed service (sonarr/radarr/prowlarr/overseerr/jellyfin/plex). |
 | `snippet_list` | `yarr:read` | List saved Code Mode snippets. |
 | `snippet_save` | `yarr:write` | Save a Code Mode snippet by name for later reuse. |
 | `snippet_run` | `yarr:write` | Run a saved Code Mode snippet by name, optionally with input. |
@@ -43,6 +43,7 @@ python3 scripts/check-schema-docs.py --check
 ## Drift Rules
 
 - `ACTION_SPECS` in `src/actions/registry.rs` is the canonical generic action and scope list; curated commands live in `CURATED_COMMANDS`.
+- Route-derived admission (`api_get`/`api_post`/`api_put`/`api_delete`/`op`) is decided per call by the resolved reviewed operation; the scope column reads the names from `action_has_route_dependent_safety` in `src/actions/registry_queries.rs`, so it cannot drift.
 - `src/mcp/schemas.rs` derives the single `yarr` tool's action enum from `all_action_names()` (via the generated `properties`); `src/mcp/schemas/conditionals.rs` generates the action-specific requirements.
 - The MCP tool schema must reject unknown top-level parameters and encode action-specific requirements for the action dispatch the single `yarr` tool wraps.
 - `help` is intentionally public and must have no required scope.
@@ -66,8 +67,10 @@ python3 scripts/check-schema-docs.py --check
 
 - `action` is always required.
 - `service_status` uses the service implied by the tool name.
+- Generic `api_get`/`api_post`/`api_put`/`api_delete`/`op` calls are admitted per call by the exact reviewed operation resolved for their route; an unmatched or ambiguous route fails closed before dispatch.
 - `api_get` conditionally requires non-empty `path`.
-- `api_post` conditionally requires non-empty `path`; `body` defaults to `{}`. Non-destructive; runs immediately.
-- `api_put` conditionally requires non-empty `path`; `body` defaults to `{}`. Non-destructive; runs immediately.
-- `api_delete` conditionally requires non-empty `path`; `body` is optional (query params go in `path`). Destructive: gated by MCP elicitation only (no bypass); the CLI has no elicitation channel and runs it immediately. Not a required schema param.
+- `api_post` conditionally requires non-empty `path`; `body` defaults to `{}`.
+- `api_put` conditionally requires non-empty `path`; `body` defaults to `{}`.
+- `api_delete` conditionally requires non-empty `path`; `body` is optional (query params go in `path`).
+- Only an operation resolved as Destructive is gated by MCP elicitation; the CLI has no elicitation channel and runs admitted operations immediately.
 - Unknown top-level parameters are rejected by the schema.
