@@ -125,6 +125,44 @@ async fn codemode_discovery_search_and_describe_run() {
 }
 
 #[tokio::test]
+async fn hyphenated_service_name_uses_normalized_namespace_everywhere() {
+    let service = multi_service(&[("home-media", crate::config::ServiceKind::Sonarr)]);
+    let code = r#"
+        async () => {
+            const catalog = codemode.search("service status").results;
+            const callable = codemode.describe("home_media.service_status");
+            const responseType = codemode.describe("home_media.SeriesResource");
+            try {
+                await home_media.service_status();
+            } catch (_) {
+                // The stub upstream is unreachable. A recorded call proves the
+                // normalized namespace resolved and reached the dispatch bridge.
+            }
+            return {
+                callableFound: callable !== null,
+                catalogFound: catalog.some((entry) => entry.path === "home_media.service_status"),
+                responseTypeFound: responseType !== null,
+                rawApiFound: typeof api.home_media === "object" && typeof api.home_media.get === "function",
+                legacyCallableAbsent: codemode.describe("home-media.service_status") === null,
+                legacyTypeAbsent: codemode.describe("home-media.SeriesResource") === null,
+                legacyRawApiAbsent: typeof api["home-media"] === "undefined",
+            };
+        }
+    "#;
+
+    let out = service.codemode(code).await.unwrap();
+    assert_eq!(out["result"]["callableFound"], true);
+    assert_eq!(out["result"]["catalogFound"], true);
+    assert_eq!(out["result"]["responseTypeFound"], true);
+    assert_eq!(out["result"]["rawApiFound"], true);
+    assert_eq!(out["result"]["legacyCallableAbsent"], true);
+    assert_eq!(out["result"]["legacyTypeAbsent"], true);
+    assert_eq!(out["result"]["legacyRawApiAbsent"], true);
+    assert_eq!(out["calls"].as_array().map(Vec::len), Some(1));
+    assert_eq!(out["calls"][0]["action"], "service_status");
+}
+
+#[tokio::test]
 async fn codemode_describe_surfaces_response_types_on_demand() {
     // The whole point: an agent discovers a response TYPE's TS interface ON DEMAND
     // via codemode.describe — only the type it asks for comes back (not a context

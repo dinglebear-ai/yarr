@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
+- Normalize Code Mode service namespaces consistently and reject configured names that collide with runtime bindings or another normalized namespace.
+- Bound upstream request metric labels and add fixed-bucket upstream duration histograms; qBittorrent SID login is excluded from generic upstream request counts.
 
 ### Changed
 
