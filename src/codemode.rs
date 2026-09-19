@@ -41,6 +41,42 @@ pub use engine::{ArtifactWriter, EmbedCaller, EngineLimits, EngineOutcome, ToolC
 pub use proxy::build_preamble;
 pub use semantic::{SemanticCache, semantic_scores, tei_url};
 
+/// Global names owned by the Code Mode runtime or engine bridges.
+///
+/// A configured service is exposed as a Code Mode JavaScript namespace, so
+/// configuration validation and preamble rendering must both consult this list.
+pub(crate) const RESERVED_GLOBALS: &[&str] = &[
+    "api",
+    "callTool",
+    "codemode",
+    "console",
+    "fleet",
+    "globalThis",
+    "input",
+    "writeArtifact",
+    "__yarrFmt",
+    "__yarrRun",
+    "__yarrLogs",
+    "__yarrDone",
+    "__yarrError",
+    "__yarrResult",
+    "__yarrEmitToolCall",
+    "__yarrEmitWriteArtifact",
+    "__yarrEmbedQuery",
+    "__yarrInputJson",
+    "__codemodeCatalog",
+    "__codemodeTypes",
+];
+
+/// Render a configured service name as its stable Code Mode JavaScript namespace.
+pub(crate) fn javascript_namespace(service_name: &str) -> String {
+    service_name.replace('-', "_")
+}
+
+pub(crate) fn is_reserved_global(namespace: &str) -> bool {
+    RESERVED_GLOBALS.contains(&namespace)
+}
+
 /// Wall-clock budget for a single Code Mode execution (matches lab's default).
 pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Maximum number of QuickJS runtimes admitted concurrently by one service.

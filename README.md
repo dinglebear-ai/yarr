@@ -287,6 +287,12 @@ Inside Code Mode, scripts can use:
 - `codemode.run(name, input)`, `codemode.snippets()`, and `writeArtifact(...)`
   for reusable scripts and artifacts.
 
+Configured service names become Code Mode namespaces with hyphens replaced by
+underscores: `home-media` is available as `home_media` in callables,
+`api.<service>`, and discovery/type paths. Only that normalized spelling is
+exposed. Names that collide after normalization or with Code Mode runtime
+bindings are rejected at startup.
+
 Generated callables come from metadata tables. They preserve method/path,
 required path arguments, known query names, JSON-body presence, and a bounded
 single-file multipart escape hatch. They do not enforce every required query,
