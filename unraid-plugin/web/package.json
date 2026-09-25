@@ -1,7 +1,6 @@
 {
   "name": "yarr-unraid-web",
   "version": "0.1.0",
-  "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",
   "scripts": {

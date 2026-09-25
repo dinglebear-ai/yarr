@@ -1,5 +1,5 @@
 name: Setup Rust with kache
-description: Install a Rust toolchain plus a pinned kache, connect it to the shared MinIO remote, start the daemon, and print cache evidence.
+description: Install a Rust toolchain plus a pinned kache, point it at the shared filesystem remote, start the daemon, and print cache evidence.
 
 inputs:
   toolchain:
@@ -17,37 +17,10 @@ inputs:
   enable-cache:
     description: >-
       "true" (default) wires kache as RUSTC_WRAPPER and starts the daemon.
-      "false" leaves cargo bare for jobs where compilation caching is unwanted.
+      "false" leaves cargo bare — used by the GitHub-hosted native Windows job,
+      which cannot reach the shared remote.
     required: false
     default: "true"
-  s3-access-key:
-    description: Access key for an ephemeral runner's shared S3 cache profile.
-    required: false
-    default: ""
-  s3-secret-key:
-    description: Secret key for an ephemeral runner's shared S3 cache profile.
-    required: false
-    default: ""
-  s3-endpoint:
-    description: >-
-      S3-compatible endpoint used when credentials are supplied. Intentionally
-      has NO default: this repository is public, and a real endpoint hostname
-      here would publish internal infrastructure. Every caller that supplies
-      credentials also passes the org variable KACHE_S3_ENDPOINT, so the value
-      lives in org variables, not in source. (Written without expression syntax
-      on purpose: GitHub evaluates ${} in an action description, and the `vars`
-      context is not available there.) An empty value means callers fall back to
-      local-only caching.
-    required: false
-    default: ""
-  s3-bucket:
-    description: S3 bucket containing the shared cache.
-    required: false
-    default: "kache"
-  s3-prefix:
-    description: Object prefix within the shared cache bucket.
-    required: false
-    default: "rust"
 
 runs:
   using: composite
@@ -121,23 +94,23 @@ runs:
           fi
         done
 
-    # Pinned exactly. The private fleet and hosted CI share the 0.13.0 S3
-    # object layout and daemon protocol. Floating this version could split cache
-    # epochs or layouts without an obvious workflow failure. Bump deliberately,
-    # never via tag drift.
+    # Pinned exactly. The filesystem remote is new in 0.12.0 (PR #593) and is
+    # SILENTLY IGNORED by 0.11.0 — it reports "Remote: not configured" with no
+    # error. Floating this version would degrade the shared cache without any
+    # failure signal. Bump deliberately, never via tag drift.
     - name: Install kache
       if: inputs.enable-cache == 'true' && runner.os == 'Linux'
       shell: bash
       env:
-        KACHE_VERSION: "0.13.0"
+        KACHE_VERSION: "0.12.0"
       run: |
         set -euo pipefail
-        # Reuse any already-installed binary at the pinned version. Persistent
-        # hosts may manage kache through mise/systemd; reinstalling the same
-        # bytes changes the executable mtime, which kache treats as a protocol
-        # epoch and can force the managed daemon into a restart loop.
-        if command -v kache >/dev/null 2>&1 && kache --version | grep -q " ${KACHE_VERSION}\$"; then
-          echo "kache ${KACHE_VERSION} already available at $(command -v kache) - skipping download"
+        # The farm image bakes an exactly-pinned kache at /usr/local/bin/kache
+        # (and runs the daemon for the container lifetime). Download only when
+        # the baked binary is absent or the wrong version — e.g. a runner
+        # image that predates the bake, or a non-farm self-hosted box.
+        if [ -x /usr/local/bin/kache ] && /usr/local/bin/kache --version | grep -q " ${KACHE_VERSION}\$"; then
+          echo "kache ${KACHE_VERSION} baked into the runner image — skipping download"
           exit 0
         fi
         target=x86_64-unknown-linux-musl
@@ -161,94 +134,57 @@ runs:
     - name: Configure kache
       if: inputs.enable-cache == 'true' && runner.os == 'Linux'
       shell: bash
-      env:
-        KACHE_S3_ACCESS_KEY: ${{ inputs.s3-access-key }}
-        KACHE_S3_SECRET_KEY: ${{ inputs.s3-secret-key }}
-        KACHE_S3_ENDPOINT: ${{ inputs.s3-endpoint }}
-        KACHE_S3_BUCKET: ${{ inputs.s3-bucket }}
-        KACHE_S3_PREFIX: ${{ inputs.s3-prefix }}
       run: |
         set -euo pipefail
-        config_file="$HOME/.config/kache/config.toml"
-        host_credentials_file="$HOME/.aws/credentials"
-        mkdir -p "$HOME/.config/kache"
-
-        # Persistent hosts own their default store through systemd. Farm
-        # containers use their private /_work bind mount. Other ephemeral
-        # runners keep a job-adjacent store that survives steps in the job.
-        if command -v systemctl >/dev/null 2>&1 &&
-           systemctl --user cat kache.service >/dev/null 2>&1; then
-          cache_dir="$HOME/.cache/kache"
-        elif [ -d /_work ] && [ -w /_work ]; then
+        # ONE local store per runner container at /_work/.kache — /_work is
+        # this runner's PRIVATE persistent host mount, so the store survives
+        # jobs and recycles without ever crossing an OS boundary (the
+        # forbidden case is cross-CONTAINER sharing, not cross-repo: a single
+        # store dedups every repo on this runner and is the store the
+        # container-lifetime daemon serves). Fall back to the old
+        # workspace-parent path only where /_work does not exist.
+        if [ -d /_work ] && [ -w /_work ]; then
           cache_dir=/_work/.kache
         else
           cache_dir="$(cd "$GITHUB_WORKSPACE/.." && pwd)/.kache"
         fi
-
-        # An existing config may belong to a persistent host or to the farm
-        # image. Never overwrite it from a job: doing so can silently strip the
-        # host's remote and daemon lifetime settings after the workflow exits.
-        if [ -s "$config_file" ]; then
-          echo "existing kache config present - leaving it alone"
-          configured_store="$(
-            sed -n 's/^[[:space:]]*local_store[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
-              "$config_file" | head -n1
-          )"
-          [ -z "$configured_store" ] || cache_dir="$configured_store"
-        elif [ -n "${KACHE_S3_ACCESS_KEY:-}" ] && [ -n "${KACHE_S3_SECRET_KEY:-}" ]; then
-          credentials_file="$RUNNER_TEMP/kache-aws-credentials"
-          umask 077
-          {
-            printf '[kache]\n'
-            printf 'aws_access_key_id = %s\n' "$KACHE_S3_ACCESS_KEY"
-            printf 'aws_secret_access_key = %s\n' "$KACHE_S3_SECRET_KEY"
-          } > "$credentials_file"
-          echo "AWS_SHARED_CREDENTIALS_FILE=$credentials_file" >> "$GITHUB_ENV"
-          cat > "$config_file" <<TOML
-        [cache]
-        local_store = "$cache_dir"
-        daemon_idle_timeout_secs = 0
-        prefetch_max_bytes = "8GiB"
-        local_max_size = "40GiB"
-
-        [cache.remote]
-        type = "s3"
-        bucket = "$KACHE_S3_BUCKET"
-        endpoint = "$KACHE_S3_ENDPOINT"
-        region = "us-east-1"
-        prefix = "$KACHE_S3_PREFIX"
-        profile = "kache"
-        TOML
-          echo "kache remote: s3://$KACHE_S3_BUCKET/$KACHE_S3_PREFIX via $KACHE_S3_ENDPOINT"
-        elif [ -r "$host_credentials_file" ] &&
-             grep -Eq '^[[:space:]]*\[kache\][[:space:]]*$' "$host_credentials_file"; then
-          cat > "$config_file" <<TOML
-        [cache]
-        local_store = "$cache_dir"
-        daemon_idle_timeout_secs = 0
-        prefetch_max_bytes = "8GiB"
-        local_max_size = "40GiB"
-
-        [cache.remote]
-        type = "s3"
-        bucket = "kache"
-        endpoint = "http://192.0.2.2:9000"
-        region = "us-east-1"
-        prefix = "rust"
-        profile = "kache"
-        TOML
-          echo "kache remote: s3://kache/rust via Nashost MinIO"
-        else
-          cat > "$config_file" <<TOML
-        [cache]
-        local_store = "$cache_dir"
-        daemon_idle_timeout_secs = 0
-        prefetch_max_bytes = "8GiB"
-        local_max_size = "40GiB"
-        TOML
-          echo "::warning::AWS profile 'kache' is unavailable - running LOCAL-ONLY. This runner neither reads from nor contributes to the shared cache."
-        fi
         mkdir -p "$cache_dir"
+
+        # The REMOTE is the shared surface: one directory on tootie's raidz1
+        # cache pool, bind-mounted into every runner.
+        #
+        # A missing mount degrades to local-only rather than failing the job:
+        # runners are rolled out one image build at a time, so hard-failing here
+        # would break every runner that has not been recreated yet. The
+        # DEGRADATION IS NOT SILENT — it is annotated here and enforced by
+        # scripts/kache-gate.sh, which fails the job when
+        # KACHE_GATE_REQUIRE_REMOTE=1 and no remote hit occurred. Setup degrades;
+        # the gate enforces. Do not move enforcement into this step.
+        remote_dir=/home/runner/kache-remote
+        mkdir -p "$HOME/.config/kache"
+        # The farm image bakes a config carrying local_store + the remote;
+        # the container daemon read it at boot. Never overwrite it — a
+        # per-job rewrite would race the daemon's view of the store.
+        if grep -qs "^local_store" "$HOME/.config/kache/config.toml"; then
+          echo "baked kache config present — leaving it alone"
+        elif [ -w "$remote_dir" ]; then
+          cat > "$HOME/.config/kache/config.toml" <<TOML
+        [cache]
+        local_max_size = "40GiB"
+
+        [cache.remote]
+        type = "filesystem"
+        path = "$remote_dir"
+        prefix = "artifacts"
+        TOML
+          echo "kache remote: $remote_dir"
+        else
+          cat > "$HOME/.config/kache/config.toml" <<TOML
+        [cache]
+        local_max_size = "40GiB"
+        TOML
+          echo "::warning::shared kache remote $remote_dir is missing or not writable — running LOCAL-ONLY. This runner neither reads from nor contributes to the shared cache."
+        fi
 
         {
           echo "RUSTC_WRAPPER=kache"
@@ -256,8 +192,14 @@ runs:
           echo "KACHE_CACHE_DIR=$cache_dir"
           # Incremental compilation and a compile wrapper do not compose.
           echo "CARGO_INCREMENTAL=0"
-          # Capacity and daemon policy live in the preserved or generated TOML.
-          # Do not override a persistent host's larger L1 through GITHUB_ENV.
+          # Runners are long-lived. The default 600s idle exit would leave the
+          # daemon dead between jobs, and the remote-check path never starts it
+          # — a dead daemon means zero remote hits and zero uploads, silently.
+          echo "KACHE_DAEMON_IDLE_TIMEOUT=0"
+          # A full cold soma build stores well over the 2 GiB default prefetch
+          # budget. Raise it so a warm runner is not truncated mid-plan.
+          echo "KACHE_PREFETCH_MAX_BYTES=8GiB"
+          echo "KACHE_MAX_SIZE=40GiB"
         } >> "$GITHUB_ENV"
 
     - name: Ensure kache daemon
@@ -265,27 +207,20 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        daemon_is_running() {
-          local status
-          status="$(kache daemon status 2>&1)"
-          grep -q "Daemon:" <<< "$status" && ! grep -q "not running" <<< "$status"
-        }
-
-        # Persistent hosts own kache through a user systemd unit. Never
-        # launch a detached competitor there. Farm and ephemeral runners
-        # use kache daemon restart, which also clears stale daemon state.
-        if command -v systemctl >/dev/null 2>&1 && systemctl --user cat kache.service >/dev/null 2>&1; then
-          echo "host-managed kache.service found - using systemd"
-          systemctl --user is-active --quiet kache.service || systemctl --user start kache.service
-        else
-          daemon_is_running || kache daemon restart
-        fi
-
+        # The farm image supervises a container-lifetime daemon (started at
+        # boot, outside job process groups, so the post-job orphan reaper
+        # cannot kill it and the upload queue survives job end). This step is
+        # therefore normally a no-op verification; the start covers non-farm
+        # runners. The daemon is the ONLY path that uploads dependency
+        # artifacts and the ONLY path that performs remote lookups — and kache
+        # is fail-open, so wrappers that race daemon initialization silently
+        # skip the remote and compile. Wait until it answers.
+        kache daemon status >/dev/null 2>&1 || kache daemon start
         for _ in $(seq 1 30); do
-          daemon_is_running && break
+          kache daemon status >/dev/null 2>&1 && break
           sleep 1
         done
-        daemon_is_running || { echo "::error::kache daemon is not answering"; kache daemon status; exit 1; }
+        kache daemon status >/dev/null 2>&1 || { echo "::error::kache daemon is not answering"; exit 1; }
         kache daemon
 
     - name: Print cache evidence

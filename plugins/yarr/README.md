@@ -23,7 +23,7 @@ plugins/yarr/
 ## Platform manifests
 
 All three platforms connect over **stdio** through the pinned
-`@dinglebear/yarr@2.2.2` npm launcher. No Linux-only binary is committed. Claude Code
+`@dinglebear/yarr@2.2.1` npm launcher. No Linux-only binary is committed. Claude Code
 and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
 `gemini-extension.json`. All three share the same `skills/` directory.
 
@@ -45,7 +45,7 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
     "yarr": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"],
+      "args": ["-y", "@dinglebear/yarr@2.2.1", "mcp"],
       "env": {
         "YARR_SERVICES": "${user_config.yarr_services}",
         "YARR_SONARR_URL": "${user_config.sonarr_url}",
@@ -65,7 +65,7 @@ and Codex read `.mcp.json`; Gemini CLI declares the equivalent block inline in
   "mcpServers": {
     "yarr": {
       "command": "npx",
-      "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"],
+      "args": ["-y", "@dinglebear/yarr@2.2.1", "mcp"],
       "env": {
         "YARR_SONARR_URL": "$YARR_SONARR_URL"
       }
@@ -78,7 +78,7 @@ The full plugin is self-starting only when the exact pinned launcher exists on n
 Verify it before installation or troubleshooting:
 
 ```bash
-npm view @dinglebear/yarr@2.2.2 version
+npm view @dinglebear/yarr@2.2.1 version
 ```
 
 GitHub release `v2.1.0` is currently public while that npm version is missing;

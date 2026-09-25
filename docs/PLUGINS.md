@@ -44,7 +44,7 @@ stdio through the same exact launcher specification:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"]
+  "args": ["-y", "@dinglebear/yarr@2.2.1", "mcp"]
 }
 ```
 
@@ -58,11 +58,11 @@ A manifest pin proves intent, not registry availability. Verify the exact
 package before installing or debugging the full plugin:
 
 ```bash
-npm view @dinglebear/yarr@2.2.2 version
+npm view @dinglebear/yarr@2.2.1 version
 ```
 
 At this documentation revision, GitHub release `v2.1.0` is public but
-`@dinglebear/yarr@2.2.2` returns `E404`; recovery is tracked in
+`@dinglebear/yarr@2.2.1` returns `E404`; recovery is tracked in
 [issue #80](https://github.com/dinglebear-ai/yarr/issues/80). The full plugin
 cannot start from npm until that exact version resolves. Do not loosen the pin
 or silently use npm `latest` (currently an older launcher). Install the native
@@ -140,11 +140,6 @@ The plugin's MCP connection itself remains stdio and needs no HTTP token. The
 server used by monitoring or other clients. That HTTP path defaults to
 `static_token_scopes=yarr:read` with `tool_mode=flat`; selecting `codemode`
 requires explicitly granting `yarr:write`.
-
-The `server_url` and `public_url` manifest descriptions (Claude and Gemini)
-illustrate a remote deployment with a generic `https://yarr.example.internal`
-placeholder rather than any specific real hostname; swap in your own remote
-host when configuring a persistent HTTP server.
 
 ## Standalone plugins
 
