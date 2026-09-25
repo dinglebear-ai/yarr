@@ -1,6 +1,8 @@
 # yarr
 
-Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI.
+MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr,
+Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and
+Tracearr.
 
 If you run Claude Code, Codex, or Gemini CLI against a self-hosted media stack,
 `yarr` gives an agent one consistent way to query and control all of it instead
@@ -642,4 +644,4 @@ The source of truth docs split is:
 
 ## License
 
-Original Dinglebear-authored portions of this project are licensed under [AGPL-3.0-only](LICENSE). Separate commercial licensing is available for organizations that need terms outside the AGPL. Third-party material remains under its original license. See [LICENSING.md](https://github.com/dinglebear-ai/yarr/blob/main/LICENSING.md).
+[MIT](LICENSE)

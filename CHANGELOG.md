@@ -5,21 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-
-- Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
-- Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
-
-### Changed
-
-
-- Relicense Dinglebear-owned original work under AGPL-3.0-only and document separate commercial licensing; third-party material retains its original terms.
-- Regenerate the committed Unraid package and release manifest from the pinned v2.1.0 assets, restoring byte-for-byte reproducibility across umask settings.
-- Allow Compose deployments to select the service env file with `YARR_ENV_FILE`.
-- Bind the production MCP port only to DEVHOST's Tailscale and LAN addresses instead of every host interface.
-
 ## [2.2.2](https://github.com/dinglebear-ai/yarr/compare/v2.2.1...v2.2.2) (2026-07-29)
 
 
@@ -52,7 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* **ci:** pin the shared Rust cache action to upstream Kache 0.13.0 so hosted and self-hosted jobs use the same daemon protocol and S3 cache epoch
 * **deps:** pin `rmcp` to an exact `=3.0.0-beta.2` (was a caret `"2.1.0"` that had already drifted to `2.2.0` in the lockfile). `ServerHandler::call_tool`/`read_resource`/`get_prompt` now return the `CallToolResponse`/`ReadResourceResponse`/`GetPromptResponse` wrappers, and `StreamableHttpServerConfig::with_stateful_mode` is now `with_legacy_session_mode`; both are behaviour-preserving. The elicitation API is unchanged, so destructive-delete gating stays fail-closed
 
 ### Removed
@@ -79,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* add backuphost stack lifecycle commands ([#69](https://github.com/dinglebear-ai/yarr/issues/69)) ([e45e4e6](https://github.com/dinglebear-ai/yarr/commit/e45e4e6850ba704b9c55c89003c0b8690e419911))
+* add shart stack lifecycle commands ([#69](https://github.com/dinglebear-ai/yarr/issues/69)) ([e45e4e6](https://github.com/dinglebear-ai/yarr/commit/e45e4e6850ba704b9c55c89003c0b8690e419911))
 
 ## [2.0.1](https://github.com/dinglebear-ai/yarr/compare/v2.0.0...v2.0.1) (2026-07-16)
 

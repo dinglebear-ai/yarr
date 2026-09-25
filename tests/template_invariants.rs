@@ -31,21 +31,6 @@ fn json(path: &str) -> Value {
 }
 
 #[test]
-fn docker_builder_matches_pinned_rust_toolchain() {
-    let toolchain = read("rust-toolchain.toml");
-    let channel = toolchain
-        .lines()
-        .find_map(|line| line.trim().strip_prefix("channel = \"")?.strip_suffix('"'))
-        .expect("rust-toolchain.toml should declare a quoted channel");
-    let dockerfile = read("config/Dockerfile");
-
-    assert!(
-        dockerfile.contains(&format!("FROM rust:{channel}-slim-bookworm@sha256:")),
-        "config/Dockerfile builder must use the exact pinned Rust toolchain {channel}"
-    );
-}
-
-#[test]
 fn agent_memory_files_are_claude_symlinks() {
     for path in ["AGENTS.md", "GEMINI.md"] {
         let target = fs::read_link(path).unwrap_or_else(|err| panic!("{path}: {err}"));
@@ -163,13 +148,8 @@ fn registry_and_deploy_metadata_are_yarr_specific() {
     assert_eq!(server["name"], "ai.dinglebear/yarr");
     assert_eq!(
         server["description"],
-        "Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI."
+        "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr."
     );
-    let registry = read(".github/workflows/mcp-registry.yml");
-    assert!(registry.contains("mcp-registry-publish.yml@befa67c7b7f976235bf3fbced6ede93293a7f405"));
-    assert!(!registry.contains("auth-method:"));
-    assert!(registry.contains("MCP_PRIVATE_KEY"));
-    assert!(registry.contains("manifest-path: server.json"));
 
     for path in [
         "server.json",

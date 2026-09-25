@@ -7,7 +7,7 @@ version = "2.2.2"
 edition = "2024"
 rust-version = "1.97.1"
 authors = ["dinglebear.ai <hello@dinglebear.ai>"]
-license = "AGPL-3.0-only"
+license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/dinglebear-ai/yarr#readme"
 repository = "https://github.com/dinglebear-ai/yarr"
@@ -51,7 +51,7 @@ homepage.workspace = true
 repository.workspace = true
 categories = ["command-line-utilities", "api-bindings", "multimedia", "network-programming", "development-tools"]
 keywords = ["mcp", "media", "sonarr", "radarr", "plex"]
-description = "Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI."
+description = "MCP server and CLI for self-hosted media fleets: Sonarr, Radarr, Prowlarr, Bazarr, Tautulli, Overseerr, SABnzbd, qBittorrent, Plex, Jellyfin, and Tracearr."
 publish = false
 autobins = false
 
@@ -121,15 +121,6 @@ rquickjs = "0.12"
 # Errors
 anyhow = "1"
 thiserror = "2"
-
-[profile.dev]
-# CI recompiles from scratch on every job (CARGO_INCREMENTAL=0 is required
-# under the kache rustc-wrapper), and full DWARF is a large share of that
-# time — which the build then discards anyway via -C strip=debuginfo.
-# "line-tables-only" keeps file/line in panics and backtraces, which is what
-# CI logs are read for. Override with CARGO_PROFILE_DEV_DEBUG=full for a
-# debugger session. Matches labby and cortex.
-debug = "line-tables-only"
 
 [profile.release]
 lto = "thin"

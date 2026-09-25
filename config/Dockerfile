@@ -8,10 +8,10 @@
 # =============================================================================
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-# Builder matches the exact toolchain declared in rust-toolchain.toml. The
-# multi-platform manifest digest was resolved from Docker Hub on 2026-08-14;
-# Dependabot should propose deliberate digest refreshes.
-FROM rust:1.97.1-slim-bookworm@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3 AS builder
+# Builder uses Rust 1.97 (>= the declared MSRV of 1.90). The multi-platform
+# manifest digest was resolved from Docker Hub on 2026-07-16; Dependabot should
+# propose deliberate digest refreshes.
+FROM rust:1.97-slim-bookworm@sha256:6d220bf85c74e842a79da63997af8d2e74455c0b8847d8bb3a5888572334991d AS builder
 
 WORKDIR /app
 
