@@ -1,7 +1,0 @@
-[
-  {
-    "name": "server-health",
-    "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/watch.sh\" --interval 15",
-    "description": "MCP server health \u2014 emits a line when the server goes up, down, or recovers"
-  }
-]

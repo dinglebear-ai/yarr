@@ -1,0 +1,42 @@
+Workspace cleanup archive for dinglebear-ai/yarr
+Date: 2026-09-25
+Default: main
+
+STALE_BRANCHES 15
+STALE	backup/yarr-align-pre-rebase-20260801	556e1714aa1c44ba4a5215cf2a8fbbdf950f59da
+STALE	chore/labby-auth-comment	6b4013330b36d5d15045c07a7877a96ead176c44
+STALE	chore/retire-openwiki	cc876863820628f0e229219c98f7002c3079cad0
+STALE	chore/scrub-internal-identifiers-20260805	d2838a53253bc0b0a110683923699bd8db090244
+STALE	ci/drop-gitleaks	47e190222bbbb01ce7d3c149e6a35d7f87748e8b
+STALE	ci/fleet-operational-20260801	8f76b57c98b4e13fce2420a8d0260e7243590e18
+STALE	codex/scoped-npm-package	0ef7e722530386b019eac3fec10abc91a6982711
+STALE	codex/workflow-alignment-full-20260730	e7798ecab396687233bfbed78aba7a794644b503
+STALE	fix/compose-smoke-env-isolation-20260804	f7cfe033eeb2b82c69893123a462e778a37728c0
+STALE	fix/kache-action-description-expression-20260807	a5aedd314f25a49c29a8a9638152d89dd4fd6752
+STALE	fix/plugin-hooks-and-tracearr-credential	71982cfb4304582dabb1c85665b81abbc15df0d1
+STALE	fix/scrub-internal-identifiers-20260807	259cc174224ece57e6309eba06ce494f4e1c8156
+STALE	pr-129	61c6b261e86d164e690e3998fd5f76141dce8017
+STALE	pr-130	6915de2f66c202192784cfe611df76cf782606ff
+STALE	release-please--branches--main--components--yarr	e4503747aed7fe938214f78da7b02475580ea1bb
+
+LOCAL_ONLY_BRANCHES 13
+LOCAL_ONLY	backup/yarr-align-pre-rebase-20260801	556e1714aa1c44ba4a5215cf2a8fbbdf950f59da
+LOCAL_ONLY	chore/kache-0.15.1	2381aacac8c39c77549eb674211884b4046c4350
+LOCAL_ONLY	chore/labby-auth-comment	6b4013330b36d5d15045c07a7877a96ead176c44
+LOCAL_ONLY	chore/retire-openwiki	cc876863820628f0e229219c98f7002c3079cad0
+LOCAL_ONLY	chore/scrub-internal-identifiers-20260805	d2838a53253bc0b0a110683923699bd8db090244
+LOCAL_ONLY	ci/drop-gitleaks	47e190222bbbb01ce7d3c149e6a35d7f87748e8b
+LOCAL_ONLY	codex/scoped-npm-package	0ef7e722530386b019eac3fec10abc91a6982711
+LOCAL_ONLY	fix/kache-action-description-expression-20260807	a5aedd314f25a49c29a8a9638152d89dd4fd6752
+LOCAL_ONLY	fix/plugin-hooks-and-tracearr-credential	71982cfb4304582dabb1c85665b81abbc15df0d1
+LOCAL_ONLY	main	2381aacac8c39c77549eb674211884b4046c4350
+LOCAL_ONLY	pr-129	61c6b261e86d164e690e3998fd5f76141dce8017
+LOCAL_ONLY	pr-130	6915de2f66c202192784cfe611df76cf782606ff
+LOCAL_ONLY	release-please--branches--main--components--yarr	e4503747aed7fe938214f78da7b02475580ea1bb
+
+STALE_WORKTREES 3
+WORKTREE	/private/tmp/claude-501/-Users-jmagar-workspace-yarr/10361dbe-59c3-45b8-8437-78f21ed2f147/scratchpad/pr-129	branch=pr-129	head=61c6b261e86d164e690e3998fd5f76141dce8017
+WORKTREE	/private/tmp/claude-501/-Users-jmagar-workspace-yarr/10361dbe-59c3-45b8-8437-78f21ed2f147/scratchpad/pr-130	branch=pr-130	head=6915de2f66c202192784cfe611df76cf782606ff
+WORKTREE	/private/tmp/claude-501/-Users-jmagar-workspace-yarr/10361dbe-59c3-45b8-8437-78f21ed2f147/scratchpad/pr-130b	branch=DETACHED	head=6915de2f66c202192784cfe611df76cf782606ff
+
+WIP_SNAPSHOTS 0
