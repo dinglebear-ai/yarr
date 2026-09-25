@@ -1,4 +1,0 @@
-interface:
-  display_name: "Bazarr"
-  short_description: "Managing subtitles in Bazarr"
-  default_prompt: "Use $bazarr to check for missing subtitles."

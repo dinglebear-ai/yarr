@@ -1,9 +1,0 @@
-# Default maintainer and explicit high-risk surfaces.
-* @jmagar
-/.github/workflows/ @jmagar
-/config/Dockerfile @jmagar
-/docker-compose.yml @jmagar
-/docker-compose.prod.yml @jmagar
-/entrypoint.sh @jmagar
-/docs/runbooks/ @jmagar
-/release-please-config.json @jmagar
