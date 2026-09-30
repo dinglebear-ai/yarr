@@ -107,3 +107,4 @@ CLAUDE.md.local
 /bin/
 plugins/yarr/bin/*
 !plugins/yarr/bin/yarr
+worktrees/
