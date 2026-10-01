@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# No deadline is needed when every advisory is enforced.
+if python3 -c 'import tomllib; import sys; sys.exit(bool(tomllib.load(open("deny.toml", "rb"))["advisories"].get("ignore", [])))'; then
+  echo "no advisory exceptions configured"
+  exit 0
+fi
+
 deadline="$(sed -nE 's/^# Reviewed exception deadline: ([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/p' deny.toml)"
 if [[ -z "$deadline" ]]; then
   echo "deny.toml must declare a reviewed advisory-exception deadline" >&2
