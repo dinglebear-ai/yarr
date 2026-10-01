@@ -76,8 +76,6 @@ check command.
 - `superpowers/plans/` and `superpowers/specs/` contain durable historical
   design records, not current runtime authority.
 - `references/` is locally refreshed, gitignored upstream reference material.
-- `openwiki/` is generated orientation content and must be checked against
-  executable sources before merge.
 
 ## Keep documentation current
 

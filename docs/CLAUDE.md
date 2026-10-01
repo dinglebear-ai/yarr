@@ -25,8 +25,6 @@ to the nearest `CLAUDE.md`; edit the Claude file and run
 - `docs/reports/` contains durable audits and investigations.
 - `docs/sessions/` and `docs/superpowers/plans/` are historical working
   records. They may describe superseded behavior and are not runtime authority.
-- `openwiki/` is a generated orientation layer maintained by the OpenWiki PR
-  workflow. Review generated changes against executable sources before merge.
 - Root `specs/` contains the vendored OpenAPI inputs. Generated runtime tables
   live under `src/openapi/generated/`.
 
@@ -40,7 +38,7 @@ For current behavior, prefer:
 
 1. Executable code, tests, workflow files, and config parsers.
 2. Generated references produced from those sources.
-3. Maintained guides in `docs/` and `openwiki/`.
+3. Maintained guides in `docs/`.
 4. Historical reports, plans, and session notes.
 
 Do not turn an old session note into a current claim without verifying it.

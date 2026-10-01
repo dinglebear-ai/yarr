@@ -32,7 +32,7 @@ legacy_owner="jmagar"
 legacy_repo="yarr"
 legacy_identity="${legacy_owner}/${legacy_repo}"
 legacy_identity_matches="$(git grep -n "$legacy_identity" -- \
-  ':!CHANGELOG.md' ':!docs/sessions/**' ':!openwiki/**' || true)"
+  ':!CHANGELOG.md' ':!docs/sessions/**' || true)"
 if [[ -n "$legacy_identity_matches" ]]; then
   issues+=("Legacy publication identity remains outside historical migration records:\n$legacy_identity_matches")
 fi
