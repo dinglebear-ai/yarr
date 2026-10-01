@@ -129,7 +129,7 @@ runs:
       if: inputs.enable-cache == 'true' && runner.os == 'Linux'
       shell: bash
       env:
-        KACHE_VERSION: "0.13.0"
+        KACHE_VERSION: "0.28.1"
       run: |
         set -euo pipefail
         # Reuse any already-installed binary at the pinned version. Persistent

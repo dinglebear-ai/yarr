@@ -89,13 +89,11 @@ is aggregate, resets on restart, and cannot identify a client behind a shared
 address. Production reverse proxies must also enforce a per-client `/token`
 rate limit before requests reach Yarr.
 
-The RSA implementation used transitively by `lab-auth` is temporarily covered
-by the reviewed `RUSTSEC-2023-0071` exception in `deny.toml`. That exception
-expires on 2026-10-01 and CI fails closed on or after the deadline. HTTPS,
+The locked `lab-auth` dependency uses the aws-lc JWT backend and does not
+include the RustCrypto `rsa` crate. Its former RSA timing-advisory exception
+has been removed; `deny.toml` enforces all dependency advisories. HTTPS,
 mode-restricted signing-key storage, validated OAuth grants, short-lived tokens,
-the process-wide signing cap, its metric/alert, and reverse-proxy per-client
-limits reduce exposure while `lab-auth` is migrated to Ed25519; they do not
-make the timing advisory disappear.
+and both process-wide and reverse-proxy rate limits remain required.
 
 Local OAuth state is single-replica. Before initializing OAuth, Yarr acquires
 an exclusive `${sqlite_path}.instance.lock` next to the configured auth SQLite

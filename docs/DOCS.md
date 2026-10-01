@@ -31,7 +31,7 @@ and the checks required to prevent quiet drift.
 1. Executable code, tests, schemas, workflows, package manifests, and config parsers.
 2. Generated references produced from those sources.
 3. Maintained guides in the repository root, `docs/`, `unraid-plugin/`, `plugins/`, and `scripts/`.
-4. OpenWiki orientation pages and historical plans, reports, research, or session notes.
+4. Historical plans, reports, research, or session notes.
 
 A narrative document must not override a stricter executable contract. Fix the
 guide or generator when the layers disagree.
@@ -50,7 +50,6 @@ guide or generator when the layers disagree.
 | `docs/superpowers/` | Historical design and implementation records | Durable history, not runtime authority |
 | `docs/sessions/` | Handoffs and session records | Historical; may be stale |
 | `docs/references/` | Locally refreshed upstream references | Gitignored |
-| `openwiki/` | Generated repository orientation | Generated; verify before merge |
 
 ## Frontmatter
 
@@ -121,9 +120,9 @@ Live suites write and check `docs/LIVE_ENDPOINT_COVERAGE.md` from structured
 coverage evidence. Regenerate through the documented `cargo xtask live` flow,
 not by editing the table.
 
-### OpenWiki and external references
+### External references
 
-`openwiki/` is generated orientation content. `scripts/refresh-docs.sh` refreshes
+`scripts/refresh-docs.sh` refreshes
 gitignored upstream references and Repomix packs:
 
 ```bash
@@ -136,7 +135,7 @@ Generated output must be reviewed against executable sources before commit.
 ## Link and anchor policy
 
 - Repository links must be relative and remain inside the repository.
-- Do not use root-relative Markdown paths such as `/openwiki/...`; they fail in package and non-GitHub renderers.
+- Do not use root-relative Markdown paths such as `/docs/...`; they fail in package and non-GitHub renderers.
 - Encode spaces in local paths.
 - Use absolute HTTPS links only when content must work outside the repository, such as the npm README linking back to GitHub.
 - Keep heading anchors valid after renaming sections.

@@ -60,7 +60,6 @@ actionlint .github/workflows/unraid-plugin-ci.yml .github/workflows/unraid-plugi
 | `docker-publish.yml` | Quarantine, scan, and digest promotion for GHCR |
 | `unraid-plugin-ci.yml` | Audited Unraid API/web tests, contracts, and deterministic package reproduction |
 | `unraid-plugin-release.yml` | Independent `unraid-vVERSION-BUILD` package publication |
-| `openwiki-update.yml` | Refresh generated OpenWiki orientation content |
 
 Third-party actions are pinned to immutable commit SHAs. Readable version
 comments may accompany pins, but mutable action tags are not accepted.

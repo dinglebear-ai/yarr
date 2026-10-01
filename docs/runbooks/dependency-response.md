@@ -1,27 +1,20 @@
 ---
 title: "Dependency advisory response"
 created: 2026-07-16
-updated: 2026-07-30
+updated: 2026-10-01
 ---
 
 # Dependency advisory response
 
 Owner: `@jmagar`
 
-## Time-bounded RSA exception
+## Advisory exceptions
 
-`deny.toml` temporarily ignores `RUSTSEC-2023-0071` for the transitive
-`lab-auth` RSA signer. The reviewed exception expires on 2026-10-01.
-`scripts/check-security-exceptions.sh` runs immediately before cargo-deny in
-both PR CI and the scheduled audit and fails closed at the deadline. The target
-resolution is migration of `lab-auth` JWT signing to Ed25519, not an automatic
-deadline extension.
-
-Interim controls are mandatory: HTTPS, restrictive signing-key permissions,
-OAuth grant validation before signing, short-lived tokens, the process-local
-30-attempt rolling-minute `/token` cap, token-issuance metrics/alerts, and a
-reverse-proxy per-client `/token` rate limit. Treat loss of any control as an
-incident requiring immediate reassessment of the exception.
+`deny.toml` enforces every advisory with an empty ignore list. The locked
+`lab-auth` dependency uses the aws-lc JWT backend and no longer includes the
+RustCrypto `rsa` crate, so its former timing-advisory exception is removed.
+`scripts/check-security-exceptions.sh` accepts an empty ignore list; any future
+exception must still declare a reviewed deadline and fails closed at expiry.
 
 ## Trigger
 
