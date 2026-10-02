@@ -1,11 +1,5 @@
 ---
 title: "Tools, Actions, Params, and Endpoints"
-created: 2026-06-18
-updated: 2026-07-30
----
-
----
-title: "Tools, Actions, Params, and Endpoints"
 doc_type: "reference"
 status: "active"
 owner: "yarr"
@@ -73,13 +67,13 @@ scraping prose:
 | Action | Params | Scope | Mutates | Upstream call |
 |---|---|---|---:|---|
 | `service_status` | none | yarr:read | no | GET the kind default status path, e.g. Sonarr/Radarr `/api/v3/system/status`, Prowlarr `/api/v1/system/status`, Overseerr `/api/v1/status`, Tautulli `/api/v2?cmd=get_server_info`, Bazarr `/api/system/status`, Tracearr `/health`, SABnzbd `/api?mode=version&output=json`, qBittorrent `/api/v2/app/version`, Plex `/identity`, Jellyfin `/System/Info/Public`. |
-| `api_get` | `path` | yarr:write | no | `GET {path}`. |
-| `api_post` | `path`, optional `body` | yarr:write | yes | `POST {path}` with JSON body. Runs immediately. |
-| `api_put` | `path`, optional `body` | yarr:write | yes | `PUT {path}` with JSON body. Runs immediately. |
-| `api_delete` | `path`, optional `body` | yarr:write | yes | `DELETE {path}` with optional JSON body. Runs immediately; destructive, so MCP elicits the connected client for confirmation before dispatch. |
+| `api_get` | `path` | route-derived | yes | `GET {path}`. Admitted only when the path uniquely matches one reviewed generated operation; scope is route-derived and resolved `Destructive` operations elicit on MCP. |
+| `api_post` | `path`, optional `body` | route-derived | yes | `POST {path}` with JSON body. Same route admission and route-derived safety as `api_get`. |
+| `api_put` | `path`, optional `body` | route-derived | yes | `PUT {path}` with JSON body. Same route admission and route-derived safety as `api_get`. |
+| `api_delete` | `path`, optional `body` | route-derived | yes | `DELETE {path}` with optional JSON body. Route-derived: a reviewed `Mutation` route runs, a resolved Destructive route elicits on MCP, unmatched routes fail closed. |
 | `help` | none | public | no | No upstream call; returns registry-derived action help. |
 | `codemode` | `code` | yarr:write | yes | No direct upstream call; runs a Code Mode script that dispatches other actions. |
-| `op` | `op`, optional `args` | yarr:write | yes | Dispatches a generated OpenAPI operation for a spec-backed service. |
+| `op` | `op`, optional `args` | route-derived | yes | Dispatches a generated OpenAPI operation for a spec-backed service; safety and scope are route-derived from the reviewed operation metadata. |
 | `snippet_list` | none | yarr:read | no | No upstream call; manages the Code Mode snippet store under the data dir. |
 | `snippet_save` | `name`, `code`, optional `description` | yarr:write | yes | No upstream call; manages the Code Mode snippet store under the data dir. |
 | `snippet_run` | `name`, optional `input` | yarr:write | yes | No upstream call; manages the Code Mode snippet store under the data dir. |

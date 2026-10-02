@@ -7,6 +7,7 @@ fn services() -> Vec<(String, ServiceKind)> {
     vec![
         ("sonarr".to_string(), ServiceKind::Sonarr),
         ("radarr".to_string(), ServiceKind::Radarr),
+        ("overseerr".to_string(), ServiceKind::Overseerr),
         ("plex".to_string(), ServiceKind::Plex),
     ]
 }
@@ -43,13 +44,40 @@ fn each_entry_carries_its_service() {
     assert!(!series.description().is_empty());
     // `service` is baked in, never a param the script passes.
     assert!(!series.required_params().contains(&"service"));
-    // A DELETE op is flagged destructive (metadata only — Code Mode dispatches
-    // it immediately, same as any other action).
+    // This DELETE is a reviewed Mutation, not destructive merely because of its
+    // HTTP verb.
     let del = cat
+        .iter()
+        .find(|e| e.path() == "sonarr.delete_queue_by_id")
+        .unwrap();
+    assert!(!del.destructive());
+
+    // The file-deleting delete-by-id route (`deleteFiles`) is reviewed
+    // Destructive, so the catalog carries that metadata too.
+    let file_delete = cat
         .iter()
         .find(|e| e.path() == "sonarr.delete_series_by_id")
         .unwrap();
-    assert!(del.destructive());
+    assert!(file_delete.destructive());
+}
+
+#[test]
+fn generated_catalog_uses_reviewed_safety_not_http_verbs() {
+    let cat = build_catalog(&services());
+
+    let side_effecting_get = cat
+        .iter()
+        .find(|e| e.path() == "overseerr.get_settings_discover_reset")
+        .expect("reviewed Mutation GET must be discoverable");
+    assert_eq!(side_effecting_get.scope(), CatalogScope::Write);
+    assert!(!side_effecting_get.destructive());
+
+    let destructive_put = cat
+        .iter()
+        .find(|e| e.path() == "plex.empty_trash")
+        .expect("reviewed Destructive PUT must be discoverable");
+    assert_eq!(destructive_put.scope(), CatalogScope::Write);
+    assert!(destructive_put.destructive());
 }
 
 #[test]
@@ -69,7 +97,7 @@ fn raw_api_client_is_documented_service_agnostically() {
         .iter()
         .find(|e| e.path() == "api.<service>.get")
         .unwrap();
-    assert_eq!(get.scope().as_str(), "write"); // api_get requires write scope
+    assert_eq!(get.scope().as_str(), "route_dependent");
     assert!(!get.destructive());
     assert!(get.service().is_none(), "raw-api docs are service-agnostic");
 
@@ -77,7 +105,11 @@ fn raw_api_client_is_documented_service_agnostically() {
         .iter()
         .find(|e| e.path() == "api.<service>.delete")
         .unwrap();
-    assert!(del.destructive(), "api_delete is destructive");
+    assert_eq!(del.scope().as_str(), "route_dependent");
+    assert!(
+        !del.destructive(),
+        "generic API routes are only marked destructive after exact route classification"
+    );
 }
 
 #[test]
@@ -101,7 +133,23 @@ fn catalog_json_is_valid_json_array() {
 #[test]
 fn empty_services_yields_only_raw_api_docs() {
     let cat = build_catalog(&[]);
-    // No services configured → only the four service-agnostic raw-API entries.
-    assert_eq!(cat.len(), 4);
+    // No services configured → only the service-agnostic raw-API and fleet
+    // bridge entries.
+    assert_eq!(cat.len(), 8);
     assert!(cat.iter().all(|e| e.service().is_none()));
+}
+
+#[test]
+fn fleet_bridge_surface_is_discoverable() {
+    let cat = build_catalog(&[]);
+    let paths: Vec<&str> = cat.iter().map(CatalogEntry::path).collect();
+    for path in ["fleet.of", "fleet.all", "fleet.map", "fleet.status"] {
+        assert!(paths.contains(&path), "missing {path}");
+    }
+    let map = cat.iter().find(|e| e.path() == "fleet.map").unwrap();
+    assert_eq!(map.scope().as_str(), "route_dependent");
+    assert!(!map.destructive());
+    assert_eq!(map.required_params(), ["selector", "action", "params"]);
+    let status = cat.iter().find(|e| e.path() == "fleet.status").unwrap();
+    assert_eq!(status.scope().as_str(), "read");
 }

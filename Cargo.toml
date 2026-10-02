@@ -106,6 +106,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "webpki-roots", "cookies", "multipart"] }
 base64 = "0.22"
 
+# Bounded async combinators for the fleet fan-out bridge.
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+
 # Prometheus metrics layer for the unauthenticated /metrics endpoint.
 axum-prometheus = "0.10"
 

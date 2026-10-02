@@ -41,12 +41,6 @@ pub use engine::{ArtifactWriter, EmbedCaller, EngineLimits, EngineOutcome, ToolC
 pub use proxy::build_preamble;
 pub use semantic::{SemanticCache, semantic_scores, tei_url};
 
-/// Wall-clock budget for a single Code Mode execution (matches lab's default).
-pub const CODEMODE_TIMEOUT: Duration = Duration::from_secs(30);
-/// Maximum number of QuickJS runtimes admitted concurrently by one service.
-pub const CODEMODE_MAX_CONCURRENT: usize = 4;
-/// Maximum time a Code Mode request waits for an execution slot.
-pub const CODEMODE_QUEUE_TIMEOUT: Duration = Duration::from_millis(500);
 /// QuickJS heap cap (matches lab's 64 MiB).
 pub const CODEMODE_MEMORY_LIMIT: usize = 64 * 1024 * 1024;
 /// QuickJS native stack cap.

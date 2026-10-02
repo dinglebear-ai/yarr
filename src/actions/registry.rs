@@ -29,17 +29,18 @@ pub const ACTION_SPECS: &[ActionSpec] = &[
     },
     ActionSpec {
         name: "api_get",
-        description: "Run an allowlisted GET against a configured service.",
+        description: "Run a generic request only when its exact route resolves to a reviewed generated operation.",
         required_scope: Some(WRITE_SCOPE),
         transport: ActionTransport::Any,
         required_params: &["service", "path"],
         optional_params: &[],
-        mutates: false,
+        // GET alone is not safety evidence; the matched operation can be a mutation.
+        mutates: true,
         destructive: false,
     },
     ActionSpec {
         name: "api_post",
-        description: "Run an allowlisted JSON POST against a configured service.",
+        description: "Run a generic JSON request only when its exact route resolves to a reviewed generated operation.",
         required_scope: Some(WRITE_SCOPE),
         transport: ActionTransport::Any,
         required_params: &["service", "path"],
@@ -49,7 +50,7 @@ pub const ACTION_SPECS: &[ActionSpec] = &[
     },
     ActionSpec {
         name: "api_put",
-        description: "Run an allowlisted JSON PUT against a configured service.",
+        description: "Run a generic JSON request only when its exact route resolves to a reviewed generated operation.",
         required_scope: Some(WRITE_SCOPE),
         transport: ActionTransport::Any,
         required_params: &["service", "path"],
@@ -59,13 +60,14 @@ pub const ACTION_SPECS: &[ActionSpec] = &[
     },
     ActionSpec {
         name: "api_delete",
-        description: "Run an allowlisted DELETE after the transport's destructive gate.",
+        description: "Run a generic request only when its exact route resolves to a reviewed generated operation.",
         required_scope: Some(WRITE_SCOPE),
         transport: ActionTransport::Any,
         required_params: &["service", "path"],
         optional_params: &["body"],
         mutates: true,
-        destructive: true,
+        // Destructiveness is determined by the resolved operation, never DELETE alone.
+        destructive: false,
     },
     ActionSpec {
         name: "help",
@@ -93,16 +95,12 @@ pub const ACTION_SPECS: &[ActionSpec] = &[
         destructive: false,
     },
     // Generated OpenAPI operation dispatch for the spec-backed kinds. MCP/Code-Mode
-    // only (the agent reaches it via the generated `<service>.<op>()` callables);
-    // requires write scope since an op may mutate. Generated DELETE ops dispatch
-    // through the local CLI trust boundary; MCP Code Mode and flat calls apply
-    // the same inner/outer destructive elicitation policy. Reached directly via
-    // `call_tool` (e.g. flat tool mode), a
-    // destructive op gets the same MCP elicitation prompt as any other
-    // destructive action — see `is_destructive_op_call` in `mcp/rmcp_server.rs`.
+    // only (the agent reaches it via the generated `<service>.<op>()` callables).
+    // Scope and destructive confirmation derive from the resolved operation's
+    // reviewed metadata, not from its generated name or HTTP method.
     ActionSpec {
         name: "op",
-        description: "Dispatch a generated OpenAPI operation.",
+        description: "Dispatch a generated OpenAPI operation using its reviewed safety metadata.",
         required_scope: Some(WRITE_SCOPE),
         transport: ActionTransport::McpOnly,
         required_params: &["service", "op"],
@@ -339,9 +337,10 @@ pub fn curated_command(name: &str) -> Option<&'static CommandDescriptor> {
 #[path = "registry_queries.rs"]
 mod queries;
 pub use queries::{
-    action_allowed_for_kind, action_is_destructive, actions_for_curated_param, all_action_names,
-    allowed_kind_names_for_action, capability_digest, curated_command_names, curated_param_names,
-    curated_param_type, required_params_for_action, valid_actions_for_kind,
+    action_allowed_for_kind, action_has_route_dependent_safety, action_is_destructive,
+    action_may_mutate, actions_for_curated_param, all_action_names, allowed_kind_names_for_action,
+    capability_digest, curated_command_names, curated_param_names, curated_param_type,
+    required_params_for_action, valid_actions_for_kind,
 };
 
 #[cfg(test)]

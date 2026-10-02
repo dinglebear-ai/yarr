@@ -32,22 +32,22 @@ pub enum Command {
         service: String,
         path: String,
     },
-    /// `yarr <service> post --path P [--body JSON]` — passthrough POST
-    /// (non-destructive; runs immediately).
+    /// `yarr <service> post --path P [--body JSON]` — generic API request.
+    /// Its exact matched operation determines safety.
     Post {
         service: String,
         path: String,
         body: serde_json::Value,
     },
-    /// `yarr <service> put --path P [--body JSON]` — passthrough PUT
-    /// (non-destructive; runs immediately).
+    /// `yarr <service> put --path P [--body JSON]` — generic API request.
+    /// Its exact matched operation determines safety.
     Put {
         service: String,
         path: String,
         body: serde_json::Value,
     },
-    /// `yarr <service> delete --path P [--body JSON]` — passthrough DELETE
-    /// (destructive; runs immediately).
+    /// `yarr <service> delete --path P [--body JSON]` — generic API request.
+    /// Its exact matched operation determines safety; DELETE alone is not destructive.
     Delete {
         service: String,
         path: String,
@@ -55,8 +55,8 @@ pub enum Command {
     },
     /// `yarr <service> op <name> [--args JSON]` — invoke a generated OpenAPI
     /// operation directly (the spec-backed kinds' surface). Mirrors the
-    /// in-Code-Mode `<service>.<op>(args)` callable but reachable from the CLI —
-    /// runs immediately, including destructive DELETE ops.
+    /// in-Code-Mode `<service>.<op>(args)` callable but reachable from the CLI.
+    /// Reviewed metadata, not the HTTP verb, determines destructive status.
     Op {
         service: String,
         op: String,

@@ -5,12 +5,15 @@ use serde_json::Value;
 
 use crate::{
     config::{ServiceConfig, ServiceKind, YarrConfig},
-    yarr::{YarrClient, validate_safe_path},
+    openapi::HttpMethod,
+    yarr::YarrClient,
 };
 
 pub mod codemode;
 pub mod download;
+pub mod fleet;
 pub mod openapi_ops;
+pub mod safety;
 pub mod stats;
 pub mod subtitles;
 pub mod trace;
@@ -41,6 +44,8 @@ pub struct YarrService {
     codemode_slots: std::sync::Arc<tokio::sync::Semaphore>,
     codemode_queue_timeout: std::time::Duration,
     codemode_execution_timeout: std::time::Duration,
+    /// Per-leaf bound for one fleet invocation (`fleet.map` / `fleet.status`).
+    pub(crate) fleet_instance_timeout: std::time::Duration,
 }
 
 impl YarrService {
@@ -58,10 +63,11 @@ impl YarrService {
             codemode_preamble: crate::codemode::build_preamble(&configured).into(),
             codemode_catalog: crate::codemode::catalog::build_catalog(&configured).into(),
             codemode_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(
-                crate::codemode::CODEMODE_MAX_CONCURRENT,
+                crate::codemode_contract::CODEMODE_MAX_CONCURRENT,
             )),
-            codemode_queue_timeout: crate::codemode::CODEMODE_QUEUE_TIMEOUT,
-            codemode_execution_timeout: crate::codemode::CODEMODE_TIMEOUT,
+            codemode_queue_timeout: crate::codemode_contract::CODEMODE_QUEUE_TIMEOUT,
+            codemode_execution_timeout: crate::codemode_contract::CODEMODE_TIMEOUT,
+            fleet_instance_timeout: crate::app::fleet::DEFAULT_FLEET_INSTANCE_TIMEOUT,
         }
     }
 
@@ -91,6 +97,13 @@ impl YarrService {
     /// The configured artifacts root, if Code Mode `writeArtifact` is enabled.
     pub(crate) fn data_dir(&self) -> Option<&std::path::Path> {
         self.data_dir.as_deref()
+    }
+
+    /// Override the per-leaf fleet bound. Tests use this to exercise
+    /// slow-upstream/timeout behavior quickly; production keeps the default.
+    pub fn with_fleet_timeout(mut self, instance_timeout: std::time::Duration) -> Self {
+        self.fleet_instance_timeout = instance_timeout;
+        self
     }
 
     /// The shared semantic-search cache for `codemode.search()` — see
@@ -134,43 +147,49 @@ impl YarrService {
             .await
     }
 
+    /// Generic GET passthrough. The route is admitted here, in the app layer —
+    /// not only in the transport shims — so every caller (CLI, MCP, Code Mode,
+    /// or a direct service call) hits the same fail-closed gate: the raw route
+    /// must resolve to exactly one reviewed generated operation, and that
+    /// operation's reviewed [`OperationSafety`](crate::openapi::OperationSafety)
+    /// decides scope and confirmation. HTTP GET alone is not safety evidence.
     pub async fn api_get(&self, service: &str, path: &str) -> Result<Value> {
-        validate_safe_path(path)?;
-        self.client.get_json(self.service(service)?, path).await
+        let service = self.service(service)?;
+        safety::classify_generic_route(service.kind, HttpMethod::Get, path)?;
+        self.client.get_json(service, path).await
     }
 
-    /// POST passthrough. Mutating but NOT destructive, so it runs immediately —
-    /// no confirm gate (the write-confirm gate is reserved for destructive
-    /// deletes; see [`api_delete`](Self::api_delete)).
+    /// Generic POST passthrough. Admission is identical to [`api_get`]
+    /// (Self::api_get): the resolved reviewed operation — not the verb —
+    /// decides whether this is a Mutation (runs immediately) or Destructive
+    /// (MCP transports elicit first).
     pub async fn api_post(&self, service: &str, path: &str, body: Value) -> Result<Value> {
-        validate_safe_path(path)?;
-        self.client
-            .post_json(self.service(service)?, path, body)
-            .await
+        let service = self.service(service)?;
+        safety::classify_generic_route(service.kind, HttpMethod::Post, path)?;
+        self.client.post_json(service, path, body).await
     }
 
-    /// PUT passthrough. Mutating but not destructive — runs immediately (see
-    /// [`api_post`](Self::api_post)).
+    /// Generic PUT passthrough. See [`api_post`](Self::api_post): admission and
+    /// safety both come from the exact resolved generated operation.
     pub async fn api_put(&self, service: &str, path: &str, body: Value) -> Result<Value> {
-        validate_safe_path(path)?;
-        self.client
-            .put_json(self.service(service)?, path, body)
-            .await
+        let service = self.service(service)?;
+        safety::classify_generic_route(service.kind, HttpMethod::Put, path)?;
+        self.client.put_json(service, path, body).await
     }
 
-    /// DELETE passthrough — the one destructive generic verb. On the MCP
-    /// surface, `rmcp_server.rs` elicits the connected client for confirmation
-    /// before dispatch reaches here; the CLI and Code Mode run it immediately.
+    /// Generic DELETE passthrough. Deleting is not itself destructive: the
+    /// exact resolved route decides. Only when that operation is reviewed
+    /// `Destructive` do the MCP transports elicit the connected client for
+    /// confirmation; the CLI and Code Mode run it immediately.
     pub async fn api_delete(
         &self,
         service: &str,
         path: &str,
         body: Option<Value>,
     ) -> Result<Value> {
-        validate_safe_path(path)?;
-        self.client
-            .delete_json(self.service(service)?, path, body)
-            .await
+        let service = self.service(service)?;
+        safety::classify_generic_route(service.kind, HttpMethod::Delete, path)?;
+        self.client.delete_json(service, path, body).await
     }
 
     /// Resolve a configured service by name/kind and verify its capability

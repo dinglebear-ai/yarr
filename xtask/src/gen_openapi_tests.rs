@@ -1,4 +1,4 @@
-//! Tests for the OpenAPI → operation/type table generator.
+//! Tests for the `OpenAPI` → operation/type table generator.
 //!
 //! These exercise the parse/emit core on tiny inline specs so a regression in
 //! path-prefixing, param classification, the phantom-path-param skip, name
@@ -206,6 +206,20 @@ fn extract_operations_marks_unsafe_representations_omitted() {
         .unwrap();
     assert!(!supported_table.contains("name: \"wild_upload\""));
     assert!(emitted.contains("OmittedOperationSpec { name: \"wild_upload\""));
+}
+
+#[test]
+fn extracted_operations_have_a_total_default_safety_before_emission() {
+    let operations = extract_operations(&json!({ "paths": {
+        "/items": { "get": {
+            "operationId": "GetItems",
+            "responses": { "200": {} }
+        } }
+    }}))
+    .unwrap();
+
+    assert_eq!(operations[0].safety, "Mutation");
+    assert!(emit_rust("inline", &operations, &[]).contains("safety: OperationSafety::Mutation"));
 }
 
 #[test]

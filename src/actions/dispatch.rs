@@ -7,13 +7,99 @@
 //! runs, so a curated command can never reach an incompatible kind regardless of
 //! which transport invoked it.
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use serde_json::Value;
 
 use super::help::help_text;
-use super::model::{ValidationError, YarrAction};
-use super::registry::{action_allowed_for_kind, curated_command, valid_actions_for_kind};
+use super::model::{READ_SCOPE, ValidationError, WRITE_SCOPE, YarrAction};
+use super::registry::{
+    action_allowed_for_kind, action_is_destructive, curated_command, valid_actions_for_kind,
+};
 use crate::app::YarrService;
+use crate::openapi::{HttpMethod, OperationSafety};
+
+/// Authoritative runtime safety classification for actions that can resolve to a
+/// generated OpenAPI operation. Transport adapters consume this result for scope
+/// and elicitation; dispatch consumes it before an upstream request is possible.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ActionClassification {
+    pub safety: OperationSafety,
+    pub required_scope: Option<&'static str>,
+    pub destructive: bool,
+}
+
+impl ActionClassification {
+    fn from_safety(safety: OperationSafety) -> Self {
+        Self {
+            safety,
+            required_scope: Some(if safety == OperationSafety::ReadOnly {
+                READ_SCOPE
+            } else {
+                WRITE_SCOPE
+            }),
+            destructive: safety == OperationSafety::Destructive,
+        }
+    }
+}
+
+/// Classify an operation at the application boundary. Generic calls are admitted
+/// only when their *raw* route (minus query text) has exactly one generated
+/// method/template match for the configured service kind. HTTP GET alone never
+/// establishes read safety.
+///
+/// The generic-route core lives in [`crate::app::safety`] and is enforced by
+/// `YarrService`'s `api_*` methods themselves, so this classification and the
+/// app-layer admission cannot drift apart.
+pub(crate) fn classify_action(
+    service: &YarrService,
+    action: &YarrAction,
+) -> Result<ActionClassification> {
+    let (service_name, method, path) = match action {
+        YarrAction::ApiGet { service, path } => (service.as_str(), HttpMethod::Get, path.as_str()),
+        YarrAction::ApiPost { service, path, .. } => {
+            (service.as_str(), HttpMethod::Post, path.as_str())
+        }
+        YarrAction::ApiPut { service, path, .. } => {
+            (service.as_str(), HttpMethod::Put, path.as_str())
+        }
+        YarrAction::ApiDelete { service, path, .. } => {
+            (service.as_str(), HttpMethod::Delete, path.as_str())
+        }
+        YarrAction::Op {
+            service: service_name,
+            op,
+            ..
+        } => {
+            let kind = service
+                .kind_of(service_name)?
+                .ok_or_else(|| anyhow!("unknown yarr service `{service_name}`"))?;
+            let spec = crate::openapi::find_operation(kind, op).ok_or_else(|| {
+                anyhow!("unknown or unsupported {} operation `{op}`", kind.as_str())
+            })?;
+            return Ok(ActionClassification::from_safety(spec.safety));
+        }
+        _ => {
+            let required_scope = super::registry::required_scope_for_action(action.name());
+            let destructive = action_is_destructive(action.name());
+            return Ok(ActionClassification {
+                safety: if destructive {
+                    OperationSafety::Destructive
+                } else if required_scope == Some(READ_SCOPE) {
+                    OperationSafety::ReadOnly
+                } else {
+                    OperationSafety::Mutation
+                },
+                required_scope,
+                destructive,
+            });
+        }
+    };
+    let kind = service
+        .kind_of(service_name)?
+        .ok_or_else(|| anyhow!("unknown yarr service `{service_name}`"))?;
+    let safety = crate::app::safety::classify_generic_route(kind, method, path)?;
+    Ok(ActionClassification::from_safety(safety))
+}
 
 /// Validate that `action` (by name) may run against the service named `service_name`.
 ///
@@ -78,6 +164,12 @@ fn target_service(action: &YarrAction) -> Option<&str> {
 }
 
 pub async fn execute_service_action(service: &YarrService, action: &YarrAction) -> Result<Value> {
+    // Admission happens before every transport call, regardless of CLI, flat MCP,
+    // or Code Mode origin. Generic paths are additionally validated here so an
+    // invalid/raw-secret query never reaches a confirmation adapter — and the
+    // `YarrService` generic methods enforce the same admission themselves, so a
+    // direct caller cannot bypass the route classification.
+    let _classification = classify_action(service, action)?;
     // Shared action×kind guard: runs for every action that targets a service,
     // on both the CLI and MCP paths. No-op for generic/infra actions.
     if let Some(service_name) = target_service(action) {
