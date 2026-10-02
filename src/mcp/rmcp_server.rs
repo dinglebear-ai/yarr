@@ -14,11 +14,11 @@ use lab_auth::AuthContext;
 use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
+        CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
         GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
-        ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
-        ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
-        ServerInfo, Tool,
+        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
+        ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+        Resource, ResourceContents, ServerCapabilities, ServerInfo, Tool,
     },
     service::{Peer, RequestContext},
 };
@@ -32,6 +32,88 @@ use crate::{
 use crate::server::{AppState, AuthPolicy};
 
 use super::{elicit, prompts, schemas::tool_definitions, tools::execute_tool};
+
+/// SEP-2549 (`ttlMs`/`cacheScope`) is required on `tools/list`, `resources/list`,
+/// `resources/templates/list`, `resources/read`, and `prompts/list` for clients
+/// that negotiate MCP protocol version `2026-07-28` — omitting them (rmcp's
+/// `Default::default()` leaves both `None`, which then don't get serialized)
+/// makes a spec-strict client at that protocol version reject the whole result.
+///
+/// `tools/list`, `resources/list`, `resources/templates/list`, and
+/// `resources/read` are all derived from config loaded once at startup, so a
+/// 5-minute freshness hint is safe for all four.
+pub(crate) const CACHEABLE_RESULT_TTL_MS: u64 = 300_000;
+
+/// The prompt list is static per binary (see `prompts::list_prompts`), so it
+/// can carry a longer freshness hint than the config-derived results above.
+pub(crate) const PROMPTS_LIST_TTL_MS: u64 = 600_000;
+
+/// Types that carry SEP-2549's `ttlMs`/`cacheScope` cache hints: every
+/// list/read result this server can return that's covered by the spec's
+/// `CacheableResult` interface. A trait (rather than a call site per method)
+/// keeps "which results are cacheable" and the version gate in
+/// [`with_cache_hints`] in one place, instead of duplicated per handler.
+trait CacheableResult: Sized {
+    fn with_ttl_ms(self, ttl_ms: u64) -> Self;
+    fn with_cache_scope(self, cache_scope: CacheScope) -> Self;
+}
+
+macro_rules! impl_cacheable_result {
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl CacheableResult for $t {
+                fn with_ttl_ms(self, ttl_ms: u64) -> Self {
+                    <$t>::with_ttl_ms(self, ttl_ms)
+                }
+                fn with_cache_scope(self, cache_scope: CacheScope) -> Self {
+                    <$t>::with_cache_scope(self, cache_scope)
+                }
+            }
+        )+
+    };
+}
+
+impl_cacheable_result!(
+    ListToolsResult,
+    ListResourcesResult,
+    ListResourceTemplatesResult,
+    ReadResourceResult,
+    ListPromptsResult,
+);
+
+/// Attach SEP-2549 cache hints to `result` when the caller negotiated MCP
+/// protocol version `2026-07-28` or later — the same gate rmcp's own
+/// `#[tool_handler]`/`#[prompt_handler]` macros apply (see
+/// `rmcp-macros::tool_handler`), which yarr's hand-written `ServerHandler`
+/// doesn't get for free. A caller on an older protocol version gets the
+/// previous wire format unchanged: the fields are additive and ignored by a
+/// client that doesn't understand SEP-2549, but there's no reason to promise a
+/// freshness/cache-sharing contract to a client that never negotiated it.
+///
+/// `cache_scope` is deliberately [`CacheScope::Private`], not rmcp's default
+/// `Public` — yarr is commonly deployed in `flat` tool mode behind a shared
+/// gateway/cache, where `Public` would let an intermediary serve one caller's
+/// `tools/list` (service names) or schema `resources/read` to a different,
+/// unauthenticated caller. Every handler here calls `require_auth_context`
+/// first and returns content that doesn't vary per caller, so this isn't a
+/// cross-user data leak within one process — the risk is purely what a
+/// downstream cache is permitted to do with the response.
+fn with_cache_hints<T: CacheableResult>(
+    result: T,
+    context: &RequestContext<RoleServer>,
+    ttl_ms: u64,
+) -> T {
+    let supports_cache_hints = context
+        .protocol_version()
+        .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
+    if supports_cache_hints {
+        result
+            .with_ttl_ms(ttl_ms)
+            .with_cache_scope(CacheScope::Private)
+    } else {
+        result
+    }
+}
 
 // ── server ────────────────────────────────────────────────────────────────────
 
@@ -83,10 +165,14 @@ impl ServerHandler for YarrRmcpServer {
         require_auth_context(&self.state, &context)?;
         let tools = rmcp_tool_definitions_for_service(&self.state)?;
         tracing::debug!(tool_count = tools.len(), "MCP tools listed");
-        Ok(ListToolsResult {
-            tools,
-            ..Default::default()
-        })
+        Ok(with_cache_hints(
+            ListToolsResult {
+                tools,
+                ..Default::default()
+            },
+            &context,
+            CACHEABLE_RESULT_TTL_MS,
+        ))
     }
 
     async fn call_tool(
@@ -185,10 +271,33 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
         require_auth_context(&self.state, &context)?;
-        Ok(ListResourcesResult {
-            resources: vec![schema_resource()],
-            ..Default::default()
-        })
+        Ok(with_cache_hints(
+            ListResourcesResult {
+                resources: vec![schema_resource()],
+                ..Default::default()
+            },
+            &context,
+            CACHEABLE_RESULT_TTL_MS,
+        ))
+    }
+
+    /// Yarr defines no resource *templates* — only the one concrete schema
+    /// resource served by `list_resources`/`read_resource` above — but a
+    /// `2026-07-28` client is still free to call this method. Left
+    /// unimplemented, rmcp's default (`rmcp::handler::server::ServerHandler`)
+    /// returns an empty list with both cache hints unset, which fails the same
+    /// SEP-2549 validation this file exists to fix for the other four methods.
+    async fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        context: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, ErrorData> {
+        require_auth_context(&self.state, &context)?;
+        Ok(with_cache_hints(
+            ListResourceTemplatesResult::default(),
+            &context,
+            CACHEABLE_RESULT_TTL_MS,
+        ))
     }
 
     async fn read_resource(
@@ -206,9 +315,14 @@ impl ServerHandler for YarrRmcpServer {
         let schema = tool_definitions();
         let text = serde_json::to_string_pretty(&schema)
             .map_err(|e| ErrorData::internal_error(format!("serialization error: {e}"), None))?;
-        Ok(ReadResourceResult::new(vec![
-            ResourceContents::text(text, SCHEMA_RESOURCE_URI).with_mime_type("application/json"),
-        ])
+        Ok(with_cache_hints(
+            ReadResourceResult::new(vec![
+                ResourceContents::text(text, SCHEMA_RESOURCE_URI)
+                    .with_mime_type("application/json"),
+            ]),
+            &context,
+            CACHEABLE_RESULT_TTL_MS,
+        )
         .into())
     }
 
@@ -220,7 +334,11 @@ impl ServerHandler for YarrRmcpServer {
         context: RequestContext<RoleServer>,
     ) -> Result<ListPromptsResult, ErrorData> {
         require_auth_context(&self.state, &context)?;
-        Ok(prompts::list_prompts())
+        Ok(with_cache_hints(
+            prompts::list_prompts(),
+            &context,
+            PROMPTS_LIST_TTL_MS,
+        ))
     }
 
     async fn get_prompt(

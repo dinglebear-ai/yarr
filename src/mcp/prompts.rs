@@ -10,6 +10,11 @@ use rmcp::model::{
     GetPromptRequestParams, GetPromptResult, ListPromptsResult, Prompt, PromptMessage, Role,
 };
 
+/// Plain prompt data — no SEP-2549 cache hints (`ttlMs`/`cacheScope`) here.
+/// Those are applied uniformly by `rmcp_server.rs`'s `with_cache_hints`, which
+/// also decides the freshness/scope policy and gates it on the caller's
+/// negotiated protocol version; keeping that entirely out of this module lets
+/// it stay a plain data source.
 pub(super) fn list_prompts() -> ListPromptsResult {
     ListPromptsResult {
         prompts: vec![Prompt::new(
