@@ -1,5 +1,8 @@
 use anyhow::Result;
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use walkdir::WalkDir;
 
 use super::{
@@ -285,6 +288,61 @@ pub(super) fn config_and_auth(reporter: &mut PatternReporter) {
     }
 }
 
+/// Configuration must consume the neutral Code Mode contract module
+/// (`src/codemode_contract.rs`) for reserved globals, namespace normalization,
+/// and the public runtime-budget defaults. Importing the Code Mode facade from
+/// configuration would re-couple the loader to interpreter internals, so any
+/// `crate::codemode` reference in production configuration sources fails.
+pub(super) fn naming_contract(reporter: &mut PatternReporter) {
+    let mut candidates = vec![PathBuf::from("src/config.rs")];
+    for entry in WalkDir::new("src/config")
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let path = entry.path();
+        if entry.file_type().is_file()
+            && path.extension().and_then(|ext| ext.to_str()) == Some("rs")
+            && !path.to_string_lossy().ends_with("_tests.rs")
+        {
+            candidates.push(path.to_path_buf());
+        }
+    }
+    let offenders: Vec<String> = candidates
+        .iter()
+        .filter(|path| imports_codemode_facade(&read_file(&path.to_string_lossy())))
+        .map(|path| display_path(path))
+        .collect();
+    if offenders.is_empty() {
+        reporter.ok(
+            "naming",
+            "configuration consumes the neutral Code Mode contract (no facade import)",
+        );
+    } else {
+        reporter.fail(
+            "naming",
+            format!(
+                "configuration must not import the Code Mode facade; use crate::codemode_contract: {}",
+                offenders.join(", ")
+            ),
+        );
+    }
+}
+
+/// True when `contents` references the Code Mode facade (`crate::codemode`)
+/// rather than the neutral contract module (`crate::codemode_contract`).
+fn imports_codemode_facade(contents: &str) -> bool {
+    let needle = "crate::codemode";
+    let mut rest = contents;
+    while let Some(index) = rest.find(needle) {
+        let after = &rest[index + needle.len()..];
+        if !after.starts_with('_') {
+            return true;
+        }
+        rest = after;
+    }
+    false
+}
+
 pub(super) fn tooling(reporter: &mut PatternReporter) {
     let lefthook = read_file("lefthook.yml");
     let taplo = read_file("taplo.toml");
@@ -323,5 +381,22 @@ pub(super) fn tooling(reporter: &mut PatternReporter) {
                 missing.join(", ")
             ),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::imports_codemode_facade;
+
+    #[test]
+    fn facade_references_are_distinguished_from_contract_references() {
+        assert!(imports_codemode_facade("let x = crate::codemode::FOO;"));
+        assert!(imports_codemode_facade("use crate::codemode;"));
+        assert!(imports_codemode_facade("crate::codemode "));
+        assert!(!imports_codemode_facade(
+            "crate::codemode_contract::RESERVED_GLOBALS"
+        ));
+        assert!(!imports_codemode_facade("use crate::codemode_contract;"));
+        assert!(!imports_codemode_facade("no codemode references here"));
     }
 }

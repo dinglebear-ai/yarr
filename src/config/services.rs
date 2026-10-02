@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub(super) const SERVICE_HOME_DIRNAME: &str = ".yarr";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ServiceConfig {
     pub name: String,
     pub kind: ServiceKind,
@@ -15,6 +15,16 @@ pub struct ServiceConfig {
     pub username: Option<String>,
     pub password: Option<String>,
     pub token: Option<String>,
+    /// Optional credential references (TOML-only). Each `*_env` names the one
+    /// environment variable this service's corresponding credential may be
+    /// resolved from — exactly `YARR_<SERVICE-ENV-NAME>_<FIELD>`; the resolved
+    /// value lands in the literal field above and the reference is preserved
+    /// for provenance. Literal values are never resolved and literal+reference
+    /// for the same field is rejected as a collision.
+    pub api_key_env: Option<String>,
+    pub username_env: Option<String>,
+    pub password_env: Option<String>,
+    pub token_env: Option<String>,
 }
 
 impl Default for ServiceConfig {
@@ -27,6 +37,10 @@ impl Default for ServiceConfig {
             username: None,
             password: None,
             token: None,
+            api_key_env: None,
+            username_env: None,
+            password_env: None,
+            token_env: None,
         }
     }
 }
@@ -267,6 +281,12 @@ pub(super) fn load_services_from_env(config: &mut super::YarrConfig) -> anyhow::
             username: env_optional(&format!("YARR_{env_name}_USERNAME")),
             password: env_optional(&format!("YARR_{env_name}_PASSWORD")),
             token: env_optional(&format!("YARR_{env_name}_TOKEN")),
+            // Env-loaded services are literal by definition; references exist
+            // only in TOML (resolved by `resolve_service_credential_references`).
+            api_key_env: None,
+            username_env: None,
+            password_env: None,
+            token_env: None,
         };
         services.push(service);
     }
@@ -286,6 +306,101 @@ fn service_env_name(name: &str) -> String {
             }
         })
         .collect()
+}
+
+/// Resolve TOML credential references (`*_env` fields) for every service.
+///
+/// Narrow by construction: a reference must be exactly the canonical variable
+/// for *this* service and *this* field (`YARR_<SERVICE-ENV-NAME>_<SUFFIX>`), so
+/// the runtime namespace (`YARR_MCP_*`), fleet policy variables, and other
+/// services' credentials can never be forwarded. A literal plus a reference for
+/// the same field is a collision (rejected, never silently dropped), and a
+/// reference whose variable is unset or empty fails the load instead of
+/// producing a credential-less service.
+pub(super) fn resolve_service_credential_references(
+    config: &mut super::YarrConfig,
+) -> anyhow::Result<()> {
+    for service in &mut config.services {
+        let prefix = service_env_name(&service.name);
+        resolve_credential_reference(
+            &service.name,
+            &prefix,
+            service.api_key_env.as_deref(),
+            &mut service.api_key,
+            "API_KEY",
+        )?;
+        resolve_credential_reference(
+            &service.name,
+            &prefix,
+            service.username_env.as_deref(),
+            &mut service.username,
+            "USERNAME",
+        )?;
+        resolve_credential_reference(
+            &service.name,
+            &prefix,
+            service.password_env.as_deref(),
+            &mut service.password,
+            "PASSWORD",
+        )?;
+        resolve_credential_reference(
+            &service.name,
+            &prefix,
+            service.token_env.as_deref(),
+            &mut service.token,
+            "TOKEN",
+        )?;
+    }
+    Ok(())
+}
+
+fn resolve_credential_reference(
+    service_name: &str,
+    prefix: &str,
+    reference: Option<&str>,
+    literal: &mut Option<String>,
+    suffix: &'static str,
+) -> anyhow::Result<()> {
+    let Some(reference) = reference else {
+        return Ok(());
+    };
+    let expected = format!("YARR_{prefix}_{suffix}");
+    if !reference.starts_with("YARR_") {
+        anyhow::bail!(
+            "service {service_name:?} credential reference {reference:?} must name a YARR_* environment variable (expected {expected:?})"
+        );
+    }
+    if reference != expected {
+        // Everything below fails closed; the branches only sharpen the
+        // diagnostics. A reference inside this service's own namespace names
+        // the wrong field, the runtime prefixes name server/fleet plumbing,
+        // and anything else belongs to a different service.
+        if reference.starts_with(&format!("YARR_{prefix}_")) {
+            anyhow::bail!(
+                "service {service_name:?} credential reference {reference:?} names the wrong field for this service; only {suffix} may reference {expected:?}"
+            );
+        }
+        if reference.starts_with("YARR_MCP_") || reference.starts_with("YARR_FLEET_") {
+            anyhow::bail!(
+                "service {service_name:?} credential reference {reference:?} is a runtime variable, not a service credential (expected {expected:?})"
+            );
+        }
+        anyhow::bail!(
+            "service {service_name:?} credential reference {reference:?} belongs to another service's credential namespace (expected {expected:?})"
+        );
+    }
+    if literal.is_some() {
+        anyhow::bail!(
+            "service {service_name:?} sets both a literal value and a reference for {suffix}; configure exactly one"
+        );
+    }
+    let value = env_optional(&expected).ok_or_else(|| {
+        anyhow::anyhow!(
+            "service {service_name:?} credential reference {expected} is not set (or empty) in the environment"
+        )
+    })?;
+    *literal = Some(value);
+    Ok(())
 }
 
 fn env_optional(key: &str) -> Option<String> {

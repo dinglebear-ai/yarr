@@ -34,6 +34,7 @@ pub(super) fn parse_infra_command(verb: &str, rest: &[String]) -> Result<Command
             })
         }
         "setup" => parse_setup_command(rest),
+        "discover" => parse_discover_command(rest),
         "serve" | "mcp" => Err(anyhow!(
             "`{verb}` is a run mode handled before CLI parsing; this should be unreachable"
         )),
@@ -193,6 +194,42 @@ fn parse_setup_command(rest: &[String]) -> Result<Command> {
         )),
         [other, ..] => Err(anyhow!("unknown setup subcommand `{other}`")),
     }
+}
+
+/// `yarr discover plex --token-env NAME [--out PATH] [--include-shared] [--diff]`
+fn parse_discover_command(rest: &[String]) -> Result<Command> {
+    let [provider, flags @ ..] = rest else {
+        return Err(anyhow!("discover requires a provider (plex)"));
+    };
+    if provider != "plex" {
+        return Err(anyhow!(
+            "unknown discovery provider `{provider}` (use plex)"
+        ));
+    }
+    let (mut token_env, mut out) = (None, None);
+    let (mut include_shared, mut diff) = (false, false);
+    let mut iter = flags.iter();
+    while let Some(flag) = iter.next() {
+        match flag.as_str() {
+            "--token-env" => token_env = Some(flag_value(&mut iter, "discover plex --token-env")?),
+            "--out" => {
+                out = Some(std::path::PathBuf::from(flag_value(
+                    &mut iter,
+                    "discover plex --out",
+                )?))
+            }
+            "--include-shared" => include_shared = true,
+            "--diff" => diff = true,
+            other => return Err(anyhow!("unknown discover plex flag `{other}`")),
+        }
+    }
+    let token_env = token_env.ok_or_else(|| anyhow!("discover plex requires --token-env NAME"))?;
+    Ok(Command::DiscoverPlex {
+        token_env,
+        out,
+        include_shared,
+        diff,
+    })
 }
 
 #[cfg(test)]

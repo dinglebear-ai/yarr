@@ -147,6 +147,7 @@ fn get_collection_operations_with_optional_resource_id_queries_seed_first() {
     let collection = OperationSpec {
         name: "get_series",
         method: HttpMethod::Get,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/series",
         path_params: &[],
         query_params: &[],
@@ -162,6 +163,7 @@ fn get_collection_operations_with_optional_resource_id_queries_seed_first() {
     let by_query_id = OperationSpec {
         name: "get_episode",
         method: HttpMethod::Get,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/episode",
         path_params: &[],
         query_params: &["seriesId"],
@@ -184,6 +186,7 @@ fn fixture_bodies_are_reused_only_for_update_and_validation_ops() {
     let create = OperationSpec {
         name: "post_series",
         method: HttpMethod::Post,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/series",
         path_params: &[],
         query_params: &[],
@@ -199,6 +202,7 @@ fn fixture_bodies_are_reused_only_for_update_and_validation_ops() {
     let update = OperationSpec {
         name: "put_series_by_id",
         method: HttpMethod::Put,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/series/{id}",
         path_params: &["id"],
         query_params: &[],
@@ -214,6 +218,7 @@ fn fixture_bodies_are_reused_only_for_update_and_validation_ops() {
     let test = OperationSpec {
         name: "post_indexer_test",
         method: HttpMethod::Post,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/indexer/test",
         path_params: &[],
         query_params: &[],
@@ -237,6 +242,7 @@ fn live_fixture_body_overrides_confirmed_simple_creates() {
     let tag = OperationSpec {
         name: "post_tag",
         method: HttpMethod::Post,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/tag",
         path_params: &[],
         query_params: &[],
@@ -252,6 +258,7 @@ fn live_fixture_body_overrides_confirmed_simple_creates() {
     let command = OperationSpec {
         name: "post_command",
         method: HttpMethod::Post,
+        safety: yarr::openapi::OperationSafety::Mutation,
         path: "/api/v3/command",
         path_params: &[],
         query_params: &[],

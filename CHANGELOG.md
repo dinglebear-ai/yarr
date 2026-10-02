@@ -7,14 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add CLI-only `yarr discover plex`: strict plex.tv resource parsing, local→HTTPS→relay connection selection, owned-only defaults, and a marker-guarded mode-0600 export (`YARR_<NAME>_URL`/`_KIND`/`_TOKEN` assignments) that never touches caller config or secret files; `--diff` reports drift against configured services without writing (exit code 2 on drift), and tokens are redacted from `Debug` and structured output. Read-only Tautulli↔Plex identity pairing lands as an app-layer operation with the same loopback-only test discipline.
+- TOML service entries accept `api_key_env`/`username_env`/`password_env`/`token_env` credential references resolved at load time from exactly that service's own canonical `YARR_<SERVICE>_*` variable; runtime (`YARR_MCP_*`/`YARR_FLEET_*`) and cross-service references are rejected, literal-plus-reference collisions fail the load, and missing or empty referenced variables fail fast. Literal credentials are never resolved, and the reference is preserved for provenance.
+
 ### Fixed
 
+- Reject unknown service fields: a typo'd credential reference field (for example `api_key_from`) now fails the config load instead of silently producing a credential-less service, a service whose own env namespace starts with `mcp_`/`fleet_` can reference its own canonical variable, and reference rejections distinguish a wrong field in the service's own namespace from a foreign service's variable.
+- Generate `docs/MCP_SCHEMA.md` with route-derived scope for `api_get`/`api_post`/`api_put`/`api_delete`/`op`, read the route-derived action names directly from `action_has_route_dependent_safety` (the schema-docs checker and the tool-docs generator now share the same library source of truth with a parity test), and stop describing `api_delete` as statically destructive in `docs/PHILOSOPHY.md`.
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
+- Normalize Code Mode service namespaces consistently and reject configured names that collide with runtime bindings or another normalized namespace.
+- Bound upstream request metric labels and add fixed-bucket upstream duration histograms; qBittorrent SID login is excluded from generic upstream request counts.
+- Classify the reviewed media/file-deleting generated routes (Sonarr and Radarr delete-by-id with `deleteFiles`, Plex media/metadata deletes, and Jellyfin external-file and alternate-source deletes) as `Destructive` so the MCP elicitation gate covers them.
+- Bound Code Mode deadline failures to a consistent `codemode: timed out` error (an interrupted run no longer surfaces an opaque QuickJS job error), and pin the documented runtime limits with regression tests: busy admission fails closed without executing, runaway scripts are cut off at the execution deadline, and each bridge call — including a side-effecting GET — executes exactly once.
 
 ### Changed
 
-
+- Add the bounded `fleet` Code Mode bridge (`fleet.of/all/map/status`): each invocation freezes and validates its leaf set before anything runs, executes every leaf exactly once with bounded concurrency and a per-leaf timeout, preserves ordered partial results, truncates oversized values with typed metadata, audits each real leaf action individually, and asks for **one** exact batch confirmation covering only a map's frozen destructive leaves.
+- Ship four canonical read-only builtin snippets (`fleet_health`, `fleet_activity`, `fleet_library_sizes`, `fleet_transcode_load`) inside the binary; their names are reserved, so they can be neither overwritten nor deleted, and pre-existing user snippets under those names are shadowed by the canonical source.
+- Move the shared Code Mode naming contract (reserved globals, namespace normalization, and the public runtime-budget defaults) into a neutral `codemode_contract` module consumed by both configuration and Code Mode, so configuration no longer imports the Code Mode facade; a new `naming` xtask pattern check enforces the boundary.
+- Enforce route-derived safety for generic API passthrough and generated operations in the shared app layer: every call must uniquely match one reviewed generated operation, unmatched or ambiguous routes fail closed before any upstream request, and destructiveness comes only from reviewed operation metadata rather than the HTTP verb.
 - Relicense Dinglebear-owned original work under AGPL-3.0-only and document separate commercial licensing; third-party material retains its original terms.
 - Regenerate the committed Unraid package and release manifest from the pinned v2.1.0 assets, restoring byte-for-byte reproducibility across umask settings.
 - Allow Compose deployments to select the service env file with `YARR_ENV_FILE`.

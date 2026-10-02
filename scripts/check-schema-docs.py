@@ -16,6 +16,9 @@ CONDITIONALS_RS = ROOT / "src/mcp/schemas/conditionals.rs"
 # submodules (registry.rs). Scan the whole tree so the contract survives the split.
 ACTION_DIR = ROOT / "src/actions"
 ACTION_FACADE = ROOT / "src/actions.rs"
+# Home of `action_has_route_dependent_safety`, the library source of truth for
+# which actions get route-derived admission.
+REGISTRY_QUERIES_RS = ROOT / "src/actions/registry_queries.rs"
 TOOLS_RS = ROOT / "src/mcp/tools.rs"
 HELP_RS = ROOT / "src/actions/help.rs"
 PROMPTS_RS = ROOT / "src/mcp/prompts.rs"
@@ -69,6 +72,32 @@ def extract_scope_for_actions() -> dict[str, str]:
     return scopes
 
 
+def extract_route_dependent_actions() -> set[str]:
+    """Action names in `action_has_route_dependent_safety`'s `matches!`.
+
+    Read from the Rust predicate itself so the rendered scope column can never
+    drift from the library contract. Missing or empty predicate = hard failure.
+    """
+    text = read(REGISTRY_QUERIES_RS)
+    predicate = re.search(
+        r"fn action_has_route_dependent_safety\(action: &str\) -> bool \{\s*matches!\((.*?)\)\s*\}",
+        text,
+        re.S,
+    )
+    if not predicate:
+        raise SystemExit(
+            "FAIL: cannot locate `action_has_route_dependent_safety` in "
+            f"{REGISTRY_QUERIES_RS.relative_to(ROOT)}; the schema-docs contract "
+            "must read route-derived action names from the library predicate"
+        )
+    names = set(re.findall(r'"([^"]+)"', predicate.group(1)))
+    if not names:
+        raise SystemExit(
+            "FAIL: `action_has_route_dependent_safety` lists no action names"
+        )
+    return names
+
+
 def action_description(action: str) -> str:
     descriptions = {
         "service_status": "Fetch the service-specific status endpoint for one configured service.",
@@ -90,6 +119,7 @@ def action_description(action: str) -> str:
 def render() -> str:
     actions = extract_actions()
     scopes = extract_scope_for_actions()
+    route_dependent = extract_route_dependent_actions()
     lines = [
         "---",
         'title: "MCP Schema Contract"',
@@ -122,7 +152,7 @@ def render() -> str:
         "|---|---|---|",
     ]
     for action in actions:
-        scope = scopes[action]
+        scope = "route-derived" if action in route_dependent else scopes[action]
         lines.append(f"| `{action}` | {scope} | {action_description(action)} |")
     lines.extend(
         [
@@ -130,6 +160,7 @@ def render() -> str:
             "## Drift Rules",
             "",
             "- `ACTION_SPECS` in `src/actions/registry.rs` is the canonical generic action and scope list; curated commands live in `CURATED_COMMANDS`.",
+            "- Route-derived admission (`api_get`/`api_post`/`api_put`/`api_delete`/`op`) is decided per call by the resolved reviewed operation; the scope column reads the names from `action_has_route_dependent_safety` in `src/actions/registry_queries.rs`, so it cannot drift.",
             "- `src/mcp/schemas.rs` derives the single `yarr` tool's action enum from `all_action_names()` (via the generated `properties`); `src/mcp/schemas/conditionals.rs` generates the action-specific requirements.",
             "- The MCP tool schema must reject unknown top-level parameters and encode action-specific requirements for the action dispatch the single `yarr` tool wraps.",
             "- `help` is intentionally public and must have no required scope.",
@@ -153,10 +184,12 @@ def render() -> str:
             "",
             "- `action` is always required.",
             "- `service_status` uses the service implied by the tool name.",
+            "- Generic `api_get`/`api_post`/`api_put`/`api_delete`/`op` calls are admitted per call by the exact reviewed operation resolved for their route; an unmatched or ambiguous route fails closed before dispatch.",
             "- `api_get` conditionally requires non-empty `path`.",
-            "- `api_post` conditionally requires non-empty `path`; `body` defaults to `{}`. Non-destructive; runs immediately.",
-            "- `api_put` conditionally requires non-empty `path`; `body` defaults to `{}`. Non-destructive; runs immediately.",
-            "- `api_delete` conditionally requires non-empty `path`; `body` is optional (query params go in `path`). Destructive: gated by MCP elicitation only (no bypass); the CLI has no elicitation channel and runs it immediately. Not a required schema param.",
+            "- `api_post` conditionally requires non-empty `path`; `body` defaults to `{}`.",
+            "- `api_put` conditionally requires non-empty `path`; `body` defaults to `{}`.",
+            "- `api_delete` conditionally requires non-empty `path`; `body` is optional (query params go in `path`).",
+            "- Only an operation resolved as Destructive is gated by MCP elicitation; the CLI has no elicitation channel and runs admitted operations immediately.",
             "- Unknown top-level parameters are rejected by the schema.",
             "",
         ]
@@ -208,9 +241,10 @@ def check_scope(actions: list[str]) -> list[str]:
             "src/mcp/schemas/conditionals.rs must remove service requirements for service-named tools"
         )
     # The required-params data lives in registry.rs (generic_required_params).
-    # There is no `confirm` param anywhere — plain writes and the destructive
-    # api_delete all run immediately; on MCP, api_delete additionally gets an
-    # elicitation prompt before dispatch (src/mcp/elicit.rs).
+    # There is no `confirm` param anywhere: mutating calls inside the resolved
+    # route model run immediately, and only an operation resolved as
+    # Destructive additionally gets an MCP elicitation prompt before dispatch
+    # (src/mcp/elicit.rs).
     registry_text = read_actions_tree()
     if '"service", "path"' not in registry_text:
         failures.append(

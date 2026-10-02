@@ -95,28 +95,76 @@ pub async fn run(cmd: Command, cfg: &YarrConfig) -> Result<()> {
         Command::Get {
             service: name,
             path,
-        } => service.api_get(name, path).await?,
+        } => {
+            crate::actions::execute_service_action(
+                &service,
+                &crate::actions::YarrAction::ApiGet {
+                    service: name.clone(),
+                    path: path.clone(),
+                },
+            )
+            .await?
+        }
         Command::Post {
             service: name,
             path,
             body,
-        } => service.api_post(name, path, body.clone()).await?,
+        } => {
+            crate::actions::execute_service_action(
+                &service,
+                &crate::actions::YarrAction::ApiPost {
+                    service: name.clone(),
+                    path: path.clone(),
+                    body: body.clone(),
+                },
+            )
+            .await?
+        }
         Command::Put {
             service: name,
             path,
             body,
-        } => service.api_put(name, path, body.clone()).await?,
+        } => {
+            crate::actions::execute_service_action(
+                &service,
+                &crate::actions::YarrAction::ApiPut {
+                    service: name.clone(),
+                    path: path.clone(),
+                    body: body.clone(),
+                },
+            )
+            .await?
+        }
         Command::Delete {
             service: name,
             path,
             body,
-        } => service.api_delete(name, path, body.clone()).await?,
-        // Generated operation dispatch — runs immediately, including DELETE ops.
+        } => {
+            crate::actions::execute_service_action(
+                &service,
+                &crate::actions::YarrAction::ApiDelete {
+                    service: name.clone(),
+                    path: path.clone(),
+                    body: body.clone(),
+                },
+            )
+            .await?
+        }
         Command::Op {
             service: name,
             op,
             args,
-        } => service.execute_operation(name, op, args).await?,
+        } => {
+            crate::actions::execute_service_action(
+                &service,
+                &crate::actions::YarrAction::Op {
+                    service: name.clone(),
+                    op: op.clone(),
+                    args: args.clone(),
+                },
+            )
+            .await?
+        }
         Command::Help => rest_help(),
         // Code Mode runs through the SAME shared dispatch path as the MCP
         // `codemode` action, so CLI↔MCP behaviour is identical.
@@ -166,7 +214,10 @@ pub async fn run(cmd: Command, cfg: &YarrConfig) -> Result<()> {
             };
             crate::actions::execute_service_action(&service, &parsed).await?
         }
-        Command::Doctor { .. } | Command::Watch { .. } | Command::Setup(_) => {
+        Command::Doctor { .. }
+        | Command::Watch { .. }
+        | Command::Setup(_)
+        | Command::DiscoverPlex { .. } => {
             unreachable!("dispatched directly in main.rs::run_cli")
         }
     };

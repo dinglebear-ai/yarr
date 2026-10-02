@@ -17,6 +17,7 @@
 //! them as run modes before `parse_args` is called.
 
 use super::setup::SetupCommand;
+use std::path::PathBuf;
 
 // `Eq` is intentionally not derived: the `Curated` variant carries a
 // `serde_json::Value` (which is `PartialEq` but not `Eq`). `PartialEq` is all the
@@ -32,22 +33,22 @@ pub enum Command {
         service: String,
         path: String,
     },
-    /// `yarr <service> post --path P [--body JSON]` — passthrough POST
-    /// (non-destructive; runs immediately).
+    /// `yarr <service> post --path P [--body JSON]` — generic API request.
+    /// Its exact matched operation determines safety.
     Post {
         service: String,
         path: String,
         body: serde_json::Value,
     },
-    /// `yarr <service> put --path P [--body JSON]` — passthrough PUT
-    /// (non-destructive; runs immediately).
+    /// `yarr <service> put --path P [--body JSON]` — generic API request.
+    /// Its exact matched operation determines safety.
     Put {
         service: String,
         path: String,
         body: serde_json::Value,
     },
-    /// `yarr <service> delete --path P [--body JSON]` — passthrough DELETE
-    /// (destructive; runs immediately).
+    /// `yarr <service> delete --path P [--body JSON]` — generic API request.
+    /// Its exact matched operation determines safety; DELETE alone is not destructive.
     Delete {
         service: String,
         path: String,
@@ -55,8 +56,8 @@ pub enum Command {
     },
     /// `yarr <service> op <name> [--args JSON]` — invoke a generated OpenAPI
     /// operation directly (the spec-backed kinds' surface). Mirrors the
-    /// in-Code-Mode `<service>.<op>(args)` callable but reachable from the CLI —
-    /// runs immediately, including destructive DELETE ops.
+    /// in-Code-Mode `<service>.<op>(args)` callable but reachable from the CLI.
+    /// Reviewed metadata, not the HTTP verb, determines destructive status.
     Op {
         service: String,
         op: String,
@@ -106,6 +107,22 @@ pub enum Command {
     },
     /// `yarr setup ...` — plugin setup wizard. Dispatched in `main.rs::run_cli`.
     Setup(SetupCommand),
+    /// `yarr discover plex ...` — explicit, CLI-only plex.tv discovery.
+    ///
+    /// Dispatched in `main.rs::run_cli`; intentionally absent from MCP, Code
+    /// Mode, and normal service routing. Writes only the operator-chosen
+    /// `--out` export — never a caller config or secret file.
+    DiscoverPlex {
+        /// Environment variable (name only) holding the Plex account token.
+        token_env: String,
+        /// Operator-chosen export destination; `None` prints the (redacted)
+        /// report only.
+        out: Option<PathBuf>,
+        /// Include servers shared with the account (owned-only by default).
+        include_shared: bool,
+        /// Report drift but write nothing (exit code 2 when drift exists).
+        diff: bool,
+    },
     /// `yarr <service> <curated-verb> [flags]` — a curated, capability-scoped
     /// command resolved from the registry. `action` is the MCP (snake_case) name;
     /// `params` is the JSON args object the router assembled from the positional

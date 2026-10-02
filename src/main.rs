@@ -20,10 +20,10 @@ use tokio::runtime::Builder;
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt};
 use yarr::{
-    AppState, AuthPolicy, AuthPolicyKind, Command, Config, READ_SCOPE, RunMode, WRITE_SCOPE,
-    YarrClient, YarrService, acquire_oauth_instance_lock, apply_plugin_options, cli_usage,
-    init_logging, parse_args_configured, resolve_auth_policy_kind, resolve_data_dir, rmcp_server,
-    router, run_cli_command, run_doctor, run_setup, run_watch,
+    AppState, AuthPolicy, AuthPolicyKind, Command, Config, PlexDiscoveryOptions, READ_SCOPE,
+    RunMode, WRITE_SCOPE, YarrClient, YarrService, acquire_oauth_instance_lock,
+    apply_plugin_options, cli_usage, init_logging, parse_args_configured, resolve_auth_policy_kind,
+    resolve_data_dir, rmcp_server, router, run_cli_command, run_doctor, run_setup, run_watch,
 };
 
 fn main() -> Result<()> {
@@ -166,12 +166,58 @@ async fn run_cli(config: Config) -> Result<()> {
             run_watch(&base, interval, once).await
         }
         Some(Command::Setup(command)) => run_setup(&config, command).await,
+        Some(Command::DiscoverPlex {
+            token_env,
+            out,
+            include_shared,
+            diff,
+        }) => run_discover(&config, token_env, out, include_shared, diff).await,
         Some(cmd) => run_cli_command(cmd, &config.yarr).await,
         None => {
             eprintln!("Unknown command. Run `yarr --help` for usage.");
             std::process::exit(1);
         }
     }
+}
+
+/// `yarr discover plex` — explicit operator-run plex.tv discovery.
+async fn run_discover(
+    config: &Config,
+    token_env: String,
+    out: Option<std::path::PathBuf>,
+    include_shared: bool,
+    diff: bool,
+) -> Result<()> {
+    let service = YarrService::new(YarrClient::new(&config.yarr)?, config.yarr.clone());
+    let options = PlexDiscoveryOptions {
+        token_env,
+        out: out.clone(),
+        include_shared,
+        diff,
+        resources_url: None,
+    };
+    let report = service.run_plex_discovery(&options).await?;
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    if let Some(path) = &out
+        && !diff
+    {
+        eprintln!(
+            "export written to {} (mode 0600); review before merging into your configuration",
+            path.display()
+        );
+    }
+    if let Some(code) = discovery_diff_exit_code(diff, report.drift.len()) {
+        // Drift exists: distinct exit code so scripts can gate on it.
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+/// Exit-code contract for `yarr discover plex --diff`: `Some(2)` when drift
+/// exists, `None` otherwise. Extracted so the contract is unit-testable
+/// without a live plex.tv round trip.
+fn discovery_diff_exit_code(diff: bool, drift_count: usize) -> Option<i32> {
+    (diff && drift_count > 0).then_some(2)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -318,4 +364,17 @@ async fn shutdown_signal() {
 
     tokio::select! { _ = ctrl_c => {}, _ = terminate => {} }
     tracing::info!("Shutdown signal received");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::discovery_diff_exit_code;
+
+    #[test]
+    fn discovery_diff_exit_code_is_two_only_on_drift() {
+        assert_eq!(discovery_diff_exit_code(true, 2), Some(2));
+        assert_eq!(discovery_diff_exit_code(true, 1), Some(2));
+        assert_eq!(discovery_diff_exit_code(true, 0), None);
+        assert_eq!(discovery_diff_exit_code(false, 3), None);
+    }
 }

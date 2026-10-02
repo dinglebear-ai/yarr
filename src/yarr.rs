@@ -100,6 +100,7 @@ fn http_timeout() -> Duration {
 
 impl YarrClient {
     pub fn new(cfg: &YarrConfig) -> Result<Self> {
+        cfg.validate()?;
         let timeout = http_timeout();
         let client = Client::builder()
             .timeout(timeout)
@@ -281,6 +282,32 @@ impl YarrClient {
         let mut request = http.request(method, url);
         request = auth::apply_auth(request, service).multipart(form);
         self.finish_with_retry(service, request).await
+    }
+
+    /// GET an absolute URL with explicit request headers using the shared
+    /// client (shared timeouts and connect policy). CLI-only operator flows —
+    /// Plex account discovery against plex.tv — use this through the private
+    /// app-layer discovery orchestration; it is never part of service
+    /// dispatch, and neither the headers nor the body are ever logged.
+    pub async fn fetch_text(
+        &self,
+        url: reqwest::Url,
+        headers: &[(&'static str, String)],
+    ) -> Result<(reqwest::StatusCode, String)> {
+        let mut request = self.client.get(url);
+        for (name, value) in headers {
+            request = request.header(*name, value.clone());
+        }
+        let response = request
+            .send()
+            .await
+            .map_err(|error| anyhow::anyhow!("discovery request failed: {error}"))?;
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .map_err(|error| anyhow::anyhow!("discovery response could not be read: {error}"))?;
+        Ok((status, body))
     }
 
     /// Send a pre-built request (used by query-style helpers) and parse it.

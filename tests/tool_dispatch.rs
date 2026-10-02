@@ -61,9 +61,11 @@ fn api_delete_action_parses_for_mcp_dispatch() {
 
 #[tokio::test]
 async fn api_delete_dispatches_without_confirm() {
-    // api_delete is destructive but runs immediately (no app-layer confirm
-    // check) — it fails only at the network layer against the stub's
-    // unreachable upstream, not with a confirm-required error.
+    // The app layer never confirms anything: `api_delete` runs immediately here
+    // (the route resolves to a reviewed operation either way) and fails only at
+    // the network layer against the stub's unreachable upstream, not with a
+    // confirm-required error. Destructive confirmation is enforced per resolved
+    // call by the MCP transport, never by an app-layer flag or call argument.
     let state = loopback_state();
     let error = state
         .service
@@ -260,13 +262,27 @@ async fn codemode_requires_code_param() {
 
 #[tokio::test]
 async fn snippet_list_is_a_routed_action() {
-    // The loopback stub has no data dir, so snippet_list routes to the handler and
-    // errors with a data-dir message (proving it's recognized, not "unknown action").
+    // The loopback stub has no data dir: snippet_list still routes and returns
+    // the canonical builtins, while store-backed actions keep erroring.
     let state = loopback_state();
-    let err =
+    let listed =
         execute_tool_without_peer_for_test(&state, "sonarr", json!({ "action": "snippet_list" }))
             .await
-            .expect_err("snippet_list without a data dir should error");
+            .expect("snippet_list works without a store");
+    let names: Vec<&str> = listed["snippets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|snippet| snippet["name"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"fleet_health"), "{listed}");
+    let err = execute_tool_without_peer_for_test(
+        &state,
+        "sonarr",
+        json!({ "action": "snippet_save", "name": "x", "code": "async () => 1" }),
+    )
+    .await
+    .expect_err("snippet_save without a data dir should error");
     assert!(err.to_string().contains("data dir"), "got: {err}");
 }
 

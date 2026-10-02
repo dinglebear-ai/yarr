@@ -84,22 +84,6 @@ pub(super) fn tool_result_from_json(value: Value) -> Result<CallToolResult, Erro
     Ok(CallToolResult::success(vec![ContentBlock::text(text)]))
 }
 
-/// Whether `arguments` dispatches a generated DELETE operation via the `op`
-/// action (e.g. `{"action": "op", "op": "delete_series_by_id"}` against the
-/// `sonarr` tool in `flat` mode). `action_is_destructive` has no notion of
-/// `op`'s underlying HTTP method, so this is checked separately — otherwise a
-/// generated DELETE op would dispatch through `call_tool` with no elicitation
-/// prompt at all.
-pub(super) fn is_destructive_op_call(state: &AppState, tool_name: &str, arguments: &Value) -> bool {
-    let Some(op_name) = arguments.get("op").and_then(Value::as_str) else {
-        return false;
-    };
-    let Ok(Some(kind)) = state.service.kind_of(tool_name) else {
-        return false;
-    };
-    crate::openapi::find_operation(kind, op_name).is_some_and(|spec| spec.method.is_delete())
-}
-
 /// Result returned when a destructive action is declined at the elicitation
 /// prompt: a structured success payload (nothing was changed), not an error.
 pub(super) fn declined_result(action: &str) -> Result<CallToolResult, ErrorData> {

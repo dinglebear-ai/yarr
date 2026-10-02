@@ -220,8 +220,15 @@ fn drain_jobs(rt: &Runtime, deadline: Instant) -> Result<(), String> {
         if Instant::now() >= deadline {
             return Err("codemode: timed out".to_string());
         }
-        rt.execute_pending_job()
-            .map_err(|e| format!("codemode: job error: {e:?}"))?;
+        if let Err(error) = rt.execute_pending_job() {
+            // The interrupt handler trips once the deadline passes, and QuickJS
+            // reports that interrupt as an opaque job exception. Surface the
+            // deadline as the timeout it is instead of that context-less error.
+            if Instant::now() >= deadline {
+                return Err("codemode: timed out".to_string());
+            }
+            return Err(format!("codemode: job error: {error:?}"));
+        }
     }
     if Instant::now() >= deadline {
         return Err("codemode: timed out".to_string());
