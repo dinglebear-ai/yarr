@@ -68,6 +68,11 @@ impl YarrService {
         result
     }
 
+    pub(super) fn snippet_source_for_preflight(&self, name: &str) -> Result<String> {
+        let dir = self.snippet_store_root()?;
+        codemode::store::load_source(&dir, name).map_err(|error| anyhow::anyhow!("{error}"))
+    }
+
     async fn snippet_run_inner(
         &self,
         name: &str,

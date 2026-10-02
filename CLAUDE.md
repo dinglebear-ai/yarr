@@ -9,11 +9,13 @@ Rust MCP and CLI server for a media automation fleet. It wraps **11 service kind
 | Repo | `git@github.com:dinglebear-ai/yarr.git`, default branch `main` |
 | Cargo workspace | 2 members — `.` (bin+lib `yarr`) and `xtask` |
 | Edition / MSRV | 2024 / Rust 1.97.1 |
-| MCP crate | `rmcp = "=3.0.0-beta.2"` via `[workspace.dependencies]` (`server`, `macros`, `transport-streamable-http-server`, `transport-io`, `schemars`, `elicitation`) |
+| MCP crate | `rmcp = "=3.1.4"` via `[workspace.dependencies]` (`server`, `macros`, `transport-streamable-http-server`, `transport-io`, `schemars`, `elicitation`) |
 | Service port | `40070` (`YARR_MCP_PORT`) |
 | npm launcher | `@dinglebear/yarr@<Cargo version>`, pinned — never `latest` |
 
 The MCP surface is a single `yarr` tool that runs Code Mode (the `codemode` action). The 6 spec-backed services (sonarr/radarr/prowlarr/overseerr/jellyfin/plex) are reached through **generated** per-service callables (from vendored OpenAPI specs); download/stats/subtitles/trace keep curated commands; every service also has `service_status` + the `api_get/post/put/delete` generic passthrough. Services are declared via `YARR_SERVICES` plus per-service env (see Environment variables).
+
+Yarr explicitly owns the MCP revisions it advertises in `SUPPORTED_PROTOCOL_VERSIONS`; never replace that with `rmcp::ProtocolVersion::KNOWN_VERSIONS`, because an SDK update must not silently opt the server into a new protocol contract. For `2026-07-28`, Streamable HTTP is stateless and destructive confirmation uses SEP-2322 MRTR: direct calls and nested Code Mode return `InputRequiredResult`, bind opaque one-time `requestState` to the authenticated caller and exact destructive target occurrences, then consume it before dispatch. Code Mode first runs a side-effect-free preflight with real reads so destructive targets are known before the real script executes. Pre-`2026-07-28` peers retain legacy elicitation when the connected peer supports it; otherwise destructive calls fail closed.
 
 ## Module map
 

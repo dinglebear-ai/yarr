@@ -194,3 +194,50 @@ async fn codemode_api_client_delete_dispatches() {
     assert!(!result.contains("destructive"), "got: {result}");
     assert_eq!(out["calls"][0]["action"], "api_delete");
 }
+
+struct PreflightGuard;
+
+impl super::CodeModeCallGuard for PreflightGuard {
+    fn authorize<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn authorize_planning_action<'a>(
+        &'a self,
+        _action: &'a crate::actions::YarrAction,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn planned_destructive_target(&self, action: &crate::actions::YarrAction) -> Option<String> {
+        match action {
+            crate::actions::YarrAction::ApiDelete { service, path, .. } => {
+                Some(format!("{service}:api_delete:{path}"))
+            }
+            _ => None,
+        }
+    }
+}
+
+#[tokio::test]
+async fn codemode_preflight_uses_real_reads_but_never_dispatches_delete() {
+    let service = loopback_state().service;
+    let code = r#"
+        async () => {
+            const h = await callTool("help", {});
+            if (typeof h.help === "string") {
+                await callTool("api_delete", { service: "sonarr", path: "/api/v3/series/1" });
+            }
+            return "planned";
+        }
+    "#;
+    let targets = service
+        .codemode_destructive_targets(code, std::sync::Arc::new(PreflightGuard))
+        .await
+        .unwrap();
+
+    assert_eq!(targets, vec!["sonarr:api_delete:/api/v3/series/1"]);
+}
