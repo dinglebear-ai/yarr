@@ -12,8 +12,9 @@ use serde_json::{Value, json};
 
 use super::WRITE_SCOPE;
 use super::registry::{
-    all_action_names, capability_digest, curated_command, mcp_only_action_names,
-    required_params_for_action, required_scope_for_action, rest_action_names,
+    action_has_route_dependent_safety, all_action_names, capability_digest, curated_command,
+    mcp_only_action_names, required_params_for_action, required_scope_for_action,
+    rest_action_names,
 };
 
 pub fn rest_help() -> Value {
@@ -38,17 +39,11 @@ fn generic_description(action: &str) -> &'static str {
         "service_status" => {
             "call the default status endpoint for a configured service. Requires `service`."
         }
-        "api_get" => {
-            "GET a safe relative path. Requires `service` and `path`. Needs `yarr:write` (not just `yarr:read`) because it is an arbitrary upstream passthrough — a GET can reach any endpoint, including mutating ones — so a read-only token is intentionally insufficient; use the curated read commands for read-scoped access."
+        "api_get" | "api_post" | "api_put" | "api_delete" => {
+            "Run a generic API request. Requires `service` and `path`; the exact method/path must uniquely resolve to a reviewed generated operation. Its reviewed safety determines the required scope and whether MCP confirmation is required. Unknown or ambiguous routes fail closed."
         }
-        "api_post" => {
-            "POST JSON to a safe relative path. Requires `service` and `path`; optional `body` defaults to `{}`. Non-destructive — runs immediately."
-        }
-        "api_put" => {
-            "PUT JSON to a safe relative path. Requires `service` and `path`; optional `body` defaults to `{}`. Non-destructive — runs immediately."
-        }
-        "api_delete" => {
-            "DELETE a safe relative path. Requires `service` and `path`; optional `body`. Query params go in `path`. Direct trusted CLI calls run immediately. DESTRUCTIVE — on MCP the connected client must confirm via elicitation before it runs; clients without elicitation fail closed."
+        "op" => {
+            "Run a generated operation. Requires `service` and `op`; its reviewed safety determines the required scope and whether MCP confirmation is required."
         }
         "help" => "return this help text.",
         _ => "",
@@ -76,7 +71,9 @@ pub fn help_text() -> String {
         if !required.is_empty() {
             line.push_str(&format!(" (params: {})", required.join(", ")));
         }
-        if required_scope_for_action(action) == Some(WRITE_SCOPE) {
+        if !action_has_route_dependent_safety(action)
+            && required_scope_for_action(action) == Some(WRITE_SCOPE)
+        {
             line.push_str(" [requires yarr:write]");
         }
         out.push_str(&line);

@@ -44,7 +44,7 @@ Add tests here when adding or changing CLI flags.
 
 Tests MCP action behavior below HTTP. These use `yarr::testing::loopback_state()`, root-level action/parser re-exports, and the stub `YarrClient`, so no real credentials or upstream service are required.
 
-Current checks assert semantic behavior for `service_status`, `api_get`, `api_post`/`api_delete` parsing (including that the destructive `api_delete` dispatches immediately with no confirm param), schema/action exposure, and MCP actions returning JSON objects.
+Current checks assert semantic behavior for `service_status`, `api_get`, `api_post`/`api_delete` parsing (including that a resolved generic route dispatches immediately with no confirm param), schema/action exposure, and MCP actions returning JSON objects.
 
 > Yarr rule: add one semantic test per business action. Assert response values, not only JSON validity.
 
@@ -125,7 +125,7 @@ The stub client points at `http://localhost:1/stub`, so service-layer tests rema
 ## Design principles
 
 - **Semantic assertions:** check correct data, not just parseable JSON.
-- **Explicit defaults:** assert documented defaults such as the destructive `api_delete` dispatching immediately with no confirm param (same as non-destructive `api_post`/`api_put`).
+- **Explicit defaults:** assert documented defaults such as generic routes dispatching immediately with no confirm param — destructive confirmation is elicited by the MCP transports only when the resolved reviewed operation is `Destructive`, never a call argument.
 - **Layered coverage:** parse CLI in CLI tests, service logic in service tests, HTTP behavior in route/live tests.
 - **Auth-aware:** auth tests skip or adjust when credentials are intentionally absent.
 - **Resource coverage:** MCP resources are part of the public contract and should be tested alongside tools.

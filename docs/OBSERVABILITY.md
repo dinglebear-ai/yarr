@@ -12,7 +12,7 @@ owner: "yarr"
 audience: ["operators", "contributors", "agents"]
 scope: "project"
 source_of_truth: false
-last_reviewed: "2026-07-16"
+last_reviewed: "2026-09-16"
 ---
 
 # Observability
@@ -46,7 +46,8 @@ Yarr-owned domain metrics use bounded labels only:
 
 | Metric | Labels | Meaning |
 |---|---|---|
-| `yarr_upstream_requests_total` | `service`, `kind`, `outcome` | Upstream results: `success`, `transport_error`, `http_error`, or `oversized` |
+| `yarr_upstream_requests_total` | `service`, `outcome` | Upstream results: `success`, `transport_error`, `http_error`, or `oversized`; qBittorrent SID login is excluded |
+| `yarr_upstream_duration_seconds` | `service` | Upstream request duration histogram with fixed seconds buckets: 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, and 30 |
 | `yarr_codemode_runs_total` | `outcome` | Run lifecycle events: `started`, `completed`, or `failed` |
 | `yarr_codemode_active` | none | Currently active Code Mode runs |
 | `yarr_auth_failures_total` | `reason` | MCP context/scope rejection: `missing_http_context`, `missing_auth_context`, or `insufficient_scope` |

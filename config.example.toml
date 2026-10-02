@@ -21,7 +21,15 @@
 
 # ── Media automation services ────────────────────────────────────────────────
 # Services are usually configured through .env so URLs and credentials stay out
-# of git. This table is safe to commit when left empty.
+# of git. This table is safe to commit when left empty. TOML service entries can
+# also keep credentials out of the file by referencing that service's own
+# canonical environment variable (api_key_env / username_env / password_env /
+# token_env), for example for a service named "sonarr":
+#   [[yarr.services]]
+#   name = "sonarr"
+#   kind = "sonarr"
+#   base_url = "http://sonarr:8989"
+#   api_key_env = "YARR_SONARR_API_KEY"
 [yarr]
 services = []
 

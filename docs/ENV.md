@@ -37,6 +37,11 @@ The template uses `YARR_*` variables. Rename the prefix when adapting the templa
 | `YARR_HTTP_TIMEOUT_SECS` | Per-request upstream timeout in seconds (default `30`). Raise for stacks with slow upstreams (e.g. a Prowlarr `/indexer` read that fans out to many trackers). `0`/unparseable falls back to `30`. |
 | `YARR_HOME` | Runtime data root. Defaults to `/data` in a container and `~/.yarr` otherwise. |
 
+Services declared in `config.toml` can reference these variables per service
+with `api_key_env`/`username_env`/`password_env`/`token_env`; a reference may
+only name that service's own canonical variable (see
+[CONFIG.md → TOML services with credential references](CONFIG.md#toml-services-with-credential-references)).
+
 ## MCP HTTP server
 
 | Variable | Default | Purpose |

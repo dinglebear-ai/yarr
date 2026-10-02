@@ -28,6 +28,7 @@ pub fn run(options: PatternOptions) -> Result<()> {
     checks::routes(&mut reporter);
     checks::plugins(&mut reporter);
     checks::config_and_auth(&mut reporter);
+    checks::naming_contract(&mut reporter);
     checks::tooling(&mut reporter);
 
     if options.json {

@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    declined_result, effective_action, internal_tool_error_message, is_destructive_op_call,
+    declined_result, effective_action, internal_tool_error_message,
     reject_unknown_action_before_scope, rmcp_tool_definitions_for_service, scope_satisfied,
     tool_error_result, tool_result_from_json,
 };

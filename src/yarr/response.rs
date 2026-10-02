@@ -1,5 +1,7 @@
 //! Bounded response collection, retry, metrics, and representation decoding.
 
+use std::time::{Duration, Instant};
+
 use anyhow::{Context, Result};
 use base64::Engine as _;
 use reqwest::StatusCode;
@@ -75,10 +77,11 @@ impl YarrClient {
         request: reqwest::RequestBuilder,
         mode: ResponseMode,
     ) -> Result<Value> {
+        let started = Instant::now();
         let mut response = match request.send().await {
             Ok(response) => response,
             Err(error) => {
-                record_outcome(service, "transport_error");
+                record_outcome(service, "transport_error", started.elapsed());
                 return Err(error).with_context(|| format!("{} request failed", service.name));
             }
         };
@@ -91,7 +94,7 @@ impl YarrClient {
         if let Some(content_length) = response.content_length()
             && content_length > MAX_UPSTREAM_RESPONSE_BYTES as u64
         {
-            record_outcome(service, "oversized");
+            record_outcome(service, "oversized", started.elapsed());
             return Err(too_large(service, content_length));
         }
         let mut bytes = Vec::with_capacity(
@@ -106,7 +109,7 @@ impl YarrClient {
             .with_context(|| format!("{} response body read failed", service.name))?
         {
             if bytes.len().saturating_add(chunk.len()) > MAX_UPSTREAM_RESPONSE_BYTES {
-                record_outcome(service, "oversized");
+                record_outcome(service, "oversized", started.elapsed());
                 return Err(too_large(
                     service,
                     bytes.len().saturating_add(chunk.len()) as u64,
@@ -115,7 +118,7 @@ impl YarrClient {
             bytes.extend_from_slice(&chunk);
         }
         if !status.is_success() {
-            record_outcome(service, "http_error");
+            record_outcome(service, "http_error", started.elapsed());
             let text = std::str::from_utf8(&bytes).unwrap_or("<non-utf8 body>");
             return Err(UpstreamError::Http {
                 service: service.name.clone(),
@@ -125,7 +128,7 @@ impl YarrClient {
             }
             .into());
         }
-        record_outcome(service, "success");
+        record_outcome(service, "success", started.elapsed());
         decode_success(
             service,
             status,
@@ -145,14 +148,18 @@ fn header(response: &reqwest::Response, name: reqwest::header::HeaderName) -> Op
         .map(str::to_owned)
 }
 
-fn record_outcome(service: &ServiceConfig, outcome: &'static str) {
+fn record_outcome(service: &ServiceConfig, outcome: &'static str, elapsed: Duration) {
     axum_prometheus::metrics::counter!(
         "yarr_upstream_requests_total",
         "service" => service.name.clone(),
-        "kind" => service.kind.as_str(),
         "outcome" => outcome
     )
     .increment(1);
+    axum_prometheus::metrics::histogram!(
+        "yarr_upstream_duration_seconds",
+        "service" => service.name.clone()
+    )
+    .record(elapsed.as_secs_f64());
 }
 
 fn too_large(service: &ServiceConfig, observed: u64) -> anyhow::Error {

@@ -50,6 +50,30 @@ YARR_PLEX_TOKEN=...
 
 Supported kinds: `sonarr`, `radarr`, `prowlarr`, `tautulli`, `overseerr`, `bazarr`, `tracearr`, `sabnzbd`, `qbittorrent`, `plex`, and `jellyfin`.
 
+### TOML services with credential references
+
+Services declared in `config.toml` may keep credentials out of the file by
+naming the one environment variable each credential resolves from (`*_env`
+fields). A reference must be exactly the canonical variable for that service
+and field — `YARR_<SERVICE-ENV-NAME>_<API_KEY|USERNAME|PASSWORD|TOKEN>`, where
+the service-env-name is the service name uppercased with non-alphanumerics
+mapped to `_` (so service `plex-den` uses `YARR_PLEX_DEN_*`). Runtime variables
+such as `YARR_MCP_*`/`YARR_FLEET_*` and every other service's variables are
+rejected, a literal plus a reference for the same field is a collision that
+fails the load, and a reference whose variable is unset or empty fails fast.
+
+```toml
+[yarr]
+[[yarr.services]]
+name = "sonarr"
+kind = "sonarr"
+base_url = "http://sonarr:8989"
+api_key_env = "YARR_SONARR_API_KEY"   # value comes from the environment
+```
+
+Literal credentials (`api_key = "..."`) keep working unchanged and are never
+resolved. When `YARR_SERVICES` is set it still replaces the TOML service list.
+
 ## Auth Policy
 
 | State | Condition | Behavior |

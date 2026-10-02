@@ -134,9 +134,10 @@ impl Default for McpConfig {
             allowed_origins: Vec::new(),
             auth: AuthConfig::default(),
             tool_mode: ToolMode::default(),
-            codemode_max_concurrent: crate::codemode::CODEMODE_MAX_CONCURRENT,
-            codemode_queue_timeout_ms: crate::codemode::CODEMODE_QUEUE_TIMEOUT.as_millis() as u64,
-            codemode_timeout_secs: crate::codemode::CODEMODE_TIMEOUT.as_secs(),
+            codemode_max_concurrent: crate::codemode_contract::CODEMODE_MAX_CONCURRENT,
+            codemode_queue_timeout_ms: crate::codemode_contract::CODEMODE_QUEUE_TIMEOUT.as_millis()
+                as u64,
+            codemode_timeout_secs: crate::codemode_contract::CODEMODE_TIMEOUT.as_secs(),
         }
     }
 }

@@ -45,9 +45,39 @@ async fn counting_state(
     Arc<AtomicUsize>,
     tokio::task::JoinHandle<()>,
 ) {
+    counting_state_for(crate::config::ServiceKind::Sonarr, tool_mode).await
+}
+
+async fn counting_state_for(
+    kind: crate::config::ServiceKind,
+    tool_mode: crate::config::ToolMode,
+) -> (
+    crate::server::AppState,
+    Arc<AtomicUsize>,
+    tokio::task::JoinHandle<()>,
+) {
+    counting_state_with_scopes_for(
+        kind,
+        tool_mode,
+        "read-token",
+        vec![crate::actions::READ_SCOPE.to_owned()],
+    )
+    .await
+}
+
+async fn counting_state_with_scopes_for(
+    kind: crate::config::ServiceKind,
+    tool_mode: crate::config::ToolMode,
+    token: &str,
+    static_token_scopes: Vec<String>,
+) -> (
+    crate::server::AppState,
+    Arc<AtomicUsize>,
+    tokio::task::JoinHandle<()>,
+) {
     use crate::{
         app::YarrService,
-        config::{McpConfig, ServiceConfig, ServiceKind, YarrConfig},
+        config::{McpConfig, ServiceConfig, YarrConfig},
         server::{AppState, AuthPolicy},
         yarr::YarrClient,
     };
@@ -78,8 +108,8 @@ async fn counting_state(
     });
     let config = YarrConfig {
         services: vec![ServiceConfig {
-            name: "sonarr".into(),
-            kind: ServiceKind::Sonarr,
+            name: kind.as_str().into(),
+            kind,
             base_url: format!("http://{addr}"),
             api_key: Some("upstream-secret".into()),
             ..ServiceConfig::default()
@@ -89,7 +119,8 @@ async fn counting_state(
     (
         AppState {
             config: McpConfig {
-                api_token: Some("read-token".into()),
+                api_token: Some(token.to_owned()),
+                static_token_scopes,
                 tool_mode,
                 ..McpConfig::default()
             },

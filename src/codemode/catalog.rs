@@ -22,6 +22,7 @@ use crate::actions::{
 };
 use crate::capability::Capability;
 use crate::config::ServiceKind;
+use crate::openapi::OperationSafety;
 
 /// One catalog row, surfaced to scripts via `codemode.search`/`describe`.
 #[derive(Debug, Clone, Serialize)]
@@ -34,9 +35,10 @@ pub enum CatalogEntry {
         service: String,
         /// The generated operation name.
         method: &'static str,
-        /// `"read"` / `"write"` / `"public"`.
+        /// `"read"` / `"write"` / `"public"`, or `"route_dependent"` for
+        /// raw generic calls whose reviewed operation is selected at runtime.
         scope: CatalogScope,
-        /// True only for generated DELETE operations.
+        /// True only when this catalog entry names a known reviewed Destructive operation.
         destructive: bool,
         /// OpenAPI tag for generated operations.
         capability: String,
@@ -164,6 +166,7 @@ pub enum CatalogScope {
     Public,
     Read,
     Write,
+    RouteDependent,
 }
 
 #[cfg(test)]
@@ -173,6 +176,7 @@ impl CatalogScope {
             Self::Public => "public",
             Self::Read => "read",
             Self::Write => "write",
+            Self::RouteDependent => "route_dependent",
         }
     }
 }
@@ -200,6 +204,11 @@ pub fn service_action_names(kind: ServiceKind) -> Vec<&'static str> {
 pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
     let mut out: Vec<CatalogEntry> = Vec::new();
     for (name, kind) in services {
+        if crate::codemode_contract::is_reserved_global(
+            &crate::codemode_contract::javascript_namespace(name),
+        ) {
+            continue;
+        }
         if crate::openapi::is_generated(*kind) {
             // The per-service `service_status` callable is still synthesized.
             out.push(service_entry(name, "service_status"));
@@ -212,16 +221,69 @@ pub fn build_catalog(services: &[(String, ServiceKind)]) -> Vec<CatalogEntry> {
             }
         }
     }
+    out.extend(fleet_entries());
     out.extend(generic_api_entries());
     out
 }
 
+/// The Code Mode `fleet` bridge callables. The `__yarrFleetMap` /
+/// `__yarrFleetStatus` engine ids are internal — agents discover and call the
+/// `fleet.*` surface, which materializes a bounded frozen leaf set per
+/// invocation and runs each leaf exactly once.
+fn fleet_entries() -> Vec<CatalogEntry> {
+    [
+        (
+            "fleet.of",
+            "of",
+            vec!["name"],
+            CatalogScope::Public,
+            "Select one exact configured service identity for a fleet fan-out.",
+        ),
+        (
+            "fleet.all",
+            "all",
+            vec!["kind"],
+            CatalogScope::Public,
+            "Select every configured service, optionally filtered by service kind.",
+        ),
+        (
+            "fleet.map",
+            "map",
+            vec!["selector", "action", "params"],
+            CatalogScope::RouteDependent,
+            "Run one action across the selected services once each; scope and destructive confirmation follow the resolved per-leaf operation.",
+        ),
+        (
+            "fleet.status",
+            "status",
+            vec![],
+            CatalogScope::Read,
+            "Reachability, version, and latency for every configured service.",
+        ),
+    ]
+    .into_iter()
+    .map(
+        |(path, method, required_params, scope, description)| CatalogEntry::Generic {
+            path: path.to_string(),
+            service: None,
+            method,
+            scope,
+            destructive: false,
+            capability: "fleet",
+            required_params,
+            description,
+        },
+    )
+    .collect()
+}
+
 /// A catalog entry for one generated OpenAPI operation. The callable is
-/// `<service>.<op.name>(args)`; reads (GET/HEAD) are flagged `read`, mutations
-/// `write`, and DELETE ops `destructive` — metadata only, they dispatch
-/// immediately like any other write (see `docs/API.md`). The OpenAPI `tag` is
-/// surfaced as the capability for grouping.
+/// `<service>.<op.name>(args)`; its reviewed `OperationSafety` determines read,
+/// write, and destructive metadata. Calls dispatch immediately like any other
+/// resolved operation (see `docs/API.md`). The OpenAPI `tag` is surfaced as the
+/// capability for grouping.
 fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> CatalogEntry {
+    let namespace = crate::codemode_contract::javascript_namespace(service);
     let mut required: Vec<&'static str> = op.path_params.to_vec();
     if op.has_body {
         required.push("body");
@@ -233,15 +295,14 @@ fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> Catalog
         op.summary
     };
     CatalogEntry::Operation {
-        path: format!("{service}.{}", op.name),
+        path: format!("{namespace}.{}", op.name),
         service: service.to_string(),
         method: op.name,
-        scope: if op.method.is_read() {
-            CatalogScope::Read
-        } else {
-            CatalogScope::Write
+        scope: match op.safety {
+            OperationSafety::ReadOnly => CatalogScope::Read,
+            OperationSafety::Mutation | OperationSafety::Destructive => CatalogScope::Write,
         },
-        destructive: op.method.is_delete(),
+        destructive: op.safety == OperationSafety::Destructive,
         capability: op.tag.to_string(),
         required_params: required,
         description,
@@ -252,6 +313,7 @@ fn operation_entry(service: &str, op: &crate::openapi::OperationSpec) -> Catalog
 
 /// A `<service>.<action>` callable entry.
 fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
+    let namespace = crate::codemode_contract::javascript_namespace(service);
     let cmd: Option<&'static CommandDescriptor> = curated_command(action);
     let scope = match required_scope_for_action(action) {
         Some(WRITE_SCOPE) => CatalogScope::Write,
@@ -264,7 +326,7 @@ fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
         .collect();
     if let Some(cmd) = cmd {
         CatalogEntry::Curated {
-            path: format!("{service}.{action}"),
+            path: format!("{namespace}.{action}"),
             service: service.to_string(),
             method: action,
             scope,
@@ -275,7 +337,7 @@ fn service_entry(service: &str, action: &'static str) -> CatalogEntry {
         }
     } else {
         CatalogEntry::Generic {
-            path: format!("{service}.{action}"),
+            path: format!("{namespace}.{action}"),
             service: Some(service.to_string()),
             method: action,
             scope,
@@ -300,8 +362,8 @@ fn generic_api_entries() -> Vec<CatalogEntry> {
         path: path.to_string(),
         service: None,
         method: action,
-        scope: CatalogScope::Write,
-        destructive: action_is_destructive(action),
+        scope: CatalogScope::RouteDependent,
+        destructive: false,
         capability: "infra",
         required_params: vec!["path"],
         description: generic_description(action),
@@ -313,11 +375,9 @@ fn generic_api_entries() -> Vec<CatalogEntry> {
 fn generic_description(name: &str) -> &'static str {
     match name {
         "service_status" => "Call the service's default status endpoint.",
-        "api_get" => "Raw GET passthrough: api.<service>.get(path).",
-        "api_post" => "Raw POST passthrough (runs immediately): api.<service>.post(path, body).",
-        "api_put" => "Raw PUT passthrough (runs immediately): api.<service>.put(path, body).",
-        "api_delete" => {
-            "Raw DELETE passthrough (runs immediately, no confirm): api.<service>.delete(path)."
+        "api_get" | "api_post" | "api_put" | "api_delete" => {
+            "Raw API call: the exact method/path must uniquely match a reviewed generated operation; \
+             safety, scope, and destructive confirmation derive from that operation. Unknown routes fail closed."
         }
         _ => "",
     }
