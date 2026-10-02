@@ -55,6 +55,37 @@ fn reserved_global_name_is_not_clobbered() {
 }
 
 #[test]
+fn runtime_owned_globals_are_excluded_from_codemode_surfaces() {
+    let services: Vec<(String, ServiceKind)> = crate::codemode::RESERVED_GLOBALS
+        .iter()
+        .map(|name| ((*name).to_string(), ServiceKind::Sonarr))
+        .collect();
+    let preamble = build_preamble(&services);
+    let catalog = crate::codemode::catalog::catalog_json(&services);
+    let types = crate::codemode::dts::type_catalog_json_for(&services);
+
+    for name in crate::codemode::RESERVED_GLOBALS {
+        let namespace = crate::codemode::javascript_namespace(name);
+        assert!(
+            !preamble.contains(&format!("globalThis[{namespace:?}] = {{")),
+            "runtime-owned global {namespace:?} must not be emitted as a service namespace"
+        );
+        assert!(
+            !preamble.contains(&format!("globalThis.api[{namespace:?}] = {{")),
+            "runtime-owned global {namespace:?} must not be emitted below api"
+        );
+        assert!(
+            !catalog.contains(&format!("{namespace}.service_status")),
+            "runtime-owned global {namespace:?} must not be advertised by discovery"
+        );
+        assert!(
+            !types.contains(&format!("{namespace}.SeriesResource")),
+            "runtime-owned global {namespace:?} must not be advertised by type discovery"
+        );
+    }
+}
+
+#[test]
 fn api_namespace_generated_per_configured_service() {
     let pre = build_preamble(&services());
     assert!(pre.contains("globalThis.api = {};"));

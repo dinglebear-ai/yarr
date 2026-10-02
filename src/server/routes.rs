@@ -27,6 +27,9 @@ use crate::mcp::{allowed_origins, streamable_http_config, streamable_http_servic
 use crate::server::{AppState, AuthPolicy, build_auth_layer};
 
 const MCP_BODY_LIMIT_BYTES: usize = 65_536;
+const UPSTREAM_DURATION_BUCKETS: [f64; 12] = [
+    0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0,
+];
 
 /// Process-global Prometheus layer/handle pair.
 ///
@@ -38,7 +41,18 @@ fn metrics_pair() -> &'static (PrometheusMetricLayer<'static>, PrometheusHandle)
     METRICS.get_or_init(|| {
         PrometheusMetricLayerBuilder::new()
             .with_prefix("yarr")
-            .with_default_metrics()
+            .with_metrics_from_fn(|| {
+                axum_prometheus::metrics_exporter_prometheus::PrometheusBuilder::new()
+                    .set_buckets_for_metric(
+                        axum_prometheus::metrics_exporter_prometheus::Matcher::Full(
+                            "yarr_upstream_duration_seconds".to_owned(),
+                        ),
+                        &UPSTREAM_DURATION_BUCKETS,
+                    )
+                    .expect("upstream duration buckets must be non-empty")
+                    .install_recorder()
+                    .expect("Prometheus recorder must install once")
+            })
             .build_pair()
     })
 }

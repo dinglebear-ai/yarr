@@ -100,20 +100,6 @@ pub fn build_preamble(services: &[(String, ServiceKind)]) -> String {
     out
 }
 
-/// Global names the runtime/discovery layer owns — a configured service whose name
-/// collides with one of these does NOT get a top-level binding (it would clobber
-/// the runtime). Such a service is still fully reachable via `callTool` and, for
-/// raw HTTP, `api.<name>`.
-const RESERVED_GLOBALS: &[&str] = &[
-    "api",
-    "callTool",
-    "codemode",
-    "console",
-    "globalThis",
-    "input",
-    "writeArtifact",
-];
-
 /// Render the per-service callable namespaces. For each configured service, emit a
 /// `globalThis.<name>` object whose methods are the actions valid for that kind
 /// (`service_status` + the kind's curated commands). Each method bakes the service
@@ -122,12 +108,13 @@ const RESERVED_GLOBALS: &[&str] = &[
 fn render_service_namespaces(services: &[(String, ServiceKind)]) -> String {
     let mut out = String::new();
     for (name, kind) in services {
-        if RESERVED_GLOBALS.contains(&name.as_str()) {
+        let namespace = super::javascript_namespace(name);
+        if super::is_reserved_global(&namespace) {
             continue;
         }
-        // `{name:?}` emits a quoted, escaped JS string literal. `service` is merged
-        // LAST so a script can never override the baked-in binding.
-        out.push_str(&format!("globalThis[{name:?}] = {{\n"));
+        // `{namespace:?}` emits a quoted, escaped JS string literal. `service` is
+        // merged LAST so a script can never override the baked-in binding.
+        out.push_str(&format!("globalThis[{namespace:?}] = {{\n"));
         if crate::openapi::is_generated(*kind) {
             // Spec-backed kind: every callable is a generated OpenAPI operation,
             // dispatched through the `op` action. `args` carries path/query params
@@ -237,11 +224,16 @@ globalThis.codemode.run = (name, input) =>
 fn render_api_namespace(service_names: &[String]) -> String {
     let mut out = String::from("globalThis.api = {};\n");
     for name in service_names {
-        // `{name:?}` emits a quoted, escaped JS string literal — never raw
-        // interpolation. `body` is forwarded as-is (undefined drops out of the
-        // JSON object, so the server-side body default applies).
+        let namespace = super::javascript_namespace(name);
+        if super::is_reserved_global(&namespace) {
+            continue;
+        }
+        // `{namespace:?}` emits a quoted, escaped JS string literal — never raw
+        // interpolation. The original configured name stays in the dispatch
+        // payload. `body` is forwarded as-is (undefined drops out of the JSON
+        // object, so the server-side body default applies).
         out.push_str(&format!(
-            "globalThis.api[{name:?}] = {{\n  \
+            "globalThis.api[{namespace:?}] = {{\n  \
                get: (path) => callTool(\"api_get\", {{ service: {name:?}, path: path }}),\n  \
                post: (path, body) => callTool(\"api_post\", {{ service: {name:?}, path: path, body: body }}),\n  \
                put: (path, body) => callTool(\"api_put\", {{ service: {name:?}, path: path, body: body }}),\n  \

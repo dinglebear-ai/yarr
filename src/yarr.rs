@@ -100,6 +100,7 @@ fn http_timeout() -> Duration {
 
 impl YarrClient {
     pub fn new(cfg: &YarrConfig) -> Result<Self> {
+        cfg.validate()?;
         let timeout = http_timeout();
         let client = Client::builder()
             .timeout(timeout)
