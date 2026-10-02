@@ -61,9 +61,11 @@ fn api_delete_action_parses_for_mcp_dispatch() {
 
 #[tokio::test]
 async fn api_delete_dispatches_without_confirm() {
-    // api_delete is destructive but runs immediately (no app-layer confirm
-    // check) — it fails only at the network layer against the stub's
-    // unreachable upstream, not with a confirm-required error.
+    // The app layer never confirms anything: `api_delete` runs immediately here
+    // (the route resolves to a reviewed operation either way) and fails only at
+    // the network layer against the stub's unreachable upstream, not with a
+    // confirm-required error. Destructive confirmation is enforced per resolved
+    // call by the MCP transport, never by an app-layer flag or call argument.
     let state = loopback_state();
     let error = state
         .service

@@ -150,19 +150,22 @@ fn schema_exposes_registry_derived_action_metadata() {
         .find(|entry| entry["name"] == "api_post")
         .expect("sonarr metadata should include generic api_post action");
     assert_eq!(api_post["kind"], "generic");
-    // api_post mutates but is NOT destructive: it runs immediately.
+    // Generic transport shapes cannot promise verb-level safety: every accepted
+    // route is classified from one reviewed generated operation at runtime.
+    assert_eq!(api_post["scope"], "route_dependent");
+    assert_eq!(api_post["operation_safety"], "route_dependent");
     assert_eq!(api_post["mutates"], true);
     assert_eq!(api_post["destructive"], false);
     assert_eq!(api_post["required_params"], serde_json::json!(["path"]));
 
-    // api_delete IS destructive (destructive = true) — on MCP the connected
-    // client is elicited for confirmation before it dispatches.
     let api_delete = metadata
         .iter()
         .find(|entry| entry["name"] == "api_delete")
         .expect("sonarr metadata should include generic api_delete action");
+    assert_eq!(api_delete["scope"], "route_dependent");
+    assert_eq!(api_delete["operation_safety"], "route_dependent");
     assert_eq!(api_delete["mutates"], true);
-    assert_eq!(api_delete["destructive"], true);
+    assert_eq!(api_delete["destructive"], false);
     assert_eq!(api_delete["required_params"], serde_json::json!(["path"]));
 }
 
@@ -189,8 +192,11 @@ fn schema_exposes_service_metadata_and_agent_guidance() {
             .unwrap()
             .contains("elicit")
     );
-    assert_eq!(
-        guidance["generic_passthrough"]["write"],
-        serde_json::json!(["api_post", "api_put", "api_delete"])
+    assert_eq!(guidance["generic_passthrough"]["scope"], "route_dependent");
+    assert!(
+        guidance["generic_passthrough"]["admission"]
+            .as_str()
+            .is_some_and(|value| value.contains("uniquely match")),
+        "generic guidance must state exact route admission: {guidance}"
     );
 }
