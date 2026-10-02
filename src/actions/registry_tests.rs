@@ -12,8 +12,22 @@ fn generic_action_metadata_is_complete_and_authoritative() {
     assert_eq!(snippet_run.required_params, &["name"]);
     assert_eq!(snippet_run.optional_params, &["input"]);
 
+    let get = action_spec("api_get").unwrap();
+    assert!(
+        get.mutates,
+        "a generic GET can resolve to a reviewed Mutation operation"
+    );
+    assert!(
+        !get.destructive,
+        "generic actions are only destructive after exact route classification"
+    );
+
     let delete = action_spec("api_delete").unwrap();
-    assert!(delete.mutates && delete.destructive);
+    assert!(delete.mutates);
+    assert!(
+        !delete.destructive,
+        "generic DELETE is not intrinsically destructive"
+    );
 }
 use crate::config::ServiceKind;
 
@@ -225,9 +239,9 @@ fn required_params_mirror_parser_contract() {
         required_params_for_action("api_get"),
         vec!["service", "path"]
     );
-    // The write passthroughs (including the destructive api_delete) run
-    // immediately with no confirm param — on MCP, api_delete additionally
-    // gets an elicitation prompt before dispatch.
+    // The write passthroughs run immediately with no confirm param. On MCP,
+    // confirmation is elicited only when the exact resolved route is reviewed
+    // Destructive — it is never a call argument.
     assert_eq!(
         required_params_for_action("api_post"),
         vec!["service", "path"]
@@ -248,19 +262,33 @@ fn allowed_kind_names_covers_all_kinds_for_infra() {
 
 #[test]
 fn action_is_destructive_covers_exactly_the_gated_set() {
-    // The generic destructive passthrough + the curated deletes (download + stats).
-    for destructive in ["api_delete", "download_remove", "stats_delete_image_cache"] {
+    // The statically gated set is exactly the curated destructive deletes.
+    for destructive in [
+        "download_remove",
+        "stats_delete_image_cache",
+        "trace_terminate_stream",
+    ] {
         assert!(
             action_is_destructive(destructive),
             "{destructive} must be destructive (gated)"
         );
     }
+    // Transport shapes are route-dependent: destructiveness comes from the one
+    // reviewed generated operation resolved at runtime, never from the action
+    // name or the HTTP verb.
+    for route_dependent in ["api_get", "api_post", "api_put", "api_delete", "op"] {
+        assert!(
+            action_has_route_dependent_safety(route_dependent),
+            "{route_dependent} must be route-dependent"
+        );
+        assert!(
+            !action_is_destructive(route_dependent),
+            "{route_dependent} must not be statically destructive"
+        );
+    }
     // Representative non-destructive writes, reads, and the other passthroughs
     // must NOT be gated.
     for plain in [
-        "api_get",
-        "api_post",
-        "api_put",
         "set_quality",
         "add",
         "monitor",

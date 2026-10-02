@@ -245,8 +245,8 @@ pub fn parse_capability_command(
             })
         }
         // `op <name> [--args JSON]` — invoke a generated operation for a
-        // spec-backed kind directly (the test-harness / operator path). Runs
-        // immediately, including DELETE ops.
+        // spec-backed kind directly (the test-harness / operator path). Its
+        // reviewed metadata determines safety and destructive status.
         "op" => parse_op_command(service, rest),
         // Unknown verb: not a generic passthrough verb and not claimed by the
         // capability's curated parser above.

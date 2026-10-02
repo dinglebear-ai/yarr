@@ -54,15 +54,15 @@ async fn codemode_roundtrips_a_local_action() {
 #[tokio::test]
 async fn per_service_callable_bakes_in_the_service() {
     // The loopback stub configures a `sonarr` (spec-backed) service, so its
-    // generated callables exist. `sonarr.delete_series_by_id({id})` is a generated
+    // generated callables exist. `sonarr.delete_queue_by_id({id})` is a generated
     // DELETE op: it dispatches through the `op` action with the service baked
     // in, all the way to the network (the stub points at unreachable
     // `localhost:1`) — a clean assertion of the generated per-service callable
-    // path, and that a destructive op is not blocked mid-script.
+    // path for a reviewed Mutation route.
     let service = loopback_state().service;
     let code = r#"
         async () => {
-            try { await sonarr.delete_series_by_id({ id: 1 }); return "ran"; }
+            try { await sonarr.delete_queue_by_id({ id: 1 }); return "ran"; }
             catch (e) { return "err:" + e.message; }
         }
     "#;
@@ -76,15 +76,15 @@ async fn per_service_callable_bakes_in_the_service() {
 }
 
 #[tokio::test]
-async fn codemode_allows_destructive_actions_to_dispatch() {
-    // api_delete is destructive, but Code Mode has no confirmation channel
-    // mid-script, so it just dispatches immediately like any other action —
-    // failing only at the network layer (unreachable stub).
+async fn codemode_allows_reviewed_mutation_delete_to_dispatch() {
+    // Sonarr's queue-item delete route is a reviewed Mutation. Code Mode has no
+    // MCP peer on this direct path, so it dispatches like any other mutation
+    // and fails only at the unreachable stub upstream.
     let service = loopback_state().service;
     let code = r#"
         async () => {
             try {
-                await callTool("api_delete", { service: "sonarr", path: "/api/v3/series/1" });
+                await callTool("api_delete", { service: "sonarr", path: "/api/v3/queue/5" });
                 return "ran";
             } catch (e) {
                 return "err:" + e.message;
@@ -111,6 +111,7 @@ async fn codemode_discovery_search_and_describe_run() {
                 found: hits.results.some(e => e.path === "api.<service>.get"),
                 total: hits.total,
                 describedDestructive: desc.destructive,
+                scope: desc.scope,
                 signature: desc.signature,
                 missing: codemode.describe("nope_not_real"),
             };
@@ -119,9 +120,48 @@ async fn codemode_discovery_search_and_describe_run() {
     let out = service.codemode(code).await.unwrap();
     assert_eq!(out["result"]["found"], true);
     assert!(out["result"]["total"].as_i64().unwrap() >= 4);
-    assert_eq!(out["result"]["describedDestructive"], true);
+    assert_eq!(out["result"]["describedDestructive"], false);
+    assert_eq!(out["result"]["scope"], "route_dependent");
     assert_eq!(out["result"]["signature"], "api.<service>.delete(path)");
     assert!(out["result"]["missing"].is_null());
+}
+
+#[tokio::test]
+async fn hyphenated_service_name_uses_normalized_namespace_everywhere() {
+    let service = multi_service(&[("home-media", crate::config::ServiceKind::Sonarr)]);
+    let code = r#"
+        async () => {
+            const catalog = codemode.search("service status").results;
+            const callable = codemode.describe("home_media.service_status");
+            const responseType = codemode.describe("home_media.SeriesResource");
+            try {
+                await home_media.service_status();
+            } catch (_) {
+                // The stub upstream is unreachable. A recorded call proves the
+                // normalized namespace resolved and reached the dispatch bridge.
+            }
+            return {
+                callableFound: callable !== null,
+                catalogFound: catalog.some((entry) => entry.path === "home_media.service_status"),
+                responseTypeFound: responseType !== null,
+                rawApiFound: typeof api.home_media === "object" && typeof api.home_media.get === "function",
+                legacyCallableAbsent: codemode.describe("home-media.service_status") === null,
+                legacyTypeAbsent: codemode.describe("home-media.SeriesResource") === null,
+                legacyRawApiAbsent: typeof api["home-media"] === "undefined",
+            };
+        }
+    "#;
+
+    let out = service.codemode(code).await.unwrap();
+    assert_eq!(out["result"]["callableFound"], true);
+    assert_eq!(out["result"]["catalogFound"], true);
+    assert_eq!(out["result"]["responseTypeFound"], true);
+    assert_eq!(out["result"]["rawApiFound"], true);
+    assert_eq!(out["result"]["legacyCallableAbsent"], true);
+    assert_eq!(out["result"]["legacyTypeAbsent"], true);
+    assert_eq!(out["result"]["legacyRawApiAbsent"], true);
+    assert_eq!(out["calls"].as_array().map(Vec::len), Some(1));
+    assert_eq!(out["calls"][0]["action"], "service_status");
 }
 
 #[tokio::test]
@@ -182,7 +222,7 @@ async fn codemode_api_client_delete_dispatches() {
     let code = r#"
         async () => {
             try {
-                await api.sonarr.delete("/api/v3/series/1");
+                await api.sonarr.delete("/api/v3/queue/5");
                 return "ran";
             } catch (e) {
                 return "err:" + e.message;
@@ -193,4 +233,28 @@ async fn codemode_api_client_delete_dispatches() {
     let result = out["result"].as_str().unwrap();
     assert!(!result.contains("destructive"), "got: {result}");
     assert_eq!(out["calls"][0]["action"], "api_delete");
+}
+
+#[tokio::test]
+async fn codemode_raw_api_unknown_route_fails_before_transport() {
+    let service = loopback_state().service;
+    let code = r#"
+        async () => {
+            try {
+                await api.sonarr.get("/api/v3/not-a-generated-route");
+                return "unexpected";
+            } catch (e) {
+                return e.message;
+            }
+        }
+    "#;
+    let out = service.codemode(code).await.unwrap();
+    assert!(
+        out["result"]
+            .as_str()
+            .is_some_and(|message| message.contains("no unique generated operation match")),
+        "result: {out}"
+    );
+    assert_eq!(out["calls"][0]["action"], "api_get");
+    assert_eq!(out["calls"][0]["ok"], false);
 }

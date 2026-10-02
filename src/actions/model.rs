@@ -123,7 +123,8 @@ pub enum YarrAction {
     /// names the generated `OperationSpec` (`crate::openapi`), and `args` carries
     /// path params, query params, and (for body ops) `args.body`. The whole
     /// generated surface dispatches through this one variant — no per-op code.
-    /// Requires `yarr:write`.
+    /// Its required scope and destructive status derive from reviewed operation
+    /// metadata, not its HTTP method.
     Op {
         service: String,
         op: String,
