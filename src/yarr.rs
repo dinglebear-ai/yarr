@@ -164,36 +164,6 @@ impl YarrClient {
             .await
     }
 
-    pub async fn post_json(
-        &self,
-        service: &ServiceConfig,
-        path: &str,
-        body: Value,
-    ) -> Result<Value> {
-        self.request_json(Method::POST, service, path, Some(body), None)
-            .await
-    }
-
-    pub async fn put_json(
-        &self,
-        service: &ServiceConfig,
-        path: &str,
-        body: Value,
-    ) -> Result<Value> {
-        self.request_json(Method::PUT, service, path, Some(body), None)
-            .await
-    }
-
-    pub async fn delete_json(
-        &self,
-        service: &ServiceConfig,
-        path: &str,
-        body: Option<Value>,
-    ) -> Result<Value> {
-        self.request_json(Method::DELETE, service, path, body, None)
-            .await
-    }
-
     /// Core request path. `accept_mime` lets callers (e.g. Plex) negotiate a
     /// JSON response via the `Accept` header without the transport learning
     /// anything Plex-specific.
@@ -213,7 +183,9 @@ impl YarrClient {
             &self.client
         };
         let url = build_url(service, path)?;
-        let mut request = http.request(method, url);
+        let mut request = http
+            .request(method, url)
+            .headers(auth::transport_headers(service));
         request = auth::apply_auth(request, service);
         if let Some(accept) = accept_mime {
             request = request.header(reqwest::header::ACCEPT, accept);
@@ -246,7 +218,9 @@ impl YarrClient {
         } else {
             &self.client
         };
-        let mut request = http.request(method, url);
+        let mut request = http
+            .request(method, url)
+            .headers(auth::transport_headers(service));
         request = auth::apply_auth(request, service);
         if let Some(accept) = accept_mime {
             request = request.header(reqwest::header::ACCEPT, accept);
@@ -278,7 +252,9 @@ impl YarrClient {
             .mime_str("application/zip")?;
         let form = reqwest::multipart::Form::new().part(field_name.to_string(), part);
 
-        let mut request = http.request(method, url);
+        let mut request = http
+            .request(method, url)
+            .headers(auth::transport_headers(service));
         request = auth::apply_auth(request, service).multipart(form);
         self.finish_with_retry(service, request).await
     }
@@ -297,7 +273,7 @@ impl YarrClient {
         } else {
             &self.client
         };
-        let mut request = http.get(url);
+        let mut request = http.get(url).headers(auth::transport_headers(service));
         request = auth::apply_auth(request, service);
         if let Some(accept) = accept_mime {
             request = request.header(reqwest::header::ACCEPT, accept);
@@ -326,7 +302,10 @@ impl YarrClient {
         } else {
             &self.client
         };
-        let mut request = http.post(url).form(form);
+        let mut request = http
+            .post(url)
+            .headers(auth::transport_headers(service))
+            .form(form);
         request = auth::apply_auth(request, service);
         self.finish_with_retry(service, request).await
     }

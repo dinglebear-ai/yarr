@@ -1,6 +1,7 @@
 //! Business service layer.
 
 use anyhow::{Result, anyhow};
+use reqwest::Method;
 use serde_json::Value;
 
 use crate::{
@@ -136,7 +137,10 @@ impl YarrService {
 
     pub async fn api_get(&self, service: &str, path: &str) -> Result<Value> {
         validate_safe_path(path)?;
-        self.client.get_json(self.service(service)?, path).await
+        let config = self.service(service)?;
+        self.client
+            .request_json(Method::GET, config, path, None, passthrough_accept(config))
+            .await
     }
 
     /// POST passthrough. Mutating but NOT destructive, so it runs immediately —
@@ -144,8 +148,15 @@ impl YarrService {
     /// deletes; see [`api_delete`](Self::api_delete)).
     pub async fn api_post(&self, service: &str, path: &str, body: Value) -> Result<Value> {
         validate_safe_path(path)?;
+        let config = self.service(service)?;
         self.client
-            .post_json(self.service(service)?, path, body)
+            .request_json(
+                Method::POST,
+                config,
+                path,
+                Some(body),
+                passthrough_accept(config),
+            )
             .await
     }
 
@@ -153,8 +164,15 @@ impl YarrService {
     /// [`api_post`](Self::api_post)).
     pub async fn api_put(&self, service: &str, path: &str, body: Value) -> Result<Value> {
         validate_safe_path(path)?;
+        let config = self.service(service)?;
         self.client
-            .put_json(self.service(service)?, path, body)
+            .request_json(
+                Method::PUT,
+                config,
+                path,
+                Some(body),
+                passthrough_accept(config),
+            )
             .await
     }
 
@@ -168,8 +186,15 @@ impl YarrService {
         body: Option<Value>,
     ) -> Result<Value> {
         validate_safe_path(path)?;
+        let config = self.service(service)?;
         self.client
-            .delete_json(self.service(service)?, path, body)
+            .request_json(
+                Method::DELETE,
+                config,
+                path,
+                body,
+                passthrough_accept(config),
+            )
             .await
     }
 
@@ -268,4 +293,10 @@ impl YarrService {
         }
         Ok(service)
     }
+}
+
+/// Plex answers raw API reads in XML unless asked for JSON. Generated operations
+/// negotiate their own `Accept`; the generic passthrough asks for JSON on Plex.
+fn passthrough_accept(service: &ServiceConfig) -> Option<&'static str> {
+    (service.kind == ServiceKind::Plex).then_some("application/json")
 }

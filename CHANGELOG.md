@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Plex on-demand subtitles: `plex.search_subtitles({ids, language, hearingImpaired, forced})` returns candidate subtitle streams (release name, provider, score, SDH/forced flags) without attaching anything, and `plex.download_subtitles({ids, key})` downloads the chosen candidate. The vendored spec has no download operation and mislabels the search, so `gen-openapi` applies an audited correction to it.
+
 ### Fixed
 
+- Plex generated operations no longer fail with "requires header parameter `X-Plex-Client-Identifier`": the transport sends `X-Plex-Client-Identifier: yarr` and `X-Plex-Product: yarr` on every Plex request (a caller-supplied value replaces the default), and `gen-openapi` marks that header optional for Plex.
+- Plex raw passthrough (`api_get`/`api_post`/`api_put`/`api_delete`) sends `Accept: application/json`, so it returns parsed JSON instead of an XML string.
 - Pin the container builder to Rust 1.97.1 and enforce parity with the repository toolchain.
 - Keep the configurable Compose env file optional so local and validation deployments do not require a host-specific file.
 
