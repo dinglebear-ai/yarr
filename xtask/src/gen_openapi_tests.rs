@@ -288,3 +288,43 @@ fn extract_types_renders_interface_and_enum() {
 fn extract_types_empty_when_no_components() {
     assert!(extract_types(&json!({ "paths": {} })).is_empty());
 }
+
+#[test]
+fn transport_supplied_plex_header_is_relaxed_only_for_plex() {
+    let spec = json!({
+        "paths": {
+            "/library/sections/{sectionId}/all": {
+                "get": {
+                    "operationId": "listContent",
+                    "parameters": [
+                        { "name": "sectionId", "in": "path", "required": true },
+                        { "name": "X-Plex-Client-Identifier", "in": "header", "required": true }
+                    ]
+                }
+            }
+        }
+    });
+    let required = |service: &str| {
+        let mut ops = extract_operations(&spec).unwrap();
+        relax_transport_supplied_headers(service, &mut ops);
+        ops[0]
+            .parameters
+            .iter()
+            .map(|parameter| (parameter.name.clone(), parameter.required))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        required("plex"),
+        vec![
+            ("X-Plex-Client-Identifier".to_string(), false),
+            ("sectionId".to_string(), true),
+        ]
+    );
+    assert_eq!(
+        required("jellyfin"),
+        vec![
+            ("X-Plex-Client-Identifier".to_string(), true),
+            ("sectionId".to_string(), true),
+        ]
+    );
+}

@@ -29,6 +29,11 @@ const SPECS: &[(&str, &str)] = &[
     ("plex", "specs/plex.openapi.yml"),
 ];
 
+/// Header parameters the transport always supplies for a service
+/// (`src/yarr/auth.rs::transport_headers`), so the generated table marks them
+/// optional even where the spec requires them.
+const TRANSPORT_SUPPLIED_HEADERS: &[(&str, &str)] = &[("plex", "X-Plex-Client-Identifier")];
+
 #[derive(Debug)]
 struct ParameterOut {
     name: String,
@@ -78,8 +83,9 @@ struct TypeOut {
 pub fn run(_args: &[String]) -> Result<()> {
     for (service, spec_path) in SPECS {
         let root = load_spec(spec_path).with_context(|| format!("loading {spec_path}"))?;
-        let operations = extract_operations(&root)
+        let mut operations = extract_operations(&root)
             .with_context(|| format!("extracting operations from {spec_path}"))?;
+        relax_transport_supplied_headers(service, &mut operations);
         let types = extract_types(&root);
         let supported = operations
             .iter()
@@ -96,6 +102,21 @@ pub fn run(_args: &[String]) -> Result<()> {
     }
     println!("gen-openapi: done. Run `cargo fmt` + `cargo build` to verify.");
     Ok(())
+}
+
+fn relax_transport_supplied_headers(service: &str, operations: &mut [OperationOut]) {
+    for parameter in operations
+        .iter_mut()
+        .flat_map(|operation| operation.parameters.iter_mut())
+    {
+        if parameter.location == "header"
+            && TRANSPORT_SUPPLIED_HEADERS
+                .iter()
+                .any(|(kind, name)| *kind == service && parameter.name.eq_ignore_ascii_case(name))
+        {
+            parameter.required = false;
+        }
+    }
 }
 
 fn load_spec(path: &str) -> Result<Value> {

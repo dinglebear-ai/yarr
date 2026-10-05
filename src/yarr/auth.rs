@@ -7,6 +7,7 @@
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
+use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, StatusCode};
 use tokio::sync::Mutex;
 
@@ -161,6 +162,22 @@ pub fn apply_auth(
         // separately.
         AuthStyle::QueryApiKey | AuthStyle::CookieSession => request,
     }
+}
+
+/// Headers the transport supplies on every request for the service's kind.
+///
+/// Plex requires a client identifier on most of its API, and the vendored spec
+/// marks `X-Plex-Client-Identifier` required, so yarr always sends a fixed one
+/// rather than making every caller pass it. Request paths apply these before
+/// any caller headers, and a caller-supplied header of the same name replaces
+/// the default instead of being sent alongside it.
+pub fn transport_headers(service: &ServiceConfig) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    if let AuthStyle::PlexToken = service.kind.descriptor().auth_style {
+        headers.insert("X-Plex-Client-Identifier", HeaderValue::from_static("yarr"));
+        headers.insert("X-Plex-Product", HeaderValue::from_static("yarr"));
+    }
+    headers
 }
 
 pub fn qbittorrent_login_accepted(status: StatusCode, text: &str) -> bool {

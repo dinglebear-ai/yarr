@@ -1,6 +1,6 @@
 //! OpenAPI-specific request serialization on the shared HTTP transport.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use reqwest::Method;
 use serde_json::Value;
 
@@ -64,10 +64,21 @@ impl YarrClient {
         } else {
             &self.client
         };
-        let mut request = http.request(method, url);
+        // Caller headers replace (not join) same-named transport defaults, so
+        // a supplied X-Plex-Client-Identifier is sent once, unchanged.
+        let mut caller_headers = reqwest::header::HeaderMap::new();
         for (name, value) in headers {
-            request = request.header(name, value);
+            caller_headers.append(
+                reqwest::header::HeaderName::from_bytes(name.as_bytes())
+                    .with_context(|| format!("invalid header parameter name `{name}`"))?,
+                reqwest::header::HeaderValue::from_str(value)
+                    .with_context(|| format!("invalid value for header parameter `{name}`"))?,
+            );
         }
+        let mut request = http
+            .request(method, url)
+            .headers(auth::transport_headers(service))
+            .headers(caller_headers);
         // Apply configured credentials last so a generated header/cookie
         // parameter can never replace transport authentication.
         request = auth::apply_auth(request, service);
