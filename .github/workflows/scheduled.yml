@@ -77,14 +77,16 @@ jobs:
       - name: Create or reuse incident issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No checkout in this job, so gh cannot infer the repository from git.
+          GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          existing="$(gh issue list --state open --search 'Scheduled dependency scan failed in:title' --json number --jq '.[0].number // empty')"
+          existing="$(gh issue list --repo "$GH_REPO" --state open --search 'Scheduled dependency scan failed in:title' --json number --jq '.[0].number // empty')"
           if [[ -n "$existing" ]]; then
-            gh issue comment "$existing" --body "Dependency scan failed again: ${RUN_URL}"
+            gh issue comment "$existing" --repo "$GH_REPO" --body "Dependency scan failed again: ${RUN_URL}"
           else
-            gh issue create \
+            gh issue create --repo "$GH_REPO" \
               --title "Scheduled dependency scan failed" \
-              --body "The scheduled cargo-deny safety net failed: ${RUN_URL}\n\nRunbook: docs/runbooks/dependency-response.md"
+              --body "$(printf 'The scheduled cargo-deny safety net failed: %s\n\nRunbook: docs/runbooks/dependency-response.md' "$RUN_URL")"
           fi

@@ -69,3 +69,54 @@ fn oauth_local_state_allows_only_one_replica() {
     drop(first);
     acquire_oauth_instance_lock(&sqlite).expect("lock must be released on clean shutdown");
 }
+
+fn auth_in(dir: &std::path::Path) -> AuthConfig {
+    AuthConfig {
+        key_path: dir.join("auth-jwt.pem").display().to_string(),
+        ..AuthConfig::default()
+    }
+}
+
+#[test]
+fn explicit_token_encryption_key_wins_and_writes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let auth = AuthConfig {
+        token_encryption_key: Some(format!("  {}  ", "ab".repeat(32))),
+        ..auth_in(dir.path())
+    };
+    assert_eq!(
+        resolve_token_encryption_key(&auth).unwrap(),
+        "ab".repeat(32)
+    );
+    assert!(!token_encryption_key_path(&auth).exists());
+}
+
+#[test]
+fn generated_token_encryption_key_is_persisted_and_reused() {
+    let dir = tempfile::tempdir().unwrap();
+    let auth = auth_in(dir.path());
+    let first = resolve_token_encryption_key(&auth).unwrap();
+    assert_eq!(first.len(), 64);
+    assert!(first.bytes().all(|b| b.is_ascii_hexdigit()));
+    lab_auth::at_rest::TokenEncryptionKey::from_encoded(&first)
+        .expect("generated key must be accepted by labby-auth");
+
+    let path = token_encryption_key_path(&auth);
+    assert_eq!(path, dir.path().join(TOKEN_ENCRYPTION_KEY_FILE));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "key file must be owner-only");
+    }
+    assert_eq!(resolve_token_encryption_key(&auth).unwrap(), first);
+}
+
+#[test]
+fn empty_token_encryption_key_file_fails_closed() {
+    let dir = tempfile::tempdir().unwrap();
+    let auth = auth_in(dir.path());
+    std::fs::write(token_encryption_key_path(&auth), "\n").unwrap();
+    let error = resolve_token_encryption_key(&auth).unwrap_err().to_string();
+    assert!(error.contains("YARR_MCP_TOKEN_ENCRYPTION_KEY"), "{error}");
+}

@@ -18,7 +18,7 @@ use rmcp::{
         GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
         ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
         ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, ServerCapabilities,
-        ServerInfo, Tool,
+        ServerConfig, Tool,
     },
     service::{Peer, RequestContext},
 };
@@ -236,8 +236,8 @@ impl ServerHandler for YarrRmcpServer {
 
     // ── server info ───────────────────────────────────────────────────────────
 
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
