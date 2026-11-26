@@ -81,8 +81,6 @@ Verify it before installation or troubleshooting:
 npm view @dinglebear/yarr@2.2.2 version
 ```
 
-GitHub release `v2.1.0` is currently public while that npm version is missing;
-[issue #80](https://github.com/dinglebear-ai/yarr/issues/80) tracks recovery.
 Do not replace the pin with `latest` or an older launcher. Use the native Yarr
 binary directly for MCP, or install a service-specific skills-only plugin, until
 the exact package resolves.
