@@ -110,7 +110,9 @@ async fn modern_destructive_call_requires_input_then_executes_exactly_once() {
         }),
     )
     .await;
-    assert_eq!(replay_status, axum::http::StatusCode::BAD_REQUEST);
+    // rmcp >= 3.11 keeps -32602 on a well-formed request in-band (HTTP 200);
+    // only malformed request _meta maps to HTTP 400.
+    assert_eq!(replay_status, axum::http::StatusCode::OK);
     assert!(
         replay["error"]["message"]
             .as_str()
@@ -155,7 +157,9 @@ async fn modern_decline_and_request_tampering_never_reach_upstream() {
         }),
     )
     .await;
-    assert_eq!(tampered_status, axum::http::StatusCode::BAD_REQUEST);
+    // rmcp >= 3.11 keeps -32602 on a well-formed request in-band (HTTP 200);
+    // only malformed request _meta maps to HTTP 400.
+    assert_eq!(tampered_status, axum::http::StatusCode::OK);
     assert!(
         tampered.get("error").is_some(),
         "unexpected tamper response: {tampered}"
@@ -286,7 +290,9 @@ async fn modern_codemode_confirms_preflight_targets_then_executes_once() {
         }),
     )
     .await;
-    assert_eq!(replay_status, axum::http::StatusCode::BAD_REQUEST);
+    // rmcp >= 3.11 keeps -32602 on a well-formed request in-band (HTTP 200);
+    // only malformed request _meta maps to HTTP 400.
+    assert_eq!(replay_status, axum::http::StatusCode::OK);
     assert!(
         replay["error"]["message"]
             .as_str()

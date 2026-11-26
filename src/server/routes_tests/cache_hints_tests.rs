@@ -123,8 +123,7 @@ async fn cacheable_results_carry_sep_2549_hints_for_2026_07_28_callers() {
             "{method} must carry resultType=complete for a 2026-07-28 caller: {response}"
         );
         assert_eq!(
-            response["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
-            "yarr",
+            response["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "yarr",
             "{method} must identify the server for a 2026-07-28 caller: {response}"
         );
     }

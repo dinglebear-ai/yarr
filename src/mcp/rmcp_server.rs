@@ -15,10 +15,10 @@ use rmcp::{
     ErrorData, RoleServer, ServerHandler,
     model::{
         CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock,
-        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult, MetaObject,
-        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
-        ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
-        Resource, ResourceContents, ServerCapabilities, ServerConfig, Tool,
+        GetPromptRequestParams, GetPromptResponse, Implementation, ListPromptsResult,
+        ListResourceTemplatesResult, ListResourcesResult, ListToolsResult, MetaObject,
+        PaginatedRequestParams, ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse,
+        ReadResourceResult, Resource, ResourceContents, ServerCapabilities, ServerConfig, Tool,
     },
     service::{Peer, RequestContext},
 };
@@ -171,10 +171,8 @@ fn with_server_info<T: ResultMetadata>(
         .protocol_version()
         .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
     if modern {
-        let implementation = Implementation::new(
-            state.config.server_name.clone(),
-            env!("CARGO_PKG_VERSION"),
-        );
+        let implementation =
+            Implementation::new(state.config.server_name.clone(), env!("CARGO_PKG_VERSION"));
         let value = serde_json::to_value(implementation)
             .expect("MCP Implementation serialization cannot fail");
         result
@@ -190,9 +188,7 @@ fn with_server_info<T: ResultMetadata>(
 /// contract. rmcp's transport leaves this strictness opt-in so mixed-version
 /// servers can preserve older clients; enforce it at Yarr's advertised modern
 /// handler surface instead.
-fn require_modern_request_metadata(
-    context: &RequestContext<RoleServer>,
-) -> Result<(), ErrorData> {
+fn require_modern_request_metadata(context: &RequestContext<RoleServer>) -> Result<(), ErrorData> {
     let modern = context
         .protocol_version()
         .is_some_and(|version| version >= ProtocolVersion::V_2026_07_28);
@@ -387,7 +383,7 @@ impl ServerHandler for YarrRmcpServer {
                             "destructive action declined via elicitation; nothing changed"
                         );
                         return declined_result(&action)
-                        .map(|result| with_server_info(result, &self.state, &context).into());
+                            .map(|result| with_server_info(result, &self.state, &context).into());
                     }
                 }
             }

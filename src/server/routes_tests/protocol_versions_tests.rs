@@ -181,7 +181,8 @@ async fn explicit_modern_request_requires_self_contained_meta() {
     assert!(
         response["error"]["message"]
             .as_str()
-            .is_some_and(|message| message.contains("protocolVersion") && message.contains("clientCapabilities")),
+            .is_some_and(|message| message.contains("protocolVersion")
+                && message.contains("clientCapabilities")),
         "unexpected missing-meta response: {response}"
     );
     assert_eq!(calls.load(Ordering::SeqCst), 0);
