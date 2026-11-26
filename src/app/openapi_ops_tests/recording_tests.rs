@@ -235,3 +235,39 @@ async fn plex_passthrough_requests_json() {
     assert_eq!(request.headers["accept"], "*/*");
     assert!(request.headers.get("x-plex-client-identifier").is_none());
 }
+
+#[tokio::test]
+async fn plex_subtitle_search_and_download_requests() {
+    let (service, mut requests) = recording_service().await;
+    service
+        .execute_operation(
+            "plex",
+            "search_subtitles",
+            &json!({"ids": "100", "language": "en", "hearingImpaired": 3, "forced": 0}),
+        )
+        .await
+        .unwrap();
+    let search = requests.recv().await.unwrap();
+    assert!(search.uri.starts_with("/library/metadata/100/subtitles?"));
+    for pair in ["language=en", "hearingImpaired=3", "forced=0"] {
+        assert!(search.uri.contains(pair), "{} lacks {pair}", search.uri);
+    }
+    assert_eq!(search.headers["accept"], "application/json");
+
+    service
+        .execute_operation(
+            "plex",
+            "download_subtitles",
+            &json!({"ids": "100", "key": "/library/streams/200"}),
+        )
+        .await
+        .unwrap();
+    let download = requests.recv().await.unwrap();
+    assert!(download.uri.contains("key=%2Flibrary%2Fstreams%2F200"));
+
+    let error = service
+        .execute_operation("plex", "download_subtitles", &json!({"ids": "100"}))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("requires query parameter `key`"));
+}

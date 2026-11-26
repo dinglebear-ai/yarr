@@ -328,3 +328,53 @@ fn transport_supplied_plex_header_is_relaxed_only_for_plex() {
         ]
     );
 }
+
+#[test]
+fn plex_subtitles_correction_splits_search_and_download() {
+    let mut spec = json!({
+        "paths": {
+            "/library/metadata/{ids}/subtitles": {
+                "get": {
+                    "operationId": "addSubtitles",
+                    "parameters": [
+                        { "$ref": "#/components/parameters/X-Plex-Client-Identifier" },
+                        { "name": "ids", "in": "path", "required": true },
+                        { "name": "url", "in": "query" }
+                    ],
+                    "responses": { "200": { "$ref": "#/components/responses/200" } }
+                }
+            }
+        },
+        "components": { "parameters": { "X-Plex-Client-Identifier": {
+            "name": "X-Plex-Client-Identifier", "in": "header", "required": true,
+            "schema": { "type": "string" }
+        } } }
+    });
+    apply_spec_corrections("plex", &mut spec).unwrap();
+    let ops = extract_operations(&spec).unwrap();
+    let names = ops.iter().map(|op| op.name.as_str()).collect::<Vec<_>>();
+    assert_eq!(names, ["download_subtitles", "search_subtitles"]);
+
+    let params = |op: &OperationOut| {
+        op.parameters
+            .iter()
+            .map(|parameter| (parameter.name.clone(), parameter.required))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(ops[0].method, "PUT");
+    assert!(params(&ops[0]).contains(&("key".to_string(), true)));
+    assert_eq!(ops[1].method, "GET");
+    assert_eq!(ops[1].responses[0].media_type, "application/json");
+    let search = params(&ops[1]);
+    assert!(search.contains(&("language".to_string(), false)));
+    assert!(!search.iter().any(|(name, _)| name == "url"));
+    // The shared header reference survives the rewrite.
+    assert!(search.contains(&("X-Plex-Client-Identifier".to_string(), true)));
+}
+
+#[test]
+fn plex_subtitles_correction_fails_loudly_when_path_is_gone() {
+    let mut spec = json!({ "paths": {} });
+    assert!(apply_spec_corrections("plex", &mut spec).is_err());
+    assert!(apply_spec_corrections("sonarr", &mut spec).is_ok());
+}
