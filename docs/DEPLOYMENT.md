@@ -57,16 +57,15 @@ yarr --version
 ### Exact-version npm launcher
 
 ```bash
-YARR_VERSION=2.1.0
+YARR_VERSION=2.2.2
 npm view "@dinglebear/yarr@${YARR_VERSION}" version
 npm install --global "@dinglebear/yarr@${YARR_VERSION}"
 ```
 
 The npm launcher and runtime release are a coupled contract. Do not use
 unpinned `npx yarr-mcp` or `@latest` in production, plugin manifests, or
-reproducibility instructions. GitHub release `v2.1.0` is currently public
-while `@dinglebear/yarr@2.1.0` is absent from npm; use the native binary until
-[issue #80](https://github.com/dinglebear-ai/yarr/issues/80) is resolved.
+reproducibility instructions. If the exact version does not resolve on npm, use
+the native binary instead.
 
 ### Source checkout
 

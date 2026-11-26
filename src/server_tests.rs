@@ -249,3 +249,53 @@ fn public_url_rejects_credentials_query_and_fragment() {
         );
     }
 }
+
+/// Regression for #146: lab-auth's rate-limited OAuth routes extract
+/// `ConnectInfo<SocketAddr>`, so the real server must provide it. A missing
+/// extension surfaces as an HTTP 500 before any OAuth validation runs.
+#[tokio::test]
+async fn served_router_supplies_connect_info_to_oauth_routes() {
+    let data_dir = tempfile::tempdir().unwrap();
+    let app = crate::server::router(crate::testing::oauth_state(data_dir.path()).await);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(serve(listener, app, async {
+        let _ = stopped.await;
+    }));
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+    for path in ["/authorize", "/register"] {
+        let request = if path == "/register" {
+            client
+                .post(format!("http://{addr}{path}"))
+                .json(&serde_json::json!({}))
+        } else {
+            client.get(format!(
+                "http://{addr}{path}?response_type=code&client_id=missing&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcb&state=s&code_challenge=x&code_challenge_method=S256"
+            ))
+        };
+        let response = request
+            .header("host", "localhost:40070")
+            .send()
+            .await
+            .unwrap();
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        assert_ne!(
+            status,
+            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            "{path} returned 500: {body}"
+        );
+        assert!(
+            !body.contains("ConnectInfo"),
+            "{path} is missing ConnectInfo: {body}"
+        );
+    }
+
+    let _ = stop.send(());
+    server.await.unwrap().unwrap();
+}

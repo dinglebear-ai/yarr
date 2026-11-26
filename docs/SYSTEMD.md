@@ -64,9 +64,8 @@ WantedBy=default.target
 Key points:
 - The unit example assumes the native installer. Use the absolute path returned
   by `command -v yarr` if you install elsewhere.
-- The npm launcher is suitable only after `npm view @dinglebear/yarr@2.1.0 version`
-  confirms the exact coupled version exists. It is currently missing; issue #80
-  tracks recovery, so do not use npm `latest` for this unit.
+- The npm launcher is suitable only after `npm view @dinglebear/yarr@2.2.2 version`
+  confirms the exact coupled version exists. Do not use npm `latest` for this unit.
 - Use `EnvironmentFile` pointing at `~/.yarr/.env` — never hardcode tokens in unit files.
 - `%h` expands to the user home directory.
 - `serve mcp` is the canonical Streamable HTTP mode (see `docs/DEPLOYMENT.md`).

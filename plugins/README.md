@@ -74,8 +74,7 @@ In addition to the standalone layout above, `yarr/` ships `.mcp.json` and
 `gemini-extension.json`'s inline `mcpServers.yarr` (stdio through the pinned
 `@dinglebear/yarr@2.2.2` npm launcher, no committed platform binary). Verify that
 exact package with `npm view @dinglebear/yarr@2.2.2 version` before installation.
-GitHub `v2.1.0` is public while the npm package is currently missing; issue #80
-tracks recovery, and operators must not loosen the pin to `latest`. The package also ships
+Operators must not loosen the pin to `latest`. The package also ships
 `monitors/monitors.json`, the safe local JSON setup script, the consolidated
 `skills/yarr/SKILL.md`, and
 the 11 bundled fallback skills under `skills/<service>/`. See its

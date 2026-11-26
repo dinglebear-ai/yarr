@@ -230,6 +230,29 @@ pub fn build_auth_layer(
     }
 }
 
+/// Serve the HTTP router on `listener` until `shutdown` resolves.
+///
+/// The router is served with per-connection [`axum::extract::ConnectInfo`],
+/// which lab-auth's rate-limited OAuth routes (`/authorize`, `/register`)
+/// extract; without it they fail with HTTP 500 (issue #146). Behind a reverse
+/// proxy or tunnel the peer address is the proxy's, so those per-IP limits are
+/// shared by every client that arrives through it.
+pub async fn serve<F>(
+    listener: tokio::net::TcpListener,
+    app: axum::Router,
+    shutdown: F,
+) -> std::io::Result<()>
+where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown)
+    .await
+}
+
 #[cfg(test)]
 #[path = "server_tests.rs"]
 mod tests;

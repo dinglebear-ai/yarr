@@ -48,7 +48,7 @@ pub use cli::{
 };
 pub use config::{
     AuthConfig, Config, McpConfig, ServiceConfig, ServiceKind, YarrConfig,
-    acquire_oauth_instance_lock, resolve_data_dir,
+    acquire_oauth_instance_lock, resolve_data_dir, resolve_token_encryption_key,
 };
 /// Initialise dual logging for the binary: pretty colored output on stderr plus
 /// a JSON-lines file at `{data_dir}/logs/{service}.log` (non-blocking and
@@ -62,7 +62,9 @@ pub use logging::init as init_logging;
 pub use mcp::execute_tool_without_peer_for_test;
 pub use mcp::rmcp_server;
 pub use run_mode::RunMode;
-pub use server::{AppState, AuthPolicy, AuthPolicyKind, resolve_auth_policy_kind, router};
+pub use server::{
+    AppState, AuthPolicy, AuthPolicyKind, resolve_auth_policy_kind, router, serve as serve_http,
+};
 pub use yarr::YarrClient;
 
 /// Test helpers — available when `features = ["test-support"]` or in `cfg(test)`.
@@ -236,6 +238,7 @@ pub mod testing {
                 "YARR_MCP_AUTH_KEY_PATH".into(),
                 data_dir.join("auth-jwt.pem").display().to_string(),
             ),
+            ("YARR_MCP_TOKEN_ENCRYPTION_KEY".into(), "11".repeat(32)),
         ];
 
         let auth_config = lab_auth::config::AuthConfigBuilder::new()

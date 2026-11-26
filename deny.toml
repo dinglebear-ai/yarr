@@ -17,7 +17,16 @@ version = 2
 yanked = "warn"
 
 # The lab-auth aws-lc JWT backend no longer depends on RustCrypto RSA.
-ignore = []
+#
+# Reviewed exception deadline: 2027-02-26
+ignore = [
+  # path: direct dependency (timestamps) and transitively via rmcp + schemars.
+  # reason: informational unmaintained notice covering every chrono release; it
+  #         reports no vulnerability and no maintained replacement release exists.
+  #         Mirrors the exception labby carries for the same advisory.
+  # re-review: by the deadline above, or sooner if rmcp/schemars migrate off chrono.
+  { id = "RUSTSEC-2026-0543", reason = "Informational unmaintained notice for chrono (all versions, no vulnerability, no patched release); re-review by the deadline in this file" },
+]
 
 # ── Licenses ──────────────────────────────────────────────────────────────────
 
