@@ -62,7 +62,9 @@ pub use logging::init as init_logging;
 pub use mcp::execute_tool_without_peer_for_test;
 pub use mcp::rmcp_server;
 pub use run_mode::RunMode;
-pub use server::{AppState, AuthPolicy, AuthPolicyKind, resolve_auth_policy_kind, router};
+pub use server::{
+    AppState, AuthPolicy, AuthPolicyKind, resolve_auth_policy_kind, router, serve as serve_http,
+};
 pub use yarr::YarrClient;
 
 /// Test helpers — available when `features = ["test-support"]` or in `cfg(test)`.

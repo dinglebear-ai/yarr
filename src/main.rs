@@ -24,7 +24,7 @@ use yarr::{
     YarrClient, YarrService, acquire_oauth_instance_lock, apply_plugin_options, cli_usage,
     init_logging, parse_args_configured, resolve_auth_policy_kind, resolve_data_dir,
     resolve_token_encryption_key, rmcp_server, router, run_cli_command, run_doctor, run_setup,
-    run_watch,
+    run_watch, serve_http,
 };
 
 fn main() -> Result<()> {
@@ -117,9 +117,7 @@ async fn serve_mcp(config: Config) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     info!(bind = %bind, "MCP HTTP server listening");
 
-    axum::serve(listener, app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    serve_http(listener, app, shutdown_signal()).await?;
     Ok(())
 }
 
