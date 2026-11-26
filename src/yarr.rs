@@ -286,7 +286,7 @@ impl YarrClient {
     /// qBittorrent's WebUI API (`/api/v2/torrents/{add,start,stop,delete}`)
     /// consumes form fields, never JSON. This routes through the dedicated
     /// cookie-store client and establishes/refreshes the SID session first, so it
-    /// is the qBittorrent counterpart to [`post_json`](Self::post_json). The
+    /// is the qBittorrent counterpart to [`request_json`](Self::request_json). The
     /// `form` pairs are percent-encoded by reqwest, so callers never `format!`
     /// untrusted values into the body.
     pub async fn send_form_post(
