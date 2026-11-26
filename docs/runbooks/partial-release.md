@@ -143,8 +143,8 @@ assets and npm state when rerun for the same immutable tag.
 
 ### Public release, npm missing
 
-This is the current `v2.1.0` incident tracked in
-[issue #80](https://github.com/dinglebear-ai/yarr/issues/80).
+The `v2.1.0` incident tracked in
+[issue #80](https://github.com/dinglebear-ai/yarr/issues/80) was this case.
 
 1. Do not publish another version, move the tag, or loosen plugin pins.
 2. Attach the evidence above to the incident.
