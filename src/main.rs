@@ -22,8 +22,9 @@ use tracing_subscriber::{EnvFilter, fmt};
 use yarr::{
     AppState, AuthPolicy, AuthPolicyKind, Command, Config, READ_SCOPE, RunMode, WRITE_SCOPE,
     YarrClient, YarrService, acquire_oauth_instance_lock, apply_plugin_options, cli_usage,
-    init_logging, parse_args_configured, resolve_auth_policy_kind, resolve_data_dir, rmcp_server,
-    router, run_cli_command, run_doctor, run_setup, run_watch,
+    init_logging, parse_args_configured, resolve_auth_policy_kind, resolve_data_dir,
+    resolve_token_encryption_key, rmcp_server, router, run_cli_command, run_doctor, run_setup,
+    run_watch,
 };
 
 fn main() -> Result<()> {
@@ -212,7 +213,10 @@ async fn build_auth_policy(config: &Config) -> Result<AuthPolicy> {
                 .disable_static_token_with_oauth(config.mcp.auth.disable_static_token_with_oauth)
                 .resource_path("/mcp")
                 .enable_dynamic_registration(true)
-                .build_from_sources(auth_config_sources(config))
+                .build_from_sources(auth_config_sources(
+                    config,
+                    &resolve_token_encryption_key(&config.mcp.auth)?,
+                ))
                 .map_err(|e| anyhow::anyhow!("OAuth config error: {e}"))?;
             let auth_state = lab_auth::state::AuthState::new(auth_cfg)
                 .await
@@ -228,10 +232,14 @@ async fn build_auth_policy(config: &Config) -> Result<AuthPolicy> {
     }
 }
 
-fn auth_config_sources(config: &Config) -> Vec<(String, String)> {
+fn auth_config_sources(config: &Config, token_encryption_key: &str) -> Vec<(String, String)> {
     let auth = &config.mcp.auth;
     let mut vars = vec![
         ("YARR_MCP_AUTH_MODE".into(), "oauth".into()),
+        (
+            "YARR_MCP_TOKEN_ENCRYPTION_KEY".into(),
+            token_encryption_key.to_owned(),
+        ),
         ("YARR_MCP_AUTH_SQLITE_PATH".into(), auth.sqlite_path.clone()),
         ("YARR_MCP_AUTH_KEY_PATH".into(), auth.key_path.clone()),
         (
