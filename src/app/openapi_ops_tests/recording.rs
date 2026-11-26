@@ -64,13 +64,22 @@ async fn recording_service() -> (
         .with_state(sender);
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     let config = YarrConfig {
-        services: vec![ServiceConfig {
-            name: "sonarr".into(),
-            kind: ServiceKind::Sonarr,
-            base_url: format!("http://{address}"),
-            api_key: Some("secret".into()),
-            ..ServiceConfig::default()
-        }],
+        services: vec![
+            ServiceConfig {
+                name: "sonarr".into(),
+                kind: ServiceKind::Sonarr,
+                base_url: format!("http://{address}"),
+                api_key: Some("secret".into()),
+                ..ServiceConfig::default()
+            },
+            ServiceConfig {
+                name: "plex".into(),
+                kind: ServiceKind::Plex,
+                base_url: format!("http://{address}"),
+                token: Some("plex-token".into()),
+                ..ServiceConfig::default()
+            },
+        ],
     };
     let client = YarrClient::new(&config).unwrap();
     (crate::app::YarrService::new(client, config), receiver)

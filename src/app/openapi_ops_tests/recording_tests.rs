@@ -176,3 +176,62 @@ async fn text_and_binary_response_bytes_are_preserved() {
         requests.recv().await.unwrap();
     }
 }
+
+#[tokio::test]
+async fn plex_list_content_sends_transport_client_identifier() {
+    let (service, mut requests) = recording_service().await;
+    service
+        .execute_operation("plex", "list_content", &json!({"sectionId": 1}))
+        .await
+        .unwrap();
+    let request = requests.recv().await.unwrap();
+    assert!(request.uri.starts_with("/library/sections/1/all"));
+    let identifiers = request
+        .headers
+        .get_all("x-plex-client-identifier")
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(identifiers, ["yarr"]);
+    assert_eq!(request.headers["x-plex-product"], "yarr");
+}
+
+#[tokio::test]
+async fn plex_caller_client_identifier_is_sent_once_unchanged() {
+    let (service, mut requests) = recording_service().await;
+    service
+        .execute_operation(
+            "plex",
+            "list_content",
+            &json!({"sectionId": 1, "X-Plex-Client-Identifier": "caller-id"}),
+        )
+        .await
+        .unwrap();
+    let request = requests.recv().await.unwrap();
+    let identifiers = request
+        .headers
+        .get_all("x-plex-client-identifier")
+        .iter()
+        .collect::<Vec<_>>();
+    assert_eq!(identifiers, ["caller-id"]);
+}
+
+#[tokio::test]
+async fn plex_passthrough_requests_json() {
+    let (service, mut requests) = recording_service().await;
+    service
+        .api_get("plex", "/library/sections/1/all")
+        .await
+        .unwrap();
+    let request = requests.recv().await.unwrap();
+    assert_eq!(request.headers["accept"], "application/json");
+    assert_eq!(request.headers["x-plex-client-identifier"], "yarr");
+
+    service
+        .api_get("sonarr", "/api/v3/system/status")
+        .await
+        .unwrap();
+    let request = requests.recv().await.unwrap();
+    // reqwest's default `*/*`; only Plex passthrough asks for JSON.
+    assert_eq!(request.headers["accept"], "*/*");
+    assert!(request.headers.get("x-plex-client-identifier").is_none());
+}

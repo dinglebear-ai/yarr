@@ -19,7 +19,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -145,7 +145,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -263,7 +263,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -417,7 +417,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -751,7 +751,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -893,7 +893,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1019,7 +1019,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1153,7 +1153,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1282,7 +1282,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1480,7 +1480,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1654,7 +1654,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1796,7 +1796,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -1930,7 +1930,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2056,7 +2056,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2198,7 +2198,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2316,7 +2316,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2434,7 +2434,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2552,7 +2552,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2691,7 +2691,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2809,7 +2809,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -2927,7 +2927,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3053,7 +3053,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3171,7 +3171,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3326,7 +3326,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3497,7 +3497,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3631,7 +3631,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3792,7 +3792,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -3982,7 +3982,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4115,7 +4115,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4294,7 +4294,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4420,7 +4420,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4546,7 +4546,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4672,7 +4672,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4790,7 +4790,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -4908,7 +4908,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5026,7 +5026,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5144,7 +5144,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5270,7 +5270,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5396,7 +5396,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5522,7 +5522,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5656,7 +5656,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5774,7 +5774,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -5900,7 +5900,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6026,7 +6026,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6144,7 +6144,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6270,7 +6270,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6396,7 +6396,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6514,7 +6514,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6632,7 +6632,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6766,7 +6766,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -6900,7 +6900,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7055,7 +7055,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7213,7 +7213,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7347,7 +7347,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7521,7 +7521,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7647,7 +7647,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7765,7 +7765,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -7883,7 +7883,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8009,7 +8009,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8127,7 +8127,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8261,7 +8261,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8400,7 +8400,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8539,7 +8539,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8665,7 +8665,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8783,7 +8783,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -8909,7 +8909,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9027,7 +9027,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9166,7 +9166,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9284,7 +9284,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9402,7 +9402,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9528,7 +9528,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9646,7 +9646,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9780,7 +9780,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -9898,7 +9898,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10024,7 +10024,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10142,7 +10142,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10276,7 +10276,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10415,7 +10415,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10549,7 +10549,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10675,7 +10675,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10793,7 +10793,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -10911,7 +10911,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11029,7 +11029,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11155,7 +11155,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11275,7 +11275,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11393,7 +11393,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11511,7 +11511,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11646,7 +11646,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11788,7 +11788,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -11906,7 +11906,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12024,7 +12024,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12179,7 +12179,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12345,7 +12345,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12479,7 +12479,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12622,7 +12622,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12748,7 +12748,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12866,7 +12866,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -12992,7 +12992,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13125,7 +13125,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13347,7 +13347,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13467,7 +13467,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13585,7 +13585,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13703,7 +13703,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13839,7 +13839,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -13982,7 +13982,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14164,7 +14164,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14282,7 +14282,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14416,7 +14416,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14534,7 +14534,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14692,7 +14692,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14810,7 +14810,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -14936,7 +14936,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15062,7 +15062,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15180,7 +15180,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15306,7 +15306,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15440,7 +15440,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15558,7 +15558,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15676,7 +15676,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15794,7 +15794,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -15928,7 +15928,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16067,7 +16067,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16185,7 +16185,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16319,7 +16319,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16461,7 +16461,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16608,7 +16608,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16734,7 +16734,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16844,7 +16844,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -16906,7 +16906,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17032,7 +17032,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17181,7 +17181,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17331,7 +17331,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17481,7 +17481,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17607,7 +17607,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17751,7 +17751,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -17877,7 +17877,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18003,7 +18003,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18137,7 +18137,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18276,7 +18276,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18394,7 +18394,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18514,7 +18514,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18624,7 +18624,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18771,7 +18771,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -18886,7 +18886,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19055,7 +19055,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19234,7 +19234,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19373,7 +19373,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19499,7 +19499,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19640,7 +19640,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19806,7 +19806,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -19924,7 +19924,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -20048,7 +20048,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -20198,7 +20198,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -20366,7 +20366,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -20497,7 +20497,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -20647,7 +20647,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -20793,7 +20793,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21151,7 +21151,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21285,7 +21285,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21427,7 +21427,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21553,7 +21553,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21687,7 +21687,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21813,7 +21813,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -21947,7 +21947,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22081,7 +22081,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22215,7 +22215,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22349,7 +22349,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22467,7 +22467,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22607,7 +22607,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22741,7 +22741,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -22904,7 +22904,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23038,7 +23038,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23156,7 +23156,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23274,7 +23274,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23392,7 +23392,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23518,7 +23518,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23644,7 +23644,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -23785,7 +23785,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24015,7 +24015,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24133,7 +24133,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24251,7 +24251,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24377,7 +24377,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24503,7 +24503,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24637,7 +24637,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24779,7 +24779,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -24905,7 +24905,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25031,7 +25031,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25165,7 +25165,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25291,7 +25291,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25409,7 +25409,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25551,7 +25551,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25677,7 +25677,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25805,7 +25805,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -25947,7 +25947,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -26065,7 +26065,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -26183,7 +26183,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -26301,7 +26301,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -26427,7 +26427,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -26603,7 +26603,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -27006,7 +27006,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -27124,7 +27124,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -27242,7 +27242,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -27381,7 +27381,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -27522,7 +27522,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -27788,7 +27788,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28146,7 +28146,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28272,7 +28272,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28398,7 +28398,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28516,7 +28516,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28650,7 +28650,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28772,7 +28772,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -28922,7 +28922,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -29070,7 +29070,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -29292,7 +29292,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -29410,7 +29410,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -29536,7 +29536,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
@@ -29700,7 +29700,7 @@ pub static OPERATIONS: &[OperationSpec] = &[
             ParameterSpec {
                 name: "X-Plex-Client-Identifier",
                 location: ParameterLocation::Header,
-                required: true,
+                required: false,
                 schema: "{\"example\":\"abc123\",\"type\":\"string\"}",
                 style: ParameterStyle::Simple,
                 explode: false,
