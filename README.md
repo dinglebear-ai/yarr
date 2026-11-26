@@ -101,7 +101,7 @@ happens to be tagged `latest`. Verify the exact release version exists on npm
 before using it:
 
 ```bash
-YARR_VERSION=2.1.0
+YARR_VERSION=2.2.2
 npm view "@dinglebear/yarr@${YARR_VERSION}" version
 npx -y "@dinglebear/yarr@${YARR_VERSION}" mcp
 # Or, after the same availability check:
@@ -109,12 +109,9 @@ npm i -g "@dinglebear/yarr@${YARR_VERSION}"
 ```
 
 Never use an unpinned `npx @dinglebear/yarr` or `@latest` in an MCP manifest: npm may
-still point at an older launcher after a partial release. At the time of this
-documentation refresh, GitHub release `v2.1.0` is public but
-`@dinglebear/yarr@2.1.0` is not yet available on npm; recovery is tracked in
-[issue #80](https://github.com/dinglebear-ai/yarr/issues/80). Use the native
-installer, a verified release archive, a source build, or the independent
-Unraid package until the exact npm version resolves.
+still point at an older launcher after a partial release. If the exact version
+does not resolve, use the native installer, a verified release archive, a source
+build, or the independent Unraid package instead of loosening the pin.
 
 ## Unraid Plugin
 
@@ -180,10 +177,10 @@ The full plugin starts the exact launcher pinned in its manifest. Confirm that
 version exists before installing or debugging the plugin:
 
 ```bash
-npm view @dinglebear/yarr@2.1.0 version
+npm view @dinglebear/yarr@2.2.2 version
 ```
 
-Until issue #80 is resolved, the full plugin cannot start from npm. The
+If that check fails, the full plugin cannot start from npm. The
 service-specific skills-only plugins do not depend on that launcher and remain
 available for direct upstream workflows.
 
@@ -535,7 +532,7 @@ the npm path after the exact coupled version resolves:
 curl -fsSL https://raw.githubusercontent.com/dinglebear-ai/yarr/main/install.sh | bash
 yarr --version
 
-YARR_VERSION=2.1.0
+YARR_VERSION=2.2.2
 npm view "@dinglebear/yarr@${YARR_VERSION}" version
 npx -y "@dinglebear/yarr@${YARR_VERSION}" mcp
 ```
@@ -595,8 +592,8 @@ gateway when exposed outside loopback.
   `codemode.describe(...)`; generated names follow upstream OpenAPI operation
   IDs after normalization.
 - `npm` or the full plugin reports `E404`/`ETARGET`: check the exact pinned
-  launcher with `npm view @dinglebear/yarr@2.1.0 version`. Do not fall back to unpinned
-  `latest`; use the native binary while issue #80 is open.
+  launcher with `npm view @dinglebear/yarr@2.2.2 version`. Do not fall back to unpinned
+  `latest`; use the native binary until the exact version resolves.
 
 ## Related Servers
 
