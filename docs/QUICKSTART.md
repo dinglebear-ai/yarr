@@ -55,15 +55,13 @@ The launcher and native release use one version. Never use an unpinned
 `npx yarr-mcp` or `@latest` in automation or an MCP manifest.
 
 ```bash
-YARR_VERSION=2.1.0
+YARR_VERSION=2.2.2
 npm view "@dinglebear/yarr@${YARR_VERSION}" version
 npx -y "@dinglebear/yarr@${YARR_VERSION}" --version
 ```
 
 If `npm view` returns `E404` or `ETARGET`, stop. Use the native binary or
-source build instead of falling back to another npm version. GitHub release
-`v2.1.0` currently exists while `@dinglebear/yarr@2.1.0` is missing; recovery is
-tracked in [issue #80](https://github.com/dinglebear-ai/yarr/issues/80).
+source build instead of falling back to another npm version.
 
 ### Unraid
 

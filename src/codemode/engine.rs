@@ -12,7 +12,10 @@
 //! draining the microtask queue settles the whole chain — no async JS runtime is
 //! required.
 
-use std::time::Instant;
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 use rquickjs::{CatchResultExt, Context, Function, Runtime};
 
@@ -25,6 +28,15 @@ use rquickjs::{CatchResultExt, Context, Function, Runtime};
 /// (it cannot borrow the caller's stack); the real caller boxes a closure that
 /// captures a channel sender (which is `Send`).
 pub type ToolCaller = Box<dyn Fn(&str, &str) -> Result<String, String> + Send>;
+
+/// One actual `callTool` bridge invocation observed during a sandbox-only
+/// preflight. The host parses these records with the same action parser used at
+/// runtime; planning never relies on JavaScript source-text matching.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannedToolCall {
+    pub id: String,
+    pub params_json: String,
+}
 
 /// Synchronous bridge for `writeArtifact(path, content, options_json)`: returns a
 /// receipt JSON string (`Ok`) or an error message (`Err`, thrown into JS). Same
@@ -211,6 +223,63 @@ pub fn run(
             logs,
         })
     })
+}
+
+/// Run the script in the same QuickJS sandbox without dispatching host actions,
+/// returning the call sequence the script actually reaches. Each call receives
+/// `null`, allowing independent sequential calls to be collected while making no
+/// upstream request or artifact write.
+#[cfg(test)]
+pub fn plan_tool_calls(
+    user_code: &str,
+    preamble: &str,
+    limits: &EngineLimits,
+    input_json: Option<&str>,
+) -> Result<Vec<PlannedToolCall>, String> {
+    plan_tool_calls_with_caller(
+        user_code,
+        preamble,
+        limits,
+        input_json,
+        Box::new(|_, _| Ok("null".to_owned())),
+    )
+}
+
+/// Execute the planning sandbox while routing each call through `on_call`.
+/// The caller may return real read results so data-dependent JavaScript branches
+/// settle exactly as they would at runtime, while withholding every mutating
+/// operation. Artifact writes and semantic embedding calls are inert in preflight.
+pub fn plan_tool_calls_with_caller(
+    user_code: &str,
+    preamble: &str,
+    limits: &EngineLimits,
+    input_json: Option<&str>,
+    on_call: ToolCaller,
+) -> Result<Vec<PlannedToolCall>, String> {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let recorded = Arc::clone(&calls);
+    run(
+        user_code,
+        preamble,
+        limits,
+        Box::new(move |id, params_json| {
+            recorded
+                .lock()
+                .map_err(|_| "codemode preflight state is unavailable".to_string())?
+                .push(PlannedToolCall {
+                    id: id.to_owned(),
+                    params_json: params_json.to_owned(),
+                });
+            on_call(id, params_json)
+        }),
+        Box::new(|_, _, _| Ok("null".to_owned())),
+        Box::new(|_| Ok("{}".to_owned())),
+        input_json,
+    )?;
+    calls
+        .lock()
+        .map(|calls| calls.clone())
+        .map_err(|_| "codemode preflight state is unavailable".to_string())
 }
 
 /// Drain the QuickJS job queue until empty, enforcing the deadline. Returns a

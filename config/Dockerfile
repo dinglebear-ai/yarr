@@ -58,10 +58,11 @@ RUN --mount=type=cache,id=yarr-cargo-registry,target=/usr/local/cargo/registry,s
     install -d -m 0750 -o 1000 -g 1000 /runtime-data
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-# The multi-platform manifest digest was resolved from gcr.io on 2026-07-16.
+# The multi-platform manifest digest was resolved from gcr.io on 2026-11-26
+# (refreshed for Debian security updates to glibc, OpenSSL, zlib and zstd).
 # Distroless cc-debian13 supplies glibc, libgcc, and CA certificates without a
 # package manager, shell, or general-purpose operating-system utilities.
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:d97bc0a941b8d4be647dc0ee75b264ddbb772f1ac5ba690a4309c00723b23775
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:29ee70762214fe8190cea04ef1c0a84a8365879e047ce8f911ae5a5ab2355fa2
 
 COPY --from=builder --chown=1000:1000 /usr/local/bin/yarr /usr/local/bin/yarr
 COPY --from=builder --chown=1000:1000 /runtime-data/ /data/

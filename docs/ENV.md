@@ -66,6 +66,7 @@ Only required when `YARR_MCP_AUTH_MODE=oauth`:
 | `YARR_MCP_GOOGLE_CLIENT_SECRET` | Google OAuth client secret. |
 | `YARR_MCP_AUTH_ADMIN_EMAIL` | Initial/admin email allowed by the OAuth flow. |
 | `YARR_MCP_AUTH_SQLITE_PATH` | Local OAuth SQLite path. Exactly one replica may own `${path}.instance.lock`; NFS/shared SQLite is unsupported. |
+| `YARR_MCP_TOKEN_ENCRYPTION_KEY` | Optional at-rest key for stored OAuth provider credentials and refresh replay state: 64 hex digits (`openssl rand -hex 32`) or 43 base64url characters. When unset, yarr generates one on first OAuth start and keeps it as `auth-token-encryption.key` beside `YARR_MCP_AUTH_KEY_PATH`; back that file up with `auth.db`, because losing it invalidates stored provider credentials. |
 
 ## Docker runtime
 

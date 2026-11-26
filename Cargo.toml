@@ -13,7 +13,7 @@ homepage = "https://github.com/dinglebear-ai/yarr#readme"
 repository = "https://github.com/dinglebear-ai/yarr"
 
 [workspace.dependencies]
-rmcp = { version = "=3.1.0", default-features = false }
+rmcp = { version = "=3.11.0", default-features = false }
 schemars = "=1.2.1"
 
 [workspace.lints.rustdoc]
@@ -95,7 +95,7 @@ chrono = { version = "0.4", features = ["serde"] }
 toml = "1.1"
 
 # OAuth + JWT
-lab-auth = { git = "https://github.com/dinglebear-ai/labby.git", rev = "53dbc4798567f3cacc0f740b3b4de5839ca39133", package = "labby-auth", features = ["http-axum"] }
+lab-auth = { git = "https://github.com/dinglebear-ai/labby.git", rev = "c45e57fefc05db94e8dc400fea96cf1d827aaed8", package = "labby-auth", features = ["http-axum"] }
 url = "2"
 
 # Logging
@@ -105,6 +105,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # HTTP client for upstream media services.
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "webpki-roots", "cookies", "multipart"] }
 base64 = "0.22"
+# OS randomness for the generated OAuth at-rest key (already in the graph via labby-auth).
+getrandom = "0.4"
 
 # Prometheus metrics layer for the unauthenticated /metrics endpoint.
 axum-prometheus = "0.10"

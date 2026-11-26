@@ -20,7 +20,7 @@ pub mod services;
 
 // Re-export the public config surface so existing `crate::config::*` import
 // paths keep working unchanged.
-pub use auth::{AuthConfig, AuthMode, acquire_oauth_instance_lock};
+pub use auth::{AuthConfig, AuthMode, acquire_oauth_instance_lock, resolve_token_encryption_key};
 pub use mcp::{McpConfig, ToolMode};
 pub use services::{ServiceConfig, ServiceKind, default_data_dir, resolve_data_dir};
 
@@ -131,6 +131,10 @@ impl Config {
             &mut config.mcp.auth.sqlite_path,
         );
         env_str("YARR_MCP_AUTH_KEY_PATH", &mut config.mcp.auth.key_path);
+        env_opt_str(
+            "YARR_MCP_TOKEN_ENCRYPTION_KEY",
+            &mut config.mcp.auth.token_encryption_key,
+        );
         env_parse(
             "YARR_MCP_AUTH_ACCESS_TOKEN_TTL_SECS",
             &mut config.mcp.auth.access_token_ttl_secs,

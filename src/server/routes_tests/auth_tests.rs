@@ -169,7 +169,8 @@ async fn authenticated_write_token_cannot_bypass_inner_destructive_elicitation()
             iat: now,
             jti: "inner-delete-test".into(),
             scope: "yarr:write".into(),
-            azp: String::new(),
+            azp: "yarr-test-client".into(),
+            ..Default::default()
         })
         .unwrap();
 

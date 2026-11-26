@@ -61,12 +61,10 @@ package before installing or debugging the full plugin:
 npm view @dinglebear/yarr@2.2.2 version
 ```
 
-At this documentation revision, GitHub release `v2.1.0` is public but
-`@dinglebear/yarr@2.2.2` returns `E404`; recovery is tracked in
-[issue #80](https://github.com/dinglebear-ai/yarr/issues/80). The full plugin
-cannot start from npm until that exact version resolves. Do not loosen the pin
-or silently use npm `latest` (currently an older launcher). Install the native
-Yarr binary directly for MCP use, or use a skills-only plugin meanwhile.
+If that check returns `E404` or `ETARGET`, the full plugin cannot start from
+npm. Do not loosen the pin or silently fall back to npm `latest`. Install the
+native Yarr binary directly for MCP use, or use a skills-only plugin, until the
+exact version resolves.
 
 ## Installation
 
