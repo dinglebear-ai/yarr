@@ -50,6 +50,21 @@ pub(crate) trait CodeModeCallGuard: Send + Sync {
         &'a self,
         action: &'a YarrAction,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
+
+    /// Planning uses the same authorization contract by default. MCP guards can
+    /// override this to perform scope checks without prompting or mutating.
+    fn authorize_planning_action<'a>(
+        &'a self,
+        action: &'a YarrAction,
+    ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
+        self.authorize(action)
+    }
+
+    /// Return a canonical confirmation target for a destructive action. Planning
+    /// collects these targets without dispatching the action.
+    fn planned_destructive_target(&self, _action: &YarrAction) -> Option<String> {
+        None
+    }
 }
 
 impl YarrService {
@@ -329,6 +344,212 @@ impl YarrService {
         // instead of letting the blunt transport cap slice it mid-JSON.
         crate::codemode::truncate::fit_response(&mut response);
         Ok(response)
+    }
+
+    /// Preflight a Code Mode script without allowing any mutation. Real read
+    /// results may drive branches; destructive operations are collected as
+    /// canonical targets and every other mutation receives inert null.
+    pub(crate) async fn codemode_destructive_targets(
+        &self,
+        code: &str,
+        guard: std::sync::Arc<dyn CodeModeCallGuard>,
+    ) -> Result<Vec<String>> {
+        if code.trim().is_empty() {
+            anyhow::bail!("codemode requires a non-empty code string");
+        }
+        if code.len() > CODEMODE_MAX_CODE_BYTES {
+            anyhow::bail!(
+                "codemode code is {} bytes; the limit is {CODEMODE_MAX_CODE_BYTES}",
+                code.len()
+            );
+        }
+        let _permit = tokio::time::timeout(
+            self.codemode_queue_timeout,
+            self.codemode_slots.clone().acquire_owned(),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("codemode is busy; retry after the queue clears"))?
+        .map_err(|_| anyhow::anyhow!("codemode execution pool is unavailable"))?;
+        let deadline = Instant::now() + self.codemode_execution_timeout;
+        self.plan_script_destructive_targets(
+            code,
+            None,
+            false,
+            EngineLimits {
+                memory_bytes: CODEMODE_MEMORY_LIMIT,
+                stack_bytes: CODEMODE_STACK_LIMIT,
+                deadline,
+            },
+            guard,
+        )
+        .await
+        .map_err(anyhow::Error::msg)
+    }
+
+    pub(crate) async fn snippet_destructive_targets(
+        &self,
+        name: &str,
+        input: &Value,
+        guard: std::sync::Arc<dyn CodeModeCallGuard>,
+    ) -> Result<Vec<String>> {
+        let source = self.snippet_source_for_preflight(name)?;
+        let input_json = serde_json::to_string(input).map_err(|error| {
+            anyhow::anyhow!("snippet input is not serializable as JSON: {error}")
+        })?;
+        let _permit = tokio::time::timeout(
+            self.codemode_queue_timeout,
+            self.codemode_slots.clone().acquire_owned(),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("codemode is busy; retry after the queue clears"))?
+        .map_err(|_| anyhow::anyhow!("codemode execution pool is unavailable"))?;
+        let deadline = Instant::now() + self.codemode_execution_timeout;
+        self.plan_script_destructive_targets(
+            &source,
+            Some(&input_json),
+            true,
+            EngineLimits {
+                memory_bytes: CODEMODE_MEMORY_LIMIT,
+                stack_bytes: CODEMODE_STACK_LIMIT,
+                deadline,
+            },
+            guard,
+        )
+        .await
+        .map_err(anyhow::Error::msg)
+    }
+
+    async fn plan_script_destructive_targets(
+        &self,
+        code: &str,
+        input_json: Option<&str>,
+        in_snippet: bool,
+        limits: EngineLimits,
+        guard: std::sync::Arc<dyn CodeModeCallGuard>,
+    ) -> Result<Vec<String>, String> {
+        let preamble = self.codemode_preamble();
+        let code = code.to_owned();
+        let input_json = input_json.map(str::to_owned);
+        let deadline = limits.deadline;
+        let tokio_deadline = tokio::time::Instant::from_std(deadline);
+        let (tx, mut rx) = mpsc::channel::<ToolRequest>(8);
+        let handle = tokio::task::spawn_blocking(move || {
+            codemode::plan_tool_calls_with_caller(
+                &code,
+                &preamble,
+                &limits,
+                input_json.as_deref(),
+                Box::new(move |id, params_json| {
+                    let (reply, receive) = oneshot::channel();
+                    tx.blocking_send(ToolRequest {
+                        id: id.to_owned(),
+                        params_json: params_json.to_owned(),
+                        reply,
+                    })
+                    .map_err(|_| "codemode planning dispatcher unavailable".to_owned())?;
+                    receive
+                        .blocking_recv()
+                        .map_err(|_| "codemode planning dispatch was dropped".to_owned())?
+                }),
+            )
+        });
+        let mut targets = Vec::new();
+        while let Some(request) = rx.recv().await {
+            let outcome = tokio::time::timeout_at(
+                tokio_deadline,
+                self.codemode_plan_dispatch(
+                    &request.id,
+                    &request.params_json,
+                    in_snippet,
+                    std::sync::Arc::clone(&guard),
+                    &mut targets,
+                    deadline,
+                ),
+            )
+            .await
+            .unwrap_or_else(|_| Err("codemode absolute deadline exceeded".to_owned()));
+            let _ = request.reply.send(outcome);
+        }
+        handle
+            .await
+            .map_err(|error| format!("codemode planning task panicked: {error}"))??;
+        Ok(targets)
+    }
+
+    async fn codemode_plan_dispatch(
+        &self,
+        id: &str,
+        params_json: &str,
+        in_snippet: bool,
+        guard: std::sync::Arc<dyn CodeModeCallGuard>,
+        targets: &mut Vec<String>,
+        deadline: std::time::Instant,
+    ) -> Result<String, String> {
+        if id == "codemode" {
+            return Err("codemode cannot invoke codemode".to_owned());
+        }
+        if in_snippet && id == "snippet_run" {
+            return Err(
+                "a snippet cannot run another snippet (codemode.run is one level deep)".to_owned(),
+            );
+        }
+        let mut args = match serde_json::from_str(params_json)
+            .map_err(|error| format!("invalid params for {id}: {error}"))?
+        {
+            Value::Object(args) => args,
+            _ => return Err(format!("params for {id} must be a JSON object")),
+        };
+        args.insert("action".to_owned(), Value::String(id.to_owned()));
+        let action =
+            YarrAction::from_mcp_args(&Value::Object(args)).map_err(|error| error.to_string())?;
+        guard.authorize_planning_action(&action).await?;
+        if let Some(target) = guard.planned_destructive_target(&action) {
+            targets.push(target);
+            return Ok("null".to_owned());
+        }
+        if let YarrAction::SnippetRun { name, input } = &action {
+            let source = self
+                .snippet_source_for_preflight(name)
+                .map_err(|error| error.to_string())?;
+            let input_json = serde_json::to_string(input)
+                .map_err(|error| format!("snippet input is not serializable as JSON: {error}"))?;
+            targets.extend(
+                Box::pin(self.plan_script_destructive_targets(
+                    &source,
+                    Some(&input_json),
+                    true,
+                    EngineLimits {
+                        memory_bytes: CODEMODE_MEMORY_LIMIT,
+                        stack_bytes: CODEMODE_STACK_LIMIT,
+                        deadline,
+                    },
+                    guard,
+                ))
+                .await?,
+            );
+            return Ok("null".to_owned());
+        }
+        if self.codemode_action_mutates(&action) {
+            return Ok("null".to_owned());
+        }
+        self.codemode_dispatch(id, params_json, in_snippet, Some(guard))
+            .await
+    }
+
+    fn codemode_action_mutates(&self, action: &YarrAction) -> bool {
+        match action {
+            YarrAction::Op { service, op, .. } => self
+                .kind_of(service)
+                .ok()
+                .flatten()
+                .and_then(|kind| crate::openapi::find_operation(kind, op))
+                .map(|spec| !spec.method.is_read())
+                .unwrap_or(true),
+            YarrAction::Curated { name, .. } => {
+                crate::actions::curated_command(name).is_some_and(|command| command.mutates)
+            }
+            _ => crate::actions::action_spec(action.name()).is_some_and(|spec| spec.mutates),
+        }
     }
 }
 
