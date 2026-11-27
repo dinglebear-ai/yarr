@@ -46,7 +46,7 @@ name = "yarr"
 # the run dies with "value at path package.version is not tagged". This line
 # is also the first `^version` match that bump-version.sh and
 # check-version-sync.sh read. See xtask/Cargo.toml for the same rule.
-version = "2.2.2"
+version = "2.3.0"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true

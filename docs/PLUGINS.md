@@ -44,7 +44,7 @@ stdio through the same exact launcher specification:
 ```json
 {
   "command": "npx",
-  "args": ["-y", "@dinglebear/yarr@2.2.2", "mcp"]
+  "args": ["-y", "@dinglebear/yarr@2.3.0", "mcp"]
 }
 ```
 
@@ -58,7 +58,7 @@ A manifest pin proves intent, not registry availability. Verify the exact
 package before installing or debugging the full plugin:
 
 ```bash
-npm view @dinglebear/yarr@2.2.2 version
+npm view @dinglebear/yarr@2.3.0 version
 ```
 
 If that check returns `E404` or `ETARGET`, the full plugin cannot start from
