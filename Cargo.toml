@@ -3,7 +3,6 @@ members = [".", "xtask"]
 resolver = "3"
 
 [workspace.package]
-version = "2.2.2"
 edition = "2024"
 rust-version = "1.97.1"
 authors = ["dinglebear.ai <hello@dinglebear.ai>"]
@@ -41,7 +40,13 @@ doc_markdown = "warn"
 
 [package]
 name = "yarr"
-version.workspace = true
+# Literal, NOT version.workspace = true (and no version in [workspace.package]).
+# release-please's Rust updater rewrites `package.version` in place in every
+# workspace manifest; an inherited version has no literal value to write, so
+# the run dies with "value at path package.version is not tagged". This line
+# is also the first `^version` match that bump-version.sh and
+# check-version-sync.sh read. See xtask/Cargo.toml for the same rule.
+version = "2.2.2"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
