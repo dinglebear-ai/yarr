@@ -3,7 +3,7 @@
   "name": "ai.dinglebear/yarr",
   "title": "Yarr MCP",
   "description": "Self-hosted media fleet operations across Sonarr, Radarr, Plex, and related apps over MCP and CLI.",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "websiteUrl": "https://github.com/dinglebear-ai/yarr",
   "repository": {
     "url": "https://github.com/dinglebear-ai/yarr",
@@ -25,7 +25,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@dinglebear/yarr",
-      "version": "2.2.2",
+      "version": "2.3.0",
       "runtimeHint": "npx",
       "packageArguments": [
         {

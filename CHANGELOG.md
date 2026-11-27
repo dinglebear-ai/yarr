@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0](https://github.com/dinglebear-ai/yarr/compare/v2.2.2...v2.3.0) (2026-11-27)
+
+
+### Added
+
+* **mcp:** align yarr with MCP 2026-07-28 ([#132](https://github.com/dinglebear-ai/yarr/issues/132)) ([92d1b7d](https://github.com/dinglebear-ai/yarr/commit/92d1b7d4fb66c584b5ded181ee3fe625a7bda07d))
+* **plex:** search and download on-demand subtitles ([#153](https://github.com/dinglebear-ai/yarr/issues/153)) ([9305dde](https://github.com/dinglebear-ai/yarr/commit/9305dde7315b7321d8ddd000267271ba2cdf079f))
+* **release:** publish canonical MCP Registry metadata ([#113](https://github.com/dinglebear-ai/yarr/issues/113)) ([4c1ebe5](https://github.com/dinglebear-ai/yarr/commit/4c1ebe5868030dc8b8744faf49d4b811f0a07f02))
+
+
+### Fixed
+
+* **ci:** clear dependency advisories and refresh the scanned runtime image ([#148](https://github.com/dinglebear-ai/yarr/issues/148)) ([b6dc282](https://github.com/dinglebear-ai/yarr/commit/b6dc2828a6b35ba2550599accdb66e9575571a28))
+* **ci:** preserve existing Kache config ([#105](https://github.com/dinglebear-ai/yarr/issues/105)) ([33904cd](https://github.com/dinglebear-ai/yarr/commit/33904cdb71fe6df3b95745c29a307d77d25c956c))
+* **ci:** remove expression syntax from the s3-endpoint description ([#124](https://github.com/dinglebear-ai/yarr/issues/124)) ([2e24221](https://github.com/dinglebear-ai/yarr/commit/2e24221a49e5d1706f66d72203e1f0e02ce68875))
+* **ci:** remove leaked internal identifiers from setup-rust-kache ([#123](https://github.com/dinglebear-ai/yarr/issues/123)) ([d9c6585](https://github.com/dinglebear-ai/yarr/commit/d9c6585992f9ac5d7eb4518c51813049ff881402))
+* **compose:** keep selected env file optional ([#116](https://github.com/dinglebear-ai/yarr/issues/116)) ([f7cfe03](https://github.com/dinglebear-ai/yarr/commit/f7cfe033eeb2b82c69893123a462e778a37728c0))
+* **compose:** make env and bindings configurable ([#114](https://github.com/dinglebear-ai/yarr/issues/114)) ([1529194](https://github.com/dinglebear-ai/yarr/commit/15291940bcb6867f40028abf7309284bd800dab1))
+* **docker:** match builder to Rust 1.97.1 ([#125](https://github.com/dinglebear-ai/yarr/issues/125)) ([ee3f842](https://github.com/dinglebear-ai/yarr/commit/ee3f8424eed96fc6bd94bf7ae6737a3f7e660851))
+* **plex:** send client identifier; JSON passthrough ([#144](https://github.com/dinglebear-ai/yarr/issues/144)) ([2925730](https://github.com/dinglebear-ai/yarr/commit/292573031a3bc42abb23cb23409406c95d03633f))
+* **release:** give the root package a literal version so release-please can update it ([#151](https://github.com/dinglebear-ai/yarr/issues/151)) ([0b081aa](https://github.com/dinglebear-ai/yarr/commit/0b081aa65f454f37b339b761d2ba80899404be49))
+* **release:** give xtask a literal version so release-please can walk the workspace ([#121](https://github.com/dinglebear-ai/yarr/issues/121)) ([a6a8b74](https://github.com/dinglebear-ai/yarr/commit/a6a8b744668e76dc4ebfdf7d6a23ff0becaeb7eb))
+* **server:** serve with ConnectInfo so OAuth /authorize stops returning 500 ([#149](https://github.com/dinglebear-ai/yarr/issues/149)) ([13562d7](https://github.com/dinglebear-ai/yarr/commit/13562d701e1da5dbccc75cbd4509c94601bead7f)), closes [#146](https://github.com/dinglebear-ai/yarr/issues/146)
+* validate OAuth static token scopes ([#104](https://github.com/dinglebear-ai/yarr/issues/104)) ([bb7d339](https://github.com/dinglebear-ai/yarr/commit/bb7d339fc119609257f5873d824419d36f7b96eb))
+
+
+### Changed
+
+* **ci:** emit line-tables-only debuginfo in dev builds ([#122](https://github.com/dinglebear-ai/yarr/issues/122)) ([ff87442](https://github.com/dinglebear-ai/yarr/commit/ff87442e7d00e4f5adc37a90b83c1c931336c357))
+
 ## [Unreleased]
 
 ### Added
